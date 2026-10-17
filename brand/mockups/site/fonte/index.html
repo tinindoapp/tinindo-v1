@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tinindo — mockup do site (v0.1)</title>
+<link rel="stylesheet" href="../../../tokens/tokens.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--tn-bg);color:var(--tn-text);font:400 16px/1.5 var(--tn-font-sans);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--tn-font-display);letter-spacing:-.025em;line-height:1.06;margin:0}
+p{margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding:0 32px}
+.eyebrow{font:600 12px/1 var(--tn-font-sans);letter-spacing:.08em;text-transform:uppercase;color:var(--tn-accent-text);display:inline-flex;gap:8px;align-items:center}
+.eyebrow::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--tn-brand-accent)}
+.dark .eyebrow{color:#FF9A7A}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 26px;border-radius:999px;font:600 15px/1 var(--tn-font-sans);text-decoration:none;border:2px solid #111;background:#111;color:#fff;white-space:nowrap}
+.btn.ghost{background:transparent;color:#111;border-color:#BDBDB7}
+.btn.light{background:#fff;color:#111;border-color:#fff}
+.btn.sm{height:42px;padding:0 18px;font-size:14px}
+.ico{width:20px;height:20px;flex:none}
+.muted{color:var(--tn-text-muted)}
+/* header */
+header{position:sticky;top:0;z-index:10;background:rgba(247,247,245,.86);backdrop-filter:blur(16px);border-bottom:1px solid var(--tn-border)}
+header .wrap{display:flex;align-items:center;height:76px;gap:40px}
+header img{height:30px;display:block}
+header nav{display:flex;gap:30px;font-size:15px;font-weight:500}
+header nav a{color:#111;text-decoration:none}
+header .right{margin-left:auto;display:flex;gap:12px;align-items:center}
+header .login{font-size:15px;font-weight:500;color:#111;text-decoration:none;padding:0 8px}
+/* hero */
+.hero{padding:72px 0 40px}
+.hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
+.nw{white-space:nowrap}
+.hero h1{font-size:66px;font-weight:700;margin:22px 0 24px}
+.hero h1 em{font-style:normal;position:relative;white-space:nowrap}
+.hero h1 em::after{content:"";position:absolute;left:2%;right:2%;bottom:.02em;height:.14em;background:var(--tn-brand-accent);border-radius:99px;z-index:-1;opacity:.9}
+.hero .lead{font-size:20px;line-height:1.55;color:var(--tn-text-muted);max-width:30em}
+.hero .ctas{display:flex;gap:12px;margin-top:34px;flex-wrap:wrap}
+.hero .note{margin-top:22px;font-size:13px;color:var(--tn-text-muted);display:flex;gap:18px;flex-wrap:wrap}
+.hero .note span{display:inline-flex;gap:6px;align-items:center}
+.hero .note .ico{width:16px;height:16px;color:#111}
+/* phone */
+.stage{position:relative;height:640px;display:flex;justify-content:center}
+.stage .blob{position:absolute;inset:40px 0 0 30px;background:#111;border-radius:48px}
+.stage .sym{position:absolute;right:-6px;top:-10px;width:150px;transform:rotate(8deg)}
+.phone{position:relative;margin-top:0;width:318px;height:640px;border-radius:52px;background:#0B0B0B;padding:12px;box-shadow:0 40px 80px rgba(0,0,0,.28),0 0 0 2px #2A2A28 inset}
+.screen{width:100%;height:100%;border-radius:41px;background:#F7F7F5;overflow:hidden;position:relative;font-size:12px}
+.notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:92px;height:26px;border-radius:20px;background:#0B0B0B;z-index:3}
+.sb{display:flex;justify-content:space-between;padding:16px 26px 0;font-weight:600;font-size:12px}
+.app-h{padding:22px 18px 8px;display:flex;justify-content:space-between;align-items:center}
+.app-h b{font:700 22px/1.1 var(--tn-font-display);letter-spacing:-.02em}
+.av{width:34px;height:34px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px}
+.chipline{display:flex;gap:6px;padding:4px 18px 10px}
+.chip{padding:6px 10px;border-radius:99px;background:#EDEDEA;font-weight:600;font-size:11px}
+.chip.on{background:#111;color:#fff}
+.slot{margin:0 14px 8px;background:#fff;border:1px solid #DEDED9;border-radius:16px;padding:10px 12px;display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:center}
+.slot time{font-weight:700;font-variant-numeric:tabular-nums}
+.slot .t{font-weight:600}
+.slot .s{color:#62625D;font-size:11px}
+.slot.free{background:transparent;border:1.5px dashed #8C8C86}
+.tag{font-size:10px;font-weight:700;padding:4px 7px;border-radius:99px;display:inline-flex;gap:4px;align-items:center}
+.ok{background:#E0F2E6;color:#1F6E3A}.wait{background:#FDF0D2;color:#7A5200}
+.agent{position:absolute;left:10px;right:10px;bottom:76px;background:#111;color:#fff;border-radius:20px;padding:12px 14px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+.agent .k{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#FF9A7A;font-weight:700;display:flex;gap:6px;align-items:center}
+.agent .k::before{content:"";width:6px;height:6px;border-radius:50%;background:#FF6A3D}
+.agent p{margin:6px 0 10px;font-size:12px;line-height:1.4}
+.agent .row{display:flex;gap:6px}
+.agent .row span{flex:1;text-align:center;padding:8px 0;border-radius:99px;font-weight:700;font-size:11px;background:#fff;color:#111}
+.agent .row span+span{background:transparent;color:#fff;border:1px solid #4A4A46}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:64px;background:#fff;border-top:1px solid #DEDED9;display:flex;justify-content:space-around;align-items:center;padding-bottom:6px}
+.tabbar span{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;font-weight:600;color:#8C8C86}
+.tabbar span.on{color:#111}
+.tabbar .ico{width:20px;height:20px}
+/* categorias */
+.cats{padding:26px 0 70px}
+.cats .wrap{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.cats .lbl{font-size:14px;color:var(--tn-text-muted);margin-right:8px}
+.cat{padding:10px 16px;border-radius:99px;background:#fff;border:1px solid #DEDED9;font-weight:500;font-size:14px}
+/* seções */
+section.s{padding:96px 0}
+.sh{display:flex;justify-content:space-between;align-items:flex-end;gap:40px;margin-bottom:48px}
+.sh h2{font-size:52px;font-weight:700;max-width:13em;margin-top:16px}
+.sh p{max-width:26em;font-size:18px;color:var(--tn-text-muted)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.feat{background:#fff;border:1px solid #DEDED9;border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:14px;min-height:430px}
+.feat h3{font-size:24px;font-weight:700}
+.feat p{color:var(--tn-text-muted)}
+.feat .ui{margin-top:auto;background:#F7F7F5;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.mini{background:#fff;border:1px solid #DEDED9;border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mini b{font-variant-numeric:tabular-nums}
+.big{font:700 34px/1 var(--tn-font-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.bubble{background:#111;color:#fff;border-radius:16px 16px 16px 4px;padding:10px 12px;font-size:13px}
+.bubble.me{background:#fff;color:#111;border:1px solid #DEDED9;border-radius:16px 16px 4px 16px;align-self:flex-end}
+/* como funciona */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;counter-reset:st}
+.step{padding:30px;border-radius:28px;background:#EDEDEA;position:relative}
+.step .n{width:44px;height:44px;border-radius:50%;background:var(--tn-brand-accent);color:#111;font:700 18px/44px var(--tn-font-sans);text-align:center;margin-bottom:22px}
+.step h3{font-size:22px;margin-bottom:8px}
+/* contratante */
+.split{display:grid;grid-template-columns:.9fr 1.1fr;gap:56px;align-items:center}
+.search{background:#fff;border:1px solid #DEDED9;border-radius:20px;padding:8px;display:flex;gap:8px;align-items:center;box-shadow:var(--tn-shadow-md);margin:28px 0 14px}
+.search .f{flex:1;display:flex;gap:10px;align-items:center;padding:0 12px;height:48px;font-size:15px;color:#62625D}
+.search .f+.f{border-left:1px solid #DEDED9}
+.pros{display:flex;flex-direction:column;gap:12px}
+.pro{background:#fff;border:1px solid #DEDED9;border-radius:22px;padding:18px 20px;display:grid;grid-template-columns:56px 1fr auto;gap:16px;align-items:center}
+.pro .av{width:56px;height:56px;font-size:16px;background:#EDEDEA;color:#111}
+.pro h4{margin:0;font-size:17px}
+.pro .meta{font-size:13px;color:#62625D;margin-top:2px}
+.pro .facts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.f2{font-size:11.5px;font-weight:600;padding:5px 9px;border-radius:99px;background:#F7F7F5;border:1px solid #DEDED9;display:inline-flex;gap:5px;align-items:center}
+.f2 .ico{width:13px;height:13px}
+.f2.sp{background:#E1ECF9;border-color:#E1ECF9;color:#1D5AA6}
+.pro .go{font-weight:600;font-size:14px;display:flex;gap:6px;align-items:center}
+/* confiança (escura) */
+.dark{background:#111;color:#fff}
+.dark .sh p{color:#BDBDB7}
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.tr{border:1px solid #3A3A37;border-radius:24px;padding:26px;background:#1C1C1A}
+.tr .ico{width:26px;height:26px;color:#FF6A3D}
+.tr h3{font-size:20px;margin:18px 0 8px}
+.tr p{color:#BDBDB7;font-size:15px}
+.never{margin-top:22px;display:flex;gap:12px;align-items:center;color:#BDBDB7;font-size:15px}
+/* faq */
+.faq{display:grid;grid-template-columns:.8fr 1.2fr;gap:56px}
+.q{border-bottom:1px solid #DEDED9;padding:22px 0}
+.q h3{font-size:19px;font-weight:600;letter-spacing:-.01em;display:flex;justify-content:space-between;gap:20px}
+.q h3::after{content:"+";font-weight:400;color:#62625D}
+.q.open h3::after{content:"−"}
+.q p{margin-top:10px;color:var(--tn-text-muted);max-width:40em}
+/* cta */
+.cta{padding:0 0 96px}
+.cta .box{background:#111;color:#fff;border-radius:40px;padding:72px;display:grid;grid-template-columns:1.2fr .8fr;gap:40px;align-items:center;overflow:hidden;position:relative}
+.cta h2{font-size:56px;font-weight:700}
+.cta p{color:#BDBDB7;font-size:18px;margin:18px 0 28px;max-width:28em}
+.cta form{display:flex;gap:10px;background:#1C1C1A;border:1px solid #3A3A37;border-radius:999px;padding:6px;max-width:520px}
+.cta input{flex:1;background:transparent;border:0;color:#fff;font:inherit;padding:0 18px;outline:none}
+.cta .sym{width:330px;justify-self:end}
+.q:not(.open) p{display:none}
+footer{border-top:1px solid #DEDED9;padding:48px 0 40px;font-size:14px;color:var(--tn-text-muted)}
+footer .wrap{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:32px}
+footer img{height:28px}
+footer h5{margin:0 0 12px;font-size:13px;color:#111;font-weight:600}
+footer a{display:block;color:#4A4A46;text-decoration:none;margin-bottom:8px}
+.legal{max-width:1200px;margin:32px auto 0;padding:24px 32px 0;border-top:1px solid #DEDED9;display:flex;justify-content:space-between;font-size:12.5px}
+/* ---------- celular ---------- */
+@media (max-width:760px){
+ .wrap{padding:0 20px}
+ header .wrap{height:64px;gap:12px} header nav,header .login{display:none} header img{height:24px}
+ .hero{padding:36px 0 20px} .hero .wrap{grid-template-columns:1fr;gap:40px}
+ .hero h1{font-size:36px;margin:16px 0 18px} .hero .lead{font-size:17px}
+ .hero .ctas .btn{flex:1}
+ .stage{height:664px}
+ .stage .blob{inset:60px 0 0 0;border-radius:36px}
+ .cats{padding:10px 0 40px}
+ section.s{padding:64px 0}
+ .sh{flex-direction:column;align-items:flex-start;gap:16px;margin-bottom:28px} .sh h2{font-size:32px}
+ .grid3,.steps,.trust,.split,.faq{grid-template-columns:1fr}
+ .feat{min-height:0}
+ .search{flex-direction:column;align-items:stretch} .search .f+.f{border-left:0;border-top:1px solid #DEDED9}
+ .pro{grid-template-columns:48px 1fr} .pro .go{display:none} .pro .av{width:48px;height:48px}
+ .cta .box{grid-template-columns:1fr;padding:40px 26px;border-radius:28px} .cta h2{font-size:36px} .cta .sym{width:180px;justify-self:start;order:-1}
+ .cta form{flex-direction:column;border-radius:20px} .cta input{height:48px}
+ footer .wrap{grid-template-columns:1fr 1fr} footer .wrap>div:first-child{grid-column:1/-1}
+ .legal{flex-direction:column;gap:8px;padding:20px 20px 0}
+}
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none"><symbol id="ti-agenda" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></symbol><symbol id="ti-cliente" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></symbol><symbol id="ti-orcamento" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4M8.5 13h7M8.5 16.5h5"/></symbol><symbol id="ti-receber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="3"/><circle cx="12" cy="12" r="2.6"/></symbol><symbol id="ti-mensagem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5Z"/></symbol><symbol id="ti-espera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol><symbol id="ti-avaliacao" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.8 2.5 5.1 5.6.8-4 3.9.9 5.6L12 16.6l-5 2.6.9-5.6-4-3.9 5.6-.8Z"/></symbol><symbol id="ti-local" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></symbol><symbol id="ti-aprovar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.3 2.4 2.4 4.6-5"/></symbol><symbol id="ti-alerta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 21 19.5H3Z"/><path d="M12 10v4.2M12 17v.1"/></symbol><symbol id="ti-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.1"/></symbol><symbol id="ti-bloqueio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m6 6 12 12"/></symbol></svg>
+
+<header><div class="wrap">
+  <img src="../../../marca-pronta/01-logotipo-palavra/svg/tinindo-palavra-cor.svg" alt="Tinindo">
+  <nav><a href="#">Para profissionais</a><a href="#">Encontre um profissional</a><a href="#">Como funciona</a><a href="#">Perguntas</a></nav>
+  <div class="right"><a class="login" href="#">Entrar</a><a class="btn sm" href="#">Lista de espera</a></div>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <div>
+    <span class="eyebrow">Para quem faz o serviço e para quem contrata</span>
+    <h1>Serviço <span class="nw">bem-feito</span>, negócio <em>em ordem.</em></h1>
+    <p class="lead">Agenda, clientes e orçamentos num lugar só, com um assistente que prepara o trabalho e espera o seu “pode enviar”. E um jeito claro de encontrar quem faz <span class="nw">bem-feito</span> perto de você.</p>
+    <div class="ctas"><a class="btn" href="#">Sou profissional</a><a class="btn ghost" href="#">Quero contratar</a></div>
+    <div class="note"><span><svg class="ico"><use href="#ti-aprovar"/></svg>Nada é enviado sem a sua aprovação</span><span><svg class="ico"><use href="#ti-avaliacao"/></svg>Avaliações e identidade sempre separadas</span></div>
+  </div>
+  <div class="stage">
+    <div class="blob"></div>
+    <div class="phone"><div class="screen">
+      <div class="notch"></div>
+      <div class="sb"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="app-h"><div><div class="muted" style="font-size:11px">Terça, 13 de outubro</div><b>Seu dia</b></div><div class="av">MA</div></div>
+      <div class="chipline"><span class="chip on">Hoje</span><span class="chip">Semana</span><span class="chip">Mês</span></div>
+      <div class="slot"><time>08:00</time><div><div class="t">Instalação de chuveiro</div><div class="s">Ana C. · Casa 14</div></div><span class="tag ok">Confirmado</span></div>
+      <div class="slot"><time>10:00</time><div><div class="t">Visita para orçamento</div><div class="s">Roberto M. · Casa 7</div></div><span class="tag wait">Aguardando</span></div>
+      <div class="slot free"><time>11:00</time><div><div class="t">Horário livre</div><div class="s">1 hora</div></div><span></span></div>
+      <div class="slot"><time>14:00</time><div><div class="t">Troca de quadro de luz</div><div class="s">Cláudia P. · Casa 22</div></div><span class="tag ok">Confirmado</span></div>
+      <div class="agent"><div class="k">Assistente · recomendação</div><p>Há três horários livres na terça. Preparo uma mensagem para os clientes que autorizaram contato?</p><div class="row"><span>Ver mensagem</span><span>Agora não</span></div></div>
+      <div class="tabbar"><span class="on"><svg class="ico"><use href="#ti-agenda"/></svg>Agenda</span><span><svg class="ico"><use href="#ti-cliente"/></svg>Clientes</span><span><svg class="ico"><use href="#ti-orcamento"/></svg>Orçamentos</span><span><svg class="ico"><use href="#ti-mensagem"/></svg>Assistente</span></div>
+    </div></div>
+  </div>
+</div></section>
+
+<div class="cats"><div class="wrap"><span class="lbl">Feito para quem trabalha com</span><span class="cat">Elétrica</span><span class="cat">Hidráulica</span><span class="cat">Jardinagem</span><span class="cat">Piscinas</span><span class="cat">Limpeza</span><span class="cat">Montagem</span><span class="cat">Marcenaria</span><span class="cat">Beleza</span><span class="cat">e muito mais</span></div></div>
+
+<section class="s" style="padding-top:40px"><div class="wrap">
+  <div class="sh"><div><span class="eyebrow">Para profissionais</span><h2>Organize o negócio. Continue no seu ofício.</h2></div><p>Você faz o serviço. A Tinindo ajuda a cuidar do resto: horários, clientes, orçamentos e o que tem para receber.</p></div>
+  <div class="grid3">
+    <div class="feat"><h3>Agenda que você quase não precisa abrir</h3><p>Horários, bloqueios e lista de espera num lugar só. Pergunte ao assistente como está a sua semana.</p>
+      <div class="ui"><div class="mini"><span><b>08:00</b> Instalação de chuveiro</span><span class="tag ok">Confirmado</span></div><div class="mini"><span><b>10:00</b> Visita para orçamento</span><span class="tag wait">Aguardando</span></div><div class="mini" style="border-style:dashed"><span><b>11:00</b> Horário livre</span><span class="muted">Oferecer</span></div></div></div>
+    <div class="feat"><h3>Orçamentos e contas a receber</h3><p>Monte o orçamento, mande pelo celular e acompanhe o que já foi pago e o que falta.</p>
+      <div class="ui"><div class="muted" style="font-size:12px">A receber · 11 a 17 de outubro</div><div class="big">R$ 1.250,00</div><div class="mini"><span>3 serviços em aberto</span><b>ver</b></div></div></div>
+    <div class="feat"><h3>Um assistente que pede licença</h3><p>Ele consulta seus dados e prepara mensagens e lembretes. Nada sai sem você aprovar.</p>
+      <div class="ui"><div class="bubble me">Como está a minha terça?</div><div class="bubble">3 atendimentos e 3 horários livres. Preparo uma oferta para quem autorizou contato?</div><div class="mini"><span>Ação pendente de aprovação</span><b style="color:#7A5200">Revisar</b></div></div></div>
+  </div>
+</div></section>
+
+<section class="s" style="background:#fff;border-top:1px solid #DEDED9;border-bottom:1px solid #DEDED9"><div class="wrap">
+  <div class="sh"><div><span class="eyebrow">Como funciona</span><h2>Três passos para começar</h2></div><p>Sem planilha, sem curso. Você começa pelo que já usa no dia a dia.</p></div>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><h3>Crie seu perfil</h3><p class="muted">Conte o que você faz, onde atende e quando tem horário. Leva poucos minutos.</p></div>
+    <div class="step"><div class="n">2</div><h3>Traga seus clientes</h3><p class="muted">Importe seus contatos e a agenda que você já tem. Só recebe mensagem quem autorizou.</p></div>
+    <div class="step"><div class="n">3</div><h3>Deixe o assistente ajudar</h3><p class="muted">Lembretes, orçamentos e ofertas de horário preparados para você revisar e aprovar.</p></div>
+  </div>
+</div></section>
+
+<section class="s"><div class="wrap split">
+  <div><span class="eyebrow">Para quem contrata</span><h2 style="font-size:52px;margin-top:16px">Encontre quem faz <span class="nw">bem-feito</span>, perto de você.</h2>
+    <p class="muted" style="font-size:18px;margin-top:18px">Veja o que cada profissional faz, onde atende e quando tem horário. Peça o orçamento direto.</p>
+    <div class="search"><div class="f"><svg class="ico"><use href="#ti-orcamento"/></svg>Do que você precisa?</div><div class="f"><svg class="ico"><use href="#ti-local"/></svg>Seu bairro ou condomínio</div><a class="btn sm" href="#">Buscar</a></div>
+    <p class="muted" style="font-size:13px">Perfis ilustrativos. Nomes e avaliações são exemplos.</p></div>
+  <div class="pros">
+    <div class="pro"><div class="av">MA</div><div><h4>Marcos Andrade</h4><div class="meta">Eletricista residencial · Jardins · próximo horário: terça, 11:00</div>
+      <div class="facts"><span class="f2"><svg class="ico"><use href="#ti-avaliacao"/></svg>4,8 · 12 avaliações</span><span class="f2"><svg class="ico"><use href="#ti-cliente"/></svg>Identidade verificada</span><span class="f2"><svg class="ico"><use href="#ti-orcamento"/></svg>18 serviços pela Tinindo</span></div></div><span class="go">Ver perfil →</span></div>
+    <div class="pro"><div class="av">TN</div><div><h4>Teresa Nogueira</h4><div class="meta">Jardinagem · Jardins e arredores · próximo horário: quarta, 08:00</div>
+      <div class="facts"><span class="f2"><svg class="ico"><use href="#ti-info"/></svg>Perfil novo · ainda sem avaliações</span><span class="f2"><svg class="ico"><use href="#ti-cliente"/></svg>Identidade verificada</span></div></div><span class="go">Ver perfil →</span></div>
+    <div class="pro"><div class="av">PR</div><div><h4>Paulo Reis</h4><div class="meta">Manutenção de piscinas · Região sul · próximo horário: sexta, 14:00</div>
+      <div class="facts"><span class="f2 sp"><svg class="ico"><use href="#ti-info"/></svg>Patrocinado</span><span class="f2"><svg class="ico"><use href="#ti-avaliacao"/></svg>4,6 · 31 avaliações</span></div></div><span class="go">Ver perfil →</span></div>
+  </div>
+</div></section>
+
+<section class="s dark"><div class="wrap">
+  <div class="sh"><div><span class="eyebrow">Confiança</span><h2>Cada informação com o seu significado.</h2></div><p>Uma avaliação não é verificação de identidade. E nenhuma das duas é certificação. Por isso mostramos cada uma separada.</p></div>
+  <div class="trust">
+    <div class="tr"><svg class="ico"><use href="#ti-cliente"/></svg><h3>Identidade</h3><p>Aparece como verificada só quando o processo de verificação foi feito.</p></div>
+    <div class="tr"><svg class="ico"><use href="#ti-avaliacao"/></svg><h3>Avaliações</h3><p>A opinião de quem contratou, com a quantidade sempre visível.</p></div>
+    <div class="tr"><svg class="ico"><use href="#ti-orcamento"/></svg><h3>Serviços pela Tinindo</h3><p>Conta apenas os trabalhos registrados na plataforma.</p></div>
+    <div class="tr"><svg class="ico"><use href="#ti-info"/></svg><h3>Formação</h3><p>Certificações só com critério que dá para conferir.</p></div>
+  </div>
+  <div class="never"><svg class="ico" style="color:#FF6A3D"><use href="#ti-alerta"/></svg>Anúncio pago aparece como “Patrocinado”. Posição na lista não é nota.</div>
+</div></section>
+
+<section class="s"><div class="wrap faq">
+  <div><span class="eyebrow">Perguntas</span><h2 style="font-size:44px;margin-top:16px">O que você precisa saber</h2></div>
+  <div>
+    <div class="q open"><h3>Preciso entender de tecnologia?</h3><p>Não. A ideia é que você converse com o assistente como conversa com um cliente, e abra o aplicativo só quando quiser.</p></div>
+    <div class="q"><h3>O assistente manda mensagem sozinho?</h3><p></p></div>
+    <div class="q"><h3>Quanto custa?</h3><p></p></div>
+    <div class="q"><h3>Como vocês verificam os profissionais?</h3><p></p></div>
+    <div class="q"><h3>Funciona na minha cidade?</h3><p></p></div>
+  </div>
+</div></section>
+
+<section class="cta"><div class="wrap"><div class="box">
+  <div><h2>Seja dos primeiros a usar.</h2><p>Estamos abrindo aos poucos, começando por profissionais. Deixe seu e-mail e avisamos quando for a sua vez.</p>
+    <form onsubmit="return false"><input placeholder="seu e-mail"><button class="btn light sm" type="button">Entrar na lista</button></form></div>
+  <img class="sym" src="../../../marca-pronta/02-simbolo/svg/tinindo-simbolo-negativo.svg" alt="">
+</div></div></section>
+
+<footer>
+  <div class="wrap">
+    <div><img src="../../../marca-pronta/01-logotipo-palavra/svg/tinindo-palavra-cor.svg" alt="Tinindo"><p style="margin-top:14px;max-width:22em">Para quem faz o serviço e para quem contrata.</p></div>
+    <div><h5>Produto</h5><a href="#">Para profissionais</a><a href="#">Encontre um profissional</a><a href="#">Como funciona</a></div>
+    <div><h5>Empresa</h5><a href="#">Sobre</a><a href="#">Contato</a><a href="#">Imprensa</a></div>
+    <div><h5>Legal</h5><a href="#">Termos de uso</a><a href="#">Privacidade</a><a href="#">Regras de avaliação</a></div>
+  </div>
+  <div class="legal"><span>© 2026 Tinindo</span><span>Imagens ilustrativas · dados fictícios</span></div>
+</footer>
+</body>
+</html>

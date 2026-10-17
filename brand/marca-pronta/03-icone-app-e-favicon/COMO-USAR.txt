@@ -1,0 +1,13 @@
+Cole no <head> do site (copie os arquivos de png/ e svg/favicon.svg para a raiz pública do site):
+
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon-180.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#111111">
+
+Lojas de aplicativo:
+- iOS (App Store): png/ios-app-store-1024.png (quadrado, sem transparência; a Apple arredonda os cantos).
+- Android (Google Play): png/android-play-512.png.
+- Ícone adaptativo do Android: png/android-adaptativo-frente-432.png (camada da frente, transparente) + png/android-adaptativo-fundo-432.png (fundo).
+- O favicon usa a variante pequena (corte reto, olhos maiores) e troca o lado direito do sorriso para branco no tema escuro do navegador.

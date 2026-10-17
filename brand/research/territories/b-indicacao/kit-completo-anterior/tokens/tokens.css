@@ -1,0 +1,212 @@
+/* Tinindo — tokens v0.1 (provisório). Gerado junto de tokens.json: mesmos nomes e valores. */
+:root {
+  /* Primitivos */
+  --tn-color-petroleo-950: #061E24;
+  --tn-color-petroleo-900: #0A3A45;
+  --tn-color-petroleo-800: #0B4F5C;
+  --tn-color-petroleo-700: #146577;
+  --tn-color-petroleo-600: #1E7C91;
+  --tn-color-petroleo-300: #8CC3CF;
+  --tn-color-petroleo-200: #BFE0E7;
+  --tn-color-petroleo-100: #E1F1F4;
+  --tn-color-petroleo-50: #F0F8FA;
+  --tn-color-barro-700: #A83F14;
+  --tn-color-barro-600: #D9602B;
+  --tn-color-barro-400: #F08A56;
+  --tn-color-barro-200: #F8CDB4;
+  --tn-color-barro-100: #FCE9DD;
+  --tn-color-areia-50: #FBF8F2;
+  --tn-color-areia-100: #F3EDE2;
+  --tn-color-areia-200: #E6DECF;
+  --tn-color-areia-300: #D3C8B5;
+  --tn-color-grafite-950: #131A1C;
+  --tn-color-grafite-800: #263033;
+  --tn-color-grafite-700: #37444A;
+  --tn-color-grafite-600: #46545A;
+  --tn-color-grafite-500: #5B6A70;
+  --tn-color-grafite-400: #8A979B;
+  --tn-color-grafite-300: #B7C0C3;
+  --tn-color-grafite-200: #D8DEE0;
+  --tn-color-verde-700: #1F6E3A;
+  --tn-color-verde-300: #7CCB99;
+  --tn-color-verde-100: #E0F2E6;
+  --tn-color-ambar-700: #8A5300;
+  --tn-color-ambar-300: #F0C060;
+  --tn-color-ambar-100: #FDF0D2;
+  --tn-color-vermelho-700: #B3261E;
+  --tn-color-vermelho-300: #F2958F;
+  --tn-color-vermelho-100: #FBE4E2;
+  --tn-color-azul-700: #1D5AA6;
+  --tn-color-azul-300: #8DB6E8;
+  --tn-color-azul-100: #E1ECF9;
+  --tn-color-branco-0: #FFFFFF;
+  /* font */
+  --tn-font-sans: "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tn-font-display: "Inter Display", "Inter", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --tn-font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* font-weight */
+  --tn-font-weight-regular: 400;
+  --tn-font-weight-medium: 500;
+  --tn-font-weight-semibold: 600;
+  --tn-font-weight-bold: 700;
+  /* font-size */
+  --tn-font-size-xs: 12px;
+  --tn-font-size-sm: 14px;
+  --tn-font-size-md: 16px;
+  --tn-font-size-lg: 18px;
+  --tn-font-size-xl: 20px;
+  --tn-font-size-2xl: 24px;
+  --tn-font-size-3xl: 32px;
+  --tn-font-size-4xl: 44px;
+  --tn-font-size-5xl: 56px;
+  /* line-height */
+  --tn-line-height-tight: 1.1;
+  --tn-line-height-snug: 1.25;
+  --tn-line-height-normal: 1.5;
+  /* letter-spacing */
+  --tn-letter-spacing-display: -0.02em;
+  --tn-letter-spacing-normal: 0;
+  --tn-letter-spacing-caps: 0.06em;
+  /* space */
+  --tn-space-1: 4px;
+  --tn-space-2: 8px;
+  --tn-space-3: 12px;
+  --tn-space-4: 16px;
+  --tn-space-5: 20px;
+  --tn-space-6: 24px;
+  --tn-space-8: 32px;
+  --tn-space-10: 40px;
+  --tn-space-12: 48px;
+  --tn-space-16: 64px;
+  /* radius */
+  --tn-radius-sm: 8px;
+  --tn-radius-md: 12px;
+  --tn-radius-lg: 20px;
+  --tn-radius-pill: 999px;
+  /* shadow */
+  --tn-shadow-sm: 0 1px 2px rgba(19,26,28,.08);
+  --tn-shadow-md: 0 6px 18px rgba(19,26,28,.10);
+  --tn-shadow-lg: 0 18px 48px rgba(19,26,28,.16);
+  /* motion */
+  --tn-motion-fast: 120ms;
+  --tn-motion-base: 200ms;
+  --tn-motion-slow: 320ms;
+  --tn-motion-ease: cubic-bezier(.2,.7,.2,1);
+  /* size */
+  --tn-size-touch: 44px;
+  --tn-size-touch-min: 24px;
+  --tn-size-focus-ring: 3px;
+  --tn-size-container: 1120px;
+  /* material */
+  --tn-material-glass-blur: 20px;
+  --tn-material-glass-saturate: 1.4;
+  /* Semânticos — tema claro (padrão) */
+  --tn-bg: var(--tn-color-areia-50);
+  --tn-surface: var(--tn-color-branco-0);
+  --tn-surface-sunken: var(--tn-color-areia-100);
+  --tn-text: var(--tn-color-grafite-950);
+  --tn-text-muted: var(--tn-color-grafite-600);
+  --tn-text-on-action: var(--tn-color-branco-0);
+  --tn-border: var(--tn-color-areia-200);
+  --tn-border-control: var(--tn-color-grafite-500);
+  --tn-brand: var(--tn-color-petroleo-800);
+  --tn-brand-accent: var(--tn-color-barro-600);
+  --tn-accent-text: var(--tn-color-barro-700);
+  --tn-action: var(--tn-color-petroleo-800);
+  --tn-action-hover: var(--tn-color-petroleo-900);
+  --tn-action-subtle: var(--tn-color-petroleo-100);
+  --tn-link: var(--tn-color-petroleo-700);
+  --tn-focus: var(--tn-color-azul-700);
+  --tn-success-text: var(--tn-color-verde-700);
+  --tn-success-bg: var(--tn-color-verde-100);
+  --tn-warning-text: var(--tn-color-ambar-700);
+  --tn-warning-bg: var(--tn-color-ambar-100);
+  --tn-danger-text: var(--tn-color-vermelho-700);
+  --tn-danger-bg: var(--tn-color-vermelho-100);
+  --tn-info-text: var(--tn-color-azul-700);
+  --tn-info-bg: var(--tn-color-azul-100);
+  --tn-glass-bg: rgba(251,248,242,.74); --tn-glass-border: rgba(255,255,255,.6);
+}
+
+/* Tema escuro: automático (preferência do sistema) ou forçado com data-theme="dark" */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --tn-bg: var(--tn-color-petroleo-950);
+  --tn-surface: var(--tn-color-petroleo-900);
+  --tn-surface-sunken: var(--tn-color-petroleo-950);
+  --tn-text: var(--tn-color-areia-50);
+  --tn-text-muted: var(--tn-color-grafite-300);
+  --tn-text-on-action: var(--tn-color-petroleo-950);
+  --tn-border: var(--tn-color-petroleo-800);
+  --tn-border-control: var(--tn-color-grafite-400);
+  --tn-brand: var(--tn-color-areia-50);
+  --tn-brand-accent: var(--tn-color-barro-400);
+  --tn-accent-text: var(--tn-color-barro-400);
+  --tn-action: var(--tn-color-petroleo-300);
+  --tn-action-hover: var(--tn-color-petroleo-200);
+  --tn-action-subtle: var(--tn-color-petroleo-800);
+  --tn-link: var(--tn-color-petroleo-300);
+  --tn-focus: var(--tn-color-petroleo-300);
+  --tn-success-text: var(--tn-color-verde-300);
+  --tn-success-bg: var(--tn-color-petroleo-900);
+  --tn-warning-text: var(--tn-color-ambar-300);
+  --tn-warning-bg: var(--tn-color-petroleo-900);
+  --tn-danger-text: var(--tn-color-vermelho-300);
+  --tn-danger-bg: var(--tn-color-petroleo-900);
+  --tn-info-text: var(--tn-color-azul-300);
+  --tn-info-bg: var(--tn-color-petroleo-900);
+  --tn-glass-bg: rgba(10,58,69,.70); --tn-glass-border: rgba(255,255,255,.14);
+  color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --tn-bg: var(--tn-color-petroleo-950);
+  --tn-surface: var(--tn-color-petroleo-900);
+  --tn-surface-sunken: var(--tn-color-petroleo-950);
+  --tn-text: var(--tn-color-areia-50);
+  --tn-text-muted: var(--tn-color-grafite-300);
+  --tn-text-on-action: var(--tn-color-petroleo-950);
+  --tn-border: var(--tn-color-petroleo-800);
+  --tn-border-control: var(--tn-color-grafite-400);
+  --tn-brand: var(--tn-color-areia-50);
+  --tn-brand-accent: var(--tn-color-barro-400);
+  --tn-accent-text: var(--tn-color-barro-400);
+  --tn-action: var(--tn-color-petroleo-300);
+  --tn-action-hover: var(--tn-color-petroleo-200);
+  --tn-action-subtle: var(--tn-color-petroleo-800);
+  --tn-link: var(--tn-color-petroleo-300);
+  --tn-focus: var(--tn-color-petroleo-300);
+  --tn-success-text: var(--tn-color-verde-300);
+  --tn-success-bg: var(--tn-color-petroleo-900);
+  --tn-warning-text: var(--tn-color-ambar-300);
+  --tn-warning-bg: var(--tn-color-petroleo-900);
+  --tn-danger-text: var(--tn-color-vermelho-300);
+  --tn-danger-bg: var(--tn-color-petroleo-900);
+  --tn-info-text: var(--tn-color-azul-300);
+  --tn-info-bg: var(--tn-color-petroleo-900);
+  --tn-glass-bg: rgba(10,58,69,.70); --tn-glass-border: rgba(255,255,255,.14);
+  color-scheme: dark;
+}
+
+/* Material "vidro": só para camadas flutuantes (barra de navegação, sheets, diálogo do agente).
+   Nunca em tabelas, campos, formulários ou blocos de leitura. Sempre com alternativa opaca. */
+.tn-glass {
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tn-glass {
+    background: var(--tn-glass-bg);
+    border-color: var(--tn-glass-border);
+    -webkit-backdrop-filter: blur(var(--tn-material-glass-blur)) saturate(var(--tn-material-glass-saturate));
+    backdrop-filter: blur(var(--tn-material-glass-blur)) saturate(var(--tn-material-glass-saturate));
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .tn-glass { background: var(--tn-surface) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-color: var(--tn-border-control) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --tn-motion-fast: 0ms; --tn-motion-base: 0ms; --tn-motion-slow: 0ms; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+

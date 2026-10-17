@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tinindo — mockup do app do profissional (v0.1)</title>
+<link rel="stylesheet" href="../../../tokens/tokens.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#D9D9D4;font:400 15px/1.4 var(--tn-font-sans);color:#111;-webkit-font-smoothing:antialiased;display:flex;flex-wrap:wrap;gap:40px;padding:40px}
+h1,h2,h3{margin:0;font-family:var(--tn-font-display);letter-spacing:-.02em}
+p{margin:0}
+.scr{width:390px;height:844px;background:#F7F7F5;position:relative;overflow:hidden;flex:none}
+.scr.dark{background:#111;color:#fff}
+.sb{height:50px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 8px;font-weight:600;font-size:15px}
+.sb .r{display:flex;gap:6px;align-items:center}
+.sb .bat{width:24px;height:12px;border:1.5px solid currentColor;border-radius:4px;position:relative}
+.sb .bat::after{content:"";position:absolute;inset:1.5px;right:5px;background:currentColor;border-radius:1px}
+.top{padding:10px 20px 6px;display:flex;justify-content:space-between;align-items:center}
+.top h1{font-size:30px;font-weight:700}
+.sub{font-size:13px;color:#62625D}
+.dark .sub{color:#BDBDB7}
+.av{width:40px;height:40px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+.av.l{background:#EDEDEA;color:#111}
+.ib{width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid #DEDED9;display:grid;place-items:center}
+.ico{width:20px;height:20px;flex:none}
+.body{padding:8px 16px 110px;display:flex;flex-direction:column;gap:12px}
+.card{background:#fff;border:1px solid #DEDED9;border-radius:22px;padding:16px}
+.dark .card{background:#1C1C1A;border-color:#3A3A37}
+.k{font:700 11px/1 var(--tn-font-sans);letter-spacing:.08em;text-transform:uppercase;color:#62625D}
+.k.o{color:#B33008;display:flex;gap:6px;align-items:center}
+.k.o::before{content:"";width:7px;height:7px;border-radius:50%;background:#FF4B1F}
+.dark .k.o{color:#FF9A7A}
+.big{font:700 30px/1.05 var(--tn-font-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;align-items:center}
+.between{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.btn{height:50px;border-radius:999px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:15px;flex:1}
+.btn.g{background:#fff;color:#111;border:1.5px solid #BDBDB7}
+.btn.sm{height:38px;font-size:13px;flex:none;padding:0 16px}
+.dark .btn{background:#F7F7F5;color:#111}
+.tag{font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:99px;display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
+.tag .ico{width:13px;height:13px}
+.ok{background:#E0F2E6;color:#1F6E3A}.wait{background:#FDF0D2;color:#7A5200}.off{background:#FBE4E2;color:#B3261E}.inf{background:#E1ECF9;color:#1D5AA6}.neu{background:#EDEDEA;color:#4A4A46}
+.dark .ok{background:#1C1C1A;color:#7CCB99;border:1px solid #3A3A37}.dark .wait{background:#1C1C1A;color:#F0C060;border:1px solid #3A3A37}.dark .off{background:#1C1C1A;color:#F2958F;border:1px solid #3A3A37}.dark .neu{background:#2A2A28;color:#BDBDB7}
+.slot{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;background:#fff;border:1px solid #DEDED9;border-radius:18px;padding:12px 14px}
+.dark .slot{background:#1C1C1A;border-color:#3A3A37}
+.slot time{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px}
+.slot .t{font-weight:600}
+.slot .s{font-size:12.5px;color:#62625D}
+.dark .slot .s{color:#BDBDB7}
+.slot.free{background:transparent;border:1.5px dashed #8C8C86}
+.slot.block{background:#EDEDEA}
+.dark .slot.block{background:#2A2A28}
+.slot.cancel .t{text-decoration:line-through;color:#62625D}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:88px;background:rgba(255,255,255,.94);border-top:1px solid #DEDED9;display:flex;justify-content:space-around;align-items:flex-start;padding-top:10px}
+.dark .tabs{background:rgba(28,28,26,.96);border-color:#3A3A37}
+.tabs span{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:#8C8C86;width:64px}
+.tabs span.on{color:#111}
+.dark .tabs span.on{color:#fff}
+.tabs .ico{width:24px;height:24px}
+.tabs .mid{width:52px;height:52px;margin-top:-22px;border-radius:50%;background:#111;display:grid;place-items:center;box-shadow:0 8px 18px rgba(0,0,0,.25)}
+.tabs .mid img{width:30px}
+.home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#111}
+.dark .home-ind{background:#fff}
+.seg{display:flex;background:#EDEDEA;border-radius:999px;padding:4px;gap:4px}
+.seg span{flex:1;text-align:center;padding:8px 0;border-radius:999px;font-weight:600;font-size:13px;color:#4A4A46}
+.seg span.on{background:#fff;color:#111;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.dark .seg{background:#1C1C1A}.dark .seg span{color:#BDBDB7}.dark .seg span.on{background:#3A3A37;color:#fff}
+.days{display:flex;justify-content:space-between}
+.days span{width:46px;padding:8px 0;border-radius:16px;text-align:center;font-size:12px;color:#62625D;display:flex;flex-direction:column;gap:2px}
+.days span b{font-size:17px;color:#111;font-variant-numeric:tabular-nums}
+.days span.on{background:#111;color:#BDBDB7}.days span.on b{color:#fff}
+.dark .days span b{color:#fff}.dark .days span.on{background:#F7F7F5;color:#62625D}.dark .days span.on b{color:#111}
+.days span i{width:5px;height:5px;border-radius:50%;background:#FF4B1F;margin:2px auto 0;display:block}
+.msg{max-width:84%;padding:11px 14px;border-radius:20px;font-size:14.5px;line-height:1.4}
+.msg.me{align-self:flex-end;background:#111;color:#fff;border-bottom-right-radius:6px}
+.msg.ag{align-self:flex-start;background:#fff;border:1px solid #DEDED9;border-bottom-left-radius:6px}
+.lab{font:700 10.5px/1 var(--tn-font-sans);letter-spacing:.08em;text-transform:uppercase;display:flex;gap:5px;align-items:center;margin-bottom:6px}
+.lab .ico{width:13px;height:13px}
+.appr{border:2px solid #7A5200;border-radius:22px;background:#fff;padding:14px}
+.appr dl{display:grid;grid-template-columns:84px 1fr;gap:6px 10px;margin:10px 0;font-size:13px}
+.appr dt{color:#62625D}.appr dd{margin:0;font-weight:500}
+.pv{background:#F7F7F5;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4}
+.inp{height:52px;border-radius:16px;border:1.5px solid #62625D;background:#fff;display:flex;align-items:center;padding:0 14px;gap:10px;color:#62625D}
+.lst{background:#fff;border:1px solid #DEDED9;border-radius:22px;overflow:hidden}
+.lst .it{display:flex;gap:12px;align-items:center;padding:13px 16px;border-bottom:1px solid #EDEDEA}
+.lst .it:last-child{border-bottom:0}
+.lst .it .n{font-weight:600}
+.lst .it .s{font-size:12.5px;color:#62625D}
+.bars{display:flex;gap:10px;align-items:flex-end;height:120px;padding-top:6px}
+.bars div{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:#62625D}
+.bars i{width:100%;border-radius:8px 8px 4px 4px;background:#111;display:block}
+.bars div.on i{background:#FF4B1F}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fact{border:1px solid #DEDED9;border-radius:16px;padding:10px 12px;background:#fff}
+.fact .k{font-size:9.5px;display:flex;gap:5px;align-items:center}
+.fact .k .ico{width:13px;height:13px}
+.fact b{display:block;margin-top:6px;font-size:13.5px}
+.fact small{display:block;font-size:11px;color:#62625D;margin-top:3px;line-height:1.3}
+.demo{position:absolute;top:52px;right:16px;font-size:10px;font-weight:700;background:#FDF0D2;color:#7A5200;padding:3px 8px;border-radius:99px}
+.stack .btn{flex:none}
+.check{display:flex;gap:10px;align-items:center;padding:8px 0;font-size:14px}
+.check i{width:22px;height:22px;border-radius:7px;border:1.5px solid #62625D;display:block;flex:none}
+.check.d i{background:#111;border-color:#111;position:relative}
+.check.d i::after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.check.d span{color:#62625D;text-decoration:line-through}
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none"><symbol id="ti-agenda" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></symbol><symbol id="ti-cliente" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></symbol><symbol id="ti-orcamento" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4M8.5 13h7M8.5 16.5h5"/></symbol><symbol id="ti-receber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="3"/><circle cx="12" cy="12" r="2.6"/></symbol><symbol id="ti-mensagem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5Z"/></symbol><symbol id="ti-espera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol><symbol id="ti-avaliacao" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.8 2.5 5.1 5.6.8-4 3.9.9 5.6L12 16.6l-5 2.6.9-5.6-4-3.9 5.6-.8Z"/></symbol><symbol id="ti-local" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></symbol><symbol id="ti-aprovar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.3 2.4 2.4 4.6-5"/></symbol><symbol id="ti-alerta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 21 19.5H3Z"/><path d="M12 10v4.2M12 17v.1"/></symbol><symbol id="ti-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.1"/></symbol><symbol id="ti-bloqueio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m6 6 12 12"/></symbol></svg>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+ <symbol id="x-casa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8.5a1 1 0 0 1-1 1h-4.5V15h-5v5.5H5a1 1 0 0 1-1-1Z"/></symbol>
+ <symbol id="x-mais" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></symbol>
+ <symbol id="x-tel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z"/></symbol>
+ <symbol id="x-vol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></symbol>
+ <symbol id="x-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+ <symbol id="x-busca" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></symbol>
+ <symbol id="x-mais-s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+
+<!-- 1 · abertura -->
+<section class="scr dark" id="s01">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <img src="../../../marca-pronta/02-simbolo/svg/tinindo-simbolo-negativo.svg" style="position:absolute;left:85px;top:170px;width:220px">
+  <img src="../../../marca-pronta/01-logotipo-palavra/svg/tinindo-palavra-negativo.svg" style="position:absolute;left:95px;top:440px;width:200px">
+  <p style="position:absolute;left:40px;right:40px;top:520px;text-align:center;color:#BDBDB7;font-size:17px">Organize o negócio.<br>Continue no seu ofício.</p>
+  <div style="position:absolute;left:24px;right:24px;bottom:56px;display:flex;flex-direction:column;gap:10px" class="stack">
+    <div class="btn">Criar minha conta</div><div class="btn" style="background:transparent;color:#fff;border:1.5px solid #4A4A46">Já tenho conta</div></div>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 2 · início -->
+<section class="scr" id="s02">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top"><div><div class="sub">Terça, 13 de outubro</div><h1>Bom dia, Marcos</h1></div><div class="av">MA</div></div>
+  <div class="body">
+    <div class="row" style="gap:10px">
+      <div class="card" style="flex:1"><div class="k">Hoje</div><div class="big" style="margin-top:8px">3</div><div class="sub">atendimentos</div></div>
+      <div class="card" style="flex:1.4"><div class="k">A receber · semana</div><div class="big" style="margin-top:8px">R$ 1.250</div><div class="sub">3 serviços em aberto</div></div>
+    </div>
+    <div class="card" style="background:#111;color:#fff;border-color:#111">
+      <div class="between"><div class="k" style="color:#BDBDB7">Próximo atendimento</div><span class="tag ok" style="background:#1C1C1A;color:#7CCB99">Confirmado</span></div>
+      <h3 style="font-size:21px;margin:10px 0 4px">08:00 · Instalação de chuveiro</h3><div style="color:#BDBDB7;font-size:13.5px">Ana C. · Casa 14 · Condomínio Jardins</div>
+      <div class="row" style="margin-top:14px"><div class="btn sm" style="background:#F7F7F5;color:#111"><svg class="ico"><use href="#ti-local"/></svg>Rota</div><div class="btn sm" style="background:transparent;color:#fff;border:1.5px solid #4A4A46"><svg class="ico"><use href="#ti-mensagem"/></svg>Avisar que estou a caminho</div></div>
+    </div>
+    <div class="card">
+      <div class="k o">Assistente · recomendação</div>
+      <p style="margin:8px 0 12px">Há três horários livres na terça (11:00, 12:00 e 17:00). Preparo uma oferta para quem autorizou contato?</p>
+      <div class="row"><div class="btn sm">Ver proposta</div><div class="btn sm g">Agora não</div></div>
+    </div>
+    <div class="card"><div class="between"><div class="k">Pendências</div><span class="sub">2</span></div>
+      <div class="between" style="margin-top:12px"><span>Orçamento de Roberto M. aguarda resposta</span><span class="tag wait"><svg class="ico"><use href="#ti-espera"/></svg>2 dias</span></div>
+      <div class="between" style="margin-top:10px"><span>Cobrança de Cláudia P. vence amanhã</span><span class="tag neu">R$ 380</span></div></div>
+  </div>
+  <span class="demo">dados fictícios</span>
+  <div class="tabs"><span class="on"><svg class="ico"><use href="#x-casa"/></svg>Início</span><span><svg class="ico"><use href="#ti-agenda"/></svg>Agenda</span><span><i class="mid"><img src="../../../marca-pronta/02-simbolo/svg/tinindo-simbolo-negativo.svg"></i></span><span><svg class="ico"><use href="#ti-cliente"/></svg>Clientes</span><span><svg class="ico"><use href="#x-mais"/></svg>Mais</span></div>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 3 · agenda -->
+<section class="scr" id="s03">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top"><div><div class="sub">Outubro de 2026</div><h1>Agenda</h1></div><div class="ib"><svg class="ico"><use href="#x-mais-s"/></svg></div></div>
+  <div class="body">
+    <div class="days"><span>seg<b>12</b></span><span class="on">ter<b>13</b><i></i></span><span>qua<b>14</b><i></i></span><span>qui<b>15</b></span><span>sex<b>16</b><i></i></span><span>sáb<b>17</b></span><span>dom<b>18</b></span></div>
+    <div class="slot"><time>08:00</time><div><div class="t">Instalação de chuveiro</div><div class="s">Ana C. · até 09:30</div></div><span class="tag ok"><svg class="ico"><use href="#ti-aprovar"/></svg>Confirmado</span></div>
+    <div class="slot"><time>10:00</time><div><div class="t">Visita para orçamento</div><div class="s">Roberto M. · Casa 7</div></div><span class="tag wait"><svg class="ico"><use href="#ti-espera"/></svg>Aguardando</span></div>
+    <div class="slot free"><time>11:00</time><div><div class="t">Horário livre</div><div class="s">1 hora</div></div><span class="sub" style="font-weight:600;color:#111">Oferecer</span></div>
+    <div class="slot free"><time>12:00</time><div><div class="t">Horário livre</div><div class="s">1 hora</div></div><span class="sub" style="font-weight:600;color:#111">Oferecer</span></div>
+    <div class="slot block"><time>13:00</time><div><div class="t">Almoço</div><div class="s">Bloqueado por você</div></div><span class="tag neu"><svg class="ico"><use href="#ti-bloqueio"/></svg>Bloqueado</span></div>
+    <div class="slot"><time>14:00</time><div><div class="t">Troca de quadro de luz</div><div class="s">Cláudia P. · até 16:00</div></div><span class="tag ok"><svg class="ico"><use href="#ti-aprovar"/></svg>Confirmado</span></div>
+    <div class="slot cancel"><time>16:00</time><div><div class="t">Reparo de tomada</div><div class="s">Teresa N. cancelou · horário livre de novo</div></div><span class="tag off"><svg class="ico"><use href="#ti-alerta"/></svg>Cancelado</span></div>
+  </div>
+  <span class="demo">dados fictícios</span>
+  <div class="tabs"><span><svg class="ico"><use href="#x-casa"/></svg>Início</span><span class="on"><svg class="ico"><use href="#ti-agenda"/></svg>Agenda</span><span><i class="mid"><img src="../../../marca-pronta/02-simbolo/svg/tinindo-simbolo-negativo.svg"></i></span><span><svg class="ico"><use href="#ti-cliente"/></svg>Clientes</span><span><svg class="ico"><use href="#x-mais"/></svg>Mais</span></div>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 4 · detalhe do atendimento -->
+<section class="scr" id="s04">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top"><div class="ib"><svg class="ico"><use href="#x-vol"/></svg></div><span class="tag ok"><svg class="ico"><use href="#ti-aprovar"/></svg>Confirmado</span></div>
+  <div class="body">
+    <div><div class="sub">Terça, 13 de outubro · 08:00 às 09:30</div><h1 style="font-size:28px;margin-top:4px">Instalação de chuveiro</h1></div>
+    <div class="card"><div class="row"><div class="av l">AC</div><div style="flex:1"><b>Ana C.</b><div class="sub">Casa 14 · Condomínio Jardins</div></div><div class="ib"><svg class="ico"><use href="#x-tel"/></svg></div><div class="ib"><svg class="ico"><use href="#ti-mensagem"/></svg></div></div>
+      <div class="sub" style="margin-top:10px">Cliente desde março · 4 serviços · autorizou receber ofertas</div></div>
+    <div class="card"><div class="k">Serviço</div>
+      <div class="between" style="margin-top:10px"><span>Chuveiro elétrico 7.500 W</span><b>R$ 180,00</b></div>
+      <div class="between" style="margin-top:8px"><span>Troca de disjuntor</span><b>R$ 60,00</b></div>
+      <div class="between" style="margin-top:12px;padding-top:12px;border-top:1px solid #EDEDEA"><b>Total</b><b style="font-size:18px">R$ 240,00</b></div>
+      <div class="sub" style="margin-top:6px">Pagamento: Pix na conclusão</div></div>
+    <div class="card"><div class="k">Antes de sair</div>
+      <div class="check d"><i></i><span>Separar chuveiro e fita isolante</span></div>
+      <div class="check"><i></i><span>Confirmar voltagem com a cliente</span></div>
+      <div class="check"><i></i><span>Levar disjuntor de 40 A</span></div></div>
+    <div class="row"><div class="btn">Marcar como concluído</div></div>
+    <div class="row"><div class="btn g">Reagendar</div><div class="btn g" style="color:#B3261E">Cancelar</div></div>
+  </div>
+  <span class="demo">dados fictícios</span>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 5 · assistente -->
+<section class="scr" id="s05">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top" style="border-bottom:1px solid #DEDED9;padding-bottom:12px"><div class="row"><div class="av" style="background:#111"><img src="../../../marca-pronta/02-simbolo/svg/tinindo-simbolo-negativo.svg" style="width:28px"></div><div><b>Assistente</b><div class="sub">Consulta seus dados · pede sua aprovação</div></div></div></div>
+  <div class="body" style="padding-top:12px;gap:8px">
+    <div class="msg me">Como está a minha terça?</div>
+    <div class="msg ag"><div class="lab" style="color:#1D5AA6"><svg class="ico"><use href="#ti-info"/></svg>Consultei sua agenda</div>3 atendimentos e 3 horários livres: 11:00, 12:00 e 17:00. A visita das 10:00 ainda aguarda confirmação.</div>
+    <div class="msg ag"><div class="lab" style="color:#B33008"><svg class="ico"><use href="#ti-mensagem"/></svg>Recomendação</div>Posso preparar uma oferta de horário para os clientes que autorizaram contato.</div>
+    <div class="appr">
+      <div class="lab" style="color:#7A5200"><svg class="ico"><use href="#ti-espera"/></svg>Aguardando sua aprovação</div>
+      <b style="font-size:17px">Enviar oferta de horários</b>
+      <dl><dt>Para</dt><dd>4 clientes que autorizaram ofertas</dd><dt>Mensagem</dt><dd><div class="pv">“Olá! Tenho horários livres na terça (13/10): 11:00, 12:00 e 17:00. Quer agendar? — Marcos”</div></dd><dt>Desconto</dt><dd>Nenhum</dd><dt>Envio</dt><dd>Hoje, 18:00</dd></dl>
+      <div class="row"><div class="btn sm" style="flex:1">Aprovar</div><div class="btn sm g" style="flex:1">Editar</div><div class="btn sm g">Não</div></div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;padding:10px 12px 30px;background:#F7F7F5;border-top:1px solid #DEDED9;display:flex;gap:8px;align-items:center"><div class="inp" style="flex:1;border-color:#DEDED9;border-radius:999px">Escreva ou fale com o assistente</div><div class="av"><svg class="ico"><use href="#x-mic"/></svg></div></div>
+  <span class="demo">dados fictícios</span>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 6 · orçamento -->
+<section class="scr" id="s06">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top"><div class="ib"><svg class="ico"><use href="#x-vol"/></svg></div><span class="sub" style="font-weight:600">Rascunho salvo</span></div>
+  <div class="body">
+    <h1 style="font-size:28px">Novo orçamento</h1>
+    <div class="inp" style="color:#111"><div class="av l" style="width:30px;height:30px;font-size:11px">RM</div>Roberto M. · Casa 7</div>
+    <div class="lst">
+      <div class="it"><div style="flex:1"><div class="n">Troca de fiação da cozinha</div><div class="s">Mão de obra · 1 serviço</div></div><b>R$ 450,00</b></div>
+      <div class="it"><div style="flex:1"><div class="n">Cabo flexível 4 mm²</div><div class="s">Material · 20 m × R$ 6,50</div></div><b>R$ 130,00</b></div>
+      <div class="it"><div style="flex:1"><div class="n">Tomadas 20 A</div><div class="s">Material · 4 × R$ 18,00</div></div><b>R$ 72,00</b></div>
+      <div class="it" style="color:#111;font-weight:600"><svg class="ico"><use href="#x-mais-s"/></svg>Adicionar item</div>
+    </div>
+    <div class="card"><div class="between"><span class="sub">Subtotal</span><span>R$ 652,00</span></div><div class="between" style="margin-top:6px"><span class="sub">Desconto</span><span>— R$ 22,00</span></div>
+      <div class="between" style="margin-top:10px;padding-top:10px;border-top:1px solid #EDEDEA"><b>Total</b><span class="big" style="font-size:26px">R$ 630,00</span></div>
+      <div class="sub" style="margin-top:8px">Validade: 7 dias · prazo de execução: 1 dia</div></div>
+    <div class="card" style="background:#F7F7F5"><div class="k o">Assistente · sugestão</div><p style="margin-top:6px;font-size:13.5px">No último orçamento parecido você cobrou R$ 480 de mão de obra. Quer revisar?</p></div>
+  </div>
+  <div style="position:absolute;left:16px;right:16px;bottom:30px;display:flex;gap:8px"><div class="btn g">Pré-visualizar</div><div class="btn">Enviar ao cliente</div></div>
+  <span class="demo">dados fictícios</span>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 7 · clientes -->
+<section class="scr" id="s07">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top"><div><div class="sub">48 clientes</div><h1>Clientes</h1></div><div class="ib"><svg class="ico"><use href="#x-mais-s"/></svg></div></div>
+  <div class="body">
+    <div class="inp" style="border-color:#DEDED9"><svg class="ico"><use href="#x-busca"/></svg>Buscar por nome, bairro ou serviço</div>
+    <div class="seg"><span class="on">Todos</span><span>Recorrentes</span><span>Sumidos</span></div>
+    <div class="lst">
+      <div class="it"><div class="av l">AC</div><div style="flex:1"><div class="n">Ana C.</div><div class="s">Último serviço: hoje · 4 serviços</div></div><span class="tag ok">Ofertas ok</span></div>
+      <div class="it"><div class="av l">RM</div><div style="flex:1"><div class="n">Roberto M.</div><div class="s">Orçamento aberto · R$ 630</div></div><span class="tag wait">Aguardando</span></div>
+      <div class="it"><div class="av l">CP</div><div style="flex:1"><div class="n">Cláudia P.</div><div class="s">Último serviço: hoje · 7 serviços</div></div><span class="tag ok">Ofertas ok</span></div>
+      <div class="it"><div class="av l">LS</div><div style="flex:1"><div class="n">Lúcia S.</div><div class="s">Sem serviço há 5 meses</div></div><span class="tag inf">Reativar?</span></div>
+      <div class="it"><div class="av l">PF</div><div style="flex:1"><div class="n">Paulo F.</div><div class="s">Último serviço: setembro</div></div><span class="tag neu">Sem ofertas</span></div>
+      <div class="it"><div class="av l">TN</div><div style="flex:1"><div class="n">Teresa N.</div><div class="s">Cancelou hoje · 2 serviços</div></div><span class="tag neu">Sem ofertas</span></div>
+    </div>
+    <p class="sub" style="padding:0 6px">“Ofertas ok” = o cliente autorizou receber mensagens de oferta. Os demais nunca entram em envios automáticos.</p>
+  </div>
+  <span class="demo">dados fictícios</span>
+  <div class="tabs"><span><svg class="ico"><use href="#x-casa"/></svg>Início</span><span><svg class="ico"><use href="#ti-agenda"/></svg>Agenda</span><span><i class="mid"><img src="../../../marca-pronta/02-simbolo/svg/tinindo-simbolo-negativo.svg"></i></span><span class="on"><svg class="ico"><use href="#ti-cliente"/></svg>Clientes</span><span><svg class="ico"><use href="#x-mais"/></svg>Mais</span></div>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 8 · financeiro -->
+<section class="scr" id="s08">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top"><div><div class="sub">Outubro de 2026</div><h1>Dinheiro</h1></div></div>
+  <div class="body">
+    <div class="seg"><span>Semana</span><span class="on">Mês</span><span>Ano</span></div>
+    <div class="card"><div class="k">Recebido em outubro (até dia 13)</div><div class="big" style="font-size:40px;margin-top:8px">R$ 4.870,00</div><div class="sub" style="margin-top:4px">19 serviços · média de R$ 256 por serviço</div>
+      <div class="bars"><div><i style="height:52px"></i>sem 1</div><div><i style="height:88px"></i>sem 2</div><div class="on"><i style="height:30px"></i>sem 3</div><div><i style="height:4px;background:#DEDED9"></i>sem 4</div></div></div>
+    <div class="row" style="gap:10px"><div class="card" style="flex:1"><div class="k">A receber</div><div class="big" style="font-size:22px;margin-top:6px">R$ 1.250</div><div class="sub">3 serviços</div></div><div class="card" style="flex:1"><div class="k">Atrasado</div><div class="big" style="font-size:22px;margin-top:6px;color:#B3261E">R$ 380</div><div class="sub">1 serviço · 2 dias</div></div></div>
+    <div class="lst">
+      <div class="it"><div style="flex:1"><div class="n">Cláudia P. · quadro de luz</div><div class="s">Vence amanhã · Pix</div></div><b>R$ 380,00</b></div>
+      <div class="it"><div style="flex:1"><div class="n">Ana C. · chuveiro</div><div class="s">Hoje, na conclusão</div></div><b>R$ 240,00</b></div>
+      <div class="it"><div style="flex:1"><div class="n">Carlos D. · tomadas</div><div class="s">Recebido em 10/10</div></div><span class="tag ok">Pago</span></div>
+    </div>
+  </div>
+  <span class="demo">dados fictícios</span>
+  <div class="tabs"><span><svg class="ico"><use href="#x-casa"/></svg>Início</span><span><svg class="ico"><use href="#ti-agenda"/></svg>Agenda</span><span><i class="mid"><img src="../../../marca-pronta/02-simbolo/svg/tinindo-simbolo-negativo.svg"></i></span><span><svg class="ico"><use href="#ti-cliente"/></svg>Clientes</span><span class="on"><svg class="ico"><use href="#x-mais"/></svg>Mais</span></div>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 9 · perfil público (como o cliente vê) -->
+<section class="scr" id="s09">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top"><div class="ib"><svg class="ico"><use href="#x-vol"/></svg></div><span class="tag inf"><svg class="ico"><use href="#ti-info"/></svg>Como os clientes veem você</span></div>
+  <div class="body">
+    <div class="row" style="gap:14px"><div class="av" style="width:72px;height:72px;font-size:22px">MA</div><div><h1 style="font-size:26px">Marcos Andrade</h1><div class="sub">Eletricista residencial · Jardins e arredores</div></div></div>
+    <div class="row"><span class="tag ok"><svg class="ico"><use href="#ti-agenda"/></svg>Livre terça, 11:00</span><span class="tag neu">Atende em até 10 km</span></div>
+    <div class="facts">
+      <div class="fact"><div class="k"><svg class="ico"><use href="#ti-cliente"/></svg>Identidade</div><b>Verificada</b><small>Documento conferido</small></div>
+      <div class="fact"><div class="k"><svg class="ico"><use href="#ti-avaliacao"/></svg>Avaliações</div><b>4,8 de 5 · 12</b><small>Opinião de clientes</small></div>
+      <div class="fact"><div class="k"><svg class="ico"><use href="#ti-orcamento"/></svg>Pela Tinindo</div><b>18 serviços</b><small>Registrados na plataforma</small></div>
+      <div class="fact"><div class="k"><svg class="ico"><use href="#ti-info"/></svg>Formação</div><b>Não informada</b><small>Adicione um certificado</small></div>
+    </div>
+    <div class="card"><div class="k">Trabalhos recentes</div><div class="row" style="margin-top:10px;gap:8px"><div style="flex:1;aspect-ratio:1;border-radius:14px;background:repeating-linear-gradient(135deg,#EDEDEA 0 10px,#DEDED9 10px 11px)"></div><div style="flex:1;aspect-ratio:1;border-radius:14px;background:repeating-linear-gradient(135deg,#EDEDEA 0 10px,#DEDED9 10px 11px)"></div><div style="flex:1;aspect-ratio:1;border-radius:14px;background:repeating-linear-gradient(135deg,#EDEDEA 0 10px,#DEDED9 10px 11px)"></div></div></div>
+    <div class="card"><div class="between"><b>Ana C.</b><span class="sub">★ 5 · setembro</span></div><p style="margin-top:6px;font-size:13.5px">Chegou no horário e deixou tudo limpo.</p></div>
+  </div>
+  <div style="position:absolute;left:16px;right:16px;bottom:30px;display:flex;gap:8px"><div class="btn g">Editar perfil</div><div class="btn">Compartilhar link</div></div>
+  <span class="demo" style="top:auto;bottom:96px">dados fictícios</span>
+  <div class="home-ind"></div>
+</section>
+
+<!-- 10 · agenda no tema escuro -->
+<section class="scr dark" id="s10">
+  <div class="sb"><span>9:41</span><span class="r">●●● <i class="bat"></i></span></div>
+  <div class="top"><div><div class="sub">Outubro de 2026 · tema escuro</div><h1>Agenda</h1></div><div class="ib" style="background:#1C1C1A;border-color:#3A3A37;color:#fff"><svg class="ico"><use href="#x-mais-s"/></svg></div></div>
+  <div class="body">
+    <div class="days"><span>seg<b>12</b></span><span class="on">ter<b>13</b><i></i></span><span>qua<b>14</b><i></i></span><span>qui<b>15</b></span><span>sex<b>16</b><i></i></span><span>sáb<b>17</b></span><span>dom<b>18</b></span></div>
+    <div class="slot"><time>08:00</time><div><div class="t">Instalação de chuveiro</div><div class="s">Ana C. · até 09:30</div></div><span class="tag ok"><svg class="ico"><use href="#ti-aprovar"/></svg>Confirmado</span></div>
+    <div class="slot"><time>10:00</time><div><div class="t">Visita para orçamento</div><div class="s">Roberto M. · Casa 7</div></div><span class="tag wait"><svg class="ico"><use href="#ti-espera"/></svg>Aguardando</span></div>
+    <div class="slot free" style="border-color:#62625D"><time>11:00</time><div><div class="t">Horário livre</div><div class="s">1 hora</div></div><span style="font-weight:600;font-size:13px">Oferecer</span></div>
+    <div class="slot"><time>14:00</time><div><div class="t">Troca de quadro de luz</div><div class="s">Cláudia P. · até 16:00</div></div><span class="tag ok"><svg class="ico"><use href="#ti-aprovar"/></svg>Confirmado</span></div>
+    <div class="card" style="margin-top:4px"><div class="k o">Assistente · recomendação</div><p style="margin:8px 0 12px;font-size:14px">Três horários livres hoje. Quer oferecer para quem autorizou contato?</p><div class="row"><div class="btn sm">Ver proposta</div><div class="btn sm" style="background:transparent;color:#fff;border:1.5px solid #4A4A46">Agora não</div></div></div>
+  </div>
+  <div class="tabs"><span><svg class="ico"><use href="#x-casa"/></svg>Início</span><span class="on"><svg class="ico"><use href="#ti-agenda"/></svg>Agenda</span><span><i class="mid" style="background:#F7F7F5"><img src="../../../marca-pronta/02-simbolo/svg/tinindo-simbolo-cor.svg"></i></span><span><svg class="ico"><use href="#ti-cliente"/></svg>Clientes</span><span><svg class="ico"><use href="#x-mais"/></svg>Mais</span></div>
+  <div class="home-ind"></div>
+</section>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tinindo — vitrine de demonstração da identidade (v0.1 provisória)</title>
+<link rel="icon" href="../assets/icons/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--tn-bg);color:var(--tn-text);font:400 var(--tn-font-size-md)/var(--tn-line-height-normal) var(--tn-font-sans);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--tn-font-display);letter-spacing:var(--tn-letter-spacing-display);line-height:var(--tn-line-height-tight);margin:0}
+p{margin:0}
+a{color:var(--tn-link)}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:var(--tn-size-container);margin:0 auto;padding:0 var(--tn-space-4)}
+:focus-visible{outline:var(--tn-size-focus-ring) solid var(--tn-focus);outline-offset:2px;border-radius:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.demo-banner{background:var(--tn-warning-bg);color:var(--tn-warning-text);font-size:var(--tn-font-size-sm);padding:var(--tn-space-2) var(--tn-space-4);text-align:center;border-bottom:1px solid var(--tn-warning-text)}
+/* navegação (material vidro, só aqui) */
+.nav{position:sticky;top:0;z-index:20;padding:var(--tn-space-3) 0}
+.nav .bar{display:flex;align-items:center;gap:var(--tn-space-4);padding:var(--tn-space-2) var(--tn-space-4);border-radius:var(--tn-radius-pill);flex-wrap:wrap}
+.nav img.logo{height:28px;display:block}
+.nav nav{display:flex;gap:var(--tn-space-1);margin-left:auto;flex-wrap:wrap}
+.nav nav a{text-decoration:none;color:var(--tn-text);padding:10px 14px;border-radius:var(--tn-radius-pill);min-height:var(--tn-size-touch);display:inline-flex;align-items:center;font-weight:500;font-size:var(--tn-font-size-sm)}
+.nav nav a:hover{background:var(--tn-action-subtle)}
+.theme{min-height:var(--tn-size-touch)}
+.logo-dark{display:none!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .logo-light{display:none!important}:root:not([data-theme=light]) .logo-dark{display:block!important}}
+:root[data-theme=dark] .logo-light{display:none!important}:root[data-theme=dark] .logo-dark{display:block!important}
+/* botões */
+.btn{--bg:var(--tn-action);--fg:var(--tn-text-on-action);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--tn-size-touch);padding:0 20px;border-radius:var(--tn-radius-pill);border:2px solid var(--bg);background:var(--bg);color:var(--fg);font:600 var(--tn-font-size-sm)/1 var(--tn-font-sans);cursor:pointer;text-decoration:none;transition:background var(--tn-motion-fast) var(--tn-motion-ease),transform var(--tn-motion-fast) var(--tn-motion-ease)}
+.btn:hover,.btn.is-hover{--bg:var(--tn-action-hover);border-color:var(--bg)}
+.btn:active,.btn.is-active{transform:scale(.98)}
+.btn.is-focus{outline:var(--tn-size-focus-ring) solid var(--tn-focus);outline-offset:2px}
+.btn[disabled],.btn.is-disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.secondary{--bg:transparent;--fg:var(--tn-text);border-color:var(--tn-border-control)}
+.btn.secondary:hover{background:var(--tn-action-subtle)}
+.btn.is-loading::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ico{width:20px;height:20px;flex:none;vertical-align:-4px}
+/* seções */
+section.view{padding:var(--tn-space-12) 0;border-top:1px solid var(--tn-border)}
+.eyebrow{font:600 var(--tn-font-size-xs)/1 var(--tn-font-sans);letter-spacing:var(--tn-letter-spacing-caps);text-transform:uppercase;color:var(--tn-accent-text)}
+.section-head{display:flex;flex-direction:column;gap:var(--tn-space-2);margin-bottom:var(--tn-space-6)}
+.section-head h2{font-size:var(--tn-font-size-3xl)}
+.chip-demo{display:inline-flex;gap:6px;align-items:center;font-size:var(--tn-font-size-xs);font-weight:600;background:var(--tn-warning-bg);color:var(--tn-warning-text);padding:4px 10px;border-radius:var(--tn-radius-pill)}
+.section-head .chip-demo{align-self:flex-start}
+.muted{color:var(--tn-text-muted)}
+.card{background:var(--tn-surface);border:1px solid var(--tn-border);border-radius:var(--tn-radius-lg);padding:var(--tn-space-6);box-shadow:var(--tn-shadow-sm)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--tn-space-4)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--tn-space-4)}
+/* hero */
+.hero{padding-top:var(--tn-space-12);padding-bottom:var(--tn-space-8)}
+.hero h1{font-size:clamp(2.2rem,6vw,var(--tn-font-size-5xl));max-width:16ch;font-weight:700}
+.hero p.lead{font-size:var(--tn-font-size-lg);max-width:52ch;margin:var(--tn-space-4) 0 var(--tn-space-6);color:var(--tn-text-muted)}
+.aud h3{font-size:var(--tn-font-size-2xl);margin:var(--tn-space-2) 0}
+.aud p{color:var(--tn-text-muted);margin-bottom:var(--tn-space-4)}
+.point{display:flex;gap:var(--tn-space-3);align-items:flex-start}
+.point .ico{color:var(--tn-action);margin-top:2px}
+.point h3{font:600 var(--tn-font-size-md)/1.3 var(--tn-font-sans);letter-spacing:0;margin-bottom:4px}
+/* agenda */
+.agenda-layout{display:grid;grid-template-columns:2fr 1fr;gap:var(--tn-space-4);align-items:start}
+.day-head{display:flex;justify-content:space-between;align-items:center;gap:var(--tn-space-3);flex-wrap:wrap;margin-bottom:var(--tn-space-4)}
+.slots{display:flex;flex-direction:column;gap:var(--tn-space-2);list-style:none;margin:0;padding:0}
+.slot{display:grid;grid-template-columns:64px 1fr auto;gap:var(--tn-space-3);align-items:center;padding:var(--tn-space-3) var(--tn-space-4);border-radius:var(--tn-radius-md);border:1px solid var(--tn-border);background:var(--tn-surface)}
+.slot time{font-weight:600;font-variant-numeric:tabular-nums}
+.slot .t{font-weight:600}
+.slot .s{font-size:var(--tn-font-size-sm);color:var(--tn-text-muted)}
+.slot.free{border:2px dashed var(--tn-border-control);background:transparent}
+.slot.block{background:var(--tn-surface-sunken);border-style:solid}
+.slot.cancel .t{text-decoration:line-through}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:var(--tn-font-size-xs);font-weight:600;padding:4px 10px;border-radius:var(--tn-radius-pill);white-space:nowrap}
+.status .ico{width:16px;height:16px}
+.st-ok{background:var(--tn-success-bg);color:var(--tn-success-text)}
+.st-wait{background:var(--tn-warning-bg);color:var(--tn-warning-text)}
+.st-off{background:var(--tn-danger-bg);color:var(--tn-danger-text)}
+.st-info{background:var(--tn-info-bg);color:var(--tn-info-text)}
+.st-neutral{background:var(--tn-surface-sunken);color:var(--tn-text-muted);border:1px solid var(--tn-border)}
+.metric .v{font:700 var(--tn-font-size-3xl)/1.1 var(--tn-font-display);font-variant-numeric:tabular-nums;letter-spacing:var(--tn-letter-spacing-display)}
+.metric .c{font-size:var(--tn-font-size-sm);color:var(--tn-text-muted);margin-top:6px}
+/* perfil */
+.profile-top{display:flex;gap:var(--tn-space-6);align-items:center;flex-wrap:wrap}
+.avatar{width:88px;height:88px;border-radius:50%;background:var(--tn-action-subtle);color:var(--tn-action);display:grid;place-items:center;font:700 28px var(--tn-font-display)}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--tn-space-3);margin:var(--tn-space-6) 0}
+.fact{border:1px solid var(--tn-border);border-radius:var(--tn-radius-md);padding:var(--tn-space-3) var(--tn-space-4);background:var(--tn-surface)}
+.fact .k{font-size:var(--tn-font-size-xs);font-weight:600;letter-spacing:var(--tn-letter-spacing-caps);text-transform:uppercase;color:var(--tn-text-muted);display:flex;gap:6px;align-items:center}
+.fact .v{font-weight:600;margin-top:6px}
+.fact .d{font-size:var(--tn-font-size-xs);color:var(--tn-text-muted);margin-top:4px}
+.work{aspect-ratio:16/7;border-radius:var(--tn-radius-md);background:repeating-linear-gradient(135deg,var(--tn-surface-sunken) 0 12px,var(--tn-border) 12px 13px);display:grid;place-items:end start;padding:var(--tn-space-3);font-size:var(--tn-font-size-xs);color:var(--tn-text-muted)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:var(--tn-space-4)}
+.field label{font-weight:600;font-size:var(--tn-font-size-sm)}
+.input{min-height:var(--tn-size-touch);padding:10px 14px;border:2px solid var(--tn-border-control);border-radius:var(--tn-radius-md);background:var(--tn-surface);color:var(--tn-text);font:inherit}
+.input[aria-invalid=true]{border-color:var(--tn-danger-text)}
+.err{display:flex;gap:6px;align-items:flex-start;color:var(--tn-danger-text);font-size:var(--tn-font-size-sm);font-weight:500}
+.hint{font-size:var(--tn-font-size-sm);color:var(--tn-text-muted)}
+.pro-card{display:flex;gap:var(--tn-space-3);align-items:flex-start;padding:var(--tn-space-4);border:1px solid var(--tn-border);border-radius:var(--tn-radius-md);background:var(--tn-surface)}
+.pro-card .avatar{width:52px;height:52px;font-size:18px}
+.pro-card.sponsored{border-color:var(--tn-info-text)}
+/* agente */
+.chat{display:flex;flex-direction:column;gap:var(--tn-space-3)}
+.msg{max-width:min(560px,92%);padding:var(--tn-space-3) var(--tn-space-4);border-radius:var(--tn-radius-lg)}
+.msg.me{align-self:flex-end;background:var(--tn-action);color:var(--tn-text-on-action);border-bottom-right-radius:6px}
+.msg.ag{align-self:flex-start;background:var(--tn-surface);border:1px solid var(--tn-border);border-bottom-left-radius:6px}
+.tag{display:inline-flex;gap:6px;align-items:center;font:600 var(--tn-font-size-xs)/1 var(--tn-font-sans);letter-spacing:var(--tn-letter-spacing-caps);text-transform:uppercase;margin-bottom:6px;color:var(--tn-text-muted)}
+.tag.consulted{color:var(--tn-info-text)} .tag.reco{color:var(--tn-accent-text)} .tag.pending{color:var(--tn-warning-text)} .tag.done{color:var(--tn-success-text)} .tag.fail{color:var(--tn-danger-text)}
+.approval{border:2px solid var(--tn-warning-text);border-radius:var(--tn-radius-lg);background:var(--tn-surface);padding:var(--tn-space-5);max-width:640px}
+.approval dl{display:grid;grid-template-columns:140px 1fr;gap:10px 16px;margin:var(--tn-space-4) 0}
+.approval dt{font-size:var(--tn-font-size-sm);color:var(--tn-text-muted)} .approval dd{margin:0;font-weight:500}
+.preview-msg{background:var(--tn-surface-sunken);border-radius:var(--tn-radius-md);padding:var(--tn-space-3) var(--tn-space-4);font-weight:400!important;font-size:var(--tn-font-size-sm)}
+.actions{display:flex;gap:var(--tn-space-2);flex-wrap:wrap}
+.banner{display:flex;gap:10px;align-items:flex-start;padding:var(--tn-space-3) var(--tn-space-4);border-radius:var(--tn-radius-md);font-size:var(--tn-font-size-sm);font-weight:500}
+.banner.err-b{background:var(--tn-danger-bg);color:var(--tn-danger-text)}
+.banner.info-b{background:var(--tn-info-bg);color:var(--tn-info-text)}
+.banner.ok-b{background:var(--tn-success-bg);color:var(--tn-success-text)}
+.empty{text-align:center;padding:var(--tn-space-8) var(--tn-space-4);border:2px dashed var(--tn-border-control);border-radius:var(--tn-radius-lg)}
+.empty h3{font-size:var(--tn-font-size-xl);margin:var(--tn-space-3) 0 var(--tn-space-2)}
+footer{padding:var(--tn-space-10) 0;border-top:1px solid var(--tn-border);color:var(--tn-text-muted);font-size:var(--tn-font-size-sm)}
+[hidden]{display:none!important}
+@media (max-width:860px){
+ .grid2,.grid3,.agenda-layout{grid-template-columns:1fr}
+ .facts{grid-template-columns:1fr 1fr}
+ .nav{position:static}.nav nav{margin-left:0;width:100%}
+ .approval dl{grid-template-columns:1fr;gap:2px}.approval dt{margin-top:10px}
+ .slot{grid-template-columns:56px 1fr}.slot .status,.slot .btn{grid-column:2}
+}
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none"><symbol id="ti-agenda" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></symbol><symbol id="ti-cliente" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></symbol><symbol id="ti-orcamento" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4M8.5 13h7M8.5 16.5h5"/></symbol><symbol id="ti-receber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="3"/><circle cx="12" cy="12" r="2.6"/></symbol><symbol id="ti-mensagem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5Z"/></symbol><symbol id="ti-espera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol><symbol id="ti-avaliacao" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.8 2.5 5.1 5.6.8-4 3.9.9 5.6L12 16.6l-5 2.6.9-5.6-4-3.9 5.6-.8Z"/></symbol><symbol id="ti-local" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s6.5-5.6 6.5-11a6.5 6.5 0 0 0-13 0c0 5.4 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></symbol><symbol id="ti-aprovar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.3 2.4 2.4 4.6-5"/></symbol><symbol id="ti-alerta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 21 19.5H3Z"/><path d="M12 10v4.2M12 17v.1"/></symbol><symbol id="ti-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.1"/></symbol><symbol id="ti-bloqueio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m6 6 12 12"/></symbol></svg>
+
+<div class="demo-banner" role="note"><strong>Demonstração visual.</strong> Todos os nomes, avaliações, valores e agendas abaixo são fictícios. Nenhum fluxo envia mensagens, cobra ou grava dados reais.</div>
+
+<header class="nav"><div class="wrap"><div class="bar tn-glass">
+  <a href="#home" aria-label="Tinindo — início"><img class="logo logo-light" src="../assets/logo/tinindo-wordmark-color.svg" alt="Tinindo"><img class="logo logo-dark" src="../assets/logo/tinindo-wordmark-negativo-cor.svg" alt="" aria-hidden="true"></a>
+  <nav aria-label="Seções da demonstração">
+    <a href="#home">Site</a><a href="#agenda">Agenda</a><a href="#perfil">Perfil público</a><a href="#agente">Agente</a><a href="#estados">Estados</a>
+  </nav>
+  <button class="btn secondary theme" id="theme" type="button" aria-pressed="false">Tema escuro</button>
+</div></div></header>
+
+<main>
+<!-- ============ 1. SITE ============ -->
+<section class="view" id="home" style="border-top:0;padding-top:0">
+ <div class="wrap hero">
+  <p class="eyebrow">Demonstração · página inicial</p>
+  <h1 style="margin-top:12px">Serviço bem-feito, negócio em ordem.</h1>
+  <p class="lead">Quem trabalha com as mãos e com a cabeça merece uma ferramenta que organize agenda, clientes e orçamentos sem tomar o seu dia. Quem contrata merece ver, com clareza, quem faz o quê.</p>
+  <div class="grid2">
+   <article class="card aud">
+     <p class="eyebrow">Para profissionais</p>
+     <h3>Organize o negócio. Continue no seu ofício.</h3>
+     <p>Agenda, clientes e orçamentos num lugar só. Um assistente consulta seus dados e prepara tarefas — você aprova antes de qualquer envio.</p>
+     <div class="actions"><a class="btn" href="#agenda">Ver a agenda de demonstração</a></div>
+   </article>
+   <article class="card aud">
+     <p class="eyebrow">Para quem contrata</p>
+     <h3>Encontre um profissional.</h3>
+     <p>Veja o que cada profissional faz, onde atende e quando tem horário. Identidade, avaliações e formação aparecem separadas, cada uma com o seu significado.</p>
+     <div class="actions"><a class="btn secondary" href="#perfil">Ver um perfil de demonstração</a></div>
+   </article>
+  </div>
+ </div>
+ <div class="wrap grid3" style="margin-top:var(--tn-space-6)">
+  <div class="point"><svg class="ico"><use href="#ti-agenda"/></svg><div><h3>Uma agenda que você quase não precisa abrir</h3><p class="muted">Pergunte ao assistente em vez de procurar na tela. <span class="chip-demo">em desenvolvimento</span></p></div></div>
+  <div class="point"><svg class="ico"><use href="#ti-aprovar"/></svg><div><h3>Nada sai sem o seu “pode enviar”</h3><p class="muted">Você vê destinatários, texto, desconto, custo estimado e horário antes de aprovar.</p></div></div>
+  <div class="point"><svg class="ico"><use href="#ti-avaliacao"/></svg><div><h3>Reputação com significado explícito</h3><p class="muted">Avaliação de cliente não é verificação de identidade, e nenhuma das duas é certificação.</p></div></div>
+ </div>
+</section>
+
+<!-- ============ 2. AGENDA ============ -->
+<section class="view" id="agenda">
+ <div class="wrap">
+  <div class="section-head"><p class="eyebrow">Demonstração · gestão do prestador</p><h2>Terça-feira, 13 de outubro</h2><span class="chip-demo">dados fictícios</span></div>
+  <div class="agenda-layout">
+   <div class="card">
+    <div class="day-head"><div><strong>Agenda de Marcos Andrade</strong><div class="hint">3 atendimentos · 3 horários livres</div></div>
+      <div class="actions"><button class="btn secondary" type="button">Bloquear horário</button><button class="btn" type="button">Novo atendimento</button></div></div>
+    <ol class="slots" aria-label="Horários do dia">
+     <li class="slot"><time>08:00</time><div><div class="t">Instalação de chuveiro</div><div class="s">Ana C. · Casa 14 · até 09:30</div></div><span class="status st-ok"><svg class="ico"><use href="#ti-aprovar"/></svg>Confirmado</span></li>
+     <li class="slot"><time>10:00</time><div><div class="t">Visita para orçamento</div><div class="s">Roberto M. · Casa 7</div></div><span class="status st-wait"><svg class="ico"><use href="#ti-espera"/></svg>Aguardando confirmação</span></li>
+     <li class="slot free"><time>11:00</time><div><div class="t">Horário livre</div><div class="s">1 hora</div></div><button class="btn secondary" type="button">Oferecer horário</button></li>
+     <li class="slot free"><time>12:00</time><div><div class="t">Horário livre</div><div class="s">1 hora</div></div><button class="btn secondary" type="button">Oferecer horário</button></li>
+     <li class="slot block"><time>13:00</time><div><div class="t">Almoço</div><div class="s">Bloqueado por você</div></div><span class="status st-neutral"><svg class="ico"><use href="#ti-bloqueio"/></svg>Bloqueado</span></li>
+     <li class="slot"><time>14:00</time><div><div class="t">Troca de quadro de luz</div><div class="s">Cláudia P. · Casa 22 · até 16:00</div></div><span class="status st-ok"><svg class="ico"><use href="#ti-aprovar"/></svg>Confirmado</span></li>
+     <li class="slot cancel"><time>16:00</time><div><div class="t">Reparo de tomada</div><div class="s">Teresa N. · cancelado pelo cliente. O horário voltou a ficar livre.</div></div><span class="status st-off"><svg class="ico"><use href="#ti-alerta"/></svg>Cancelado</span></li>
+     <li class="slot free"><time>17:00</time><div><div class="t">Horário livre</div><div class="s">1 hora</div></div><button class="btn secondary" type="button">Oferecer horário</button></li>
+    </ol>
+   </div>
+   <aside style="display:flex;flex-direction:column;gap:var(--tn-space-4)">
+    <div class="card metric"><div class="eyebrow">A receber · 11 a 17 de outubro</div><div class="v" style="margin-top:10px">R$ 1.250,00</div><div class="c">3 serviços em aberto. Valor de exemplo; não representa resultado real.</div></div>
+    <div class="card"><div class="eyebrow">Legenda de estados</div>
+      <p class="hint" style="margin:8px 0 12px">Cada estado tem ícone e texto, nunca só cor.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px"><span class="status st-ok"><svg class="ico"><use href="#ti-aprovar"/></svg>Confirmado</span><span class="status st-wait"><svg class="ico"><use href="#ti-espera"/></svg>Aguardando</span><span class="status st-off"><svg class="ico"><use href="#ti-alerta"/></svg>Cancelado</span><span class="status st-neutral"><svg class="ico"><use href="#ti-bloqueio"/></svg>Bloqueado</span></div></div>
+   </aside>
+  </div>
+ </div>
+</section>
+
+<!-- ============ 3. PERFIL ============ -->
+<section class="view" id="perfil">
+ <div class="wrap">
+  <div class="section-head"><p class="eyebrow">Demonstração · perfil público</p><h2>Como um profissional aparece para quem contrata</h2><span class="chip-demo">perfil fictício</span></div>
+  <div class="card">
+   <div class="profile-top">
+    <div class="avatar" aria-hidden="true">MA</div>
+    <div style="flex:1;min-width:240px"><h3 style="font-size:var(--tn-font-size-3xl)">Marcos Andrade</h3>
+     <p class="muted">Eletricista residencial · atende o Condomínio Jardins (exemplo) e arredores</p>
+     <p style="margin-top:8px"><span class="status st-info"><svg class="ico"><use href="#ti-agenda"/></svg>Próximo horário livre: terça, 13/10, 11:00</span></p></div>
+    <a class="btn" href="#orcamento">Pedir orçamento</a>
+   </div>
+   <div class="facts" role="list" aria-label="O que este perfil informa">
+    <div class="fact" role="listitem"><div class="k"><svg class="ico"><use href="#ti-cliente"/></svg>Identidade</div><div class="v">Não verificada</div><div class="d">Nesta demonstração, nenhuma verificação é feita.</div></div>
+    <div class="fact" role="listitem"><div class="k"><svg class="ico"><use href="#ti-avaliacao"/></svg>Avaliações de clientes</div><div class="v num">4,8 de 5 · 12 avaliações</div><div class="d">Dado fictício. Opinião de clientes, não garantia.</div></div>
+    <div class="fact" role="listitem"><div class="k"><svg class="ico"><use href="#ti-orcamento"/></svg>Serviços pela Tinindo</div><div class="v num">0 registrados</div><div class="d">Conta só serviços feitos e registrados pela plataforma.</div></div>
+    <div class="fact" role="listitem"><div class="k"><svg class="ico"><use href="#ti-info"/></svg>Formação</div><div class="v">Não informada</div><div class="d">Certificação só aparece com critério verificável.</div></div>
+   </div>
+   <h3 style="font-size:var(--tn-font-size-xl);margin-bottom:var(--tn-space-3)">Trabalhos recentes</h3>
+   <div class="grid3"><div class="work">Foto do trabalho (exemplo)</div><div class="work">Foto do trabalho (exemplo)</div><div class="work">Foto do trabalho (exemplo)</div></div>
+  </div>
+  <div class="grid2" style="margin-top:var(--tn-space-4)">
+   <form class="card" id="orcamento" novalidate onsubmit="return false">
+    <h3 style="font-size:var(--tn-font-size-xl);margin-bottom:var(--tn-space-4)">Pedir orçamento</h3>
+    <div class="field"><label for="desc">Descreva o serviço</label>
+     <textarea class="input" id="desc" rows="3" aria-invalid="true" aria-describedby="desc-err">Tomada</textarea>
+     <div class="err" id="desc-err" role="alert"><svg class="ico"><use href="#ti-alerta"/></svg><span>Descreva o serviço com pelo menos 10 caracteres. Exemplo: “tomada da cozinha sem energia”.</span></div></div>
+    <div class="field"><label for="quando">Quando prefere?</label><input class="input" id="quando" value="Terça, 13/10 às 11:00"><span class="hint">Este horário está livre na agenda do profissional.</span></div>
+    <button class="btn" type="submit">Enviar pedido (simulado)</button>
+    <p class="hint" style="margin-top:10px">Na demonstração, nada é enviado.</p>
+   </form>
+   <div style="display:flex;flex-direction:column;gap:var(--tn-space-3)">
+    <h3 style="font-size:var(--tn-font-size-xl)">Outros profissionais na região</h3>
+    <div class="pro-card"><div class="avatar" aria-hidden="true">TN</div><div><strong>Teresa Nogueira</strong><div class="muted" style="font-size:var(--tn-font-size-sm)">Jardinagem</div>
+      <p style="margin-top:6px"><span class="status st-neutral"><svg class="ico"><use href="#ti-info"/></svg>Perfil novo · ainda sem avaliações</span></p>
+      <p class="hint" style="margin-top:6px">Veja os trabalhos e peça um orçamento. Todo profissional começa sem avaliações.</p></div></div>
+    <div class="pro-card sponsored"><div class="avatar" aria-hidden="true">PR</div><div><strong>Paulo Reis</strong><div class="muted" style="font-size:var(--tn-font-size-sm)">Manutenção de piscinas</div>
+      <p style="margin-top:6px"><span class="status st-info"><svg class="ico"><use href="#ti-info"/></svg>Patrocinado</span></p>
+      <p class="hint" style="margin-top:6px">Anúncio pago. A posição não indica melhor avaliação.</p></div></div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- ============ 4. AGENTE ============ -->
+<section class="view" id="agente">
+ <div class="wrap">
+  <div class="section-head"><p class="eyebrow">Demonstração · assistente</p><h2>Consultar, recomendar, pedir aprovação</h2><span class="chip-demo">simulação: nada é enviado de verdade</span></div>
+  <div class="card chat" aria-label="Conversa de demonstração">
+   <div class="msg me">Como está a minha terça?</div>
+   <div class="msg ag"><span class="tag consulted"><svg class="ico"><use href="#ti-info"/></svg>Informação consultada</span><br>Agenda de 13/10: 3 atendimentos e 3 horários livres (11:00, 12:00 e 17:00). Uma visita aguarda confirmação do cliente.</div>
+   <div class="msg ag"><span class="tag reco"><svg class="ico"><use href="#ti-mensagem"/></svg>Recomendação</span><br>Há três horários livres na terça. Posso preparar uma mensagem para clientes que autorizaram esse contato. Você revisa antes de qualquer envio.</div>
+   <div class="msg me">Pode preparar.</div>
+
+   <div id="st-pending" class="approval" role="group" aria-labelledby="ap-t">
+    <span class="tag pending"><svg class="ico"><use href="#ti-espera"/></svg>Ação pendente de aprovação</span>
+    <h3 id="ap-t" style="font-size:var(--tn-font-size-xl)">Enviar oferta de horários</h3>
+    <dl>
+     <dt>Destinatários</dt><dd>4 clientes que autorizaram receber ofertas (consentimento registrado — exemplo): Roberto M., Cláudia P., Lúcia S., Paulo F.</dd>
+     <dt>Mensagem</dt><dd><div class="preview-msg">“Olá! Tenho horários livres na terça (13/10): 11:00, 12:00 e 17:00. Se quiser agendar, é só responder. — Marcos Andrade”</div></dd>
+     <dt>Benefício</dt><dd>Sem desconto nesta proposta.</dd>
+     <dt>Custo estimado</dt><dd class="num">Não calculado (simulação)</dd>
+     <dt>Envio</dt><dd>Hoje, às 18:00</dd>
+    </dl>
+    <div class="actions"><button class="btn" type="button" data-go="done">Aprovar (simulado)</button><button class="btn secondary" type="button">Editar mensagem</button><button class="btn secondary" type="button" data-go="cancel">Não enviar</button></div>
+    <p class="hint" style="margin-top:12px">Ao aprovar nesta demonstração, nenhuma mensagem é enviada.</p>
+   </div>
+
+   <div id="st-done" class="msg ag" hidden><span class="tag done"><svg class="ico"><use href="#ti-aprovar"/></svg>Ação executada (simulada)</span><br>Aprovação registrada na simulação. <strong>Nenhuma mensagem foi enviada de verdade.</strong> Em um produto real, aqui apareceria o envio com data, hora e lista de destinatários.<div class="actions" style="margin-top:12px"><button class="btn secondary" type="button" data-go="pending">Voltar</button><button class="btn secondary" type="button" data-go="fail">Ver estado de falha</button></div></div>
+
+   <div id="st-fail" class="msg ag" hidden><span class="tag fail"><svg class="ico"><use href="#ti-alerta"/></svg>Falha</span><br>Não foi possível conectar ao canal de mensagens. <strong>Nada foi enviado.</strong> Você pode copiar o texto e enviar por conta própria, ou tentar de novo mais tarde.<div class="actions" style="margin-top:12px"><button class="btn" type="button">Copiar texto</button><button class="btn secondary" type="button">Tentar de novo</button><button class="btn secondary" type="button" data-go="pending">Voltar</button></div></div>
+
+   <div id="st-cancel" class="msg ag" hidden><span class="tag"><svg class="ico"><use href="#ti-bloqueio"/></svg>Cancelado por você</span><br>Tudo bem, a proposta foi descartada. Nada foi enviado.<div class="actions" style="margin-top:12px"><button class="btn secondary" type="button" data-go="pending">Rever proposta</button></div></div>
+  </div>
+ </div>
+</section>
+
+<!-- ============ 5. ESTADOS ============ -->
+<section class="view" id="estados">
+ <div class="wrap">
+  <div class="section-head"><p class="eyebrow">Sistema visual</p><h2>Estados de botões e mensagens</h2></div>
+  <div class="card" style="display:flex;flex-wrap:wrap;gap:var(--tn-space-3);align-items:center">
+   <button class="btn" type="button">Normal</button><button class="btn is-hover" type="button">Hover</button><button class="btn is-focus" type="button">Foco</button><button class="btn is-active" type="button">Pressionado</button><button class="btn" type="button" disabled>Desabilitado</button><button class="btn is-loading" type="button">Carregando</button><button class="btn secondary" type="button">Secundário</button>
+  </div>
+  <div class="grid2" style="margin-top:var(--tn-space-4)">
+   <div class="empty"><svg class="ico" style="width:32px;height:32px;color:var(--tn-text-muted)"><use href="#ti-cliente"/></svg><h3>Nenhum cliente ainda</h3><p class="muted" style="margin-bottom:var(--tn-space-4)">Adicione o primeiro cliente ou importe sua lista de contatos.</p><button class="btn" type="button">Adicionar cliente</button></div>
+   <div style="display:flex;flex-direction:column;gap:var(--tn-space-3)">
+    <div class="banner err-b" role="alert"><svg class="ico"><use href="#ti-alerta"/></svg><div>Não foi possível conectar à integração. Nada foi enviado. Verifique a conexão e tente de novo.</div></div>
+    <div class="banner info-b"><svg class="ico"><use href="#ti-info"/></svg><div>Este cliente ainda não autorizou receber ofertas. Ele não aparece na lista de envio.</div></div>
+    <div class="banner ok-b"><svg class="ico"><use href="#ti-aprovar"/></svg><div>Atendimento salvo na agenda.</div></div>
+   </div>
+  </div>
+ </div>
+</section>
+</main>
+<footer><div class="wrap">Tinindo · vitrine de identidade v0.1 (provisória) · tokens em <code>../tokens/tokens.css</code> · Dados e fluxos simulados. Domínio escolhido: tinindoapp.com.br (compra não comprovada). Pendência jurídica de marca em aberto — ver DECISIONS.md.</div></footer>
+<script>
+(function(){
+  var ids={pending:'st-pending',done:'st-done',fail:'st-fail',cancel:'st-cancel'};
+  document.querySelectorAll('[data-go]').forEach(function(b){b.addEventListener('click',function(){
+    Object.keys(ids).forEach(function(k){document.getElementById(ids[k]).hidden=(k!==b.dataset.go);});
+    var t=document.getElementById(ids[b.dataset.go]);var f=t.querySelector('button');if(f)f.focus({preventScroll:true});
+  });});
+  var tb=document.getElementById('theme');
+  tb.addEventListener('click',function(){var d=document.documentElement.dataset.theme==='dark';
+    document.documentElement.dataset.theme=d?'light':'dark';tb.setAttribute('aria-pressed',String(!d));tb.textContent=d?'Tema escuro':'Tema claro';});
+})();
+</script>
+</body>
+</html>

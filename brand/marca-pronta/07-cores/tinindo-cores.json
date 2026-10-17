@@ -1,0 +1,182 @@
+[
+  {
+    "nome": "Tinta 950",
+    "hex": "#111111",
+    "rgb": [
+      17,
+      17,
+      17
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      0,
+      93
+    ]
+  },
+  {
+    "nome": "Laranja 500",
+    "hex": "#FF4B1F",
+    "rgb": [
+      255,
+      75,
+      31
+    ],
+    "cmyk_aproximado": [
+      0,
+      71,
+      88,
+      0
+    ]
+  },
+  {
+    "nome": "Laranja 400",
+    "hex": "#FF6A3D",
+    "rgb": [
+      255,
+      106,
+      61
+    ],
+    "cmyk_aproximado": [
+      0,
+      58,
+      76,
+      0
+    ]
+  },
+  {
+    "nome": "Laranja 700",
+    "hex": "#B33008",
+    "rgb": [
+      179,
+      48,
+      8
+    ],
+    "cmyk_aproximado": [
+      0,
+      73,
+      96,
+      30
+    ]
+  },
+  {
+    "nome": "Papel 50",
+    "hex": "#F7F7F5",
+    "rgb": [
+      247,
+      247,
+      245
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      1,
+      3
+    ]
+  },
+  {
+    "nome": "Branco",
+    "hex": "#FFFFFF",
+    "rgb": [
+      255,
+      255,
+      255
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "nome": "Tinta 900",
+    "hex": "#1C1C1A",
+    "rgb": [
+      28,
+      28,
+      26
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      7,
+      89
+    ]
+  },
+  {
+    "nome": "Tinta 600",
+    "hex": "#4A4A46",
+    "rgb": [
+      74,
+      74,
+      70
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      5,
+      71
+    ]
+  },
+  {
+    "nome": "Tinta 500",
+    "hex": "#62625D",
+    "rgb": [
+      98,
+      98,
+      93
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      5,
+      62
+    ]
+  },
+  {
+    "nome": "Tinta 300",
+    "hex": "#BDBDB7",
+    "rgb": [
+      189,
+      189,
+      183
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      3,
+      26
+    ]
+  },
+  {
+    "nome": "Tinta 200",
+    "hex": "#DEDED9",
+    "rgb": [
+      222,
+      222,
+      217
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      2,
+      13
+    ]
+  },
+  {
+    "nome": "Tinta 100",
+    "hex": "#EDEDEA",
+    "rgb": [
+      237,
+      237,
+      234
+    ],
+    "cmyk_aproximado": [
+      0,
+      0,
+      1,
+      7
+    ]
+  }
+]

@@ -93,7 +93,7 @@ As letras foram desenhadas como formas geométricas vetoriais, geradas por scrip
 | Símbolo com anel (uso grande) | `tinindo-symbol-anel-{color,negativo-cor}.svg` | 512 px |
 | Símbolo pequeno, variante óptica (≤ 24 px) | `tinindo-symbol-pequeno-optico-{color,negativo-cor,preto,branco}.svg` | 256 px |
 
-Os SVG são formas preenchidas (sem texto, raster ou script). O corte do sorriso usa `clipPath` (vetor real). **Limitação:** o corte não está unido em um contorno único; antes de gráfica, bordado ou corte de vinil, unir as formas em editor vetorial (ver STATUS.md).
+Os SVG são formas preenchidas e **contornos fechados**: sem máscara (`clipPath`), texto, raster ou script. As duas metades do sorriso são formas independentes com arcos exatos, prontas para gráfica, bordado, serigrafia e recorte de vinil. Pacote completo para uso (PNG em vários tamanhos, PDF vetorial, ícones de loja, redes sociais, papelaria, cores em .ase/.gpl): `marca-pronta/`.
 
 ![Variantes e fundos](fig-fundos.png)
 
@@ -283,5 +283,5 @@ Detalhes em `research/creative-territories.md` e `research/evaluation.md`.
 3. **Pesquisa de referências:** pendente (`research/references.md`).
 4. **Risco de leitura “infantil” ou de emoji:** mitigado por letras finas, preto adulto e proibição de sorrisos decorativos; **não testado com pessoas**.
 5. **Traço fino:** wordmark só a partir de 120 px; abaixo disso, símbolo.
-6. **Duas cores e corte:** reprodução em bordado, serigrafia e impressão precisa de prova; unir o corte em contorno único antes de produzir.
+6. **Duas cores e corte:** reprodução em bordado, serigrafia e impressão precisa de prova (os arquivos já são contornos fechados).
 7. Fotografia, fontes além de Inter, auditoria de acessibilidade e `favicon.ico`: pendentes.
