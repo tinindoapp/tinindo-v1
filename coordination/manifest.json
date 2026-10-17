@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "phase": "pilot",
+  "tasks": [
+    {
+      "id": "P00",
+      "title": "Fundação e contratos",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [],
+      "resources": [
+        "foundation"
+      ],
+      "paths": [
+        "docs/adr/",
+        "src/app/",
+        "src/components/ui/",
+        "supabase/functions/_shared/contracts/",
+        "supabase/migrations/",
+        ".github/",
+        "package.json",
+        "package-lock.json"
+      ]
+    },
+    {
+      "id": "P01",
+      "title": "Identidade e onboarding",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "identity"
+      ],
+      "paths": [
+        "src/features/identity/",
+        "supabase/functions/identity/",
+        "db/proposals/P01/",
+        "tests/contracts/identity/"
+      ]
+    },
+    {
+      "id": "P02",
+      "title": "Clientes e catálogo",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "crm"
+      ],
+      "paths": [
+        "src/features/crm/",
+        "supabase/functions/crm/",
+        "db/proposals/P02/",
+        "tests/contracts/crm/"
+      ]
+    },
+    {
+      "id": "P03",
+      "title": "Motor de agenda",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "scheduling-domain"
+      ],
+      "paths": [
+        "supabase/functions/scheduling/",
+        "supabase/functions/_shared/domain/scheduling/",
+        "db/proposals/P03/",
+        "tests/contracts/scheduling/"
+      ]
+    },
+    {
+      "id": "P04",
+      "title": "Agenda e experiência web",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "scheduling-ui"
+      ],
+      "paths": [
+        "src/features/scheduling/",
+        "tests/e2e/scheduling/"
+      ]
+    },
+    {
+      "id": "P05",
+      "title": "Regras e ofertas de preço",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "pricing"
+      ],
+      "paths": [
+        "src/features/pricing/",
+        "supabase/functions/pricing/",
+        "supabase/functions/_shared/domain/pricing/",
+        "db/proposals/P05/",
+        "tests/contracts/pricing/"
+      ]
+    },
+    {
+      "id": "P06",
+      "title": "Lista de espera e jobs",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "waitlist"
+      ],
+      "paths": [
+        "src/features/waitlist/",
+        "supabase/functions/waitlist/",
+        "supabase/functions/jobs/",
+        "db/proposals/P06/",
+        "tests/contracts/waitlist/"
+      ]
+    },
+    {
+      "id": "P07",
+      "title": "Financeiro simples e pacotes",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "finance"
+      ],
+      "paths": [
+        "src/features/finance/",
+        "supabase/functions/finance/",
+        "supabase/functions/_shared/domain/finance/",
+        "db/proposals/P07/",
+        "tests/contracts/finance/"
+      ]
+    },
+    {
+      "id": "P08",
+      "title": "Assistente e aprovação",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "agent"
+      ],
+      "paths": [
+        "src/features/agent/",
+        "supabase/functions/agent/",
+        "supabase/functions/actions/",
+        "db/proposals/P08/",
+        "tests/contracts/agent/"
+      ]
+    },
+    {
+      "id": "P09",
+      "title": "Cliente, perfil e convites",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "network"
+      ],
+      "paths": [
+        "src/features/network/",
+        "supabase/functions/network/",
+        "db/proposals/P09/",
+        "tests/e2e/network/"
+      ]
+    },
+    {
+      "id": "P10",
+      "title": "Integração e liberação",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09"
+      ],
+      "resources": [
+        "release"
+      ],
+      "paths": [
+        "tests/e2e/",
+        "docs/handoffs/",
+        "docs/adr/",
+        "release/"
+      ]
+    }
+  ]
+}

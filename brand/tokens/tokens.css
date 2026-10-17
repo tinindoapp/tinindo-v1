@@ -1,0 +1,203 @@
+/* Tinindo — tokens v0.2 (provisório; identidade 'sorriso'). Gerado junto de tokens.json: mesmos nomes e valores. */
+:root {
+  /* Primitivos */
+  --tn-color-tinta-950: #111111;
+  --tn-color-tinta-900: #1C1C1A;
+  --tn-color-tinta-800: #2A2A28;
+  --tn-color-tinta-700: #3A3A37;
+  --tn-color-tinta-600: #4A4A46;
+  --tn-color-tinta-500: #62625D;
+  --tn-color-tinta-400: #8C8C86;
+  --tn-color-tinta-300: #BDBDB7;
+  --tn-color-tinta-200: #DEDED9;
+  --tn-color-tinta-100: #EDEDEA;
+  --tn-color-papel-50: #F7F7F5;
+  --tn-color-laranja-700: #B33008;
+  --tn-color-laranja-500: #FF4B1F;
+  --tn-color-laranja-400: #FF6A3D;
+  --tn-color-laranja-300: #FF9A7A;
+  --tn-color-laranja-200: #FFC9B8;
+  --tn-color-laranja-100: #FFE9E1;
+  --tn-color-verde-700: #1F6E3A;
+  --tn-color-verde-300: #7CCB99;
+  --tn-color-verde-100: #E0F2E6;
+  --tn-color-ambar-700: #7A5200;
+  --tn-color-ambar-300: #F0C060;
+  --tn-color-ambar-100: #FDF0D2;
+  --tn-color-vermelho-700: #B3261E;
+  --tn-color-vermelho-300: #F2958F;
+  --tn-color-vermelho-100: #FBE4E2;
+  --tn-color-azul-700: #1D5AA6;
+  --tn-color-azul-300: #8DB6E8;
+  --tn-color-azul-100: #E1ECF9;
+  --tn-color-branco-0: #FFFFFF;
+  /* font */
+  --tn-font-sans: "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tn-font-display: "Inter Display", "Inter", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --tn-font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* font-weight */
+  --tn-font-weight-regular: 400;
+  --tn-font-weight-medium: 500;
+  --tn-font-weight-semibold: 600;
+  --tn-font-weight-bold: 700;
+  /* font-size */
+  --tn-font-size-xs: 12px;
+  --tn-font-size-sm: 14px;
+  --tn-font-size-md: 16px;
+  --tn-font-size-lg: 18px;
+  --tn-font-size-xl: 20px;
+  --tn-font-size-2xl: 24px;
+  --tn-font-size-3xl: 32px;
+  --tn-font-size-4xl: 44px;
+  --tn-font-size-5xl: 56px;
+  /* line-height */
+  --tn-line-height-tight: 1.1;
+  --tn-line-height-snug: 1.25;
+  --tn-line-height-normal: 1.5;
+  /* letter-spacing */
+  --tn-letter-spacing-display: -0.02em;
+  --tn-letter-spacing-normal: 0;
+  --tn-letter-spacing-caps: 0.06em;
+  /* space */
+  --tn-space-1: 4px;
+  --tn-space-2: 8px;
+  --tn-space-3: 12px;
+  --tn-space-4: 16px;
+  --tn-space-5: 20px;
+  --tn-space-6: 24px;
+  --tn-space-8: 32px;
+  --tn-space-10: 40px;
+  --tn-space-12: 48px;
+  --tn-space-16: 64px;
+  /* radius */
+  --tn-radius-sm: 8px;
+  --tn-radius-md: 12px;
+  --tn-radius-lg: 20px;
+  --tn-radius-pill: 999px;
+  /* shadow */
+  --tn-shadow-sm: 0 1px 2px rgba(17,17,17,.08);
+  --tn-shadow-md: 0 6px 18px rgba(17,17,17,.10);
+  --tn-shadow-lg: 0 18px 48px rgba(17,17,17,.16);
+  /* motion */
+  --tn-motion-fast: 120ms;
+  --tn-motion-base: 200ms;
+  --tn-motion-slow: 320ms;
+  --tn-motion-ease: cubic-bezier(.2,.7,.2,1);
+  /* size */
+  --tn-size-touch: 44px;
+  --tn-size-touch-min: 24px;
+  --tn-size-focus-ring: 3px;
+  --tn-size-container: 1120px;
+  /* material */
+  --tn-material-glass-blur: 20px;
+  --tn-material-glass-saturate: 1.4;
+  /* Semânticos — tema claro (padrão) */
+  --tn-bg: var(--tn-color-papel-50);
+  --tn-surface: var(--tn-color-branco-0);
+  --tn-surface-sunken: var(--tn-color-tinta-100);
+  --tn-text: var(--tn-color-tinta-950);
+  --tn-text-muted: var(--tn-color-tinta-600);
+  --tn-text-on-action: var(--tn-color-branco-0);
+  --tn-border: var(--tn-color-tinta-200);
+  --tn-border-control: var(--tn-color-tinta-500);
+  --tn-brand: var(--tn-color-tinta-950);
+  --tn-brand-accent: var(--tn-color-laranja-500);
+  --tn-accent-text: var(--tn-color-laranja-700);
+  --tn-action: var(--tn-color-tinta-950);
+  --tn-action-hover: var(--tn-color-tinta-800);
+  --tn-action-subtle: var(--tn-color-tinta-100);
+  --tn-link: var(--tn-color-tinta-950);
+  --tn-focus: var(--tn-color-azul-700);
+  --tn-success-text: var(--tn-color-verde-700);
+  --tn-success-bg: var(--tn-color-verde-100);
+  --tn-warning-text: var(--tn-color-ambar-700);
+  --tn-warning-bg: var(--tn-color-ambar-100);
+  --tn-danger-text: var(--tn-color-vermelho-700);
+  --tn-danger-bg: var(--tn-color-vermelho-100);
+  --tn-info-text: var(--tn-color-azul-700);
+  --tn-info-bg: var(--tn-color-azul-100);
+  --tn-glass-bg: rgba(247,247,245,.74); --tn-glass-border: rgba(255,255,255,.6);
+}
+
+/* Tema escuro: automático (preferência do sistema) ou forçado com data-theme="dark" */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --tn-bg: var(--tn-color-tinta-950);
+  --tn-surface: var(--tn-color-tinta-900);
+  --tn-surface-sunken: var(--tn-color-tinta-950);
+  --tn-text: var(--tn-color-papel-50);
+  --tn-text-muted: var(--tn-color-tinta-300);
+  --tn-text-on-action: var(--tn-color-tinta-950);
+  --tn-border: var(--tn-color-tinta-700);
+  --tn-border-control: var(--tn-color-tinta-400);
+  --tn-brand: var(--tn-color-papel-50);
+  --tn-brand-accent: var(--tn-color-laranja-400);
+  --tn-accent-text: var(--tn-color-laranja-300);
+  --tn-action: var(--tn-color-papel-50);
+  --tn-action-hover: var(--tn-color-tinta-200);
+  --tn-action-subtle: var(--tn-color-tinta-800);
+  --tn-link: var(--tn-color-papel-50);
+  --tn-focus: var(--tn-color-azul-300);
+  --tn-success-text: var(--tn-color-verde-300);
+  --tn-success-bg: var(--tn-color-tinta-900);
+  --tn-warning-text: var(--tn-color-ambar-300);
+  --tn-warning-bg: var(--tn-color-tinta-900);
+  --tn-danger-text: var(--tn-color-vermelho-300);
+  --tn-danger-bg: var(--tn-color-tinta-900);
+  --tn-info-text: var(--tn-color-azul-300);
+  --tn-info-bg: var(--tn-color-tinta-900);
+  --tn-glass-bg: rgba(28,28,26,.70); --tn-glass-border: rgba(255,255,255,.14);
+  color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --tn-bg: var(--tn-color-tinta-950);
+  --tn-surface: var(--tn-color-tinta-900);
+  --tn-surface-sunken: var(--tn-color-tinta-950);
+  --tn-text: var(--tn-color-papel-50);
+  --tn-text-muted: var(--tn-color-tinta-300);
+  --tn-text-on-action: var(--tn-color-tinta-950);
+  --tn-border: var(--tn-color-tinta-700);
+  --tn-border-control: var(--tn-color-tinta-400);
+  --tn-brand: var(--tn-color-papel-50);
+  --tn-brand-accent: var(--tn-color-laranja-400);
+  --tn-accent-text: var(--tn-color-laranja-300);
+  --tn-action: var(--tn-color-papel-50);
+  --tn-action-hover: var(--tn-color-tinta-200);
+  --tn-action-subtle: var(--tn-color-tinta-800);
+  --tn-link: var(--tn-color-papel-50);
+  --tn-focus: var(--tn-color-azul-300);
+  --tn-success-text: var(--tn-color-verde-300);
+  --tn-success-bg: var(--tn-color-tinta-900);
+  --tn-warning-text: var(--tn-color-ambar-300);
+  --tn-warning-bg: var(--tn-color-tinta-900);
+  --tn-danger-text: var(--tn-color-vermelho-300);
+  --tn-danger-bg: var(--tn-color-tinta-900);
+  --tn-info-text: var(--tn-color-azul-300);
+  --tn-info-bg: var(--tn-color-tinta-900);
+  --tn-glass-bg: rgba(28,28,26,.70); --tn-glass-border: rgba(255,255,255,.14);
+  color-scheme: dark;
+}
+
+/* Material "vidro": só para camadas flutuantes (barra de navegação, sheets, diálogo do agente).
+   Nunca em tabelas, campos, formulários ou blocos de leitura. Sempre com alternativa opaca. */
+.tn-glass {
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tn-glass {
+    background: var(--tn-glass-bg);
+    border-color: var(--tn-glass-border);
+    -webkit-backdrop-filter: blur(var(--tn-material-glass-blur)) saturate(var(--tn-material-glass-saturate));
+    backdrop-filter: blur(var(--tn-material-glass-blur)) saturate(var(--tn-material-glass-saturate));
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .tn-glass { background: var(--tn-surface) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-color: var(--tn-border-control) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --tn-motion-fast: 0ms; --tn-motion-base: 0ms; --tn-motion-slow: 0ms; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
