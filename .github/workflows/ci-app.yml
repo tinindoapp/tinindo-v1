@@ -1,5 +1,6 @@
 # CI do aplicativo (P00). Roda em todo PR para main e em push na main.
 # Sem secrets: nenhum job recebe credencial de homologação/produção. Actions fixadas por SHA.
+# Runner fixado em ubuntu-24.04: ubuntu-latest migra para Ubuntu 26 a partir de 19/10/2026.
 # Não usar `|| true`, --passWithNoTests ou mocks no lugar do banco (docs/09).
 name: app-ci
 on:
@@ -16,7 +17,7 @@ concurrency:
 jobs:
   app-quality:
     name: lint · typecheck · unit · contratos · build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,7 +37,7 @@ jobs:
 
   functions:
     name: edge functions (deno check)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,7 +48,7 @@ jobs:
 
   database:
     name: banco (migrations do zero · seed · pgTAP/RLS)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,7 +70,7 @@ jobs:
 
   e2e:
     name: e2e smoke (desktop + mobile)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,7 +91,7 @@ jobs:
 
   secrets:
     name: varredura de segredos
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
