@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+__pycache__/
+.DS_Store
+
+# Variáveis locais: nunca versionar valores reais
+.env
+.env.*
+!.env.example

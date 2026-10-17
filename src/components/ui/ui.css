@@ -1,0 +1,59 @@
+/* Componentes base. Ação principal = preta (--tn-action). Laranja não é botão nem estado. */
+.tn-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tn-space-2);
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-5);
+  border-radius: var(--tn-radius-pill);
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: var(--tn-font-weight-medium);
+  cursor: pointer;
+  transition: background var(--tn-motion-fast) var(--tn-motion-ease);
+}
+.tn-button[data-variant="primary"] { background: var(--tn-action); color: var(--tn-text-on-action); }
+.tn-button[data-variant="primary"]:hover:not(:disabled) { background: var(--tn-action-hover); }
+.tn-button[data-variant="secondary"] { background: var(--tn-surface); color: var(--tn-text); border-color: var(--tn-border-control); }
+.tn-button[data-variant="secondary"]:hover:not(:disabled) { background: var(--tn-action-subtle); }
+.tn-button[data-variant="ghost"] { background: transparent; color: var(--tn-text); }
+.tn-button[data-variant="ghost"]:hover:not(:disabled) { background: var(--tn-action-subtle); }
+.tn-button:disabled { opacity: .55; cursor: not-allowed; }
+
+.tn-card {
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-lg);
+  padding: var(--tn-space-6);
+  box-shadow: var(--tn-shadow-sm);
+}
+
+.tn-field { display: grid; gap: var(--tn-space-1); }
+.tn-field label { font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); }
+.tn-field input,
+.tn-field select {
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-3);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-sm);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  font: inherit;
+}
+.tn-field [role="alert"] { color: var(--tn-danger-text); font-size: var(--tn-font-size-sm); }
+
+.tn-banner {
+  display: flex;
+  gap: var(--tn-space-2);
+  align-items: flex-start;
+  padding: var(--tn-space-3) var(--tn-space-4);
+  border-radius: var(--tn-radius-md);
+  font-size: var(--tn-font-size-sm);
+}
+.tn-banner[data-tone="info"] { background: var(--tn-info-bg); color: var(--tn-info-text); }
+.tn-banner[data-tone="success"] { background: var(--tn-success-bg); color: var(--tn-success-text); }
+.tn-banner[data-tone="warning"] { background: var(--tn-warning-bg); color: var(--tn-warning-text); }
+.tn-banner[data-tone="danger"] { background: var(--tn-danger-bg); color: var(--tn-danger-text); }
+.tn-banner strong { font-weight: var(--tn-font-weight-semibold); }
+.tn-banner svg { flex: none; margin-top: 2px; }

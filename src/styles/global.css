@@ -1,0 +1,77 @@
+/* Estilos globais. Cores, espaços e tipos vêm SOMENTE de brand/tokens/tokens.css (fonte única).
+   Dono: integrador. Módulos estilizam seus componentes com var(--tn-…), sem HEX solto. */
+@import "@fontsource-variable/inter/opsz.css";
+@import "../../brand/tokens/tokens.css";
+
+:root {
+  /* A fonte empacotada se chama "Inter Variable" (eixo opsz cobre Inter Display). Mesma família do token. */
+  --tn-font-sans: "Inter Variable", "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tn-font-display: "Inter Variable", "Inter Display", "Inter", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--tn-bg);
+  color: var(--tn-text);
+  font-family: var(--tn-font-sans);
+  font-size: var(--tn-font-size-md);
+  line-height: var(--tn-line-height-normal);
+  font-optical-sizing: auto;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--tn-font-display);
+  line-height: var(--tn-line-height-snug);
+  letter-spacing: var(--tn-letter-spacing-display);
+  margin: 0 0 var(--tn-space-3);
+}
+h1 { font-size: var(--tn-font-size-3xl); font-weight: var(--tn-font-weight-semibold); }
+h2 { font-size: var(--tn-font-size-2xl); font-weight: var(--tn-font-weight-semibold); }
+h3 { font-size: var(--tn-font-size-lg); font-weight: var(--tn-font-weight-semibold); }
+
+p { margin: 0 0 var(--tn-space-3); }
+
+a { color: var(--tn-link); }
+
+:focus-visible {
+  outline: var(--tn-size-focus-ring) solid var(--tn-focus);
+  outline-offset: 2px;
+}
+
+.tn-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.tn-caps {
+  text-transform: uppercase;
+  letter-spacing: var(--tn-letter-spacing-caps);
+  font-size: var(--tn-font-size-xs);
+  font-weight: var(--tn-font-weight-medium);
+  color: var(--tn-text-muted);
+}
+
+.tn-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
