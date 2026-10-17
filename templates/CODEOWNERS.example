@@ -1,0 +1,10 @@
+# Template. Substituir os logins e copiar para .github/CODEOWNERS.
+# Exigir review de code owner no ruleset; este arquivo sozinho não bloqueia merge.
+* @LOGIN_FELIPE @LOGIN_GABRIEL
+/supabase/migrations/ @LOGIN_INTEGRADOR
+/supabase/functions/_shared/contracts/ @LOGIN_INTEGRADOR
+/package.json @LOGIN_INTEGRADOR
+/package-lock.json @LOGIN_INTEGRADOR
+/.github/ @LOGIN_INTEGRADOR
+/src/app/ @LOGIN_INTEGRADOR
+/src/components/ui/ @LOGIN_GABRIEL

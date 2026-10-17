@@ -1,0 +1,48 @@
+# EXEMPLO: adaptar no P00 e copiar para .github/workflows/ci-app.yml.
+# Exige scripts reais no package.json e CLI Supabase local fixada no lockfile.
+# Fixar actions por SHA verificado antes de produção. Nunca incluir secret de produção.
+name: app-ci
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: app-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  app-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run test:contracts
+      - run: npm run build
+  database-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install supabase start
+      - run: npx --no-install supabase db reset --local
+      - run: npx --no-install supabase test db
+      - run: npm run test:concurrency
+      - run: npx --no-install supabase stop
+        if: always()
+# P00 adiciona job e2e com browser e banco local sintético; ausência bloqueia release.
+# cancel-in-progress é para CI, não para deployments/migrations/coordenador.
