@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 // Fluxo do dono em demonstração offline (sem servidor): publicar perfil, ver a prévia com
-// horários livres e gerar convite de colega. Rotas públicas (/p, /convite, /indicar) dependem
-// da montagem no roteador pelo integrador e estão cobertas em src/features/network/*.test.tsx.
+// horários livres e gerar convite de colega. Rotas públicas: tests/e2e/network/public.spec.ts.
 
 async function noHorizontalScroll(page: import("@playwright/test").Page) {
   const width = page.viewportSize()!.width;

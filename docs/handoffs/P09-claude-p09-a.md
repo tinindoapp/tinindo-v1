@@ -9,6 +9,14 @@ Branch: `task/p09/claude-p09-a` → PR https://github.com/tinindoapp/tinindo-v1/
 - **Proposta de banco** (`db/proposals/P09/`): `public_profiles` e `referrals` com RLS, whitelist por `CHECK`, token de 256 bits guardado só em sha256, inspeção que não muda estado, claim com contato confirmado, uso único e sem autoconvite, cota de 20 convites/24h, auditoria. Decisões a revisar em `NOTAS.md`.
 - **Frontend** (`src/features/network/`): tela do dono com onboarding progressivo, editor de perfil opt-in, prévia, tirar do ar e convite de colega; páginas públicas de perfil (com horários), convite e indicação do cliente, exportadas em `networkPublicRoutes`. Demonstração offline rotulada quando não há Supabase.
 
+## Atualização · rotas públicas montadas (a pedido do integrador)
+
+- `src/app/router.tsx` monta `...networkPublicRoutes` ao lado de `/entrar`: `/p/:slug`, `/convite` e `/indicar` ficam fora do shell autenticado.
+- `DemoBanner` saiu de `AppShell.tsx` para `src/app/DemoBanner.tsx` (o shell reexporta). Sem isso havia ciclo router → módulo network → AppShell → modules.ts → módulo network, e o app não renderizava (o smoke e2e da fundação detectou).
+- Tela do dono ganhou o link "Abrir perfil público".
+- Novo `tests/e2e/network/public.spec.ts` (5 cenários × desktop/mobile): perfil público fora do shell e sem ID do tenant, perfil inexistente, convite que só aceita por ação explícita e tira o token da URL, convite desconhecido, indicação sem telefone.
+- Resultados: lint e typecheck ok, unit 50/50, contratos 26/26, build ok, e2e 20/20, `test:coord` ok, `deno check` ok.
+
 ## Comandos e resultados
 
 | Comando | Resultado |
@@ -34,7 +42,7 @@ Não executado aqui: stack Supabase real (`supabase db start/test db/db lint`) e
 
 ## Contratos e migrations (propostas ao integrador)
 
-1. Montar `...networkPublicRoutes` em `src/app/router.tsx` (rotas `/p/:slug`, `/convite`, `/indicar`).
+1. ~~Montar `...networkPublicRoutes` em `src/app/router.tsx`~~ feito neste PR.
 2. Formalizar no registro as rotas extras do módulo (schemas locais em `supabase/functions/network/schemas.ts`).
 3. Campo opcional de valores (`bio`, `services_summary`) em `ProfilePublishInput`.
 4. Eventos `referral.*`/`profile.*` se P10 precisar.
@@ -47,10 +55,10 @@ Nenhuma. Banner de demonstração segue `VITE_APP_ENV`.
 
 ## Limitações
 
-- Rotas públicas cobertas por testes de componente (jsdom), não por e2e, até serem montadas.
+- E2E das rotas públicas roda em demonstração offline; com banco real fica para o P10.
 - Atribuição do claim só registra `claimed_tenant_id` quando quem aceita é dono de exatamente um negócio.
 - Sem rate limit por IP na inspeção anônima (o token de 256 bits torna enumeração inviável).
 
 ## Próximo passo preciso
 
-Integrador: revisar o PR #5, aplicar as propostas 1 e 5, e depois do P03 ligar `listPublicSlots` + adicionar e2e das rotas públicas com banco real (P10).
+Integrador: revisar o PR #5, aplicar a proposta 5, e depois do P03 ligar `listPublicSlots` + adicionar e2e das rotas públicas com banco real (P10).

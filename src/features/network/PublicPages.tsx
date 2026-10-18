@@ -4,7 +4,7 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { Profession } from "@contracts";
-import { DemoBanner } from "../../app/AppShell.tsx";
+import { DemoBanner } from "../../app/DemoBanner.tsx";
 import { useSession } from "../../app/session.tsx";
 import { Button, Card, Field, StatusBanner, Wordmark } from "../../components/ui/index.tsx";
 import type { NetworkApi, PublicProfileData, ReferralInspectOutput, ReferralLinkData } from "./api.ts";

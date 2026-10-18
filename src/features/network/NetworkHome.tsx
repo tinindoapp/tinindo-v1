@@ -175,7 +175,7 @@ function ProfileEditor({ api, profile, onSaved }: { api: NetworkApi; profile: Ow
       {profile?.published_at ? (
         <p>
           Publicado em <span className="tn-num">{formatDateTime(profile.published_at)}</span> ·{" "}
-          <Link to="previa">Ver como o cliente vê</Link>
+          <Link to="previa">Ver como o cliente vê</Link> · <Link to={`/p/${profile.slug}`}>Abrir perfil público</Link>
         </p>
       ) : null}
       <form className="tn-stack" onSubmit={publish}>
