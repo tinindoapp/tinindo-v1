@@ -12,6 +12,7 @@ export * from "./waitlist.ts";
 export * from "./finance.ts";
 export * from "./agent.ts";
 export * from "./sales.ts";
+export * from "./service-ops.ts";
 export * from "./network.ts";
 export * from "./events.ts";
 export * from "./operations.ts";

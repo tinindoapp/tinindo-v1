@@ -51,3 +51,9 @@ insert into public.customers (id, tenant_id, name, phone, email, declared_source
   ('30000000-0000-4000-8000-0000000000a1', '10000000-0000-4000-8000-00000000000a', 'Cliente AB (exemplo)', null, 'cliente.ab@exemplo.test', 'referral'),
   ('30000000-0000-4000-8000-0000000000a2', '10000000-0000-4000-8000-00000000000a', 'Visitante sem login (exemplo)', null, null, 'walk_in'),
   ('30000000-0000-4000-8000-0000000000b1', '10000000-0000-4000-8000-00000000000b', 'Cliente AB (exemplo)', null, 'cliente.ab@exemplo.test', 'referral');
+
+-- P15 · Serviço assistido SINTÉTICO só para local/CI (preço e franquia fictícios; o catálogo real é decisão do dono).
+select app.svc_publish_offering('implantacao_exemplo', 'service', 'Implantação assistida (exemplo)',
+  'Cadastro inicial de serviços, horários e clientes pela equipe Tinindo.', 50000, 'one_time',
+  '["Cadastro de até 20 serviços", "Horários de atendimento", "Importação de uma planilha de clientes"]',
+  '["Site personalizado", "Google Meu Negócio", "Emissão fiscal"]', null, 120, 7);
