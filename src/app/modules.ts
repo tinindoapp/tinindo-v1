@@ -10,6 +10,7 @@ import { financeModule } from "../features/finance/module.tsx";
 import { agentModule } from "../features/agent/module.tsx";
 import { networkModule } from "../features/network/module.tsx";
 import { salesModule } from "../features/sales/module.tsx";
+import { serviceOpsModule } from "../features/service-ops/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
@@ -20,5 +21,6 @@ export const MODULES: readonly ModuleDefinition[] = [
   waitlistModule,
   agentModule,
   networkModule,
+  serviceOpsModule,
   identityModule,
 ];

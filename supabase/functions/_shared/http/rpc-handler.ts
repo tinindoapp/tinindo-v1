@@ -25,6 +25,8 @@ export interface Route {
   output: z.ZodType;
   /** Comando: exige Idempotency-Key e devolve {status_code, body} do banco. */
   command: boolean;
+  /** false = rota sem negócio selecionado (ex.: fila da operação Tinindo); só para consultas. */
+  tenant?: false;
   args(input: never): Args | false;
   /** Ajusta a resposta da RPC ao contrato (ex.: cursor opaco). */
   shape?(data: unknown): unknown;
@@ -35,9 +37,13 @@ export const route = <I extends z.ZodType>(r: {
   input: I;
   output: z.ZodType;
   command: boolean;
+  tenant?: false;
   args(input: z.output<I>): Args | false;
   shape?(data: unknown): unknown;
-}): Route => r as unknown as Route;
+}): Route => {
+  if (r.tenant === false && r.command) throw new Error(`${r.rpc}: comando exige negócio (idempotência por tenant)`);
+  return r as unknown as Route;
+};
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -65,8 +71,8 @@ export function createRpcHandler(module: string, routes: Record<string, Route>, 
     const auth = req.headers.get("Authorization") ?? "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
     if (!token) return fail("AUTH_REQUIRED", requestId, { extra: cors });
-    const tenantId = req.headers.get(TENANT_HEADER);
-    if (!isUuid(tenantId)) {
+    const tenantId = spec.tenant === false ? null : req.headers.get(TENANT_HEADER);
+    if (spec.tenant !== false && !isUuid(tenantId)) {
       return fail("VALIDATION_ERROR", requestId, { field: "tenant_id", message: "Selecione um negócio.", extra: cors });
     }
 
@@ -99,7 +105,7 @@ export function createRpcHandler(module: string, routes: Record<string, Route>, 
     const args = spec.args(input.data as never);
     if (args === false) return fail("VALIDATION_ERROR", requestId, { field: "cursor", extra: cors });
 
-    const rpcArgs: Args = { p_tenant_id: tenantId, ...args };
+    const rpcArgs: Args = spec.tenant === false ? { ...args } : { p_tenant_id: tenantId, ...args };
     if (spec.command) {
       Object.assign(rpcArgs, {
         p_idem_key: key,

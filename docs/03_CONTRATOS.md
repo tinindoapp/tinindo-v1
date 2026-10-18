@@ -95,6 +95,22 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `quote.view` | token (no corpo) | Versão atual pelo link; não muda estado (anônimo) |
 | `quote.accept` | token, versão, hash, key | Aceite da versão vista, dentro da validade; reserva revalidada na mesma transação; não marca pagamento (anônimo) |
 | `quote.decline` | token, versão, hash, key | Recusa registrada; uma decisão por orçamento (anônimo) |
+| `plan.current` | — | Plano em vigor (versão fixada), uso da franquia e catálogo atual |
+| `plan.subscribe` | versão, hash do escopo, key | Troca de plano registrada (cobrança manual); franquia aplicada no servidor |
+| `order.request` | versão do serviço, hash do escopo, observação, key | Pedido com escopo aceito, preço e franquia de minutos fixados |
+| `order.list` | — | Pedidos com minutos medidos, entregas, concessões e histórico |
+| `order.cancel` | order_id, expected_version, key | Cancelado; concessões revogadas |
+| `order.review_delivery` | order_id, deliverable_id, decisão, nota, key | Aprova (entregue, acessos revogados) ou pede ajustes (reabre com registro) |
+| `access.grant` | order_id, escopos, prazo (≤ 30 dias), justificativa, key | Acesso pessoal do responsável, auditado |
+| `access.revoke` | grant_id, key | Acesso encerrado |
+| `access.log` | — | Concessões, leituras e ações da equipe Tinindo no negócio |
+| `ops.queue` | — | Fila da operação (só operador; sem negócio selecionado; sem CRM) |
+| `ops.assign` | order_id, responsável, prazo, key | Responsável definido; troca revoga o acesso do anterior |
+| `ops.start` | order_id, key | Execução iniciada; exige concessão ativa |
+| `ops.log_work` | order_id, minutos, tipo, retrabalho, nota, key | Minutos medidos; acima da franquia → 429 |
+| `ops.deliver` | order_id, título, evidência, key | Entrega versionada para revisão do cliente |
+| `ops.block` | order_id, motivo, key | Bloqueado com motivo registrado |
+| `ops.snapshot` | order_id | Leitura mínima nos escopos concedidos; cada leitura auditada |
 
 ## Exemplo de cotação
 

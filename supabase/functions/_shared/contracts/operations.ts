@@ -9,6 +9,7 @@ import * as identity from "./identity.ts";
 import * as network from "./network.ts";
 import * as pricing from "./pricing.ts";
 import * as sales from "./sales.ts";
+import * as svc from "./service-ops.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -21,7 +22,8 @@ export type ModuleId =
   | "finance"
   | "agent"
   | "network"
-  | "sales";
+  | "sales"
+  | "service-ops";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -353,6 +355,70 @@ export const OPERATIONS = {
   "quote.decline": {
     module: "sales", owner: "P11", kind: "command", idempotent: true,
     input: sales.SalesQuoteDecideInput, output: sales.SalesQuoteDecideOutput,
+  },
+  "plan.current": {
+    module: "service-ops", owner: "P15", kind: "query", idempotent: false,
+    input: svc.PlanCurrentInput, output: svc.PlanCurrentOutput,
+  },
+  "plan.subscribe": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.PlanSubscribeInput, output: svc.PlanCurrentOutput,
+  },
+  "order.request": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.OrderRequestInput, output: svc.OrderOutput,
+  },
+  "order.list": {
+    module: "service-ops", owner: "P15", kind: "query", idempotent: false,
+    input: svc.OrderListInput, output: svc.OrderListOutput,
+  },
+  "order.cancel": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.OrderCancelInput, output: svc.OrderOutput,
+  },
+  "order.review_delivery": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.DeliveryReviewInput, output: svc.OrderOutput,
+  },
+  "access.grant": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.AccessGrantInput, output: svc.AccessGrantOutput,
+  },
+  "access.revoke": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.AccessRevokeInput, output: svc.AccessGrantOutput,
+  },
+  "access.log": {
+    module: "service-ops", owner: "P15", kind: "query", idempotent: false,
+    input: svc.AccessLogInput, output: svc.AccessLogOutput,
+  },
+  "ops.queue": {
+    module: "service-ops", owner: "P15", kind: "query", idempotent: false,
+    input: svc.OpsQueueInput, output: svc.OpsQueueOutput,
+  },
+  "ops.assign": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.OpsAssignInput, output: svc.OrderOutput,
+  },
+  "ops.start": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.OpsOrderRefInput, output: svc.OrderOutput,
+  },
+  "ops.log_work": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.OpsLogWorkInput, output: svc.OpsLogWorkOutput,
+  },
+  "ops.deliver": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.OpsDeliverInput, output: svc.OpsDeliverOutput,
+  },
+  "ops.block": {
+    module: "service-ops", owner: "P15", kind: "command", idempotent: true,
+    input: svc.OpsBlockInput, output: svc.OrderOutput,
+  },
+  "ops.snapshot": {
+    module: "service-ops", owner: "P15", kind: "query", idempotent: false,
+    input: svc.OpsOrderRefInput, output: svc.OpsSnapshotOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 
