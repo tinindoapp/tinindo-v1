@@ -98,12 +98,12 @@
         "db/proposals/P03/",
         "tests/contracts/scheduling/"
       ],
-      "status": "in_progress",
+      "status": "review",
       "owner": "fffalleiros",
       "session": "claude-int-p03",
       "branch": "claude/p03-motor-agenda",
       "lease_until": "2026-10-18T19:45:07.999207Z",
-      "pr": null,
+      "pr": 15,
       "block_reason": null
     },
     "P04": {
@@ -287,7 +287,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T17:45:07.999207Z",
+  "updated_at": "2026-10-18T18:03:25.904607Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -567,6 +567,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p03",
       "pr": null,
+      "reason": null
+    },
+    {
+      "id": "6e4e529d-c568-473c-8550-847e3b9c94cc",
+      "at": "2026-10-18T18:03:25.904607Z",
+      "action": "review",
+      "task": "P03",
+      "actor": "fffalleiros",
+      "session": "claude-int-p03",
+      "pr": 15,
       "reason": null
     }
   ]
