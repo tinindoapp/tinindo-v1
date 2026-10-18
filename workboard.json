@@ -52,7 +52,7 @@
       "owner": "fffalleiros",
       "session": "claude-p01-a",
       "branch": "task/p01/claude-p01-a",
-      "lease_until": "2026-10-18T17:52:56.649083Z",
+      "lease_until": "2026-10-18T18:03:27.235893Z",
       "pr": null,
       "block_reason": null
     },
@@ -283,7 +283,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T16:01:09.221090Z",
+  "updated_at": "2026-10-18T16:03:27.235893Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -423,6 +423,16 @@
       "actor": "fffalleiros",
       "session": "claude-p04-a",
       "pr": 6,
+      "reason": null
+    },
+    {
+      "id": "32f44eb3-0380-4723-ace3-4d8488496e5a",
+      "at": "2026-10-18T16:03:27.235893Z",
+      "action": "heartbeat",
+      "task": "P01",
+      "actor": "fffalleiros",
+      "session": "claude-p01-a",
+      "pr": null,
       "reason": null
     }
   ]
