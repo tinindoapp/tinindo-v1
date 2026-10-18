@@ -1,7 +1,7 @@
 // Onboarding configurável por profissão (beleza e personal no piloto). Só apresentação e
 // sugestões: o servidor valida enums e limites; nada aqui decide regra de negócio.
 import type { Profession } from "@contracts";
-import type { OnboardingGoal } from "../../../supabase/functions/identity/schemas.ts";
+import type { OnboardingGoal } from "@contracts";
 
 export type Segment = "beleza" | "personal" | "outro";
 

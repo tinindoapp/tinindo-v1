@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Outlet } from "react-router";
+import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router";
 import { Button, Wordmark } from "../components/ui/index.tsx";
 import { DemoBanner } from "./DemoBanner.tsx";
 import { MODULES } from "./modules.ts";
@@ -7,9 +7,15 @@ import "./shell.css";
 
 export { DemoBanner };
 
+/** Área da Conta (P01): alcançável sem negócio, para criar o primeiro ou resgatar um vínculo de cliente. */
+export function isAccountArea(pathname: string): boolean {
+  return pathname === "/app/conta" || pathname.startsWith("/app/conta/");
+}
+
 export function AppShell() {
   const session = useSession();
   const { state } = session;
+  const { pathname } = useLocation();
 
   if (state.status === "loading") {
     return (
@@ -66,8 +72,13 @@ export function AppShell() {
         </ul>
       </nav>
       <main className="tn-shell__main" id="conteudo">
-        {memberships.length === 0 ? (
-          <p>Sua conta ainda não está ligada a um negócio. Peça um convite ou conclua o cadastro.</p>
+        {/* Sem negócio, só a Conta abre: ela lê tudo pelo servidor (RLS/RPC), sem dado de tenant. */}
+        {memberships.length === 0 && !isAccountArea(pathname) ? (
+          <p>
+            Sua conta ainda não está ligada a um negócio.{" "}
+            <Link to="/app/conta/novo-negocio">Criar meu negócio</Link> ou{" "}
+            <Link to="/app/conta/vincular">usar um código de vínculo</Link>.
+          </p>
         ) : (
           <Outlet />
         )}

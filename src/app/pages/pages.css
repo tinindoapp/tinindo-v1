@@ -8,3 +8,11 @@
 }
 .tn-auth > .tn-card { width: min(100%, 420px); }
 .tn-auth__title { margin-top: var(--tn-space-6); }
+.tn-auth__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--tn-space-3);
+  margin: var(--tn-space-4) 0 0;
+}
+.tn-auth__links a { display: inline-flex; align-items: center; min-height: 44px; }

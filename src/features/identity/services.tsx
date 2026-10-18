@@ -12,7 +12,7 @@ import {
   Onboarding,
   OnboardingSaveOutput,
   type OnboardingSaveInput,
-} from "../../../supabase/functions/identity/schemas.ts";
+} from "@contracts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { createApiClient } from "../../lib/api/client.ts";

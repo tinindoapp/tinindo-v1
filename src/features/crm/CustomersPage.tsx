@@ -5,7 +5,7 @@ import {
   type CrmCustomer,
   CrmCustomerUpsertInput,
   DeclaredSource,
-} from "../../../supabase/functions/crm/contract.ts";
+} from "@contracts";
 import { Button, Card, Field, StatusBanner } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";

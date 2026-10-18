@@ -67,6 +67,18 @@ jobs:
         run: npx --no-install supabase db lint --local --level error --fail-on error
       - if: always()
         run: npx --no-install supabase stop --no-backup
+      # Concorrência real (várias conexões): Postgres 16 do runner + shim, como `db:test:local`.
+      - name: Concorrência (idempotência e corridas sob várias conexões)
+        run: |
+          sudo apt-get install -y --no-install-recommends postgresql-16-pgtap
+          sudo systemctl start postgresql
+          sudo -u postgres psql -qXc "alter user postgres password 'postgres'"
+          npm run db:test:concurrency
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
 
   e2e:
     name: e2e smoke (desktop + mobile)

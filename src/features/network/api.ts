@@ -18,7 +18,7 @@ import {
   ReferralInspectOutput as ReferralInspectSchema,
   ReferralListOutput,
   type ReferralSummary,
-} from "../../../supabase/functions/network/schemas.ts";
+} from "@contracts";
 import { ApiError, type CallOptions } from "../../lib/api/client.ts";
 import { demoSlots } from "./demo-slots.ts";
 

@@ -1,5 +1,7 @@
 # P01 · Mudanças globais propostas ao integrador
 
+> **Incluído pelo integrador em 18/10/2026** (ADR-0007). Migrations em `supabase/migrations/20261018120000_p01_identity_onboarding.sql`, `…120100_p02_crm.sql`, `…120200_p01_customer_links.sql` e `…120300_p09_network.sql`; testes em `supabase/tests/database/` e `tests/db-concurrency/`. Este arquivo fica como registro das decisões.
+
 O P01 não edita arquivos globais (ADR-0005). Para o fluxo funcionar de ponta a ponta, o integrador precisa aplicar os itens abaixo. Os itens 1 a 3 bloqueiam o uso real; os demais endurecem o fluxo.
 
 ## 1. Migrations (bloqueia)

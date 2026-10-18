@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
+import { isAccountArea } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { routes } from "./router.tsx";
 import { SessionProvider } from "./session.tsx";
@@ -43,5 +44,28 @@ describe("shell do app (demonstração sem servidor)", () => {
   it("caminhos de módulo são únicos", () => {
     const paths = MODULES.map((m) => m.path);
     expect(new Set(paths).size).toBe(paths.length);
+  });
+});
+
+describe("integração do P01 no shell", () => {
+  it("sem negócio, só a área da Conta abre", () => {
+    expect(isAccountArea("/app/conta")).toBe(true);
+    expect(isAccountArea("/app/conta/novo-negocio")).toBe(true);
+    expect(isAccountArea("/app/conta/vincular")).toBe(true);
+    expect(isAccountArea("/app/contas")).toBe(false);
+    expect(isAccountArea("/app/agenda")).toBe(false);
+    expect(isAccountArea("/app")).toBe(false);
+  });
+
+  it("cadastro e recuperação de senha são rotas públicas, fora do shell", async () => {
+    renderAt("/criar-conta");
+    expect(await screen.findByRole("heading", { name: /criar conta/i })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Principal" })).not.toBeInTheDocument();
+  });
+
+  it("recuperação de senha abre sem sessão", async () => {
+    renderAt("/recuperar-senha");
+    expect(await screen.findByRole("heading", { name: "Recuperar acesso" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Principal" })).not.toBeInTheDocument();
   });
 });

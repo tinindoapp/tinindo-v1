@@ -3,7 +3,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import type { ProviderService } from "@contracts";
 import { FX, services } from "@contracts/fixtures.ts";
-import type { CrmCustomer } from "../../../supabase/functions/crm/contract.ts";
+import type { CrmCustomer } from "@contracts";
 import { ApiError } from "../../lib/api/client.ts";
 import { SessionProvider } from "../../app/session.tsx";
 import { routes } from "../../app/router.tsx";

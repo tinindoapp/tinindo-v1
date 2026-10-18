@@ -1,5 +1,6 @@
 -- P01 · Vínculo cliente ↔ login: comprovação por código, cliente multi-profissional sem vazamento,
--- uso único, expiração, idempotência e negações. Usa o stub de customers (000_stub_p02_customers.sql).
+-- uso único, expiração, idempotência e negações. Usa a tabela customers do P02 (migration 20261018120100).
+-- IDs próprios (…01a1/…01b1/…01a2) para não colidir com os clientes do seed (P02).
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(37);
@@ -11,9 +12,9 @@ create temp table ids as select
   'd0000000-0000-4000-8000-0000000000dd'::uuid as outsider,
   '10000000-0000-4000-8000-00000000000a'::uuid as tenant_a,
   '10000000-0000-4000-8000-00000000000b'::uuid as tenant_b,
-  '30000000-0000-4000-8000-0000000000a1'::uuid as ab_in_a,
-  '30000000-0000-4000-8000-0000000000b1'::uuid as ab_in_b,
-  '30000000-0000-4000-8000-0000000000a2'::uuid as guest_in_a;
+  '30000000-0000-4000-8000-0000000001a1'::uuid as ab_in_a,
+  '30000000-0000-4000-8000-0000000001b1'::uuid as ab_in_b,
+  '30000000-0000-4000-8000-0000000001a2'::uuid as guest_in_a;
 grant select on ids to anon, authenticated;
 create temp table got (label text primary key, body jsonb);
 grant select, insert on got to authenticated;

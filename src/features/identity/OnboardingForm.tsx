@@ -2,7 +2,7 @@
 // Sem score de maturidade e sem dados de saúde. Salva com expected_version (onboarding.save).
 import { type FormEvent, useState } from "react";
 import type { Profession } from "@contracts";
-import type { Onboarding, OnboardingGoal } from "../../../supabase/functions/identity/schemas.ts";
+import type { Onboarding, OnboardingGoal } from "@contracts";
 import { Button, StatusBanner } from "../../components/ui/index.tsx";
 import { messageFor } from "./errors.ts";
 import { useIdempotencyKey } from "./idempotency.ts";
