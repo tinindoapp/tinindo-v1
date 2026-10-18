@@ -29,12 +29,12 @@ test.describe("UAT personal", () => {
     }
   });
 
-  test("1a · Caixa ainda não vende pacote e diz isso", async ({ page }) => {
+  test("1a · Caixa vende pacote e explica que crédito não é caixa", async ({ page }) => {
     await page.goto("/app");
     await openFromNav(page, "Caixa");
     await expect(page.getByText("Recebíveis, recebimentos manuais e pacotes de sessões.")).toBeVisible();
-    await expect(page.getByText("Em construção.", { exact: false })).toBeVisible();
-    await expect(page.getByRole("button", { name: /pacote/i })).toHaveCount(0);
+    await expect(page.getByText("Usar uma sessão debita crédito, não gera caixa.", { exact: false })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Vender pacote" })).toBeVisible();
   });
 
   test("1b · vende pacote de 10 sessões e registra o pagamento uma vez", async ({ page }) => {

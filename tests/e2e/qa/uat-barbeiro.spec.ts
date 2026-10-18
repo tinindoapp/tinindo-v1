@@ -145,19 +145,26 @@ test.describe("UAT barbeiro", () => {
     await expect(page.getByRole("button", { name: "Concluir atendimento" })).toHaveCount(0);
   });
 
-  test("9a · Caixa não finge recebimento enquanto o módulo não existe", async ({ page }) => {
+  test("9a · Caixa não finge recebimento: concluído fica sem cobrança até registrar", async ({ page }) => {
     await page.goto("/app");
     await openFromNav(page, "Caixa");
     await expect(page.getByRole("heading", { name: "Caixa", level: 1 })).toBeVisible();
-    await expect(page.getByText("Esta área ainda não guarda nem altera dados.")).toBeVisible();
-    await expect(page.getByRole("button", { name: /recebido/i })).toHaveCount(0);
+    await expect(page.getByText("Dados de exemplo.")).toBeVisible();
+    const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
+    await expect(pending.getByRole("listitem")).toHaveCount(2);
+    await expect(page.getByRole("region", { name: /Caixa registrado/ })).toContainText("Atendimento agendado ou concluído não conta como recebido");
   });
 
   test("9b · marca o atendimento concluído como recebido, uma única vez", async ({ page }) => {
-    test.fixme(true, PENDING.finance);
-    await page.goto("/app/caixa");
-    await page.getByRole("button", { name: /Marcar como recebido/ }).click();
-    await expect(page.getByText(/Recebido/)).toBeVisible();
+    await page.goto("/app");
+    await openFromNav(page, "Caixa");
+    const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
+    const item = pending.getByRole("listitem").filter({ hasText: "Bruno" });
+    await item.getByRole("button", { name: /Marcar como recebido/ }).click();
+    await expect(page.getByText(/Recebido R\$\s?40,00/)).toBeVisible();
+    await expect(pending.getByRole("listitem").filter({ hasText: "Bruno" })).toHaveCount(0);
+    const payments = page.getByRole("region", { name: "Recebimentos no mês" });
+    await expect(payments.getByRole("listitem").filter({ hasText: "R$ 40,00" })).toHaveCount(1);
   });
 
   test("10a · agenda de amanhã responde visualmente o que há na quarta", async ({ page }) => {

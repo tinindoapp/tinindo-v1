@@ -10,7 +10,7 @@ export const PENDING = {
   publicBooking: "P03/P09: o link público só mostra horários; reservar pelo link exige o motor de agenda no servidor.",
   pricing: "P05 (Preços) ainda é placeholder: criar/aplicar oferta com piso depende das regras no servidor.",
   waitlist: "P06 (Lista de espera) ainda é placeholder: oferta de vaga e aceite atômico dependem do worker/servidor.",
-  finance: "P07 (Caixa) ainda é placeholder: recebimento, pacote e saldo dependem do ledger no servidor.",
+  finance: "P07 (Caixa): o ledger existe no servidor, mas a demonstração só tem o negócio A; pacote de personal e conclusão pela agenda pedem banco real.",
   agent: "P08 (Assistente) ainda é placeholder: consulta em linguagem natural depende das ferramentas do agente.",
   recurrence: "P03: recorrência com detecção de conflito por data não existe no fluxo da demonstração.",
   multiTenant: "P01/P09: a demonstração tem só um vínculo (tenant A); conta com reservas em dois negócios exige servidor e RLS.",

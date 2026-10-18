@@ -181,6 +181,50 @@ export const OPERATIONS = {
     module: "finance", owner: "P07", kind: "command", idempotent: true,
     input: finance.PackageConsumeInput, output: finance.PackageBalance,
   },
+  "finance.create_receivable": {
+    module: "finance", owner: "P07", kind: "command", idempotent: true,
+    input: finance.FinanceCreateReceivableInput, output: finance.ReceivableOutput,
+  },
+  "finance.charge_booking": {
+    module: "finance", owner: "P07", kind: "command", idempotent: true,
+    input: finance.FinanceChargeBookingInput, output: finance.ReceivableOutput,
+  },
+  "finance.cancel_receivable": {
+    module: "finance", owner: "P07", kind: "command", idempotent: true,
+    input: finance.FinanceCancelReceivableInput, output: finance.ReceivableOutput,
+  },
+  "finance.reverse_payment": {
+    module: "finance", owner: "P07", kind: "command", idempotent: true,
+    input: finance.FinanceReversePaymentInput, output: finance.PaymentRecord,
+  },
+  "finance.record_expense": {
+    module: "finance", owner: "P07", kind: "command", idempotent: true,
+    input: finance.FinanceRecordExpenseInput, output: finance.ExpenseEntry,
+  },
+  "finance.reverse_expense": {
+    module: "finance", owner: "P07", kind: "command", idempotent: true,
+    input: finance.FinanceReverseExpenseInput, output: finance.ExpenseEntry,
+  },
+  "finance.ledger": {
+    module: "finance", owner: "P07", kind: "query", idempotent: false,
+    input: finance.FinancePeriodInput, output: finance.FinanceLedgerOutput,
+  },
+  "finance.uncharged": {
+    module: "finance", owner: "P07", kind: "query", idempotent: false,
+    input: finance.FinancePeriodInput, output: finance.FinanceUnchargedOutput,
+  },
+  "package.sell": {
+    module: "finance", owner: "P07", kind: "command", idempotent: true,
+    input: finance.PackageSellInput, output: finance.PackageSellOutput,
+  },
+  "package.reverse": {
+    module: "finance", owner: "P07", kind: "command", idempotent: true,
+    input: finance.PackageReverseInput, output: finance.PackageBalance,
+  },
+  "package.list": {
+    module: "finance", owner: "P07", kind: "query", idempotent: false,
+    input: finance.PackageListInput, output: finance.PackageListOutput,
+  },
   "agent.ask": {
     module: "agent", owner: "P08", kind: "query", idempotent: false,
     input: agent.AgentAskInput, output: agent.AgentAnswer,
