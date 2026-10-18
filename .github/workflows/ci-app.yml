@@ -97,7 +97,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      # Sem --log-opts o gitleaks lê `git log --all`: com fetch-depth 0 isso inclui as branches
+      # de outras sessões, e um achado alheio bloquearia este PR. Em PR: só os commits do PR
+      # (base..merge). Em push na main: todo o histórico alcançável pela main.
       - name: gitleaks
+        env:
+          LOG_OPTS: ${{ github.event_name == 'pull_request' && format('origin/{0}..HEAD', github.base_ref) || '--full-history HEAD' }}
         run: >
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1
-          git /repo --redact --no-banner --exit-code 1
+          git /repo --redact --no-banner --exit-code 1 --log-opts="$LOG_OPTS"
