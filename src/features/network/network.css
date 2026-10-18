@@ -1,0 +1,80 @@
+/* Módulo Perfil (P09). Só tokens da marca; laranja não é texto, botão nem estado. */
+.tn-net-muted { color: var(--tn-text-muted); }
+.tn-net-small { font-size: var(--tn-font-size-sm); }
+
+.tn-net-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+
+.tn-net-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tn-space-2);
+  list-style: none;
+  margin: var(--tn-space-3) 0 0;
+  padding: 0;
+}
+.tn-net-badges li {
+  padding: var(--tn-space-1) var(--tn-space-3);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-pill);
+  font-size: var(--tn-font-size-sm);
+  color: var(--tn-text-muted);
+}
+
+.tn-net-steps ol { list-style: none; margin: var(--tn-space-3) 0 0; padding: 0; display: grid; gap: var(--tn-space-2); }
+.tn-net-steps li { display: flex; align-items: center; gap: var(--tn-space-3); min-height: var(--tn-size-touch-min); }
+.tn-net-check {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--tn-border-control);
+  border-radius: 50%;
+  font-size: var(--tn-font-size-sm);
+}
+.tn-net-steps li[data-done="true"] .tn-net-check { background: var(--tn-success-bg); color: var(--tn-success-text); border-color: currentColor; }
+
+.tn-net-fieldset {
+  display: grid;
+  gap: var(--tn-space-2);
+  margin: 0;
+  padding: var(--tn-space-4);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md);
+  min-width: 0;
+}
+.tn-net-fieldset legend { font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); padding: 0 var(--tn-space-1); }
+.tn-net-check-row { display: flex; align-items: center; gap: var(--tn-space-3); min-height: var(--tn-size-touch); }
+.tn-net-check-row input { width: 20px; height: 20px; accent-color: var(--tn-action); }
+
+.tn-net-share { margin-top: var(--tn-space-4); }
+.tn-net-share input {
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-3);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-sm);
+  background: var(--tn-surface-sunken);
+  color: var(--tn-text);
+  font: inherit;
+  font-family: var(--tn-font-mono);
+  font-size: var(--tn-font-size-sm);
+  width: 100%;
+  min-width: 0;
+}
+
+.tn-net-list { list-style: none; padding: 0; margin: var(--tn-space-2) 0 0; display: grid; gap: var(--tn-space-1); }
+.tn-net-list li { display: flex; justify-content: space-between; gap: var(--tn-space-3); padding: var(--tn-space-2) 0; border-bottom: 1px solid var(--tn-border); }
+
+.tn-net-slots {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: var(--tn-space-2);
+}
+.tn-net-slots .tn-button { width: 100%; padding: 0 var(--tn-space-2); }
+
+.tn-net-public { min-height: 100dvh; background: var(--tn-bg); }
+.tn-net-public__header { padding: var(--tn-space-4); max-width: 720px; margin: 0 auto; }
+.tn-net-public__main { padding: 0 var(--tn-space-4) var(--tn-space-10); max-width: 720px; margin: 0 auto; }

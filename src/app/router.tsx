@@ -1,5 +1,6 @@
 // Roteador central (dono: integrador). Módulos entram via src/app/modules.ts.
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
+import { networkPublicRoutes } from "../features/network/module.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
@@ -13,6 +14,8 @@ export const routes: RouteObject[] = [
     children: [
       { path: "/", element: <Navigate to="/app" replace /> },
       { path: "/entrar", element: <SignIn /> },
+      // Páginas públicas fora do shell autenticado: perfil por slug, convite e indicação (P09).
+      ...networkPublicRoutes,
       {
         path: "/app",
         element: <AppShell />,
