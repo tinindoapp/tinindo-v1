@@ -34,6 +34,16 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `booking.reschedule` | booking_id, expected_version, novo slot/quote, key | Alteração atômica; preço/política explícitos |
 | `booking.cancel` | id, expected_version, motivo, key | Capacidade liberada e evento |
 | `booking.complete` | id, expected_version, key | Atendimento concluído; caixa não presumido |
+| `booking.confirm` | booking_id, expected_version, key | Hold vira reserva confirmada se o prazo (no banco) não venceu |
+| `booking.no_show` | booking_id, expected_version, motivo, revert, key | Falta marcada ou revertida com motivo |
+| `booking.create_series` | serviço, cliente, primeiro slot, semanas (2–12), tudo-ou-nada, key | Ocorrências semanais materializadas; conflitos explícitos |
+| `booking.list` | janela (≤ 62 dias), cursor, limit | Reservas do tenant que começam na janela |
+| `booking.get` | booking_id | Reserva na visão do dono |
+| `schedule.settings` | — | Recurso ativo, timezone e expediente semanal |
+| `schedule.rules_save` | resource, expected_version, faixas semanais, key | Expediente trocado inteiro; reservas existentes intactas |
+| `schedule.day_plans` | janela (≤ 62 dias) | Por dia local: aberto, pausas e bloqueios |
+| `schedule.block_create` | resource, intervalo, rótulo, key | Bloqueio pessoal; 409 se cobre reserva ativa |
+| `schedule.block_remove` | block_id, expected_version, key | Bloqueio removido |
 | `pricing.propose_rule` | janela, discount_bps, validade | Proposta/preview de impacto, ainda inativa |
 | `pricing.publish_rule` | proposal_id, approval, expected_version, key | Regra ativa e auditada |
 | `waitlist.join` | cliente, serviço, faixas aceitas, permissão de contato | Entrada elegível |

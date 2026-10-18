@@ -55,11 +55,41 @@ describe("porta do servidor (contrato v1)", () => {
     });
   });
 
-  it("leituras sem contrato publicado são identificadas como não conectadas", async () => {
-    const { port: p } = port(json(200, {}));
-    await expect(p.listBookings({ starts_at: "2026-10-20T00:00:00-03:00", ends_at: "2026-10-21T00:00:00-03:00" })).rejects.toMatchObject({
-      notConnected: true,
+  it("lista atendimentos seguindo o cursor do servidor até o fim", async () => {
+    const page1 = json(200, { data: { bookings: [bookingsA[0]], next_cursor: "c1" }, meta });
+    const page2 = json(200, { data: { bookings: [bookingsA[1]], next_cursor: null }, meta });
+    const fetchMock = vi.fn().mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
+    const call = createApiClient({
+      baseUrl: "https://exemplo.supabase.co", publishableKey: "pk", getAccessToken: async () => "jwt",
+      fetch: fetchMock as unknown as typeof fetch,
     });
-    expect(await p.dayPlans({ starts_at: "2026-10-20T00:00:00-03:00", ends_at: "2026-10-21T00:00:00-03:00" })).toBeNull();
+    const window = { starts_at: "2026-10-20T00:00:00-03:00", ends_at: "2026-10-21T00:00:00-03:00" };
+    const out = await createServerPort(call, FX.tenants.A).listBookings(window);
+    expect(out.map((b) => b.id)).toEqual([bookingsA[0]!.id, bookingsA[1]!.id]);
+    const bodies = fetchMock.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string));
+    expect(bodies[0]).toMatchObject({ window, limit: 100 });
+    expect(bodies[1]).toMatchObject({ cursor: "c1" });
+    expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toMatch(/\/scheduling\/booking\.list$/);
+  });
+
+  it("contexto da agenda junta o negócio (context) e o recurso/fuso do motor (schedule.settings)", async () => {
+    const ctx = { actor_user_id: FX.users.ownerA, tenant_id: FX.tenants.A, role: "owner", tenant_name: "Barbearia", timezone: "America/Sao_Paulo", currency: "BRL" };
+    const settings = { resource_id: FX.resources.A, resource_version: 3, timezone: "America/Sao_Paulo", rules: [] };
+    const fetchMock = vi.fn(async (url: string) =>
+      json(200, { data: url.endsWith("/context") ? ctx : settings, meta }),
+    );
+    const call = createApiClient({
+      baseUrl: "https://exemplo.supabase.co", publishableKey: "pk", getAccessToken: async () => "jwt",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    expect(await createServerPort(call, FX.tenants.A).context()).toEqual({
+      tenantId: FX.tenants.A, tenantName: "Barbearia", timezone: "America/Sao_Paulo", resourceId: FX.resources.A,
+    });
+  });
+
+  it("sem regras de preço ligadas (antes do P05) não inventa cotação", async () => {
+    const { port: p, fetchMock } = port(json(200, {}));
+    expect(await p.quote({ service_id: FX.services.corteA, resource_id: FX.resources.A, slot: { starts_at: "2026-10-27T13:00:00Z", ends_at: "2026-10-27T13:30:00Z" } })).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

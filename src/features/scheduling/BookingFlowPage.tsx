@@ -99,7 +99,8 @@ function BookingFlow(props: FlowProps) {
     setPreferred(null);
   }
 
-  async function confirm(q: Quote) {
+  /** q = null: sem regras de preço ligadas (P05); o servidor congela o preço base do serviço. */
+  async function confirm(q: Quote | null) {
     if (!slot || !service || !resourceId) return;
     if (props.mode === "create" && !customerId) {
       setCustomerError("Escolha o cliente.");
@@ -107,8 +108,8 @@ function BookingFlow(props: FlowProps) {
     }
     const payload =
       props.mode === "create"
-        ? { customer_id: customerId, guest_ref: null, service_id: service.id, resource_id: resourceId, slot, quote_id: q.quote_id, mode: "confirm" as const }
-        : { booking_id: props.booking.id, expected_version: props.booking.version, slot, quote_id: q.quote_id };
+        ? { customer_id: customerId, guest_ref: null, service_id: service.id, resource_id: resourceId, slot, quote_id: q?.quote_id ?? null, mode: "confirm" as const }
+        : { booking_id: props.booking.id, expected_version: props.booking.version, slot, quote_id: q?.quote_id ?? null };
     const sig = JSON.stringify(payload);
     // Mesma chave para o mesmo pedido (repetir não duplica); pedido diferente, chave nova.
     const key = attempt?.sig === sig ? attempt.key : newIdempotencyKey();
@@ -144,7 +145,7 @@ function BookingFlow(props: FlowProps) {
   return (
     <div className="tn-sched-flow">
       {failure ? (
-        <ErrorPanel error={failure} operation={op} onRetry={quote.data ? () => void confirm(quote.data!) : undefined} />
+        <ErrorPanel error={failure} operation={op} onRetry={quote.data !== undefined ? () => void confirm(quote.data ?? null) : undefined} />
       ) : null}
 
       {props.mode === "reschedule" ? (
@@ -237,7 +238,7 @@ function BookingFlow(props: FlowProps) {
           <h2 id="review-title">Revise e confirme</h2>
           {quote.error ? (
             <ErrorPanel error={quote.error} operation="load" onRetry={quote.reload} />
-          ) : !quote.data ? (
+          ) : quote.data === undefined ? (
             <p role="status" className="tn-sched-loading">
               Calculando o valor…
             </p>
@@ -260,16 +261,20 @@ function BookingFlow(props: FlowProps) {
                 </dd>
                 <dt>Valor</dt>
                 <dd className="tn-num">
-                  <PriceLine quote={quote.data} previous={original?.agreed_price_cents ?? null} />
+                  {quote.data ? (
+                    <PriceLine quote={quote.data} previous={original?.agreed_price_cents ?? null} />
+                  ) : (
+                    <BasePriceLine service={service} previous={original?.agreed_price_cents ?? null} reschedule={props.mode === "reschedule"} />
+                  )}
                 </dd>
               </dl>
               <p className="tn-sched-muted">
-                Valor válido até {localParts(quote.data.expires_at, tz).time}. Ver o valor não segura o horário: ele só fica
-                reservado quando você confirmar.
+                {quote.data ? `Valor válido até ${localParts(quote.data.expires_at, tz).time}. ` : ""}
+                Ver o valor não segura o horário: ele só fica reservado quando você confirmar.
               </p>
               <PolicyNote demo={port.kind === "fixture"} />
               <div className="tn-sched-actions">
-                <Button onClick={() => void confirm(quote.data!)} disabled={pending} aria-busy={pending || undefined}>
+                <Button onClick={() => void confirm(quote.data ?? null)} disabled={pending} aria-busy={pending || undefined}>
                   {pending ? "Confirmando…" : props.mode === "create" ? "Confirmar agendamento" : "Confirmar reagendamento"}
                 </Button>
               </div>
@@ -300,6 +305,23 @@ const REASON_TEXT: Record<Quote["reason_code"], string> = {
   OFF_PEAK_APPROVED: "Desconto de horário aprovado",
   FLOOR_APPLIED: "Desconto limitado ao preço mínimo",
 };
+
+/** Sem cotação (regras de preço ainda não ligadas): preço base; no reagendamento o combinado é mantido. */
+function BasePriceLine({ service, previous, reschedule }: { service: ProviderService; previous: number | null; reschedule: boolean }) {
+  if (reschedule && previous !== null) {
+    return (
+      <span>
+        <strong>{formatCents(previous)}</strong> <span className="tn-sched-muted">Preço combinado mantido.</span>
+      </span>
+    );
+  }
+  return (
+    <span>
+      <strong>{formatCents(service.base_price_cents)}</strong>{" "}
+      <span className="tn-sched-muted">Preço base do serviço. Regras de preço por horário ainda não estão ligadas.</span>
+    </span>
+  );
+}
 
 function PriceLine({ quote, previous }: { quote: Quote; previous: number | null }) {
   const discounted = quote.final_price_cents !== quote.base_price_cents;

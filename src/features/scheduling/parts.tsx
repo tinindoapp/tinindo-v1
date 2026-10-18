@@ -28,13 +28,13 @@ export function StatusBadge({ status }: { status: Booking["status"] }) {
   );
 }
 
-/** Identifica a emulação sobre fixtures até o P03 estar conectado (aceite do P04). */
+/** Identifica a emulação sobre fixtures (demonstração sem servidor; aceite do P04). */
 export function DemoNotice({ kind }: { kind: "fixture" | "server" }) {
   if (kind !== "fixture") return null;
   return (
     <StatusBanner tone="info">
-      <strong>Dados de exemplo.</strong> O motor de agenda (P03) ainda não está conectado: esta tela ainda não guarda nem
-      altera dados no servidor; as mudanças valem só nesta aba.
+      <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no
+      servidor; as mudanças valem só nesta aba.
     </StatusBanner>
   );
 }

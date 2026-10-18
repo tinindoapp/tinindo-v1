@@ -3,14 +3,14 @@
 import type { Booking, BookingStatus, ProviderService, TimeRange } from "@contracts";
 import { formatTime, minutesBetween, toDate } from "./time.ts";
 
-/** Expediente de um dia. Ainda não há contrato para isso (proposta no handoff do P04). */
+/** Expediente de um dia (contrato `schedule.day_plans` do P03; id/versão do bloqueio vêm do servidor). */
 export interface DayPlan {
   date: string;
   /** Intervalos de atendimento, já sem as pausas. */
   open: TimeRange[];
   pauses: TimeRange[];
   /** Bloqueio pessoal é indisponibilidade, não cliente fictício (doc06). */
-  blocks: { range: TimeRange; label: string }[];
+  blocks: { range: TimeRange; label: string; id?: string; version?: number }[];
 }
 
 export const STATUS_LABEL: Record<BookingStatus, string> = {

@@ -109,6 +109,46 @@ export const OPERATIONS = {
     module: "scheduling", owner: "P03", kind: "command", idempotent: true,
     input: scheduling.BookingCompleteInput, output: scheduling.BookingOutput,
   },
+  "booking.confirm": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.BookingConfirmInput, output: scheduling.BookingOutput,
+  },
+  "booking.no_show": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.BookingNoShowInput, output: scheduling.BookingOutput,
+  },
+  "booking.create_series": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.BookingCreateSeriesInput, output: scheduling.BookingCreateSeriesOutput,
+  },
+  "booking.list": {
+    module: "scheduling", owner: "P03", kind: "query", idempotent: false,
+    input: scheduling.BookingListInput, output: scheduling.BookingListOutput,
+  },
+  "booking.get": {
+    module: "scheduling", owner: "P03", kind: "query", idempotent: false,
+    input: scheduling.BookingGetInput, output: scheduling.BookingOutput,
+  },
+  "schedule.settings": {
+    module: "scheduling", owner: "P03", kind: "query", idempotent: false,
+    input: scheduling.ScheduleSettingsInput, output: scheduling.ScheduleSettings,
+  },
+  "schedule.rules_save": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.ScheduleRulesSaveInput, output: scheduling.ScheduleSettings,
+  },
+  "schedule.day_plans": {
+    module: "scheduling", owner: "P03", kind: "query", idempotent: false,
+    input: scheduling.ScheduleDayPlansInput, output: scheduling.ScheduleDayPlansOutput,
+  },
+  "schedule.block_create": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.ScheduleBlockCreateInput, output: scheduling.ScheduleBlockOutput,
+  },
+  "schedule.block_remove": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.ScheduleBlockRemoveInput, output: scheduling.ScheduleBlockOutput,
+  },
   "pricing.propose_rule": {
     module: "pricing", owner: "P05", kind: "command", idempotent: true,
     input: pricing.PricingProposeRuleInput, output: pricing.PricingRuleProposal,

@@ -16,6 +16,10 @@ import {
   type ProviderService,
   type Quote,
   RETRYABLE,
+  ScheduleBlockCreateInput,
+  ScheduleBlockRemoveInput,
+  ScheduleRulesSaveInput,
+  type ScheduleSettings,
   type TimeRange,
 } from "@contracts";
 import { FIXED_NOW, FX, services as fixtureServices, tenantA } from "@contracts/fixtures.ts";
@@ -72,6 +76,43 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
   const idem = new Map<string, { hash: string; result: Booking }>();
   let simulate = options.simulate ?? null;
   let seq = 0;
+  // Expediente e bloqueios editáveis na aba (emulação de schedule.* do P03).
+  let hours: Record<number, [string, string][]> = Object.fromEntries(
+    Object.entries(DEMO_WEEKLY_HOURS).map(([d, h]) => [Number(d), h.open.map(([a, b]) => [a, b] as [string, string])]),
+  );
+  let resourceVersion = 1;
+  let blocks = DEMO_BLOCKS.map((b, i) => ({
+    id: `70000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+    version: 1,
+    removed: false,
+    range: {
+      starts_at: toZonedIso(zonedInstant(b.date, b.from, tz), tz),
+      ends_at: toZonedIso(zonedInstant(b.date, b.to, tz), tz),
+    },
+    label: b.label,
+  }));
+  const commandIdem = new Map<string, string>();
+
+  /** Idempotência dos comandos de expediente: mesma chave + mesmo pedido não repete o efeito. */
+  function once(op: string, key: string, input: unknown): boolean {
+    const id = `${op}:${key}`;
+    const hash = stableHash(input);
+    const prior = commandIdem.get(id);
+    if (prior !== undefined) {
+      if (prior !== hash) fail("IDEMPOTENCY_MISMATCH");
+      return false;
+    }
+    commandIdem.set(id, hash);
+    return true;
+  }
+
+  function settingsNow(): ScheduleSettings {
+    const rules = Object.entries(hours).flatMap(([d, list]) =>
+      list.map(([local_start, local_end]) => ({ weekday: Number(d), local_start, local_end })),
+    );
+    rules.sort((a, b) => a.weekday - b.weekday || a.local_start.localeCompare(b.local_start));
+    return { resource_id: FX.resources.A, resource_version: resourceVersion, timezone: tz, rules };
+  }
 
   const delay = <T>(value: T): Promise<T> =>
     new Promise((resolve) => setTimeout(() => resolve(structuredClone(value)), options.latencyMs ?? 0));
@@ -80,16 +121,21 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
   const booking = (id: string) => bookings.find((b) => b.id === id) ?? fail("NOT_FOUND", "booking_id");
 
   function plan(date: string): DayPlan {
-    const hours = DEMO_WEEKLY_HOURS[localParts(zonedInstant(date, "12:00", tz), tz).weekday];
+    const open = [...(hours[localParts(zonedInstant(date, "12:00", tz), tz).weekday] ?? [])].sort((a, b) => a[0].localeCompare(b[0]));
     const range = (from: string, to: string): TimeRange => ({
       starts_at: toZonedIso(zonedInstant(date, from, tz), tz),
       ends_at: toZonedIso(zonedInstant(date, to, tz), tz),
     });
+    const dayStart = zonedInstant(date, "00:00", tz).getTime();
+    const dayEnd = zonedInstant(addDays(date, 1), "00:00", tz).getTime();
     return {
       date,
-      open: (hours?.open ?? []).map(([a, b]) => range(a, b)),
-      pauses: (hours?.pauses ?? []).map(([a, b]) => range(a, b)),
-      blocks: DEMO_BLOCKS.filter((b) => b.date === date).map((b) => ({ range: range(b.from, b.to), label: b.label })),
+      open: open.map(([a, b]) => range(a, b)),
+      // Pausa = lacuna entre períodos abertos do mesmo dia (mesma regra do servidor).
+      pauses: open.slice(1).map(([a], i) => range(open[i]![1], a)),
+      blocks: blocks
+        .filter((b) => !b.removed && Date.parse(b.range.starts_at) < dayEnd && Date.parse(b.range.ends_at) > dayStart)
+        .map(({ id, version, range: r, label }) => ({ id, version, range: r, label })),
     };
   }
 
@@ -226,6 +272,50 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         }
       }
       return delay({ slots: slots.slice(0, 500), timezone: tz });
+    },
+
+    settings: () => delay(settingsNow()),
+    async saveRules(raw, key) {
+      const input = parse(ScheduleRulesSaveInput, raw);
+      if (once("schedule.rules_save", key, input)) {
+        if (input.expected_version !== resourceVersion) fail("STALE_VERSION", "expected_version");
+        const next: Record<number, [string, string][]> = {};
+        for (const r of input.rules) (next[r.weekday] ??= []).push([r.local_start, r.local_end]);
+        for (const list of Object.values(next)) {
+          list.sort((a, b) => a[0].localeCompare(b[0]));
+          if (list.some(([, end], i) => i + 1 < list.length && end > list[i + 1]![0])) fail("VALIDATION_ERROR", "rules");
+        }
+        hours = next;
+        resourceVersion += 1;
+      }
+      return delay(settingsNow());
+    },
+    async createBlock(raw, key) {
+      const input = parse(ScheduleBlockCreateInput, raw);
+      if (!once("schedule.block_create", key, input)) return delay(undefined);
+      const [s0, e0] = [Date.parse(input.range.starts_at), Date.parse(input.range.ends_at)];
+      const clash = bookings.some((b) => {
+        if (!ACTIVE_STATUSES.includes(b.status)) return false;
+        const [s, e] = occupied(b);
+        return s0 < e && s < e0;
+      });
+      if (clash) {
+        commandIdem.delete(`schedule.block_create:${key}`);
+        fail("SLOT_CONFLICT", "range");
+      }
+      blocks = [...blocks, {
+        id: `70000000-0000-4000-8000-${String(100 + ++seq).padStart(12, "0")}`,
+        version: 1, removed: false, range: input.range, label: input.label,
+      }];
+      return delay(undefined);
+    },
+    async removeBlock(raw, key) {
+      const input = parse(ScheduleBlockRemoveInput, raw);
+      if (!once("schedule.block_remove", key, input)) return delay(undefined);
+      const b = blocks.find((x) => x.id === input.block_id && !x.removed) ?? fail("NOT_FOUND", "block_id");
+      if (b.version !== input.expected_version) fail("STALE_VERSION", "expected_version");
+      blocks = blocks.map((x) => (x.id === b.id ? { ...x, removed: true, version: x.version + 1 } : x));
+      return delay(undefined);
     },
 
     async quote(raw) {
