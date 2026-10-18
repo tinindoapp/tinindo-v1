@@ -40,6 +40,10 @@ Branch: `task/p02/claude-p02-a` → PR [tinindoapp/tinindo-v1#7](https://github.
 
 **Não executado:** `supabase test db` e `supabase db lint` (sem Docker aqui). O CI do PR **não** cobre o SQL do P02 até o integrador incluí-lo em `supabase/migrations/`.
 
+## Ajuste de CI (pedido do integrador)
+
+`.github/workflows/ci-app.yml`, job `secrets`: o gitleaks agora varre só `origin/<base>..HEAD` em PR e `--full-history HEAD` em push na `main`. Antes, ele lia `git log --all` e o achado de outra branch (`task/p01/claude-p01-a`, constante `KEY` de teste) bloqueava este PR. Validado localmente com gitleaks 8.30.1: o intervalo do PR e a `main` ficam limpos, e o modo antigo reproduz a falha. Pode ser separado em PR próprio do integrador, se preferir.
+
 ## Contratos e migrations
 
 - `_shared/contracts` intocado. Extensão aditiva em `supabase/functions/crm/contract.ts`, com proposta de promoção e lista de consumidores em `db/proposals/P02/NOTAS.md`.
