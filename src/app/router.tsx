@@ -2,6 +2,7 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { PublicRecoverPassword, PublicSignUp } from "../features/identity/module.tsx";
 import { networkPublicRoutes } from "../features/network/module.tsx";
+import { waitlistPublicRoutes } from "../features/waitlist/module.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
@@ -20,6 +21,8 @@ export const routes: RouteObject[] = [
       { path: "/recuperar-senha", element: <PublicRecoverPassword /> },
       // Páginas públicas fora do shell autenticado: perfil por slug, convite e indicação (P09).
       ...networkPublicRoutes,
+      // Link da oferta de vaga (P06): anônimo, token no fragmento, aceite só por ação explícita.
+      ...waitlistPublicRoutes,
       {
         path: "/app",
         element: <AppShell />,

@@ -180,6 +180,38 @@ export const OPERATIONS = {
     module: "waitlist", owner: "P06", kind: "command", idempotent: true,
     input: waitlist.WaitlistAcceptOfferInput, output: scheduling.BookingOutput,
   },
+  "consent.record": {
+    module: "waitlist", owner: "P06", kind: "command", idempotent: true,
+    input: waitlist.ConsentRecordInput, output: waitlist.ContactConsent,
+  },
+  "consent.revoke": {
+    module: "waitlist", owner: "P06", kind: "command", idempotent: true,
+    input: waitlist.ConsentRevokeInput, output: waitlist.ConsentRevokeOutput,
+  },
+  "waitlist.withdraw": {
+    module: "waitlist", owner: "P06", kind: "command", idempotent: true,
+    input: waitlist.WaitlistWithdrawInput, output: waitlist.WaitlistEntry,
+  },
+  "waitlist.mark_shared": {
+    module: "waitlist", owner: "P06", kind: "command", idempotent: true,
+    input: waitlist.WaitlistOfferRefInput, output: waitlist.WaitlistOffer,
+  },
+  "waitlist.cancel_offer": {
+    module: "waitlist", owner: "P06", kind: "command", idempotent: true,
+    input: waitlist.WaitlistOfferRefInput, output: waitlist.WaitlistOffer,
+  },
+  "waitlist.list": {
+    module: "waitlist", owner: "P06", kind: "query", idempotent: false,
+    input: waitlist.WaitlistListInput, output: waitlist.WaitlistListOutput,
+  },
+  "waitlist.offer_view": {
+    module: "waitlist", owner: "P06", kind: "query", idempotent: false,
+    input: waitlist.WaitlistAcceptOfferInput, output: waitlist.WaitlistOfferView,
+  },
+  "waitlist.decline_offer": {
+    module: "waitlist", owner: "P06", kind: "command", idempotent: true,
+    input: waitlist.WaitlistAcceptOfferInput, output: waitlist.WaitlistDeclineOutput,
+  },
   "finance.record_payment": {
     module: "finance", owner: "P07", kind: "command", idempotent: true,
     input: finance.FinanceRecordPaymentInput, output: finance.PaymentEntry,

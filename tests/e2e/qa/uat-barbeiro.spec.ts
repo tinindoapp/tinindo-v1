@@ -138,9 +138,12 @@ test.describe("UAT barbeiro", () => {
   });
 
   test("7 · lista de espera oferece a vaga cancelada e recupera o horário", async ({ page }) => {
-    test.fixme(true, PENDING.waitlist);
-    await page.goto("/app/lista-de-espera");
-    await expect(page.getByRole("button", { name: /Oferecer vaga/ })).toBeVisible();
+    await page.goto("/app");
+    await openFromNav(page, "Lista de espera");
+    const slots = page.getByRole("region", { name: "Vagas para oferecer" });
+    await slots.getByRole("button", { name: /Preparar oferta/ }).click();
+    await expect(page.getByRole("region", { name: "Link da oferta" })).toContainText("A Tinindo não envia mensagens");
+    await expect(page.getByRole("region", { name: "Ofertas" })).toContainText("Oferta aberta");
   });
 
   test("8 · conclui o atendimento das 09:00 sem registrar pagamento", async ({ page }) => {
