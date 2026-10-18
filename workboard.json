@@ -242,13 +242,14 @@
         "db/proposals/P09/",
         "tests/e2e/network/"
       ],
-      "status": "review",
+      "status": "done",
       "owner": "fffalleiros",
       "session": "claude-p09-a",
       "branch": "task/p09/claude-p09-a",
-      "lease_until": "2026-10-18T18:11:54.837362Z",
+      "lease_until": null,
       "pr": 5,
-      "block_reason": null
+      "block_reason": null,
+      "merge_sha": "107d4ef5c805eaf52c0804b23930fcbbc2d588a4"
     },
     "P10": {
       "id": "P10",
@@ -283,7 +284,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T16:18:05.916876Z",
+  "updated_at": "2026-10-18T17:35:58.937633Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -509,6 +510,16 @@
       "id": "a6d1641e-be03-412d-b504-a6367ecdfee1",
       "at": "2026-10-18T16:18:05.916876Z",
       "action": "review",
+      "task": "P09",
+      "actor": "fffalleiros",
+      "session": "claude-p09-a",
+      "pr": 5,
+      "reason": null
+    },
+    {
+      "id": "960ecc5b-af09-41ce-a804-8c14c2059c17",
+      "at": "2026-10-18T17:35:58.937633Z",
+      "action": "finish",
       "task": "P09",
       "actor": "fffalleiros",
       "session": "claude-p09-a",
