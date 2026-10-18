@@ -11,7 +11,7 @@ Aplicativo de operação para profissionais de serviço: agenda, clientes, preç
 Pré-requisitos: Node 22 (`.nvmrc`), Python 3.10+ e Git. Para banco local, Docker. Para as Edge Functions, Deno 2.9. Para o quadro de tarefas, GitHub CLI `gh` autenticado.
 
 ```bash
-git clone https://github.com/fffalleiros/tinindo && cd tinindo
+git clone https://github.com/tinindoapp/tinindo-v1 && cd tinindo-v1
 npm ci
 npm run dev            # http://localhost:5173 — sem .env, abre em demonstração offline
 ```
@@ -44,8 +44,8 @@ npx supabase functions serve   # Edge Function `context` em /functions/v1/contex
 
 ```bash
 git fetch origin --prune
-python3 scripts/coord.py --repo fffalleiros/tinindo status
-python3 scripts/coord.py --repo fffalleiros/tinindo claim P01 --session <seu-login>-p01-a
+python3 scripts/coord.py --repo tinindoapp/tinindo-v1 status
+python3 scripts/coord.py --repo tinindoapp/tinindo-v1 claim P01 --session <seu-login>-p01-a
 git worktree add ../tinindo-p01-a -b task/p01/<seu-login>-p01-a origin/main
 ```
 

@@ -8,7 +8,7 @@ O kit de arquitetura indicava `fffalleiros/tinindo` como candidato. Era preciso 
 
 ## Verificado no P00
 
-- O fundador confirmou que `fffalleiros/tinindo` é o repositório canônico. Antes do P00 ele tinha só o README, o kit e a marca, sem `package.json` nem código de app.
+- O fundador confirmou que `fffalleiros/tinindo` era o repositório canônico. Em 18/10/2026 ele foi transferido para a organização oficial: **`tinindoapp/tinindo-v1`** é o canônico desde então. Antes do P00 ele tinha só o README, o kit e a marca, sem `package.json` nem código de app.
 - Workspace Lovable "Falleiros Geral": 31 projetos e nenhum é a Tinindo. Não há projeto Lovable vinculado a este repositório.
 - Organização Supabase do fundador: apenas `o9-deal-studio` e `Casa diGrazi APP`, nenhum da Tinindo. Não há banco, usuários ou dados reais a migrar.
 - O site público (home, agenda e `/cliente/`) fica em outro lugar e não foi tocado. Este repositório cria o **app** e não substitui o site.

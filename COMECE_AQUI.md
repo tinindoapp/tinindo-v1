@@ -20,7 +20,7 @@ O PowerPoint entregue separadamente explica o processo ao Gabriel. A arquitetura
 ## O que já foi verificado
 
 - Site público revisado em 17/10/2026: home, aba de agenda, acesso `/cliente/` e privacidade. O login existe; não houve acesso autenticado nem auditoria do backend.
-- Repositório candidato acessível: `fffalleiros/tinindo`, privado, branch `main`, README `# tinindo`; `package.json` não encontrado. Isso **não prova** que ele hospeda o site atual ou que não há código em outro lugar.
+- Repositório canônico do app: `tinindoapp/tinindo-v1` (confirmado no P00; ver `docs/adr/0001`). Ele não hospeda o site público atual.
 - A documentação atual do Lovable descreve sincronização de uma branch ativa e criação de repositório ao vincular projeto. Confirmar o repositório canônico antes de distribuir trabalho.
 - A política de privacidade publicada ainda exibe rascunho, CNPJ e prazo de retenção por definir. Resolver antes de importar dados reais de clientes.
 
