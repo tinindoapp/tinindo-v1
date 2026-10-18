@@ -23,13 +23,14 @@
         "package.json",
         "package-lock.json"
       ],
-      "status": "review",
+      "status": "done",
       "owner": "fffalleiros",
       "session": "claude-p00-a",
       "branch": "task/p00/claude-p00-a",
-      "lease_until": "2026-10-18T02:41:38.605708Z",
+      "lease_until": null,
       "pr": 3,
-      "block_reason": null
+      "block_reason": null,
+      "merge_sha": "8401f172754b3656c94adf5713680633f58580df"
     },
     "P01": {
       "id": "P01",
@@ -282,7 +283,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T00:42:28.950855Z",
+  "updated_at": "2026-10-18T00:47:00.385533Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -301,6 +302,16 @@
       "task": "P00",
       "actor": "fffalleiros",
       "session": "claude-p00-a",
+      "pr": 3,
+      "reason": null
+    },
+    {
+      "id": "cedd41db-487a-4017-a0b0-9812f817d2f2",
+      "at": "2026-10-18T00:47:00.385533Z",
+      "action": "finish",
+      "task": "P00",
+      "actor": "fffalleiros",
+      "session": null,
       "pr": 3,
       "reason": null
     }
