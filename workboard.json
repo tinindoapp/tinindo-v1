@@ -242,11 +242,11 @@
         "db/proposals/P09/",
         "tests/e2e/network/"
       ],
-      "status": "review",
+      "status": "in_progress",
       "owner": "fffalleiros",
       "session": "claude-p09-a",
       "branch": "task/p09/claude-p09-a",
-      "lease_until": "2026-10-18T17:56:19.783415Z",
+      "lease_until": "2026-10-18T18:11:54.837362Z",
       "pr": 5,
       "block_reason": null
     },
@@ -283,7 +283,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T16:11:21.736813Z",
+  "updated_at": "2026-10-18T16:11:54.837362Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -482,6 +482,16 @@
       "task": "P01",
       "actor": "fffalleiros",
       "session": "claude-p01-a",
+      "pr": null,
+      "reason": null
+    },
+    {
+      "id": "df208a8b-2d08-4e4a-86bd-f639dc382beb",
+      "at": "2026-10-18T16:11:54.837362Z",
+      "action": "resume",
+      "task": "P09",
+      "actor": "fffalleiros",
+      "session": "claude-p09-a",
       "pr": null,
       "reason": null
     }
