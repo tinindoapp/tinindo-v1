@@ -2,7 +2,7 @@
 -- Roda depois das migrations da fundação + 001_identity_onboarding.sql + seed sintético.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(45);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -143,6 +143,18 @@ select throws_ok(
   $$ select public.business_create('Negócio 4', 'other', 'America/Sao_Paulo', array['termos-piloto-v0'],
        'chave-criacao-0000000004', repeat('f', 64)) $$,
   'PT429', 'QUOTA_EXCEEDED', 'mais de 3 negócios por dono → 429'
+);
+reset role;
+
+-- quem perdeu o acesso não relê a resposta guardada
+update public.tenants set status = 'closed'
+where id = (select t.id from public.tenants t where t.name = 'Negócio 3');
+select pg_temp.login_as((select outsider from ids));
+set local role authenticated;
+select throws_ok(
+  $$ select public.business_create('Negócio 3', 'other', 'America/Manaus', array['termos-piloto-v0'],
+       'chave-criacao-0000000003', repeat('f', 64)) $$,
+  'PT403', 'FORBIDDEN', 'repetição revalida acesso: negócio encerrado não devolve o resultado'
 );
 reset role;
 
