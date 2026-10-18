@@ -52,6 +52,17 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `finance.record_payment` | recebível, valor, método, received_at, key | Pagamento manual marcado como manual |
 | `finance.summary` | intervalo, timezone | Entradas, saídas, a receber, cobertura e timestamp |
 | `package.consume` | package, booking, evento, key | Crédito debitado uma vez |
+| `finance.create_receivable` | cliente opcional, descrição, valor, vencimento, key | Recebível avulso; não implica recebido |
+| `finance.charge_booking` | booking_id, vencimento, key | Recebível pelo preço combinado; um ativo por atendimento; nunca se pago com crédito |
+| `finance.cancel_receivable` | receivable_id, expected_version, key | Só sem recebimento registrado |
+| `finance.reverse_payment` | payment_id, motivo, key | Estorno vinculado (linha nova); uma vez |
+| `finance.record_expense` | valor, data, categoria, descrição, key | Despesa simples, append-only |
+| `finance.reverse_expense` | expense_id, key | Estorno da despesa (linha nova) |
+| `finance.ledger` | período | Recebíveis abertos/do período, recebimentos e despesas |
+| `finance.uncharged` | período | Atendimentos concluídos sem cobrança nem crédito, com evento de conclusão |
+| `package.sell` | cliente, serviço, créditos, preço total, validade, key | Pacote + um recebível do total (sem receita repetida) |
+| `package.reverse` | entry_id, motivo, key | Devolve 1 crédito, vinculado ao débito; uma vez |
+| `package.list` | — | Pacotes com saldo e movimentos |
 | `agent.ask` | texto, contexto de UI opcional | Resposta referenciada ou action_proposal |
 | `action.approve` | proposal, hash/version, key | Aprovação do payload; não sucesso de execução |
 | `action.execute` | approval_ref, key | Checagem atual de política, execução e recibo |

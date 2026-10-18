@@ -1,0 +1,32 @@
+/* Caixa (P07). Só tokens da marca; estado nunca só por cor. */
+.tn-fin { display: grid; gap: var(--tn-space-4); min-width: 0; }
+.tn-fin-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-fin-period { display: flex; align-items: center; gap: var(--tn-space-3); }
+.tn-fin-period button {
+  min-width: var(--tn-size-touch); min-height: var(--tn-size-touch);
+  border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); background: transparent; color: inherit; cursor: pointer;
+}
+.tn-fin-period button:disabled { opacity: .5; cursor: not-allowed; }
+.tn-fin-period__label { text-transform: capitalize; }
+.tn-fin-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--tn-space-3); margin: 0; }
+.tn-fin-sum dt { font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
+.tn-fin-sum dd { margin: 0; font-size: var(--tn-font-size-xl); font-weight: 600; }
+.tn-fin-section { display: grid; gap: var(--tn-space-3); min-width: 0; }
+.tn-fin-section h2 { margin: var(--tn-space-4) 0 0; }
+.tn-fin-list, .tn-fin-entries { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
+.tn-fin-entries { margin-top: var(--tn-space-2); padding-left: var(--tn-space-3); border-left: 2px solid var(--tn-border); }
+.tn-fin-item {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2);
+  padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0;
+}
+.tn-fin-item > div { min-width: 0; overflow-wrap: anywhere; }
+.tn-fin-item--stack { display: block; }
+.tn-fin-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: flex-end; }
+.tn-fin-inline { display: grid; gap: var(--tn-space-1); font-size: var(--tn-font-size-sm); }
+.tn-fin-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; width: 100%; }
+.tn-fin-form .tn-field { flex: 1 1 10rem; min-width: 0; }
+.tn-fin select, .tn-fin input { min-height: var(--tn-size-touch); max-width: 100%; }
+.tn-fin-form .tn-field input, .tn-fin-form .tn-field select { width: 100%; min-width: 0; }
+@media (max-width: 30rem) {
+  .tn-fin-form { display: grid; grid-template-columns: minmax(0, 1fr); }
+}
