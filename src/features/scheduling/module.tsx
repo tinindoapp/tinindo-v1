@@ -1,7 +1,10 @@
-// Módulo Agenda · dono: P04 (tasks/P04.md). Esqueleto do P00: substitua pelas telas reais.
-// Só este arquivo e esta pasta pertencem ao módulo; src/app/modules.ts é do integrador.
+// Módulo Agenda · dono: P04 (tasks/P04.md). Só esta pasta pertence ao módulo;
+// src/app/modules.ts é do integrador.
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { ModulePlaceholder } from "../../app/pages/ModulePlaceholder.tsx";
+import { AgendaPage } from "./AgendaPage.tsx";
+import { BookingDetailPage } from "./BookingDetailPage.tsx";
+import { NewBookingPage, ReschedulePage } from "./BookingFlowPage.tsx";
+import { SchedulingLayout } from "./SchedulingLayout.tsx";
 
 export const schedulingModule: ModuleDefinition = {
   id: "scheduling",
@@ -10,8 +13,13 @@ export const schedulingModule: ModuleDefinition = {
   navLabel: "Agenda",
   routes: [
     {
-      index: true,
-      element: <ModulePlaceholder title="Agenda" owner="P04" summary="Agenda visual diária e semanal, reservas e reagendamentos." />,
+      element: <SchedulingLayout />,
+      children: [
+        { index: true, element: <AgendaPage /> },
+        { path: "novo", element: <NewBookingPage /> },
+        { path: "atendimento/:bookingId", element: <BookingDetailPage /> },
+        { path: "atendimento/:bookingId/reagendar", element: <ReschedulePage /> },
+      ],
     },
   ],
 };
