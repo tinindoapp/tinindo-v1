@@ -16,7 +16,7 @@ Não existe memória automática compartilhada entre as máquinas de Felipe e Ga
 
 ## Repositório e Lovable
 
-Primeiro confirmar o repositório vinculado ao projeto Lovable. A documentação consultada diz que a vinculação cria um repositório; importar ZIP cria projeto que depois recebe nova vinculação. Se já estiver conectado, usar aquele repositório. Se não estiver, criar/importar o shell mínimo, conectar uma vez e tornar o repo resultante canônico. `fffalleiros/tinindo` é candidato localizado, não foi confirmado como origem do site.
+Primeiro confirmar o repositório vinculado ao projeto Lovable. A documentação consultada diz que a vinculação cria um repositório; importar ZIP cria projeto que depois recebe nova vinculação. Se já estiver conectado, usar aquele repositório. Se não estiver, criar/importar o shell mínimo, conectar uma vez e tornar o repo resultante canônico. Repositório canônico do app: `tinindoapp/tinindo-v1` (ADR-0001). O site público continua fora dele.
 
 Lovable visualiza uma branch ativa por projeto. Reservar o projeto compartilhado para `main`/homologação e anotar SHA testado. Não trocar a branch enquanto Gabriel valida outra versão. Para testar PR isolado: preview de PR em outro hosting ou agendar a troca e restaurar depois. Não desconectar/reconectar Git sync como forma de atualizar código. Não usar edição automática do Lovable no fluxo diário; se houver edição excepcional, ela vira branch/PR e recebe os mesmos checks.
 

@@ -18,7 +18,7 @@ Pesquisa e inspeção em 17/10/2026. Especificações são recomendações de ar
 
 ## Perguntas que faltam, sem impedir o desenho
 
-1. Qual projeto/repositório contém o site e a área `/cliente/`? `fffalleiros/tinindo` foi localizado, mas não tem `package.json` na raiz. Confirmar repositório canônico antes de importar o kit.
+1. Qual projeto/repositório contém o site e a área `/cliente/`? Resolvido no P00: o app vive em `tinindoapp/tinindo-v1` (ADR-0001); o site e `/cliente/` continuam fora deste repositório.
 2. Já há contas reais/dados reais/backend/Auth? Se sim, P00 vira auditoria e migração incremental, sem recriar identidades nem perder dados. Mostrar fonte, não senha.
 3. Quem será integrador no primeiro ciclo? Proposta: Felipe nas regras/infra e Gabriel em UX/UAT, revisão cruzada.
 4. Números WhatsApp e conta Meta já existem? Sem isso o piloto continua no web e compartilhamento manual, e a integração ganha prazo próprio.

@@ -5,7 +5,7 @@ Branch: `claude/zealous-rubin-savrvj` → PR para `main` (link no PR).
 
 ## Resultado
 
-- **Repositório canônico confirmado:** `fffalleiros/tinindo`. Não há projeto Lovable nem projeto Supabase da Tinindo nas contas do fundador, nem código, banco ou dados a preservar. O site público não foi tocado (ADR-0001).
+- **Repositório canônico:** `tinindoapp/tinindo-v1` (transferido de `fffalleiros/tinindo` em 18/10/2026, com histórico, PRs e branches). Não há projeto Lovable nem projeto Supabase da Tinindo nas contas do fundador, nem código, banco ou dados a preservar. O site público não foi tocado (ADR-0001).
 - **App mínimo compilável:** Vite + React 19 + TS, roteador central com registro de módulos, shell com marca (tokens e wordmark originais, tema claro e escuro, banner "Demonstração"), login provisório e demonstração offline sem servidor.
 - **Contratos v1 congelados** em `supabase/functions/_shared/contracts/`: Money, TimeRange, IDs, envelope, catálogo de erros, ServerContext, Tenant/Customer/ProviderService, Booking e transições, Quote, Waitlist, Finance, ActionProposal/aprovação, perfil/indicação, eventos e o registro das 22 operações do doc03 (ADR-0002/0004).
 - **Fixtures sintéticas comuns** (`contracts/fixtures.ts`): tenants A e B, donos, cliente com login nos dois, cliente sem login, usuário sem vínculo, três serviços, agenda lotada e parcial e pacote de 10 sessões, com relógio fixo. `supabase/seed.sql` espelha o que existe no banco (há teste para isso).
@@ -40,7 +40,7 @@ Branch: `claude/zealous-rubin-savrvj` → PR para `main` (link no PR).
 
 ## Gates de ambiente abertos (precisam de pessoa)
 
-1. **Quadro remoto (`coordination`)**: não inicializado. Esta sessão não tem `gh` autenticado e só pode escrever na própria branch. Para inicializar, ver "Próximo passo".
+1. **Quadro remoto (`coordination`)**: inicializado em 17–18/10 com integrador `fffalleiros`. Sem `gh` autenticado na nuvem, o estado foi gravado via git com as próprias funções do `coord.py` (`new_board`/`transition`). P00 está `done` (PR #3, merge `8401f17`). Em máquina com `gh` autenticado, `coord.py` opera normalmente.
 2. **Proteção da `main`** (Settings → Rules → Rulesets): exigir PR, 1 aprovação de outra pessoa, code owners, checks `app-quality`, `functions`, `database`, `e2e`, `secrets`, branch atualizada, bloquear force-push e sem bypass rotineiro. Repositório privado: confirmar que o plano GitHub oferece rulesets.
 3. **Login do Gabriel** para `CODEOWNERS` e `--integrators`. Não foi inventado.
 4. **Projetos Supabase** de homologação e produção, hosting do app e `ALLOWED_ORIGINS` (ADR-0006).
@@ -62,11 +62,8 @@ P01, P02, P03, P04, P05, P07 e P09 contra os contratos v1 e fixtures, respeitand
 
 ## Próximo passo preciso
 
-1. Revisar e mergear este PR (revisor diferente do autor; o CI precisa ficar verde, inclusive `database`).
-2. Inicializar o quadro, em uma máquina com `gh` autenticado como `fffalleiros`:
-   ```bash
-   gh api repos/fffalleiros/tinindo/git/refs -f ref=refs/heads/coordination -f sha=$(git rev-parse origin/main)
-   python3 scripts/coord.py --repo fffalleiros/tinindo init --integrators fffalleiros   # + login do Gabriel
-   ```
-3. Registrar o P00 no quadro. Atenção: `finish` exige PR cuja branch seja `task/p00/<sessão>`, e esta sessão de nuvem só pode publicar em `claude/zealous-rubin-savrvj`. Opções: (a) antes do merge, publicar os mesmos commits em `task/p00/<sessão>`, abrir o PR de lá, `claim` → `review` → `finish`; ou (b) mergear este PR e o integrador fazer `claim P00` + PR mínimo de handoff a partir de `task/p00/<sessão>` para fechar pelo fluxo normal. Não editar o `workboard.json` à mão.
-4. Homologar o coordenador com duas sessões reais (smoke remoto do `VALIDACAO_DA_ENTREGA.md`) antes de distribuir P01–P09.
+Feito: PR #3 mergeado na `main` (`8401f17`), quadro inicializado e P00 `done`. P01–P09 estão disponíveis no quadro.
+
+1. Proteger a `main` (item 2 dos gates) antes de abrir várias sessões.
+2. Homologar o coordenador com duas sessões reais (smoke remoto do `VALIDACAO_DA_ENTREGA.md`) antes de distribuir P01–P09 em paralelo.
+3. Abrir até 4 sessões (sugestão: P01, P02, P04, P09), cada uma com `claim` no quadro e branch `task/pxx/<sessão>`.
