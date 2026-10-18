@@ -173,13 +173,14 @@
         "db/proposals/P06/",
         "tests/contracts/waitlist/"
       ],
-      "status": "review",
+      "status": "done",
       "owner": "fffalleiros",
       "session": "claude-int-p06",
       "branch": "claude/p06-lista-espera",
-      "lease_until": "2026-10-18T20:39:13.294989Z",
+      "lease_until": null,
       "pr": 19,
-      "block_reason": null
+      "block_reason": null,
+      "merge_sha": "5290ec83c29d57cf5090e8849be7fc8b68ff085d"
     },
     "P07": {
       "id": "P07",
@@ -290,7 +291,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T18:53:49.260723Z",
+  "updated_at": "2026-10-18T18:58:08.545042Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -680,6 +681,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p08",
       "pr": null,
+      "reason": null
+    },
+    {
+      "id": "5284ba16-1981-4c28-9fbd-37c63a870e42",
+      "at": "2026-10-18T18:58:08.545042Z",
+      "action": "finish",
+      "task": "P06",
+      "actor": "fffalleiros",
+      "session": "claude-int-p06",
+      "pr": 19,
       "reason": null
     }
   ]
