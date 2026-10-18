@@ -8,6 +8,7 @@ import * as finance from "./finance.ts";
 import * as identity from "./identity.ts";
 import * as network from "./network.ts";
 import * as pricing from "./pricing.ts";
+import * as sales from "./sales.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -19,7 +20,8 @@ export type ModuleId =
   | "waitlist"
   | "finance"
   | "agent"
-  | "network";
+  | "network"
+  | "sales";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -315,6 +317,42 @@ export const OPERATIONS = {
   "referral.list": {
     module: "network", owner: "P09", kind: "query", idempotent: false,
     input: NoInput, output: network.ReferralListOutput,
+  },
+  "quote.create": {
+    module: "sales", owner: "P11", kind: "command", idempotent: true,
+    input: sales.SalesQuoteCreateInput, output: sales.SalesQuoteOutput,
+  },
+  "quote.revise": {
+    module: "sales", owner: "P11", kind: "command", idempotent: true,
+    input: sales.SalesQuoteReviseInput, output: sales.SalesQuoteOutput,
+  },
+  "quote.send": {
+    module: "sales", owner: "P11", kind: "command", idempotent: true,
+    input: sales.SalesQuoteSendInput, output: sales.SalesQuoteSendOutput,
+  },
+  "quote.cancel": {
+    module: "sales", owner: "P11", kind: "command", idempotent: true,
+    input: sales.SalesQuoteRefInput, output: sales.SalesQuoteOutput,
+  },
+  "quote.list": {
+    module: "sales", owner: "P11", kind: "query", idempotent: false,
+    input: sales.SalesQuoteListInput, output: sales.SalesQuoteListOutput,
+  },
+  "quote.get": {
+    module: "sales", owner: "P11", kind: "query", idempotent: false,
+    input: sales.SalesQuoteRefInput, output: sales.SalesQuoteDetailOutput,
+  },
+  "quote.view": {
+    module: "sales", owner: "P11", kind: "query", idempotent: false,
+    input: sales.SalesQuoteTokenInput, output: sales.SalesQuotePublicView,
+  },
+  "quote.accept": {
+    module: "sales", owner: "P11", kind: "command", idempotent: true,
+    input: sales.SalesQuoteDecideInput, output: sales.SalesQuoteDecideOutput,
+  },
+  "quote.decline": {
+    module: "sales", owner: "P11", kind: "command", idempotent: true,
+    input: sales.SalesQuoteDecideInput, output: sales.SalesQuoteDecideOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 

@@ -23,7 +23,7 @@ export const BOOKING_TRANSITIONS: Readonly<Record<BookingStatus, readonly Bookin
   no_show: ["confirmed"],
 };
 
-export const BookingSource = z.enum(["owner", "public_link", "waitlist", "agent", "import"]);
+export const BookingSource = z.enum(["owner", "public_link", "waitlist", "agent", "import", "quote"]);
 
 /** Visão do dono. Cliente/visitante recebem projeções menores (P09). */
 export const Booking = z.object({

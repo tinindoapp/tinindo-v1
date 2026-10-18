@@ -86,6 +86,15 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `referral.inspect` | token (no corpo) | Leitura mínima do convite; não muda estado (anônimo) |
 | `referral.claim` | token, key | Convite usado uma vez, contato confirmado |
 | `referral.list` | — | Convites do próprio usuário (até 50) |
+| `quote.create` | cliente, título, itens, validade, horário opcional, observações, key | Rascunho versão 1; total calculado no servidor; hash do snapshot |
+| `quote.revise` | quote_id, expected_version, conteúdo, key | Nova versão imutável com novo hash; só rascunho ou enviado |
+| `quote.send` | quote_id, expected_version, key | Link do cliente (token só nesta resposta); gerar de novo invalida o anterior |
+| `quote.cancel` | quote_id, key | Cancelado; link deixa de existir; aceito não cancela por aqui |
+| `quote.list` | status opcional | Orçamentos recentes (até 200) com a versão atual e status efetivo |
+| `quote.get` | quote_id | Orçamento, todas as versões e a decisão |
+| `quote.view` | token (no corpo) | Versão atual pelo link; não muda estado (anônimo) |
+| `quote.accept` | token, versão, hash, key | Aceite da versão vista, dentro da validade; reserva revalidada na mesma transação; não marca pagamento (anônimo) |
+| `quote.decline` | token, versão, hash, key | Recusa registrada; uma decisão por orçamento (anônimo) |
 
 ## Exemplo de cotação
 

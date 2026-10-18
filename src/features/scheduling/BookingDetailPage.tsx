@@ -15,6 +15,7 @@ const SOURCE_LABEL: Record<Booking["source"], string> = {
   waitlist: "Lista de espera",
   agent: "Assistente",
   import: "Importação",
+  quote: "Orçamento aceito",
 };
 
 const DONE_MESSAGE: Record<string, string> = {

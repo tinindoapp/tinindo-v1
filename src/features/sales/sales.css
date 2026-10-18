@@ -1,0 +1,26 @@
+/* Orçamentos (P11). Só tokens da marca; estado nunca só por cor. */
+.tn-qt { display: grid; gap: var(--tn-space-4); min-width: 0; }
+.tn-qt-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-qt-section { display: grid; gap: var(--tn-space-3); min-width: 0; }
+.tn-qt-grid { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; }
+.tn-qt-field { display: grid; gap: var(--tn-space-1); flex: 1 1 12rem; min-width: 0; font-size: var(--tn-font-size-sm); }
+.tn-qt-field--small { flex: 0 1 7rem; }
+.tn-qt-field input, .tn-qt-field select, .tn-qt-field textarea { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; font: inherit; }
+.tn-qt-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
+.tn-qt-items { display: grid; gap: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3); min-width: 0; }
+.tn-qt-item { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; padding-bottom: var(--tn-space-3); border-bottom: 1px solid var(--tn-border); min-width: 0; }
+.tn-qt-total { margin: 0; }
+.tn-qt-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
+.tn-qt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
+.tn-qt-row {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--tn-space-2);
+  padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0;
+}
+.tn-qt-row > div { min-width: 0; overflow-wrap: anywhere; }
+.tn-qt-code { display: block; overflow-wrap: anywhere; padding: var(--tn-space-2); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-sm); }
+.tn-qt-table { width: 100%; border-collapse: collapse; }
+.tn-qt-table th, .tn-qt-table td { text-align: left; padding: var(--tn-space-2) var(--tn-space-1); border-bottom: 1px solid var(--tn-border); }
+.tn-qt-table td.tn-num { text-align: right; }
+@media (max-width: 30rem) {
+  .tn-qt-item, .tn-qt-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+}

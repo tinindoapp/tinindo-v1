@@ -9,6 +9,8 @@ export const EventType = z.enum([
   "payment.recorded.v1",
   "waitlist.offer.expired.v1",
   "agent.action.approved.v1",
+  "sales.quote.accepted.v1",
+  "sales.quote.declined.v1",
 ]);
 export type EventType = z.infer<typeof EventType>;
 
