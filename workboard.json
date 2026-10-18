@@ -1,0 +1,298 @@
+{
+  "schema_version": 1,
+  "phase": "pilot",
+  "integrators": [
+    "fffalleiros"
+  ],
+  "tasks": {
+    "P00": {
+      "id": "P00",
+      "title": "Fundação e contratos",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [],
+      "resources": [
+        "foundation"
+      ],
+      "paths": [
+        "docs/adr/",
+        "src/app/",
+        "src/components/ui/",
+        "supabase/functions/_shared/contracts/",
+        "supabase/migrations/",
+        ".github/",
+        "package.json",
+        "package-lock.json"
+      ],
+      "status": "in_progress",
+      "owner": "fffalleiros",
+      "session": "claude-p00-a",
+      "branch": "task/p00/claude-p00-a",
+      "lease_until": "2026-10-18T02:41:38.605708Z",
+      "pr": null,
+      "block_reason": null
+    },
+    "P01": {
+      "id": "P01",
+      "title": "Identidade e onboarding",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "identity"
+      ],
+      "paths": [
+        "src/features/identity/",
+        "supabase/functions/identity/",
+        "db/proposals/P01/",
+        "tests/contracts/identity/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P02": {
+      "id": "P02",
+      "title": "Clientes e catálogo",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "crm"
+      ],
+      "paths": [
+        "src/features/crm/",
+        "supabase/functions/crm/",
+        "db/proposals/P02/",
+        "tests/contracts/crm/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P03": {
+      "id": "P03",
+      "title": "Motor de agenda",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "scheduling-domain"
+      ],
+      "paths": [
+        "supabase/functions/scheduling/",
+        "supabase/functions/_shared/domain/scheduling/",
+        "db/proposals/P03/",
+        "tests/contracts/scheduling/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P04": {
+      "id": "P04",
+      "title": "Agenda e experiência web",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "scheduling-ui"
+      ],
+      "paths": [
+        "src/features/scheduling/",
+        "tests/e2e/scheduling/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P05": {
+      "id": "P05",
+      "title": "Regras e ofertas de preço",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "pricing"
+      ],
+      "paths": [
+        "src/features/pricing/",
+        "supabase/functions/pricing/",
+        "supabase/functions/_shared/domain/pricing/",
+        "db/proposals/P05/",
+        "tests/contracts/pricing/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P06": {
+      "id": "P06",
+      "title": "Lista de espera e jobs",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "waitlist"
+      ],
+      "paths": [
+        "src/features/waitlist/",
+        "supabase/functions/waitlist/",
+        "supabase/functions/jobs/",
+        "db/proposals/P06/",
+        "tests/contracts/waitlist/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P07": {
+      "id": "P07",
+      "title": "Financeiro simples e pacotes",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "finance"
+      ],
+      "paths": [
+        "src/features/finance/",
+        "supabase/functions/finance/",
+        "supabase/functions/_shared/domain/finance/",
+        "db/proposals/P07/",
+        "tests/contracts/finance/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P08": {
+      "id": "P08",
+      "title": "Assistente e aprovação",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "agent"
+      ],
+      "paths": [
+        "src/features/agent/",
+        "supabase/functions/agent/",
+        "supabase/functions/actions/",
+        "db/proposals/P08/",
+        "tests/contracts/agent/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P09": {
+      "id": "P09",
+      "title": "Cliente, perfil e convites",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P00"
+      ],
+      "resources": [
+        "network"
+      ],
+      "paths": [
+        "src/features/network/",
+        "supabase/functions/network/",
+        "db/proposals/P09/",
+        "tests/e2e/network/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P10": {
+      "id": "P10",
+      "title": "Integração e liberação",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09"
+      ],
+      "resources": [
+        "release"
+      ],
+      "paths": [
+        "tests/e2e/",
+        "docs/handoffs/",
+        "docs/adr/",
+        "release/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    }
+  },
+  "updated_at": "2026-10-18T00:41:38.605708Z",
+  "history": [
+    {
+      "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
+      "at": "2026-10-18T00:41:38.605708Z",
+      "action": "claim",
+      "task": "P00",
+      "actor": "fffalleiros",
+      "session": "claude-p00-a",
+      "pr": null,
+      "reason": null
+    }
+  ]
+}
