@@ -87,9 +87,12 @@ describe("porta do servidor (contrato v1)", () => {
     });
   });
 
-  it("sem regras de preço ligadas (antes do P05) não inventa cotação", async () => {
-    const { port: p, fetchMock } = port(json(200, {}));
-    expect(await p.quote({ service_id: FX.services.corteA, resource_id: FX.resources.A, slot: { starts_at: "2026-10-27T13:00:00Z", ends_at: "2026-10-27T13:30:00Z" } })).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
+  it("cotação vem do módulo de preços e é validada no contrato", async () => {
+    const quote = { quote_id: bookingsA[0]!.id, service_id: FX.services.corteA, resource_id: FX.resources.A,
+      slot: { starts_at: "2026-10-27T18:00:00Z", ends_at: "2026-10-27T18:30:00Z" }, currency: "BRL", base_price_cents: 6000,
+      final_price_cents: 5100, rule_version: 3, reason_code: "OFF_PEAK_APPROVED", expires_at: "2026-10-27T12:10:00Z" };
+    const { port: p, fetchMock } = port(json(200, { data: quote, meta }));
+    expect(await p.quote({ service_id: FX.services.corteA, resource_id: FX.resources.A, slot: quote.slot })).toMatchObject({ final_price_cents: 5100 });
+    expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toMatch(/\/pricing\/pricing\.quote$/);
   });
 });

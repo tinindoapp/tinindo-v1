@@ -8,7 +8,7 @@ import { expect, type Page } from "@playwright/test";
 export const PENDING = {
   crmWrite: "P02 sem servidor: na demonstração os formulários de clientes/serviços ficam bloqueados (readOnly).",
   publicBooking: "P03/P09: o link público só mostra horários; reservar pelo link exige o motor de agenda no servidor.",
-  pricing: "P05 (Preços) ainda é placeholder: criar/aplicar oferta com piso depende das regras no servidor.",
+  pricing: "P05 (Preços): a regra publicada vale no servidor; a agenda da demonstração usa a regra de exemplo própria.",
   waitlist: "P06 (Lista de espera) ainda é placeholder: oferta de vaga e aceite atômico dependem do worker/servidor.",
   finance: "P07 (Caixa): o ledger existe no servidor, mas a demonstração só tem o negócio A; pacote de personal e conclusão pela agenda pedem banco real.",
   agent: "P08 (Assistente) ainda é placeholder: consulta em linguagem natural depende das ferramentas do agente.",

@@ -45,7 +45,10 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `schedule.block_create` | resource, intervalo, rótulo, key | Bloqueio pessoal; 409 se cobre reserva ativa |
 | `schedule.block_remove` | block_id, expected_version, key | Bloqueio removido |
 | `pricing.propose_rule` | janela, discount_bps, validade | Proposta/preview de impacto, ainda inativa |
+| `pricing.approve_rule` | proposal, payload_hash, expected_version, key | Aprovação do dono vinculada a hash/versão, 15 min, uso único |
 | `pricing.publish_rule` | proposal_id, approval, expected_version, key | Regra ativa e auditada |
+| `pricing.deactivate_rule` | rule_id, expected_version, key | Regra desativada; cotações voltam ao preço base |
+| `pricing.list_rules` | — | Regras (ativa primeiro) e propostas abertas |
 | `waitlist.join` | cliente, serviço, faixas aceitas, permissão de contato | Entrada elegível |
 | `waitlist.prepare_offer` | entry, slot, quote | Proposta para owner ou oferta sob política aprovada |
 | `waitlist.accept_offer` | token opaco, key | Reserva confirmada ou oferta vencida |

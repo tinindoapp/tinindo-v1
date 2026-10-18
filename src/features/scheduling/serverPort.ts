@@ -1,6 +1,6 @@
 // Implementação real da porta: Edge Functions por módulo (ADR-0002), envelope v1 validado.
 // Agenda e expediente: `scheduling` (P03). Serviços e clientes: `crm` (P02).
-// Cotação: até o P05 publicar `pricing.quote`, devolve null e a reserva usa o preço base do serviço.
+// Cotação: `pricing` (P05). A cotação não segura horário; a reserva valida e consome a cotação no banco.
 import {
   AvailabilityListOutput,
   BookingListOutput,
@@ -8,6 +8,7 @@ import {
   ContextResponse,
   CRM_ROUTES,
   CustomerListOutput,
+  Quote,
   ScheduleBlockOutput,
   ScheduleDayPlansOutput,
   ScheduleSettings,
@@ -84,7 +85,10 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
       const { data } = await call(scheduling("availability.list"), AvailabilityListOutput, post(input));
       return data;
     },
-    quote: async () => null,
+    async quote(input) {
+      const { data } = await call("/pricing/pricing.quote", Quote, post(input));
+      return data;
+    },
     async create(input, key) {
       const { data } = await call(scheduling("booking.create"), BookingOutput, post(input, key));
       return data.booking;
