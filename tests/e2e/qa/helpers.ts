@@ -11,7 +11,6 @@ export const PENDING = {
   pricing: "P05 (Preços): a regra publicada vale no servidor; a agenda da demonstração usa a regra de exemplo própria.",
   waitlist: "P06 (Lista de espera): candidatos por cancelamento dependem do worker no servidor; a demonstração traz uma vaga de exemplo.",
   finance: "P07 (Caixa): o ledger existe no servidor, mas a demonstração só tem o negócio A; pacote de personal e conclusão pela agenda pedem banco real.",
-  agent: "P08 (Assistente) ainda é placeholder: consulta em linguagem natural depende das ferramentas do agente.",
   recurrence: "P03: recorrência com detecção de conflito por data não existe no fluxo da demonstração.",
   multiTenant: "P01/P09: a demonstração tem só um vínculo (tenant A); conta com reservas em dois negócios exige servidor e RLS.",
   personalTenant: "A demonstração offline abre apenas a Barbearia Exemplo A; não há negócio de personal para operar.",
