@@ -242,3 +242,11 @@
 @media (prefers-reduced-motion: reduce) {
   .tn-sched * { transition: none !important; }
 }
+
+/* Horários de atendimento (expediente e bloqueios). */
+.tn-sched-hours { display: grid; gap: var(--tn-space-3); margin-top: var(--tn-space-6); }
+.tn-sched-hours__day { display: grid; gap: var(--tn-space-2); }
+.tn-sched-hours__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--tn-space-3); }
+.tn-sched-hours__row .tn-field { min-width: 0; flex: 1 1 8rem; }
+.tn-sched-hours__row input { min-height: 44px; width: 100%; }
+.tn-sched-hours__form { margin-bottom: var(--tn-space-3); }

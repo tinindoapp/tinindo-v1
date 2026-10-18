@@ -38,8 +38,8 @@ describe("emulação do motor de agenda (fixtures)", () => {
   it("cria com preço da cotação; repetir com a mesma chave devolve a mesma reserva", async () => {
     const port = createFixturePort();
     const q = await port.quote({ service_id: FX.services.corteA, resource_id: FX.resources.A, slot });
-    const a = await port.create({ ...base, slot, quote_id: q.quote_id }, K1);
-    const b = await port.create({ ...base, slot, quote_id: q.quote_id }, K1);
+    const a = await port.create({ ...base, slot, quote_id: q!.quote_id }, K1);
+    const b = await port.create({ ...base, slot, quote_id: q!.quote_id }, K1);
     expect(a).toEqual(b);
     expect(a).toMatchObject({ status: "confirmed", agreed_price_cents: 5100, version: 1 });
     expect((await port.listBookings(window)).filter((x) => x.starts_at === slot.starts_at)).toHaveLength(1);
@@ -99,5 +99,32 @@ describe("emulação do motor de agenda (fixtures)", () => {
     const id = "60000000-0000-4000-8000-000000000006";
     await expect(stale.cancel({ booking_id: id, expected_version: 1, reason: "x" }, K1)).rejects.toMatchObject({ code: "STALE_VERSION" });
     expect((await stale.cancel({ booking_id: id, expected_version: 2, reason: "x" }, K2)).status).toBe("cancelled");
+  });
+
+  it("expediente: salvar com versão troca os horários livres; versão antiga → 409", async () => {
+    const port = createFixturePort();
+    const s0 = await port.settings();
+    const tue = { weekday: 2, local_start: "14:00", local_end: "18:00" };
+    const s1 = await port.saveRules({ resource_id: s0.resource_id, expected_version: s0.resource_version, rules: [tue] }, K1);
+    expect(s1.rules).toEqual([tue]);
+    const { slots } = await port.availability({ resource_id: FX.resources.A, service_id: FX.services.corteA, window });
+    expect(slots.every((x) => x.starts_at.slice(11, 16) >= "14:00")).toBe(true);
+    await expect(
+      port.saveRules({ resource_id: s0.resource_id, expected_version: s0.resource_version, rules: [] }, K2),
+    ).rejects.toMatchObject({ code: "STALE_VERSION" });
+  });
+
+  it("bloqueio não cobre atendimento ativo e some/volta dos horários livres", async () => {
+    const port = createFixturePort();
+    await expect(port.createBlock({ resource_id: FX.resources.A, range: { starts_at: "2026-10-20T14:50:00-03:00", ends_at: "2026-10-20T15:10:00-03:00" }, label: "Banco" }, K1))
+      .rejects.toMatchObject({ code: "SLOT_CONFLICT" });
+    const range = { starts_at: "2026-10-20T17:00:00-03:00", ends_at: "2026-10-20T18:00:00-03:00" };
+    await port.createBlock({ resource_id: FX.resources.A, range, label: "Banco" }, K2);
+    const free = async () => (await port.availability({ resource_id: FX.resources.A, service_id: FX.services.corteA, window })).slots.map((x) => x.starts_at.slice(11, 16));
+    expect(await free()).not.toContain("17:00");
+    const [plan] = (await port.dayPlans(window))!;
+    const block = plan!.blocks.find((b) => b.label === "Banco")!;
+    await port.removeBlock({ block_id: block.id!, expected_version: block.version! }, "chave-teste-0000000003");
+    expect(await free()).toContain("17:00");
   });
 });

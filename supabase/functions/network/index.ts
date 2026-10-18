@@ -14,18 +14,30 @@ const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "http://localhost:517
   .map((o) => o.trim())
   .filter(Boolean);
 
+const rpc = async (accessToken: string | null, fn: string, args: Record<string, unknown>) => {
+  const client = createClient(url, publicKey, {
+    global: accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {},
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await client.rpc(fn, args);
+  return { data, error };
+};
+
 const handler = createNetworkHandler({
   allowedOrigins,
   publicAppUrl,
-  rpc: async (accessToken, fn, args) => {
-    const client = createClient(url, publicKey, {
-      global: accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {},
-      auth: { persistSession: false, autoRefreshToken: false },
+  rpc,
+  // Motor de agenda (P03), como anon: só horários livres de perfil publicado, sem tenant nem reservas.
+  listPublicSlots: async (input) => {
+    const { data, error } = await rpc(null, "scheduling_public_slots", {
+      p_slug: input.slug,
+      p_service_id: input.service_id,
+      p_from: input.window.starts_at,
+      p_to: input.window.ends_at,
     });
-    const { data, error } = await client.rpc(fn, args);
-    return { data, error };
+    if (error) throw new Error("public_slots_unavailable");
+    return data as { slots: { starts_at: string; ends_at: string }[]; timezone: string };
   },
-  // listPublicSlots: conectar ao motor de agenda (P03) quando availability.list existir no banco.
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 

@@ -61,6 +61,9 @@ export function AgendaPage() {
             ›
           </button>
         </div>
+        <Link className="tn-button" data-variant="secondary" to="horarios">
+          Horários
+        </Link>
         <Link className="tn-button tn-sched-new" data-variant="primary" to={`novo?data=${date}`}>
           Novo agendamento
         </Link>

@@ -19,6 +19,6 @@ for t in tests/db-concurrency/[0-9]*.sh; do
   PGDATABASE="$db" bash "$t" || status=1
   PGDATABASE=postgres psql -qX -c "drop database if exists $db" >/dev/null
 done
-rm -rf "$TMP"
+[ -n "${KEEP_TMP:-}" ] || rm -rf "$TMP"
 [ "$status" -eq 0 ] && echo "Concorrência: todos os testes passaram" || echo "Concorrência: FALHOU"
 exit "$status"
