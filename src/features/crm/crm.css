@@ -1,0 +1,52 @@
+/* Estilos do módulo CRM (P02). Somente tokens da marca; sem cor nova. */
+.crm-stack { display: grid; gap: var(--tn-space-4); min-width: 0; }
+.crm-tabs { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+.crm-tabs a {
+  padding: var(--tn-space-2) var(--tn-space-3);
+  border-radius: var(--tn-radius-pill);
+  border: 1px solid var(--tn-border);
+  color: var(--tn-text);
+  text-decoration: none;
+  font-size: var(--tn-font-size-sm);
+}
+.crm-tabs a[aria-current="page"] { background: var(--tn-action-subtle); border-color: var(--tn-action); font-weight: var(--tn-font-weight-semibold); }
+.crm-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--tn-space-3); }
+.crm-head h1 { margin: 0; }
+.crm-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: var(--tn-space-3); }
+.crm-toolbar .tn-field { flex: 1 1 200px; min-width: 0; }
+.crm-check { display: inline-flex; align-items: center; gap: var(--tn-space-2); font-size: var(--tn-font-size-sm); }
+.crm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
+.crm-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--tn-space-2) var(--tn-space-3);
+  align-items: center;
+  padding: var(--tn-space-3);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md);
+}
+.crm-item__main { min-width: 0; overflow-wrap: anywhere; }
+.crm-item__title { font-weight: var(--tn-font-weight-semibold); }
+.crm-item__meta { font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
+.crm-item__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); justify-content: end; }
+.crm-tag {
+  display: inline-block;
+  margin-left: var(--tn-space-2);
+  padding: 0 var(--tn-space-2);
+  border-radius: var(--tn-radius-pill);
+  border: 1px solid var(--tn-border);
+  font-size: var(--tn-font-size-xs);
+  font-weight: var(--tn-font-weight-medium);
+}
+.crm-form { display: grid; gap: var(--tn-space-3); }
+.crm-grid { display: grid; gap: var(--tn-space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); }
+.crm-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+.crm-note { font-size: var(--tn-font-size-sm); margin: 0; }
+.crm-textarea { box-sizing: border-box; width: 100%; min-width: 0; min-height: 8rem; font: inherit; font-family: var(--tn-font-mono); padding: var(--tn-space-2); border: 1px solid var(--tn-border-control); border-radius: var(--tn-radius-sm); background: transparent; color: inherit; }
+@media (max-width: 560px) {
+  .crm-item { grid-template-columns: minmax(0, 1fr); }
+  .crm-item__actions { justify-content: start; }
+}
+.crm-stack .tn-field { min-width: 0; }
+.crm-stack input[type="file"] { box-sizing: border-box; max-width: 100%; }
+.crm-stack > * { min-width: 0; }
