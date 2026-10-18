@@ -33,7 +33,7 @@ Escopo pedido pelo responsável do projeto: escrever **somente** em `tests/e2e/q
 ## Observações para os pacotes
 
 - **Integrador/P00:** A11Y-01 (reflow em 320 px) tem correção de 1 regra em `ui.css`, conferida no navegador. Itens A11Y-02, 03, 04, 09, 12, 14 e 15 são do shell e dos componentes base.
-- **P04:** reagendar recalcula o preço (R$ 51 → R$ 60 ao sair da regra de terça) e avisa de forma explícita antes de confirmar. Os testes 4a e 4b da cabeleireira registram esse comportamento. Se a política do produto for "preço contratado não muda nem no reagendamento", trata-se de uma decisão de produto e o teste deve mudar.
+- **P04:** reagendar recalcula o preço pelo horário novo (R$ 51 → R$ 60 ao sair da regra de terça) e avisa de forma explícita antes de confirmar. **Decisão de produto (fundador, 2026-10-18):** o preço segue o horário novo. Se o cliente muda para um horário mais caro, paga mais; se muda para um mais barato, paga menos. Os testes 4a e 4b da cabeleireira registram esse comportamento e ficam como estão.
 - **P08:** o catálogo `AgentTool` não tem leitura de CRM nem de pacote. AE-17, AE-27 e AE-36 aceitam "consulta indisponível". Ao acrescentar ferramentas, atualizar `tools_allowed` desses casos.
 - **P10:** os UAT daqui devem rodar contra o ambiente com banco no aceite; `PENDING` em `helpers.ts` lista o que falta conectar.
 
