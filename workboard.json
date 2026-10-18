@@ -147,11 +147,11 @@
         "db/proposals/P05/",
         "tests/contracts/pricing/"
       ],
-      "status": "pending",
-      "owner": null,
-      "session": null,
-      "branch": null,
-      "lease_until": null,
+      "status": "in_progress",
+      "owner": "fffalleiros",
+      "session": "claude-int-p05",
+      "branch": "claude/p05-precos",
+      "lease_until": "2026-10-18T20:24:26.499678Z",
       "pr": null,
       "block_reason": null
     },
@@ -288,7 +288,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T18:24:23.661533Z",
+  "updated_at": "2026-10-18T18:24:26.499678Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -608,6 +608,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p07",
       "pr": 16,
+      "reason": null
+    },
+    {
+      "id": "7bd2ca01-b3d9-4d17-a13f-d6817d3631a8",
+      "at": "2026-10-18T18:24:26.499678Z",
+      "action": "claim",
+      "task": "P05",
+      "actor": "fffalleiros",
+      "session": "claude-int-p05",
+      "pr": null,
       "reason": null
     }
   ]
