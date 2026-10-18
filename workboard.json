@@ -197,13 +197,14 @@
         "db/proposals/P07/",
         "tests/contracts/finance/"
       ],
-      "status": "review",
+      "status": "done",
       "owner": "fffalleiros",
       "session": "claude-int-p07",
       "branch": "claude/p07-caixa",
-      "lease_until": "2026-10-18T20:04:19.524784Z",
+      "lease_until": null,
       "pr": 16,
-      "block_reason": null
+      "block_reason": null,
+      "merge_sha": "de452d25a7afe85445c3393633f13f6cc25c380d"
     },
     "P08": {
       "id": "P08",
@@ -288,7 +289,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T18:24:26.499678Z",
+  "updated_at": "2026-10-18T18:28:19.003192Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -618,6 +619,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p05",
       "pr": null,
+      "reason": null
+    },
+    {
+      "id": "218706ca-9749-411f-bd67-5752f30df66d",
+      "at": "2026-10-18T18:28:19.003192Z",
+      "action": "finish",
+      "task": "P07",
+      "actor": "fffalleiros",
+      "session": "claude-int-p07",
+      "pr": 16,
       "reason": null
     }
   ]
