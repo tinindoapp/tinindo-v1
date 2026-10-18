@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 import { isAccountArea } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
+import { pageTitle } from "./RouteFocus.tsx";
 import { routes } from "./router.tsx";
 import { SessionProvider } from "./session.tsx";
 
@@ -67,5 +68,28 @@ describe("integração do P01 no shell", () => {
     renderAt("/recuperar-senha");
     expect(await screen.findByRole("heading", { name: "Recuperar acesso" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Principal" })).not.toBeInTheDocument();
+  });
+});
+
+describe("acessibilidade do shell (A11Y-02 a A11Y-04)", () => {
+  it("primeiro elemento focável é o “Pular para o conteúdo”, que leva ao main", async () => {
+    renderAt("/app");
+    await screen.findByRole("heading", { name: "Seu negócio em ordem" });
+    const skip = screen.getByRole("link", { name: "Pular para o conteúdo" });
+    const focusables = document.querySelectorAll("a[href], button, input, select, textarea");
+    expect(focusables[0]).toBe(skip);
+    skip.click();
+    expect(document.activeElement).toBe(screen.getByRole("main"));
+  });
+
+  it("título da página vem do h1 da tela", async () => {
+    renderAt("/app/agenda");
+    await screen.findByRole("heading", { name: "Agenda", level: 1 });
+    await waitFor(() => expect(document.title).toBe("Agenda · Tinindo"));
+  });
+
+  it("pageTitle normaliza espaços e cai no nome do app sem h1", () => {
+    expect(pageTitle("  Novo\n agendamento ")).toBe("Novo agendamento · Tinindo");
+    expect(pageTitle(null)).toBe("Tinindo");
   });
 });

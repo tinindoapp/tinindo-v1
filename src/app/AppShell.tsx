@@ -30,6 +30,17 @@ export function AppShell() {
 
   return (
     <div className="tn-shell">
+      {/* Foca o conteúdo sem pôr "#conteudo" na URL (o histórico e os links com hash ficam intactos). */}
+      <a
+        className="tn-skip-link"
+        href="#conteudo"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById("conteudo")?.focus();
+        }}
+      >
+        Pular para o conteúdo
+      </a>
       <DemoBanner />
       <header className="tn-shell__header tn-glass">
         <NavLink to="/app" aria-label="Início">
@@ -71,7 +82,7 @@ export function AppShell() {
           ))}
         </ul>
       </nav>
-      <main className="tn-shell__main" id="conteudo">
+      <main className="tn-shell__main" id="conteudo" tabIndex={-1}>
         {/* Sem negócio, só a Conta abre: ela lê tudo pelo servidor (RLS/RPC), sem dado de tenant. */}
         {memberships.length === 0 && !isAccountArea(pathname) ? (
           <p>

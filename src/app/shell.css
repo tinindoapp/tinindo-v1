@@ -6,6 +6,25 @@
   padding: var(--tn-space-1) var(--tn-space-4);
 }
 
+/* "Pular para o conteúdo": fora do fluxo do grid, visível só com foco (WCAG 2.4.1). */
+.tn-skip-link {
+  position: absolute;
+  top: var(--tn-space-2);
+  left: var(--tn-space-2);
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-4);
+  border-radius: var(--tn-radius-sm);
+  background: var(--tn-action);
+  color: var(--tn-text-on-action);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.tn-skip-link:focus { transform: none; }
+.tn-shell__main:focus { outline: none; }
+
 .tn-shell {
   min-height: 100dvh;
   display: grid;

@@ -6,11 +6,14 @@ import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
 import { NotFound, RouteError } from "./pages/Fallbacks.tsx";
+import { RouteFrame } from "./RouteFocus.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 import "./pages/pages.css";
 
 export const routes: RouteObject[] = [
   {
+    // RouteFrame: título e foco por rota em todas as páginas (shell e públicas).
+    element: <RouteFrame />,
     errorElement: <RouteError />,
     children: [
       { path: "/", element: <Navigate to="/app" replace /> },
