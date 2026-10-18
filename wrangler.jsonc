@@ -7,5 +7,7 @@
     "directory": "./dist",
     // App de página única: rotas como /app/agenda devolvem index.html em vez de 404.
     "not_found_handling": "single-page-application"
-  }
+  },
+  // Previews por PR (`npx wrangler preview` nos builds de branch). Bloco vazio = mesmas configurações.
+  "previews": {}
 }
