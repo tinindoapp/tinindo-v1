@@ -52,6 +52,14 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `waitlist.join` | cliente, serviço, faixas aceitas, permissão de contato | Entrada elegível |
 | `waitlist.prepare_offer` | entry, slot, quote | Proposta para owner ou oferta sob política aprovada |
 | `waitlist.accept_offer` | token opaco, key | Reserva confirmada ou oferta vencida |
+| `consent.record` | cliente, finalidade, canal, key | Consentimento de contato sobre vaga (declarado pelo dono, auditado) |
+| `consent.revoke` | consent_id, key | Revoga; entradas saem da fila e ofertas abertas são invalidadas |
+| `waitlist.withdraw` | entry_id, expected_version, key | Sai da lista; oferta aberta invalidada e horário liberado |
+| `waitlist.mark_shared` | offer_id, key | Registra que o link foi compartilhado; nunca "entregue" |
+| `waitlist.cancel_offer` | offer_id, key | Dono retira a oferta; hold liberado |
+| `waitlist.list` | — | Entradas abertas, vagas candidatas na ordem da fila e ofertas recentes |
+| `waitlist.offer_view` | token (no corpo) | Leitura da oferta pelo link; não muda estado (anônimo) |
+| `waitlist.decline_offer` | token, key | Recusa; hold liberado (anônimo) |
 | `finance.record_payment` | recebível, valor, método, received_at, key | Pagamento manual marcado como manual |
 | `finance.summary` | intervalo, timezone | Entradas, saídas, a receber, cobertura e timestamp |
 | `package.consume` | package, booking, evento, key | Crédito debitado uma vez |
