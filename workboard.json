@@ -225,13 +225,14 @@
         "db/proposals/P08/",
         "tests/contracts/agent/"
       ],
-      "status": "review",
+      "status": "done",
       "owner": "fffalleiros",
       "session": "claude-int-p08",
       "branch": "claude/p08-assistente",
-      "lease_until": "2026-10-18T20:53:49.260723Z",
+      "lease_until": null,
       "pr": 21,
-      "block_reason": null
+      "block_reason": null,
+      "merge_sha": "fbccce5e431f9d88b10d3c69626dbef720627bff"
     },
     "P09": {
       "id": "P09",
@@ -291,7 +292,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T19:29:20.371219Z",
+  "updated_at": "2026-10-18T19:35:55.581310Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -697,6 +698,16 @@
       "id": "8cc96a0c-b923-4df4-b441-abbd3c4b80b5",
       "at": "2026-10-18T19:29:20.371219Z",
       "action": "review",
+      "task": "P08",
+      "actor": "fffalleiros",
+      "session": "claude-int-p08",
+      "pr": 21,
+      "reason": null
+    },
+    {
+      "id": "ba953bdd-f5a7-4b38-bfeb-fe06f10ff087",
+      "at": "2026-10-18T19:35:55.581310Z",
+      "action": "finish",
       "task": "P08",
       "actor": "fffalleiros",
       "session": "claude-int-p08",
