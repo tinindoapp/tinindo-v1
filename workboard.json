@@ -48,11 +48,11 @@
         "db/proposals/P01/",
         "tests/contracts/identity/"
       ],
-      "status": "review",
+      "status": "in_progress",
       "owner": "fffalleiros",
       "session": "claude-p01-a",
       "branch": "task/p01/claude-p01-a",
-      "lease_until": "2026-10-18T18:07:52.244552Z",
+      "lease_until": "2026-10-18T18:11:21.736813Z",
       "pr": 8,
       "block_reason": null
     },
@@ -283,7 +283,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T16:07:56.842718Z",
+  "updated_at": "2026-10-18T16:11:21.736813Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -473,6 +473,16 @@
       "actor": "fffalleiros",
       "session": "claude-p01-a",
       "pr": 8,
+      "reason": null
+    },
+    {
+      "id": "f80c1c7e-b916-4c1c-adb7-99fedcd65569",
+      "at": "2026-10-18T16:11:21.736813Z",
+      "action": "resume",
+      "task": "P01",
+      "actor": "fffalleiros",
+      "session": "claude-p01-a",
+      "pr": null,
       "reason": null
     }
   ]
