@@ -224,11 +224,11 @@
         "db/proposals/P08/",
         "tests/contracts/agent/"
       ],
-      "status": "pending",
-      "owner": null,
-      "session": null,
-      "branch": null,
-      "lease_until": null,
+      "status": "in_progress",
+      "owner": "fffalleiros",
+      "session": "claude-int-p08",
+      "branch": "claude/p08-assistente",
+      "lease_until": "2026-10-18T20:53:49.260723Z",
       "pr": null,
       "block_reason": null
     },
@@ -290,7 +290,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T18:53:46.898368Z",
+  "updated_at": "2026-10-18T18:53:49.260723Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -670,6 +670,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p06",
       "pr": 19,
+      "reason": null
+    },
+    {
+      "id": "670269c2-fe67-4986-9031-6a931f80a807",
+      "at": "2026-10-18T18:53:49.260723Z",
+      "action": "claim",
+      "task": "P08",
+      "actor": "fffalleiros",
+      "session": "claude-int-p08",
+      "pr": null,
       "reason": null
     }
   ]
