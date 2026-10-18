@@ -75,7 +75,7 @@ No piloto, publicar frontend estático e funções Supabase. Não introduzir Kub
 
 Em cada transação relevante, gravar dados e uma linha em `outbox_events`. Um dispatcher leva o evento para fila durável ou o processa usando lock, tentativas, prazo e dead-letter. Escolher **um** mecanismo inicial: tabela de jobs + Cron; migrar para Supabase Queues quando simplificar operação. Não manter dois sistemas concorrentes para a mesma mensagem.
 
-Tipos iniciais: `booking.confirmed.v1`, `booking.cancelled.v1`, `booking.completed.v1`, `payment.recorded.v1`, `waitlist.offer.expired.v1`, `agent.action.approved.v1`.
+Tipos iniciais: `booking.confirmed.v1`, `booking.cancelled.v1`, `booking.completed.v1`, `payment.recorded.v1`, `waitlist.offer.expired.v1`, `agent.action.approved.v1`. Orçamentos (P11): `sales.quote.accepted.v1` e `sales.quote.declined.v1` (P13 usa para encerrar o follow-up).
 
 Envelope: `event_id`, `tenant_id`, `aggregate_id`, `aggregate_version`, `occurred_at`, `schema_version`, `correlation_id`, `payload` mínimo. Entrega ao menos uma vez; consumidor idempotente. Não prometer “exactly once” até uma API externa: um timeout após envio pode ter resultado desconhecido. Registrar `delivery_unknown`, reconciliar com fornecedor e impedir reenvio automático cego.
 

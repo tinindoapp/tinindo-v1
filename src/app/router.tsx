@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { PublicRecoverPassword, PublicSignUp } from "../features/identity/module.tsx";
 import { networkPublicRoutes } from "../features/network/module.tsx";
 import { waitlistPublicRoutes } from "../features/waitlist/module.tsx";
+import { salesPublicRoutes } from "../features/sales/module.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
@@ -26,6 +27,8 @@ export const routes: RouteObject[] = [
       ...networkPublicRoutes,
       // Link da oferta de vaga (P06): anônimo, token no fragmento, aceite só por ação explícita.
       ...waitlistPublicRoutes,
+      // Link do orçamento (P11): anônimo, token no fragmento, aceite só por ação explícita da versão vista.
+      ...salesPublicRoutes,
       {
         path: "/app",
         element: <AppShell />,

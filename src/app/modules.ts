@@ -9,11 +9,13 @@ import { waitlistModule } from "../features/waitlist/module.tsx";
 import { financeModule } from "../features/finance/module.tsx";
 import { agentModule } from "../features/agent/module.tsx";
 import { networkModule } from "../features/network/module.tsx";
+import { salesModule } from "../features/sales/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
   crmModule,
   financeModule,
+  salesModule,
   pricingModule,
   waitlistModule,
   agentModule,
