@@ -1,20 +1,11 @@
 import { Navigate, NavLink, Outlet } from "react-router";
 import { Button, Wordmark } from "../components/ui/index.tsx";
-import { appEnv } from "./env.ts";
+import { DemoBanner } from "./DemoBanner.tsx";
 import { MODULES } from "./modules.ts";
 import { useSession } from "./session.tsx";
 import "./shell.css";
 
-const ENV_LABEL = { local: "ambiente local", staging: "homologação", production: "produção" } as const;
-
-export function DemoBanner() {
-  if (!appEnv.demo) return null;
-  return (
-    <div className="tn-demo-banner" role="note">
-      <strong>Demonstração</strong> · {ENV_LABEL[appEnv.name]} · dados fictícios
-    </div>
-  );
-}
+export { DemoBanner };
 
 export function AppShell() {
   const session = useSession();
