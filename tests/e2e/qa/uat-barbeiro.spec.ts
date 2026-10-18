@@ -188,7 +188,6 @@ test.describe("UAT barbeiro", () => {
   });
 
   test("10b · pergunta ao assistente “o que tenho amanhã?” e recebe período, fonte e cobertura", async ({ page }) => {
-    test.fixme(true, PENDING.agent);
     await page.goto("/app/assistente");
     await page.getByRole("textbox").fill("o que tenho amanhã?");
     await page.keyboard.press("Enter");
