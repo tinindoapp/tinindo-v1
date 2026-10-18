@@ -118,13 +118,14 @@
         "src/features/scheduling/",
         "tests/e2e/scheduling/"
       ],
-      "status": "review",
+      "status": "done",
       "owner": "fffalleiros",
       "session": "claude-p04-a",
       "branch": "task/p04/claude-p04-a",
-      "lease_until": "2026-10-18T17:59:51.056400Z",
+      "lease_until": null,
       "pr": 6,
-      "block_reason": null
+      "block_reason": null,
+      "merge_sha": "2dba3158dbc7f79d91e54aeb990e9a335f007646"
     },
     "P05": {
       "id": "P05",
@@ -284,7 +285,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T17:35:58.937633Z",
+  "updated_at": "2026-10-18T17:36:01.372773Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -524,6 +525,16 @@
       "actor": "fffalleiros",
       "session": "claude-p09-a",
       "pr": 5,
+      "reason": null
+    },
+    {
+      "id": "cd17fed0-4538-44ef-b6ec-f1a974be9ae9",
+      "at": "2026-10-18T17:36:01.372773Z",
+      "action": "finish",
+      "task": "P04",
+      "actor": "fffalleiros",
+      "session": "claude-p04-a",
+      "pr": 6,
       "reason": null
     }
   ]
