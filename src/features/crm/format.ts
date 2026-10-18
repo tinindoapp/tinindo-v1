@@ -1,5 +1,5 @@
 // Formatação e normalização de entrada do módulo CRM. Funções puras, testadas em format.test.ts.
-import type { DeclaredSource, RejectReason } from "../../../supabase/functions/crm/contract.ts";
+import type { DeclaredSource, RejectReason } from "@contracts";
 
 const E164 = /^\+[1-9]\d{7,14}$/;
 

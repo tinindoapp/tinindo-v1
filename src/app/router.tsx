@@ -1,5 +1,6 @@
 // Roteador central (dono: integrador). Módulos entram via src/app/modules.ts.
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
+import { PublicRecoverPassword, PublicSignUp } from "../features/identity/module.tsx";
 import { networkPublicRoutes } from "../features/network/module.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
@@ -14,6 +15,9 @@ export const routes: RouteObject[] = [
     children: [
       { path: "/", element: <Navigate to="/app" replace /> },
       { path: "/entrar", element: <SignIn /> },
+      // Cadastro e recuperação de senha (P01) ficam fora do shell, que manda quem não tem sessão para /entrar.
+      { path: "/criar-conta", element: <PublicSignUp /> },
+      { path: "/recuperar-senha", element: <PublicRecoverPassword /> },
       // Páginas públicas fora do shell autenticado: perfil por slug, convite e indicação (P09).
       ...networkPublicRoutes,
       {

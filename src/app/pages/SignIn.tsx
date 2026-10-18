@@ -1,7 +1,6 @@
-// Login provisório do P00 (e-mail + senha de usuários sintéticos locais/homologação).
-// P01 entrega o onboarding real; não usar em produção como está.
+// Login por e-mail e senha (Supabase Auth). Cadastro e recuperação são do P01 (/criar-conta, /recuperar-senha).
 import { type FormEvent, useState } from "react";
-import { Navigate } from "react-router";
+import { Link, Navigate } from "react-router";
 import { Button, Card, Field, StatusBanner, Wordmark } from "../../components/ui/index.tsx";
 import { useSession } from "../session.tsx";
 import "./pages.css";
@@ -34,6 +33,10 @@ export function SignIn() {
             {pending ? "Entrando…" : "Entrar"}
           </Button>
         </form>
+        <p className="tn-auth__links">
+          <Link to="/criar-conta">Criar conta</Link>
+          <Link to="/recuperar-senha">Esqueci minha senha</Link>
+        </p>
       </Card>
     </main>
   );

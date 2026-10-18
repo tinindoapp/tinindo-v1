@@ -17,8 +17,17 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | Operação | Entrada essencial | Saída / efeito |
 |---|---|---|
 | `business.create` | nome, profissão, timezone, consentimentos | Tenant, owner e recurso criados atomicamente |
+| `onboarding.save` | expected_version, objetivo, antecedência/multa de cancelamento, key | Onboarding versionado; 409 em versão antiga |
+| `customer_link.issue` | customer_id, key | Código de uso único (72 h, só o hash no banco); repetição devolve `code: null` |
+| `customer_link.redeem` | código, key | Vínculo cliente ↔ login no tenant; devolve só o nome do negócio |
+| `customer_link.revoke` | link_id, expected_version, key | Vínculo revogado pelo dono ou pelo cliente |
 | `customer.upsert` | dados, versão quando existente | Contato privado; dedupe sugerido, nunca merge cego |
 | `service.save` | duração, buffers, preço, piso | Catálogo validado e versionado |
+| `customer.archive` | customer_id, expected_version, archived, key | Arquiva/desarquiva; nunca apaga |
+| `customer.list` | busca, include_archived, cursor, limit | Clientes do tenant (servido em `GET /crm/customers`) |
+| `service.list` | include_inactive, cursor, limit | Serviços do tenant (servido em `GET /crm/services`) |
+| `customer.import_preview` | linhas já interpretadas | Possíveis duplicados por linha; não grava |
+| `customer.import` | linhas + decisão por duplicado, key | created/skipped/rejected com linha, campo e motivo |
 | `availability.list` | resource, service, intervalo | Slots sem dados privados de outros clientes |
 | `pricing.quote` | service, resource, slot, rule_context | quote_id, base/final, motivo, validade |
 | `booking.create` | customer/guest_ref, service, slot, quote_id, idempotency_key | Reserva/hold ou conflito |
@@ -37,7 +46,14 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `action.approve` | proposal, hash/version, key | Aprovação do payload; não sucesso de execução |
 | `action.execute` | approval_ref, key | Checagem atual de política, execução e recibo |
 | `profile.publish` | whitelist dos campos públicos | Perfil público sem vazamento do CRM |
+| `profile.unpublish` | key | Perfil fora do ar |
+| `profile.get` | — | Visão do dono (inclui despublicado e versão) |
+| `public.profile` | slug | Perfil publicado, sem tenant_id (anônimo) |
+| `public.slots` | slug, service, janela | Horários livres do link público (anônimo) |
 | `referral.create` | kind, dados mínimos, origem | Link pessoal de convite, sem envio automático |
+| `referral.inspect` | token (no corpo) | Leitura mínima do convite; não muda estado (anônimo) |
+| `referral.claim` | token, key | Convite usado uma vez, contato confirmado |
+| `referral.list` | — | Convites do próprio usuário (até 50) |
 
 ## Exemplo de cotação
 

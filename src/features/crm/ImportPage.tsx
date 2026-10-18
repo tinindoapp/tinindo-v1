@@ -1,7 +1,7 @@
 // Importação CSV mínima: arquivo → preview com problemas e possíveis duplicados → decisão por
 // linha → relatório do servidor (criadas, puladas, rejeitadas). Nada é mesclado.
 import { type ChangeEvent, useMemo, useState } from "react";
-import type { ImportOutput, ImportPreviewOutput } from "../../../supabase/functions/crm/contract.ts";
+import type { ImportOutput, ImportPreviewOutput } from "@contracts";
 import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { CSV_MAX_BYTES, type PreviewRow, readCustomerCsv } from "./csv.ts";

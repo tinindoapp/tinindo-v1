@@ -3,7 +3,9 @@
 import { z } from "zod";
 import * as agent from "./agent.ts";
 import * as catalog from "./catalog.ts";
+import * as crm from "./crm.ts";
 import * as finance from "./finance.ts";
+import * as identity from "./identity.ts";
 import * as network from "./network.ts";
 import * as pricing from "./pricing.ts";
 import * as scheduling from "./scheduling.ts";
@@ -31,11 +33,29 @@ export interface OperationSpec {
 }
 
 const Pending = z.unknown();
+/** Consulta sem parâmetros (o contexto vem do JWT e do header de tenant). */
+const NoInput = z.object({});
 
 export const OPERATIONS = {
   "business.create": {
     module: "identity", owner: "P01", kind: "command", idempotent: true,
     input: catalog.BusinessCreateInput, output: catalog.BusinessCreateOutput,
+  },
+  "onboarding.save": {
+    module: "identity", owner: "P01", kind: "command", idempotent: true,
+    input: identity.OnboardingSaveInput, output: identity.OnboardingSaveOutput,
+  },
+  "customer_link.issue": {
+    module: "identity", owner: "P01", kind: "command", idempotent: true,
+    input: identity.CustomerLinkIssueInput, output: identity.CustomerLinkIssueOutput,
+  },
+  "customer_link.redeem": {
+    module: "identity", owner: "P01", kind: "command", idempotent: true,
+    input: identity.CustomerLinkRedeemInput, output: identity.CustomerLinkRedeemOutput,
+  },
+  "customer_link.revoke": {
+    module: "identity", owner: "P01", kind: "command", idempotent: true,
+    input: identity.CustomerLinkRevokeInput, output: identity.CustomerLinkRevokeOutput,
   },
   "customer.upsert": {
     module: "crm", owner: "P02", kind: "command", idempotent: true,
@@ -44,6 +64,26 @@ export const OPERATIONS = {
   "service.save": {
     module: "crm", owner: "P02", kind: "command", idempotent: true,
     input: catalog.ServiceSaveInput, output: catalog.ServiceSaveOutput,
+  },
+  "customer.archive": {
+    module: "crm", owner: "P02", kind: "command", idempotent: true,
+    input: crm.CustomerArchiveInput, output: crm.CustomerArchiveOutput,
+  },
+  "customer.list": {
+    module: "crm", owner: "P02", kind: "query", idempotent: false,
+    input: crm.CustomerListQuery, output: crm.CustomerListOutput,
+  },
+  "service.list": {
+    module: "crm", owner: "P02", kind: "query", idempotent: false,
+    input: crm.ServiceListQuery, output: crm.ServiceListOutput,
+  },
+  "customer.import_preview": {
+    module: "crm", owner: "P02", kind: "query", idempotent: false,
+    input: crm.ImportPreviewInput, output: crm.ImportPreviewOutput,
+  },
+  "customer.import": {
+    module: "crm", owner: "P02", kind: "command", idempotent: true,
+    input: crm.ImportInput, output: crm.ImportOutput,
   },
   "availability.list": {
     module: "scheduling", owner: "P03", kind: "query", idempotent: false,
@@ -117,9 +157,37 @@ export const OPERATIONS = {
     module: "network", owner: "P09", kind: "command", idempotent: true,
     input: network.ProfilePublishInput, output: network.PublicProfile,
   },
+  "profile.unpublish": {
+    module: "network", owner: "P09", kind: "command", idempotent: true,
+    input: NoInput, output: network.ProfileUnpublishOutput,
+  },
+  "profile.get": {
+    module: "network", owner: "P09", kind: "query", idempotent: false,
+    input: NoInput, output: network.OwnerProfileOutput,
+  },
+  "public.profile": {
+    module: "network", owner: "P09", kind: "query", idempotent: false,
+    input: network.PublicProfileQuery, output: network.PublicProfile,
+  },
+  "public.slots": {
+    module: "network", owner: "P09", kind: "query", idempotent: false,
+    input: network.PublicSlotsInput, output: scheduling.AvailabilityListOutput,
+  },
   "referral.create": {
     module: "network", owner: "P09", kind: "command", idempotent: true,
     input: network.ReferralCreateInput, output: network.ReferralLink,
+  },
+  "referral.inspect": {
+    module: "network", owner: "P09", kind: "query", idempotent: false,
+    input: network.ReferralTokenInput, output: network.ReferralInspectOutput,
+  },
+  "referral.claim": {
+    module: "network", owner: "P09", kind: "command", idempotent: true,
+    input: network.ReferralTokenInput, output: network.ReferralClaimOutput,
+  },
+  "referral.list": {
+    module: "network", owner: "P09", kind: "query", idempotent: false,
+    input: NoInput, output: network.ReferralListOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 

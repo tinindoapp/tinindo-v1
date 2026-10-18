@@ -1,5 +1,5 @@
 // Importação CSV mínima: parse no navegador, preview e decisão por linha. O servidor revalida tudo.
-import { IMPORT_MAX_ROWS, type RejectReason } from "../../../supabase/functions/crm/contract.ts";
+import { IMPORT_MAX_ROWS, type RejectReason } from "@contracts";
 import { fold, normalizePhoneBR, sourceFromText } from "./format.ts";
 
 export const CSV_MAX_BYTES = 1024 * 1024;

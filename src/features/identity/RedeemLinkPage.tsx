@@ -1,7 +1,7 @@
 // Cliente resgata o código que recebeu do profissional (POST; o código nunca vai na URL).
 import { type FormEvent, useState } from "react";
 import { Link } from "react-router";
-import type { CustomerLinkRedeemOutput } from "../../../supabase/functions/identity/schemas.ts";
+import type { CustomerLinkRedeemOutput } from "@contracts";
 import { Button, Card, Field, StatusBanner } from "../../components/ui/index.tsx";
 import { messageFor } from "./errors.ts";
 import { useIdempotencyKey } from "./idempotency.ts";

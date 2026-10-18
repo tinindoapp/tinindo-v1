@@ -86,7 +86,7 @@ describe("fixtures comuns", () => {
     expect(packageB.remaining_credits).toBeLessThanOrEqual(packageB.purchased_credits);
   });
 
-  it("seed.sql espelha usuários, tenants e recursos das fixtures", () => {
+  it("seed.sql espelha usuários, tenants, recursos, clientes e serviços das fixtures", () => {
     const seed = read("supabase/seed.sql");
     for (const id of [...Object.values(FX.users), ...Object.values(FX.tenants), ...Object.values(FX.resources)]) {
       expect(seed, id).toContain(id);
@@ -95,7 +95,13 @@ describe("fixtures comuns", () => {
     expect(seed).toContain(tenantB.name);
     const seedUuids = new Set(seed.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g));
     seedUuids.delete("00000000-0000-0000-0000-000000000000");
-    const known = new Set<string>([...Object.values(FX.users), ...Object.values(FX.tenants), ...Object.values(FX.resources)]);
+    const known = new Set<string>([
+      ...Object.values(FX.users),
+      ...Object.values(FX.tenants),
+      ...Object.values(FX.resources),
+      ...Object.values(FX.customers),
+      ...Object.values(FX.services),
+    ]);
     expect([...seedUuids].filter((u) => !known.has(u))).toEqual([]);
   });
 

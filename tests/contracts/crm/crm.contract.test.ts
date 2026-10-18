@@ -1,5 +1,5 @@
 // Contrato do módulo CRM (P02): cenários de sucesso, entrada inválida, conflito/versão e
-// coerência entre os schemas zod, o registro v1 e a proposta SQL (db/proposals/P02).
+// coerência entre os schemas zod, o registro v1 e a migration do P02 (supabase/migrations/*_p02_crm.sql).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CustomerUpsertOutput, OPERATIONS, ProviderService, ServiceSaveInput } from "@contracts";
@@ -15,11 +15,11 @@ import {
   ImportInput,
   ImportOutput,
   RejectReason,
-} from "../../../supabase/functions/crm/contract.ts";
+} from "@contracts";
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
-const sql = read("db/proposals/P02/001_crm.sql");
-const seed = read("db/proposals/P02/seed.sql");
+const sql = read("supabase/migrations/20261018120100_p02_crm.sql");
+const seed = read("supabase/seed.sql");
 
 const dbCustomer = {
   id: FX.customers.guestInA,
@@ -161,7 +161,7 @@ describe("coerência com a proposta SQL", () => {
     }
   });
 
-  it("seed proposto usa os IDs das fixtures e os valores dos serviços", () => {
+  it("seed usa os IDs das fixtures e os valores dos serviços", () => {
     for (const id of [...Object.values(FX.customers), ...Object.values(FX.services)]) expect(seed).toContain(id);
     for (const s of services) {
       expect(seed).toContain(`'${s.id}', '${s.tenant_id}', '${s.name}', ${s.duration_min}, ${s.buffer_before_min}, ${s.buffer_after_min}`);

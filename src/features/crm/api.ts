@@ -15,7 +15,7 @@ import {
   ImportOutput,
   ImportPreviewOutput,
   ServiceListOutput,
-} from "../../../supabase/functions/crm/contract.ts";
+} from "@contracts";
 import { ApiError, type createApiClient } from "../../lib/api/client.ts";
 import { fold } from "./format.ts";
 

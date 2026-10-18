@@ -1,4 +1,4 @@
-// P01 · Contratos do módulo identity: registro v1, schemas locais, assinaturas das RPCs propostas
+// P01 · Contratos do módulo identity: registro v1, schemas locais, assinaturas das RPCs das migrations
 // e coerência entre os enums/limites do TypeScript e os CHECKs do SQL.
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -17,16 +17,16 @@ import {
 } from "../../../supabase/functions/identity/schemas.ts";
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
-const proposalDir = "db/proposals/P01";
-const sql = readdirSync(new URL(`../../../${proposalDir}`, import.meta.url))
-  .filter((f) => /^\d{3}_.*\.sql$/.test(f))
-  .map((f) => read(`${proposalDir}/${f}`))
+const migrationsDir = "supabase/migrations";
+const sql = readdirSync(new URL(`../../../${migrationsDir}`, import.meta.url))
+  .filter((f) => /^\d{14}_p01_.*\.sql$/.test(f))
+  .map((f) => read(`${migrationsDir}/${f}`))
   .join("\n");
 
-/** Nomes dos parâmetros de `create function public.<nome>(...)` nas propostas. */
+/** Nomes dos parâmetros de `create function public.<nome>(...)` nas migrations do P01. */
 function sqlParams(fn: string): string[] {
   const match = new RegExp(`create function public\\.${fn}\\(([^)]*)\\)`, "m").exec(sql);
-  if (!match?.[1]) throw new Error(`função ${fn} não encontrada nas propostas`);
+  if (!match?.[1]) throw new Error(`função ${fn} não encontrada nas migrations do P01`);
   return match[1]
     .split(",")
     .map((p) => p.trim().split(/\s+/)[0] ?? "")
@@ -51,9 +51,13 @@ describe("identity · registro", () => {
     expect(IDENTITY_OPERATIONS["business.create"].output).toBe(spec.output);
   });
 
-  it("nenhuma operação local do P01 colide com outra do registro v1", () => {
-    const foreign = Object.keys(OPERATIONS).filter((n) => n !== "business.create");
-    for (const name of IDENTITY_OPERATION_NAMES) expect(foreign).not.toContain(name);
+  it("toda operação do módulo está no registro v1 como identity/P01, com os mesmos schemas", () => {
+    for (const name of IDENTITY_OPERATION_NAMES) {
+      const spec = OPERATIONS[name];
+      expect(spec, name).toMatchObject({ module: "identity", owner: "P01", kind: "command", idempotent: true });
+      expect(IDENTITY_OPERATIONS[name].input, name).toBe(spec.input);
+      expect(IDENTITY_OPERATIONS[name].output, name).toBe(spec.output);
+    }
   });
 
   it("chave de idempotência nunca vai no corpo", () => {
@@ -68,7 +72,7 @@ describe("identity · registro", () => {
   });
 });
 
-describe("identity · RPC proposta ↔ handler", () => {
+describe("identity · RPC da migration ↔ handler", () => {
   it.each(IDENTITY_OPERATION_NAMES)("%s chama a RPC com exatamente os parâmetros do SQL", (name) => {
     const spec = IDENTITY_OPERATIONS[name];
     const built = rpcArgs(name, sampleInput[name], FX.tenants.A);
@@ -76,7 +80,7 @@ describe("identity · RPC proposta ↔ handler", () => {
     expect([...Object.keys(built), "p_idem_key", "p_request_hash"].sort()).toEqual([...expected].sort());
   });
 
-  it("toda RPC da proposta revoga anon/public e concede só a authenticated", () => {
+  it("toda RPC da migration revoga anon/public e concede só a authenticated", () => {
     for (const name of [...IDENTITY_OPERATION_NAMES.map((n) => IDENTITY_OPERATIONS[n].rpc), "my_customer_links"]) {
       expect(sql, name).toMatch(new RegExp(`revoke all on function public\\.${name}\\([^)]*\\)\\s+from public, anon;`));
       expect(sql, name).toMatch(new RegExp(`grant execute on function public\\.${name}\\([^)]*\\)\\s+to authenticated;`));

@@ -1,7 +1,7 @@
 // Tela principal da Conta: negócio ativo, onboarding, onde a pessoa é cliente e segurança.
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import type { MyCustomerLink, Onboarding } from "../../../supabase/functions/identity/schemas.ts";
+import type { MyCustomerLink, Onboarding } from "@contracts";
 import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";

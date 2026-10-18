@@ -1,5 +1,7 @@
 # P09 · Proposta de banco: rede (perfil público e convites)
 
+> **Incluído pelo integrador em 18/10/2026** (ADR-0007). Migrations em `supabase/migrations/20261018120000_p01_identity_onboarding.sql`, `…120100_p02_crm.sql`, `…120200_p01_customer_links.sql` e `…120300_p09_network.sql`; testes em `supabase/tests/database/` e `tests/db-concurrency/`. Este arquivo fica como registro das decisões.
+
 Arquivos: `001_network.sql` (DDL, funções, RLS e grants) e `tests/001_network.test.sql` (48 asserções pgTAP).
 
 ## Dependências e ordem

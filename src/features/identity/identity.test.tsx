@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { Profession } from "@contracts";
 import { FX, tenantA } from "@contracts/fixtures.ts";
-import { OnboardingGoal, type Onboarding } from "../../../supabase/functions/identity/schemas.ts";
+import { OnboardingGoal, type Onboarding } from "@contracts";
 import { SessionProvider } from "../../app/session.tsx";
 import { ApiError } from "../../lib/api/client.ts";
 import { AccountPage } from "./AccountPage.tsx";
