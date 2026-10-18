@@ -34,11 +34,9 @@ describe("finance · registro ↔ função", () => {
 describe("finance · função ↔ SQL", () => {
   it.each(Object.entries(FINANCE_ROUTES))("%s passa exatamente os parâmetros da RPC", (_name, route) => {
     const expected = sqlParams(route.rpc);
-    const sample = new Proxy({}, { get: () => "x" });
-    // Os builders só leem campos da entrada; um proxy basta para descobrir os nomes dos argumentos.
-    const built = route.args(new Proxy({ window: sample, slot: sample, range: sample, period: sample }, {
-      get: (t, k) => (k in t ? (t as Record<string | symbol, unknown>)[k] : undefined),
-    }) as never);
+    // Os builders só leem campos da entrada; um proxy que responde a qualquer campo revela os argumentos.
+    const anything: unknown = new Proxy({}, { get: (_t, k) => (k === "cursor" ? undefined : anything) });
+    const built = route.args(anything as never);
     expect(built).not.toBe(false);
     const names = ["p_tenant_id", ...Object.keys(built as object)];
     if (route.command) names.push("p_idem_key", "p_request_hash", "p_request_id");

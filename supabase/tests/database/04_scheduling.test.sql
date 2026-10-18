@@ -159,7 +159,7 @@ select throws_ok(format($$ select public.scheduling_booking_create(%L, %L, %L, n
 select throws_ok(format($$ select public.scheduling_booking_create(%L, %L, %L, null, null, %L, %L, %L, 'confirm',
   'idem-quote-000001', %L) $$, (select tenant_a from ids), (select res_a from ids), (select corte_a from ids),
   pg_temp.at(1, '09:00'), pg_temp.at(1, '09:30'), gen_random_uuid(), pg_temp.h('quote')),
-  'PT400', 'VALIDATION_ERROR', 'cotação ainda não aceita (P05)');
+  'PT404', 'NOT_FOUND', 'cotação inexistente negada (P05)');
 reset role;
 
 select ok((select count(*) = 1 from public.outbox_events e

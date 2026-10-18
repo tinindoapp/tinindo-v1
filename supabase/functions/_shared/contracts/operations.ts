@@ -32,7 +32,6 @@ export interface OperationSpec {
   output: z.ZodType;
 }
 
-const Pending = z.unknown();
 /** Consulta sem parâmetros (o contexto vem do JWT e do header de tenant). */
 const NoInput = z.object({});
 
@@ -153,9 +152,21 @@ export const OPERATIONS = {
     module: "pricing", owner: "P05", kind: "command", idempotent: true,
     input: pricing.PricingProposeRuleInput, output: pricing.PricingRuleProposal,
   },
+  "pricing.approve_rule": {
+    module: "pricing", owner: "P05", kind: "command", idempotent: true,
+    input: pricing.PricingApproveRuleInput, output: agent.ActionApproval,
+  },
   "pricing.publish_rule": {
     module: "pricing", owner: "P05", kind: "command", idempotent: true,
-    input: pricing.PricingPublishRuleInput, output: Pending,
+    input: pricing.PricingPublishRuleInput, output: pricing.PricingRuleOutput,
+  },
+  "pricing.deactivate_rule": {
+    module: "pricing", owner: "P05", kind: "command", idempotent: true,
+    input: pricing.PricingDeactivateRuleInput, output: pricing.PricingRuleOutput,
+  },
+  "pricing.list_rules": {
+    module: "pricing", owner: "P05", kind: "query", idempotent: false,
+    input: pricing.PricingListRulesInput, output: pricing.PricingListRulesOutput,
   },
   "waitlist.join": {
     module: "waitlist", owner: "P06", kind: "command", idempotent: true,

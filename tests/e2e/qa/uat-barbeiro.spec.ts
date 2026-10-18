@@ -84,10 +84,18 @@ test.describe("UAT barbeiro", () => {
   });
 
   test("5b · barbeiro cria a oferta de terça com piso e ela passa a valer nas novas cotações", async ({ page }) => {
-    test.fixme(true, PENDING.pricing);
-    await page.goto("/app/precos");
-    await page.getByRole("button", { name: "Nova regra" }).click();
-    await expect(page.getByText("Desconto limitado ao preço mínimo")).toBeVisible();
+    await page.goto("/app");
+    await openFromNav(page, "Preços");
+    const form = page.getByRole("form", { name: "Nova regra" });
+    await form.getByLabel("Desconto pedido (%)").fill("40");
+    await form.getByLabel("Teto aprovado (%)").fill("40");
+    await form.getByRole("button", { name: "Ver prévia" }).click();
+    const proposals = page.getByRole("list", { name: "Propostas aguardando aprovação" });
+    await expect(proposals.getByText("Desconto limitado ao preço mínimo", { exact: false })).toBeVisible();
+    await expect(proposals.getByText(/R\$\s?45,00/).first()).toBeVisible();
+    await proposals.getByRole("button", { name: "Aprovar e publicar" }).click();
+    await expect(page.getByText(/Regra v4 publicada/)).toBeVisible();
+    await expect(page.getByRole("region", { name: "Regras ativas" }).getByRole("listitem")).toHaveCount(1);
   });
 
   test("4a · link público abre o perfil e o cliente escolhe uma vaga sem reserva falsa", async ({ page }) => {
