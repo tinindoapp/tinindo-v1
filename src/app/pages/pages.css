@@ -1,0 +1,10 @@
+.tn-stack { display: grid; gap: var(--tn-space-4); }
+
+.tn-auth {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--tn-space-4);
+}
+.tn-auth > .tn-card { width: min(100%, 420px); }
+.tn-auth__title { margin-top: var(--tn-space-6); }

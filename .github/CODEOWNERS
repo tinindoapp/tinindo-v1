@@ -1,0 +1,11 @@
+# Revisão obrigatória só vale com "Require review from Code Owners" ativo no ruleset da main.
+# Gabriel: substituir/adicionar o login real quando confirmado (não inventar login).
+* @fffalleiros
+/supabase/migrations/ @fffalleiros
+/supabase/functions/_shared/ @fffalleiros
+/package.json @fffalleiros
+/package-lock.json @fffalleiros
+/.github/ @fffalleiros
+/src/app/ @fffalleiros
+/src/components/ui/ @fffalleiros
+/brand/ @fffalleiros
