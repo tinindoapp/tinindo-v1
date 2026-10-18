@@ -6,7 +6,7 @@ export const formatBps = (bps: number) => `${(bps / 100).toLocaleString("pt-BR",
 
 /** "15" | "12,5" → basis points. Vazio → 0; inválido → undefined. */
 export function parsePercent(raw: string): number | undefined {
-  const t = raw.trim().replace("%", "").replace(",", ".");
+  const t = raw.trim().replaceAll("%", "").replaceAll(",", ".");
   if (!t) return 0;
   if (!/^\d{1,3}(\.\d{1,2})?$/.test(t)) return undefined;
   const bps = Math.round(Number(t) * 100);
