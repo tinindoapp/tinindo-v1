@@ -29,7 +29,8 @@
   box-shadow: var(--tn-shadow-sm);
 }
 
-.tn-field { display: grid; gap: var(--tn-space-1); }
+/* min-width/width: campos nativos não podem alargar o cartão em 320 px (WCAG 1.4.10). */
+.tn-field { display: grid; gap: var(--tn-space-1); min-width: 0; }
 .tn-field label { font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); }
 .tn-field input,
 .tn-field select {
@@ -41,6 +42,9 @@
   color: var(--tn-text);
   font: inherit;
 }
+.tn-field input:not([type="checkbox"], [type="radio"]),
+.tn-field select,
+.tn-field textarea { width: 100%; min-width: 0; max-width: 100%; }
 .tn-field [role="alert"] { color: var(--tn-danger-text); font-size: var(--tn-font-size-sm); }
 
 .tn-banner {

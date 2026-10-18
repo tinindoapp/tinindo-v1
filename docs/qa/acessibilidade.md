@@ -16,6 +16,16 @@ A varredura automática (axe-core, regras WCAG 2.0/2.1 A e AA) passou em 20 rota
 
 Gravidade: **Alta** = um critério AA falha e bloqueia ou atrapalha muito uma tarefa; **Média** = um critério A/AA falha, mas há contorno; **Baixa** = falha parcial, regra da marca (BRAND.md) ou risco latente; **Informativo** = WCAG 2.2 ou boa prática.
 
+## Situação das correções
+
+| Item | Situação |
+|---|---|
+| A11Y-01 | Corrigido no shell: `.tn-field` e seus campos com `min-width: 0` e `width: 100%` (`src/components/ui/ui.css`). Teste: `tests/e2e/foundation/a11y.spec.ts`. |
+| A11Y-02 | Corrigido: `RouteFocus` (`src/app/RouteFocus.tsx`) monta o título "&lt;h1&gt; · Tinindo" em todas as rotas, inclusive as públicas. |
+| A11Y-03 | Corrigido: link "Pular para o conteúdo" no `AppShell`, visível no foco; `main` com `tabIndex={-1}`. |
+| A11Y-04 | Parte do shell corrigida: na troca de caminho o foco vai ao `h1`; na primeira carga e em mudança só de query (dia da agenda), o foco não se move. **Pendente no P04:** focar o painel de cancelamento/conclusão ao abrir e a mensagem de conflito 409 (são mudanças na mesma rota). |
+| Demais | Abertos. |
+
 ## Achados
 
 ### A11Y-01 · Alta · Rolagem horizontal em 320 px (1.4.10 Reflow)
