@@ -1,0 +1,11 @@
+// Deploy do frontend como Worker de arquivos estáticos (Cloudflare Workers Builds).
+// O nome precisa bater com o Worker criado no painel. Sem código de servidor: só o build do Vite.
+{
+  "name": "tinindo-v1",
+  "compatibility_date": "2026-10-12",
+  "assets": {
+    "directory": "./dist",
+    // App de página única: rotas como /app/agenda devolvem index.html em vez de 404.
+    "not_found_handling": "single-page-application"
+  }
+}
