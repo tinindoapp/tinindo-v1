@@ -11,12 +11,14 @@ import { agentModule } from "../features/agent/module.tsx";
 import { networkModule } from "../features/network/module.tsx";
 import { salesModule } from "../features/sales/module.tsx";
 import { serviceOpsModule } from "../features/service-ops/module.tsx";
+import { analyticsModule } from "../features/analytics/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
   crmModule,
   financeModule,
   salesModule,
+  analyticsModule,
   pricingModule,
   waitlistModule,
   agentModule,

@@ -10,6 +10,7 @@ import * as network from "./network.ts";
 import * as pricing from "./pricing.ts";
 import * as sales from "./sales.ts";
 import * as svc from "./service-ops.ts";
+import * as analytics from "./analytics.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -23,7 +24,8 @@ export type ModuleId =
   | "agent"
   | "network"
   | "sales"
-  | "service-ops";
+  | "service-ops"
+  | "analytics";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -419,6 +421,22 @@ export const OPERATIONS = {
   "ops.snapshot": {
     module: "service-ops", owner: "P15", kind: "query", idempotent: false,
     input: svc.OpsOrderRefInput, output: svc.OpsSnapshotOutput,
+  },
+  "analytics.metrics": {
+    module: "analytics", owner: "P18", kind: "query", idempotent: false,
+    input: analytics.AnalyticsMetricsInput, output: analytics.AnalyticsMetricsOutput,
+  },
+  "analytics.baseline_create": {
+    module: "analytics", owner: "P18", kind: "command", idempotent: true,
+    input: analytics.AnalyticsBaselineCreateInput, output: analytics.AnalyticsBaselineOutput,
+  },
+  "analytics.baseline_list": {
+    module: "analytics", owner: "P18", kind: "query", idempotent: false,
+    input: analytics.AnalyticsBaselineListInput, output: analytics.AnalyticsBaselineListOutput,
+  },
+  "analytics.cost_to_serve": {
+    module: "analytics", owner: "P18", kind: "query", idempotent: false,
+    input: analytics.CostToServeInput, output: analytics.CostToServeOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 
