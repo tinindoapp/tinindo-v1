@@ -111,6 +111,10 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `ops.deliver` | order_id, título, evidência, key | Entrega versionada para revisão do cliente |
 | `ops.block` | order_id, motivo, key | Bloqueado com motivo registrado |
 | `ops.snapshot` | order_id | Leitura mínima nos escopos concedidos; cada leitura auditada |
+| `analytics.metrics` | período, baseline opcional | Indicadores com numerador, denominador e estado; cobertura; comparação sem causalidade |
+| `analytics.baseline_create` | rótulo, período encerrado, key | Baseline com indicadores congelados |
+| `analytics.baseline_list` | — | Baselines do negócio (até 20) |
+| `analytics.cost_to_serve` | período, custo-hora | Minutos medidos e custo estimado por cliente (só operação; sem negócio selecionado) |
 
 ## Exemplo de cotação
 
