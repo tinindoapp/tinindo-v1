@@ -4,6 +4,7 @@ import { PublicRecoverPassword, PublicSignUp } from "../features/identity/module
 import { networkPublicRoutes } from "../features/network/module.tsx";
 import { waitlistPublicRoutes } from "../features/waitlist/module.tsx";
 import { salesPublicRoutes } from "../features/sales/module.tsx";
+import { paymentsPublicRoutes } from "../features/payments/module.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
@@ -29,6 +30,8 @@ export const routes: RouteObject[] = [
       ...waitlistPublicRoutes,
       // Link do orçamento (P11): anônimo, token no fragmento, aceite só por ação explícita da versão vista.
       ...salesPublicRoutes,
+      // Link de pagamento (P14): anônimo, token no fragmento; pagar de verdade é no provedor, aqui só o simulado.
+      ...paymentsPublicRoutes,
       {
         path: "/app",
         element: <AppShell />,

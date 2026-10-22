@@ -4,8 +4,8 @@ import { z } from "zod";
 import { Cents, IsoDateTime, TimeRange, TimeZone, Uuid } from "./common.ts";
 
 export const PaymentMethod = z.enum(["pix", "cash", "card", "transfer", "other"]);
-/** Origem do registro. Só `manual` existe no piloto; PSP vem com evidência do provedor. */
-export const PaymentSource = z.enum(["manual"]);
+/** Origem do registro: `manual` (dono) ou `provider` (P14: evidência do PSP pelo webhook ou consulta). */
+export const PaymentSource = z.enum(["manual", "provider"]);
 export const ReceivableStatus = z.enum(["open", "partially_paid", "paid", "cancelled"]);
 
 export const FinanceRecordPaymentInput = z.object({

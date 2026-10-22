@@ -127,6 +127,14 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `contact.consent` | contact_id, opted_in, key | Opt-in/opt-out declarado pelo dono |
 | `sim.phone` | número | Telefone simulado (só conexão simulada) |
 | `sim.inbound` | mensagem do cliente ou status, key | Entra pelo MESMO webhook assinado (só simulado) |
+| `payment.charges` | — | Cobranças, estornos e contagem de "sem resposta" do negócio |
+| `payment.charge_create` | receivable_id, provedor, key | Cobrança pelo saldo em aberto: pendente com Pix e link, falhou com motivo ou `unknown` (sem resposta, consultar) |
+| `payment.charge_cancel` | charge_id, versão, key | Cancela pendente/desconhecida; pagamento tardio vira diferença na conciliação |
+| `payment.refund` | charge_id, motivo, key | Estorno total; concluído só com confirmação do PSP (reversão no caixa) |
+| `payment.reconcile` | provedor, dia, key | Relatório do PSP × caixa; diferenças listadas |
+| `payment.reconciliations` | — | Últimas conciliações por dia |
+| `payment.link_view` | token (anônimo, no corpo) | Valor, Pix e estado da cobrança |
+| `payment.sim_pay` | token, paid/expired, notify | Só cobrança simulada: o "cliente" paga; `notify=false` perde o webhook |
 
 ## Exemplo de cotação
 
