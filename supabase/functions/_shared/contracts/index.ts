@@ -14,6 +14,7 @@ export * from "./agent.ts";
 export * from "./sales.ts";
 export * from "./service-ops.ts";
 export * from "./analytics.ts";
+export * from "./messaging.ts";
 export * from "./network.ts";
 export * from "./events.ts";
 export * from "./operations.ts";

@@ -11,6 +11,7 @@ import * as pricing from "./pricing.ts";
 import * as sales from "./sales.ts";
 import * as svc from "./service-ops.ts";
 import * as analytics from "./analytics.ts";
+import * as messaging from "./messaging.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -25,7 +26,8 @@ export type ModuleId =
   | "network"
   | "sales"
   | "service-ops"
-  | "analytics";
+  | "analytics"
+  | "messaging";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -437,6 +439,54 @@ export const OPERATIONS = {
   "analytics.cost_to_serve": {
     module: "analytics", owner: "P18", kind: "query", idempotent: false,
     input: analytics.CostToServeInput, output: analytics.CostToServeOutput,
+  },
+  "channel.status": {
+    module: "messaging", owner: "P12", kind: "query", idempotent: false,
+    input: messaging.ChannelStatusInput, output: messaging.ChannelStatusOutput,
+  },
+  "channel.connect": {
+    module: "messaging", owner: "P12", kind: "command", idempotent: true,
+    input: messaging.ChannelConnectInput, output: messaging.ChannelConnectionOutput,
+  },
+  "channel.verify": {
+    module: "messaging", owner: "P12", kind: "command", idempotent: true,
+    input: messaging.ChannelVerifyInput, output: messaging.ChannelConnectionOutput,
+  },
+  "channel.disconnect": {
+    module: "messaging", owner: "P12", kind: "command", idempotent: true,
+    input: messaging.ChannelDisconnectInput, output: messaging.ChannelConnectionOutput,
+  },
+  "inbox.list": {
+    module: "messaging", owner: "P12", kind: "query", idempotent: false,
+    input: messaging.InboxListInput, output: messaging.InboxListOutput,
+  },
+  "conversation.get": {
+    module: "messaging", owner: "P12", kind: "query", idempotent: false,
+    input: messaging.ConversationGetInput, output: messaging.ConversationGetOutput,
+  },
+  "message.send": {
+    module: "messaging", owner: "P12", kind: "command", idempotent: true,
+    input: messaging.MessageSendInput, output: messaging.MessageSendOutput,
+  },
+  "conversation.handoff": {
+    module: "messaging", owner: "P12", kind: "command", idempotent: true,
+    input: messaging.ConversationHandoffInput, output: messaging.ContactOutput,
+  },
+  "contact.link": {
+    module: "messaging", owner: "P12", kind: "command", idempotent: true,
+    input: messaging.ContactLinkInput, output: messaging.ContactOutput,
+  },
+  "contact.consent": {
+    module: "messaging", owner: "P12", kind: "command", idempotent: true,
+    input: messaging.ContactConsentInput, output: messaging.ContactOutput,
+  },
+  "sim.phone": {
+    module: "messaging", owner: "P12", kind: "query", idempotent: false,
+    input: messaging.SimPhoneInput, output: messaging.SimPhoneOutput,
+  },
+  "sim.inbound": {
+    module: "messaging", owner: "P12", kind: "command", idempotent: true,
+    input: messaging.SimInboundInput, output: messaging.SimInboundOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 

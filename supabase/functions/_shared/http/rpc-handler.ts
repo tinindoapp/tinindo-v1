@@ -2,7 +2,7 @@
 // chama UMA RPC com o JWT do usuário → o banco autoriza, aplica idempotência/versão e audita na mesma
 // transação. O header X-Tinindo-Tenant é seleção; não concede acesso. Log técnico sem PII.
 import type { z } from "zod";
-import { IDEMPOTENCY_HEADER, IdempotencyKey, TENANT_HEADER } from "../contracts/index.ts";
+import { ERROR_STATUS, type ErrorCode, IDEMPOTENCY_HEADER, IdempotencyKey, TENANT_HEADER } from "../contracts/index.ts";
 import { canonicalJson, sha256Hex } from "./command.ts";
 import { type DbErrorLike, mapDbError } from "./errors.ts";
 import { type Clock, corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "./respond.ts";
@@ -129,8 +129,12 @@ export function createRpcHandler(module: string, routes: Record<string, Route>, 
     let status = 200;
     let body: unknown = result.data;
     if (spec.command) {
-      const envelope = result.data as { status_code?: unknown; body?: unknown } | null;
+      const envelope = result.data as { status_code?: unknown; body?: unknown; error?: unknown; field?: unknown } | null;
       status = typeof envelope?.status_code === "number" ? envelope.status_code : 0;
+      // Rejeição gravada (ex.: tentativa de código contada): o banco devolve 4xx sem RAISE, com o código do catálogo.
+      if (status >= 400 && status <= 499 && typeof envelope?.error === "string" && envelope.error in ERROR_STATUS) {
+        return fail(envelope.error as ErrorCode, requestId, { field: typeof envelope.field === "string" ? envelope.field : undefined, extra: cors });
+      }
       if (status < 200 || status > 299) return fail("INTERNAL_ERROR", requestId, { extra: cors });
       body = envelope?.body;
     }

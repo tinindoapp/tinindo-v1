@@ -115,6 +115,18 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `analytics.baseline_create` | rótulo, período encerrado, key | Baseline com indicadores congelados |
 | `analytics.baseline_list` | — | Baselines do negócio (até 20) |
 | `analytics.cost_to_serve` | período, custo-hora | Minutos medidos e custo estimado por cliente (só operação; sem negócio selecionado) |
+| `channel.status` | — | Conexão do número, fila, desconhecidos e modelos com aprovação por provedor |
+| `channel.connect` | provedor, número, id no provedor, key | Número pendente; código de verificação enfileirado pelo próprio canal |
+| `channel.verify` | código, key | Ativa a conexão; tentativa errada fica contada (envelope 422) |
+| `channel.disconnect` | key | Desconecta; fila pendente vira falha |
+| `inbox.list` | — | Contatos com janela, opt-out, não lidas e última mensagem |
+| `conversation.get` | contact_id | Mensagens do contato; zera não lidas |
+| `message.send` | contato, texto ou modelo + parâmetros, key | Entra na fila (`queued`); enviado só quando o despacho confirmar |
+| `conversation.handoff` | contact_id, assistant/human, key | Humano assume ou devolve |
+| `contact.link` | contact_id, customer_id, key | Vincula ao cadastro do mesmo negócio |
+| `contact.consent` | contact_id, opted_in, key | Opt-in/opt-out declarado pelo dono |
+| `sim.phone` | número | Telefone simulado (só conexão simulada) |
+| `sim.inbound` | mensagem do cliente ou status, key | Entra pelo MESMO webhook assinado (só simulado) |
 
 ## Exemplo de cotação
 
