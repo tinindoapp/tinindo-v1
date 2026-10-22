@@ -13,12 +13,14 @@ import { salesModule } from "../features/sales/module.tsx";
 import { serviceOpsModule } from "../features/service-ops/module.tsx";
 import { analyticsModule } from "../features/analytics/module.tsx";
 import { messagingModule } from "../features/messaging/module.tsx";
+import { paymentsModule } from "../features/payments/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
   crmModule,
   messagingModule,
   financeModule,
+  paymentsModule,
   salesModule,
   analyticsModule,
   pricingModule,

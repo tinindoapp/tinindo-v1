@@ -45,8 +45,9 @@ Evidência executada no CI (P10, 2026-10-22). `pgTAP` = `supabase/tests/database
 | AI-02 | pgTAP 08, int `20_f2_jornada` (aprovar ≠ executar) | — |
 | NET-01 | pgTAP 09, int `10_uat_barbeiro` passo 4 | — |
 | OPS-01 | `npm run db:restore:drill` (dump → restore → integridade → comando real; tempo medido) | restore do backup hospedado |
-| OPS-02 | testes de handler com RPC indisponível → 503; assistente sem LLM; canal: provedor sem segredo → 503, 5xx/timeout → entrega desconhecida sem reenvio (`providers.test`, int `30_p12_canal`) | PSP (P14) |
+| OPS-02 | testes de handler com RPC indisponível → 503; assistente sem LLM; canal: provedor sem segredo → 503, 5xx/timeout → entrega desconhecida sem reenvio (`providers.test`, int `30_p12_canal`); PSP: sem credenciais → 503, timeout → `unknown` com consulta (`payments/providers.test`, int `31_p14_pagamentos`) | — |
 | MSG-01 | webhook assinado e deduplicado; estados enviado/entregue/lido/falhou/desconhecido distintos; opt-out; humano assume (pgTAP 13, conc `13_messaging`, int `30_p12_canal`, e2e `messaging`) | provedor oficial no staging |
+| PAY-01 | notificação repetida não dá baixa duas vezes (webhook × webhook, webhook × consulta); sem resposta = `unknown`, nunca pago; estorno vinculado; conciliação lista diferenças (pgTAP 14, conc `14_payments`, int `31_p14_pagamentos`, e2e `payments`) | PSP real em sandbox no staging |
 | UX-01 | e2e desktop + Pixel 7, `tests/e2e/foundation/a11y`, auditoria `docs/qa` | iPhone Safari real |
 
 A suite `tests_coordination` cobre outro objeto: a reserva de tarefas. Os roteiros UAT com usuários reais exigem o staging hospedado (gate do ADR-0006).

@@ -14,6 +14,8 @@ import { createJobsHandler, JOBS_SECRET_HEADER } from "../../supabase/functions/
 import { createMessagingHandler, DISPATCH_SECRET_HEADER } from "../../supabase/functions/messaging/handler.ts";
 import { createSimulatedProvider } from "../../supabase/functions/_shared/domain/messaging/providers.ts";
 import { createNetworkHandler } from "../../supabase/functions/network/handler.ts";
+import { createPaymentsHandler, SYNC_SECRET_HEADER } from "../../supabase/functions/payments/handler.ts";
+import { createSimulatedPaymentProvider } from "../../supabase/functions/_shared/domain/payments/providers.ts";
 import { createPricingHandler } from "../../supabase/functions/pricing/handler.ts";
 import { createSalesHandler } from "../../supabase/functions/sales/handler.ts";
 import { createSchedulingHandler } from "../../supabase/functions/scheduling/handler.ts";
@@ -33,6 +35,7 @@ export const PUBLIC_APP_URL = "https://app.exemplo.test";
 export const JOBS_SECRET = "segredo-de-teste-".repeat(3);
 export const DISPATCH_SECRET = "segredo-do-despacho-".repeat(2);
 export const SIM_SECRET = "segredo-do-simulador-".repeat(2);
+export const SYNC_SECRET = "segredo-do-sync-de-teste-".repeat(2);
 
 interface Signature { args: { name: string; type: string }[]; setReturning: boolean }
 const signatures = new Map<string, Signature>();
@@ -128,6 +131,9 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
     providers: { simulated: createSimulatedProvider({ secret: SIM_SECRET, deliver: async (phone, from, body, id) => {
       await rpc("worker", "channel_sim_deliver", { p_phone_e164: phone, p_from_account: from, p_body: body, p_provider_message_id: id });
     } }) } }),
+  payments: createPaymentsHandler({ ...deps, rpc: userRpc, anonRpc: (fn, args) => rpc(null, fn, args), serviceRpc: (fn, args) => rpc("worker", fn, args),
+    syncSecret: SYNC_SECRET, simulatedSecret: SIM_SECRET, publicAppUrl: PUBLIC_APP_URL,
+    providers: { simulated: createSimulatedPaymentProvider({ secret: SIM_SECRET, store: (fn, args) => rpc("worker", fn, args) }) } }),
   jobs: createJobsHandler({ secret: JOBS_SECRET, runJobs: async (batch) => {
     const r = await rpc("worker", "jobs_run", { p_batch: batch });
     return { data: r.data, error: r.error };
@@ -196,6 +202,13 @@ export async function fails(module: string, op: string, opts: CallOptions, code:
 export async function runDispatch(): Promise<{ sent: number; failed: number; unknown: number; reconciled: number }> {
   const res = await handlers.messaging!(new Request("http://edge/functions/v1/messaging/channel.dispatch", { method: "POST", headers: { [DISPATCH_SECRET_HEADER]: DISPATCH_SECRET } }));
   const json = await res.json() as { data: { sent: number; failed: number; unknown: number; reconciled: number } };
+  return json.data;
+}
+
+/** Uma rodada do sync de pagamentos (P14) como o cron chamaria. */
+export async function runPaymentSync(): Promise<{ checked: number; settled: number; closed: number; still_unknown: number }> {
+  const res = await handlers.payments!(new Request("http://edge/functions/v1/payments/payment.sync", { method: "POST", headers: { [SYNC_SECRET_HEADER]: SYNC_SECRET } }));
+  const json = await res.json() as { data: { checked: number; settled: number; closed: number; still_unknown: number } };
   return json.data;
 }
 

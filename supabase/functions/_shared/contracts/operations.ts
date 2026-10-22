@@ -12,6 +12,7 @@ import * as sales from "./sales.ts";
 import * as svc from "./service-ops.ts";
 import * as analytics from "./analytics.ts";
 import * as messaging from "./messaging.ts";
+import * as payments from "./payments.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -27,7 +28,8 @@ export type ModuleId =
   | "sales"
   | "service-ops"
   | "analytics"
-  | "messaging";
+  | "messaging"
+  | "payments";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -487,6 +489,38 @@ export const OPERATIONS = {
   "sim.inbound": {
     module: "messaging", owner: "P12", kind: "command", idempotent: true,
     input: messaging.SimInboundInput, output: messaging.SimInboundOutput,
+  },
+  "payment.charges": {
+    module: "payments", owner: "P14", kind: "query", idempotent: false,
+    input: payments.ChargesListInput, output: payments.ChargesListOutput,
+  },
+  "payment.charge_create": {
+    module: "payments", owner: "P14", kind: "command", idempotent: true,
+    input: payments.ChargeCreateInput, output: payments.ChargeCreateOutput,
+  },
+  "payment.charge_cancel": {
+    module: "payments", owner: "P14", kind: "command", idempotent: true,
+    input: payments.ChargeCancelInput, output: payments.ChargeOutput,
+  },
+  "payment.refund": {
+    module: "payments", owner: "P14", kind: "command", idempotent: true,
+    input: payments.RefundRequestInput, output: payments.RefundOutput,
+  },
+  "payment.reconcile": {
+    module: "payments", owner: "P14", kind: "command", idempotent: true,
+    input: payments.ReconcileInput, output: payments.ReconcileOutput,
+  },
+  "payment.reconciliations": {
+    module: "payments", owner: "P14", kind: "query", idempotent: false,
+    input: payments.ReconciliationsListInput, output: payments.ReconciliationsListOutput,
+  },
+  "payment.link_view": {
+    module: "payments", owner: "P14", kind: "query", idempotent: false,
+    input: payments.PaymentLinkInput, output: payments.PaymentLinkView,
+  },
+  "payment.sim_pay": {
+    module: "payments", owner: "P14", kind: "command", idempotent: true,
+    input: payments.SimPayInput, output: payments.SimPayOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 
