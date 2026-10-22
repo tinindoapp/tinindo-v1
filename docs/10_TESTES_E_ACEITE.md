@@ -24,7 +24,31 @@
 | OPS-02 | LLM/WhatsApp indisponível | Operação visual continua; estado honesto |
 | UX-01 | iPhone Safari e desktop, teclado e leitores básicos | Sem fluxo bloqueado; foco/contraste legíveis |
 
-Esses testes são exigências para o aplicativo. O kit entregue não os executou contra um aplicativo ainda não construído. A suite `tests_coordination` cobre outro objeto: a reserva de tarefas.
+Evidência executada no CI (P10, 2026-10-22). `pgTAP` = `supabase/tests/database`; `conc` = `tests/db-concurrency`; `int` = `tests/integration` (cada Edge Function com a lógica de produção chamando as RPCs num Postgres migrado do zero, sem mock de RPC); `e2e` = Playwright na demonstração offline.
+
+| ID | Onde está provado | Pendente |
+|---|---|---|
+| SEC-01 | int `00_seguranca` (todas as funções, header é seleção), pgTAP de cada módulo | — |
+| SEC-02 | int `13_uat_cliente_dois` (RLS real da cliente vinculada a dois negócios) | área da cliente na tela |
+| SEC-03 | int `00_seguranca` (worker só `service_role`, anônimo só nas rotas de link), pgTAP 06/07/08 | storage (não há buckets ainda) |
+| SEC-04 | `tests/agent-evals` AE-21…32, int `10_uat_barbeiro` passo 8 | LLM real (sem provedor no piloto) |
+| BOOK-01 | conc `03_scheduling` (20 disputas → 1 reserva) | — |
+| BOOK-02 | pgTAP 04, int `11_uat_cabeleireira` passo 3 | — |
+| BOOK-03 | pgTAP 04 (hold vencido), int `12_uat_personal` passo 2 (recorrência com conflito) | — |
+| PRICE-01 | `tests/contracts/pricing/price-domain`, pgTAP 06 | — |
+| PRICE-02 | pgTAP 06 e 08 (STALE_VERSION), int `10_uat_barbeiro` passo 5 | — |
+| WAIT-01 | conc `07_waitlist`, int `10_uat_barbeiro` passo 6 | — |
+| WAIT-02 | conc `07_waitlist` (três workers, evento repetido) | — |
+| FIN-01 | pgTAP 05, int `12_uat_personal` passos 1 e 3 | — |
+| FIN-02 | pgTAP 05, conc `05_finance`, int `12_uat_personal` passo 4 | — |
+| AI-01 | `tests/agent-evals` AE-01…18 | — |
+| AI-02 | pgTAP 08, int `20_f2_jornada` (aprovar ≠ executar) | — |
+| NET-01 | pgTAP 09, int `10_uat_barbeiro` passo 4 | — |
+| OPS-01 | `npm run db:restore:drill` (dump → restore → integridade → comando real; tempo medido) | restore do backup hospedado |
+| OPS-02 | testes de handler com RPC indisponível → 503; assistente sem LLM | canal e PSP (fase 2) |
+| UX-01 | e2e desktop + Pixel 7, `tests/e2e/foundation/a11y`, auditoria `docs/qa` | iPhone Safari real |
+
+A suite `tests_coordination` cobre outro objeto: a reserva de tarefas. Os roteiros UAT com usuários reais exigem o staging hospedado (gate do ADR-0006).
 
 ## Cenários UAT com usuários
 
