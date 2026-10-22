@@ -6,14 +6,14 @@ import { expect, type Page } from "@playwright/test";
 
 /** Motivos padronizados de test.fixme: o que falta para o passo do roteiro rodar de verdade. */
 export const PENDING = {
-  crmWrite: "P02 sem servidor: na demonstração os formulários de clientes/serviços ficam bloqueados (readOnly).",
-  publicBooking: "P03/P09: o link público só mostra horários; reservar pelo link exige o motor de agenda no servidor.",
-  pricing: "P05 (Preços): a regra publicada vale no servidor; a agenda da demonstração usa a regra de exemplo própria.",
-  waitlist: "P06 (Lista de espera): candidatos por cancelamento dependem do worker no servidor; a demonstração traz uma vaga de exemplo.",
-  finance: "P07 (Caixa): o ledger existe no servidor, mas a demonstração só tem o negócio A; pacote de personal e conclusão pela agenda pedem banco real.",
-  recurrence: "P03: recorrência com detecção de conflito por data não existe no fluxo da demonstração.",
-  multiTenant: "P01/P09: a demonstração tem só um vínculo (tenant A); conta com reservas em dois negócios exige servidor e RLS.",
-  personalTenant: "A demonstração offline abre apenas a Barbearia Exemplo A; não há negócio de personal para operar.",
+  crmWrite: "A demonstração offline não grava (ADR-0006). A mesma regra roda com banco real em tests/integration (UAT barbeiro/cabeleireira pelos handlers); a tela com servidor só roda no staging hospedado (gate ADR-0006).",
+  publicBooking: "Reservar pelo link público não existe ainda: o link só mostra horários (P09/P03). Pendência de produto registrada no handoff do P10.",
+  pricing: "A regra publicada vale no servidor: provada em tests/integration/10_uat_barbeiro (cotação de terça com piso). A agenda da demonstração usa a regra de exemplo própria.",
+  waitlist: "Candidatos por cancelamento dependem do worker: provado em tests/integration/10_uat_barbeiro (jobs → candidato → oferta → aceite pelo link).",
+  finance: "Caixa com banco real provado em tests/integration/12_uat_personal (pacote, pagamento único, consumo por evento, cancelamento sem dupla baixa). A demonstração só tem o negócio A.",
+  recurrence: "Recorrência com conflito provada em tests/integration/12_uat_personal (7 criadas, 1 conflito, resolução). A demonstração não tem o fluxo.",
+  multiTenant: "Vínculo da mesma conta a dois negócios e RLS provados em tests/integration/13_uat_cliente_dois. A área da cliente com as próprias reservas não existe ainda (pendência de produto).",
+  personalTenant: "A demonstração offline abre apenas a Barbearia Exemplo A; o negócio de personal roda em tests/integration/12_uat_personal.",
 } as const;
 
 export async function noHorizontalScroll(page: Page) {

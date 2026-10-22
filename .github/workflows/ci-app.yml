@@ -79,6 +79,22 @@ jobs:
           PGPORT: "5432"
           PGUSER: postgres
           PGPASSWORD: postgres
+      # P10: cada Edge Function montada com a lógica de produção chamando as RPCs no Postgres (sem mock de RPC).
+      - name: Integração handler ↔ banco (UATs e matriz SEC pelos handlers)
+        run: npm run test:integration
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+      # OPS-01: dump, restore em banco novo, integridade e app utilizável, com tempo medido.
+      - name: Ensaio de restore (OPS-01)
+        run: npm run db:restore:drill
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
 
   e2e:
     name: e2e smoke (desktop + mobile)
