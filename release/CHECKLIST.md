@@ -7,12 +7,12 @@ Fluxo (docs/09): PR revisado → `main` → homologação → smoke → aprovaç
 - [ ] `main` verde no CI (lint, typecheck, unit, contratos, build, deno, banco do zero + seed + pgTAP + lint de schema, concorrência, integração handler ↔ banco, ensaio de restore, e2e, gitleaks).
 - [ ] Tag criada a partir do SHA aprovado (`vAAAA.MM.DD-N`); SHA do frontend e das funções anotados em `release/RELEASES.md`.
 - [ ] Migrations novas desde a última tag listadas; todas aditivas (append-only). Nenhuma `drop`/`alter ... drop` sem plano de expansão → contração em releases separadas.
-- [ ] Flags e valores padrão conferidos (`PUBLIC_APP_URL`, `ALLOWED_ORIGINS`, `JOBS_SECRET` ≥ 32 caracteres; provedores externos desligados por padrão).
+- [ ] Flags e valores padrão conferidos (`PUBLIC_APP_URL`, `ALLOWED_ORIGINS`, `JOBS_SECRET` e `MESSAGING_DISPATCH_SECRET` ≥ 32 caracteres, `MESSAGING_SIM_SECRET`; provedores externos desligados por padrão: sem `WHATSAPP_*` só o canal simulado existe).
 - [ ] Backup do ambiente alvo feito e restaurável (OPS-01 rodou neste release: tempo anotado).
 
 ## 2 · Homologação
 
-- [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` das 14 funções; cron do `jobs` ativo (1 min).
+- [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` das 15 funções; cron do `jobs` e do `channel.dispatch` ativos (1 min).
 - [ ] Smoke manual com a conta técnica sintética: entrar → agenda → novo agendamento → caixa → orçamento pelo link → pergunta ao assistente. Nenhum dado real.
 - [ ] `tests/e2e/qa` com `VITE_SUPABASE_URL` apontando para homologação (os roteiros UAT com servidor; hoje só a demonstração roda no CI).
 - [ ] Logs das funções sem PII (amostra de 20 linhas): só `fn`, `route`, `request_id`, `status`, `ms`.

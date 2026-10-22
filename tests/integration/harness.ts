@@ -11,6 +11,8 @@ import { createCrmHandler } from "../../supabase/functions/crm/handler.ts";
 import { createFinanceHandler } from "../../supabase/functions/finance/handler.ts";
 import { createIdentityHandler } from "../../supabase/functions/identity/handler.ts";
 import { createJobsHandler, JOBS_SECRET_HEADER } from "../../supabase/functions/jobs/handler.ts";
+import { createMessagingHandler, DISPATCH_SECRET_HEADER } from "../../supabase/functions/messaging/handler.ts";
+import { createSimulatedProvider } from "../../supabase/functions/_shared/domain/messaging/providers.ts";
 import { createNetworkHandler } from "../../supabase/functions/network/handler.ts";
 import { createPricingHandler } from "../../supabase/functions/pricing/handler.ts";
 import { createSalesHandler } from "../../supabase/functions/sales/handler.ts";
@@ -29,6 +31,8 @@ export const pool = new Pool({ max: 8 });
 export const PUBLIC_APP_URL = "https://app.exemplo.test";
 // Segredos de teste montados em tempo de execução (baixa entropia no fonte: a varredura de segredos não os confunde com vazamento).
 export const JOBS_SECRET = "segredo-de-teste-".repeat(3);
+export const DISPATCH_SECRET = "segredo-do-despacho-".repeat(2);
+export const SIM_SECRET = "segredo-do-simulador-".repeat(2);
 
 interface Signature { args: { name: string; type: string }[]; setReturning: boolean }
 const signatures = new Map<string, Signature>();
@@ -119,6 +123,11 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   sales: createSalesHandler({ ...deps, rpc: anyRpc }),
   "service-ops": createServiceOpsHandler({ ...deps, rpc: userRpc }),
   analytics: createAnalyticsHandler({ ...deps, rpc: userRpc }),
+  messaging: createMessagingHandler({ ...deps, rpc: userRpc, dispatchSecret: DISPATCH_SECRET, simulatedSecret: SIM_SECRET, verifyToken: null,
+    serviceRpc: (fn, args) => rpc("worker", fn, args),
+    providers: { simulated: createSimulatedProvider({ secret: SIM_SECRET, deliver: async (phone, from, body, id) => {
+      await rpc("worker", "channel_sim_deliver", { p_phone_e164: phone, p_from_account: from, p_body: body, p_provider_message_id: id });
+    } }) } }),
   jobs: createJobsHandler({ secret: JOBS_SECRET, runJobs: async (batch) => {
     const r = await rpc("worker", "jobs_run", { p_batch: batch });
     return { data: r.data, error: r.error };
@@ -181,6 +190,13 @@ export async function fails(module: string, op: string, opts: CallOptions, code:
   if (r.error.code !== code || (field !== undefined && r.error.field !== field)) {
     throw new Error(`${module}/${op}: esperado ${code}${field ? `/${field}` : ""}, obtido ${r.error.code}/${r.error.field ?? "-"}`);
   }
+}
+
+/** Uma rodada do despacho do canal (P12) como o cron chamaria. */
+export async function runDispatch(): Promise<{ sent: number; failed: number; unknown: number; reconciled: number }> {
+  const res = await handlers.messaging!(new Request("http://edge/functions/v1/messaging/channel.dispatch", { method: "POST", headers: { [DISPATCH_SECRET_HEADER]: DISPATCH_SECRET } }));
+  const json = await res.json() as { data: { sent: number; failed: number; unknown: number; reconciled: number } };
+  return json.data;
 }
 
 /** Uma rodada do worker (P06) como o cron chamaria. */

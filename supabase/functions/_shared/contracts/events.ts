@@ -11,6 +11,8 @@ export const EventType = z.enum([
   "agent.action.approved.v1",
   "sales.quote.accepted.v1",
   "sales.quote.declined.v1",
+  "channel.message.received.v1",
+  "channel.message.failed.v1",
 ]);
 export type EventType = z.infer<typeof EventType>;
 
