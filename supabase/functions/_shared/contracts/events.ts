@@ -18,6 +18,7 @@ export const EventType = z.enum([
   "referral.rewarded.v1",
   "campaign.approved.v1",
   "campaign.closed.v1",
+  "content.published.v1",
 ]);
 export type EventType = z.infer<typeof EventType>;
 

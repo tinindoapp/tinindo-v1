@@ -158,6 +158,14 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `campaign.list` | — | Campanhas com resultado por braço (intervalo) e veredito pelo desenho |
 | `campaign.get` | campaign_id | Campanha com participantes por braço e estado do passo |
 | `campaign.cancel` | campaign_id, expected_version, key | Para os passos pendentes; o que saiu não muda; resultado congela como observação parcial |
+| `goal.save` | goal_id?, expected_version?, metric_key, target, period_start?, note?, key | Meta mensal por indicador do P18 (uma ativa por indicador e mês) |
+| `goal.archive` | goal_id, expected_version, key | Arquiva a meta |
+| `goal.list` | — | Metas com progresso (o indicador, com denominador) e os indicadores do mês |
+| `advice.list` | — | Sugestões por regras sobre dado existente (com evidência e rota) e decisões anteriores com acompanhamento observacional |
+| `advice.decide` | rule_code, decision, key | Registra aceitar/dispensar uma sugestão em vigor; congela o indicador para o acompanhamento em 30 dias |
+| `content.list` | — | Conteúdo pré-aprovado da profissão (com prévia), escopo do perfil (P09) e o que está publicado |
+| `content.publish` | template_code, key | Publica um texto aprovado como `bio` do perfil; só com perfil publicado e campo `bio` escolhido |
+| `content.unpublish` | expected_version, key | Remove o texto publicado |
 
 ## Exemplo de cotação
 

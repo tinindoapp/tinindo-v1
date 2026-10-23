@@ -17,6 +17,7 @@ import * as lifecycle from "./lifecycle.ts";
 import * as recurrence from "./recurrence.ts";
 import * as referrals from "./referrals.ts";
 import * as campaigns from "./campaigns.ts";
+import * as growth from "./growth-advice.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -37,7 +38,8 @@ export type ModuleId =
   | "lifecycle"
   | "recurrence"
   | "referrals"
-  | "campaigns";
+  | "campaigns"
+  | "growth-advice";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -622,6 +624,14 @@ export const OPERATIONS = {
     module: "campaigns", owner: "P19", kind: "command", idempotent: true,
     input: campaigns.CampaignCancelInput, output: campaigns.CampaignOutput,
   },
+  "goal.save": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.GoalSaveInput, output: growth.GoalOutput },
+  "goal.archive": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.GoalArchiveInput, output: growth.GoalOutput },
+  "goal.list": { module: "growth-advice", owner: "P22", kind: "query", idempotent: false, input: growth.GoalListInput, output: growth.GoalListOutput },
+  "advice.list": { module: "growth-advice", owner: "P22", kind: "query", idempotent: false, input: growth.AdviceListInput, output: growth.AdviceListOutput },
+  "advice.decide": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.AdviceDecideInput, output: growth.AdviceDecideOutput },
+  "content.list": { module: "growth-advice", owner: "P22", kind: "query", idempotent: false, input: growth.ContentListInput, output: growth.ContentListOutput },
+  "content.publish": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.ContentPublishInput, output: growth.ContentPublishOutput },
+  "content.unpublish": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.ContentUnpublishInput, output: growth.ContentPublishOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
