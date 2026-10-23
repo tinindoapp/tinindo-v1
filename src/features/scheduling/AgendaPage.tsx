@@ -1,4 +1,5 @@
 // Tela principal da agenda: Hoje/dia e semana, ocupação e horários livres.
+import { Icon } from "../../components/ui/icons.tsx";
 import { Link, useSearchParams } from "react-router";
 import type { Booking, ProviderService } from "@contracts";
 import {
@@ -60,10 +61,9 @@ export function AgendaPage() {
             ›
           </button>
         </div>
-        <Link className="tn-button" data-variant="secondary" to="horarios">
-          Horários
-        </Link>
+        {/* No celular vira botão flutuante acima das abas; no desktop fica na barra. Mesmo elemento nos dois. */}
         <Link className="tn-button tn-sched-new" data-variant="primary" to={`novo?data=${date}`}>
+          <Icon name="mais" size={20} />
           Novo agendamento
         </Link>
       </div>

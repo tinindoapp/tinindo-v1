@@ -3,7 +3,7 @@
 // por profissão publicado só pelo escopo autorizado do Perfil (P09). O que a tela promete é o que o banco garante.
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, StatusBanner } from "../../components/ui/index.tsx";
 import { DECISION, DIRECTION, explain, formatDate, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS } from "./labels.ts";
 import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort, newKey } from "./port.ts";
 
@@ -142,7 +142,7 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
     <div className="tn-ga">
       <Card aria-labelledby="ga-title">
         <h1 id="ga-title">Metas e conteúdo</h1>
-        <p className="tn-ga-muted">Metas sobre os indicadores do Resultado, sugestões por regras sobre os seus dados e textos aprovados para a sua profissão. Nada aqui promete resultado: o progresso é o indicador medido, e a variação depois de uma sugestão é observada, não causada.</p>
+        <Help><p>Metas sobre os indicadores do Resultado, sugestões por regras sobre os seus dados e textos aprovados para a sua profissão. Nada aqui promete resultado: o progresso é o indicador medido, e a variação depois de uma sugestão é observada, não causada.</p></Help>
         <StatusBanner tone="info"><strong>Sem inteligência artificial nas sugestões.</strong> Cada sugestão vem de uma regra fixa sobre um indicador com dado suficiente, e mostra a evidência. Você decide; a Tinindo nunca age sozinha.</StatusBanner>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é publicado de verdade. "Avançar 30 dias" roda o acompanhamento como o worker faria.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}

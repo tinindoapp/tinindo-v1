@@ -31,6 +31,14 @@ const APP: Record<string, ReactNode> = {
     </>
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  ajustes: (
+    <>
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+      <circle cx="15" cy="7" r="2" />
+      <circle cx="9" cy="17" r="2" />
+    </>
+  ),
+  lista: <path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" />,
   fechar: <path d="M6 6l12 12M18 6 6 18" />,
   seta: <path d="m9 6 6 6-6 6" />,
   mais: <path d="M12 5v14M5 12h14" />,

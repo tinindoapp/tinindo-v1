@@ -11,17 +11,29 @@ interface SectionSpec {
   icon: IconName;
   /** Aparece na barra de abas do celular. */
   tab: boolean;
-  items: { module: ModuleId; icon: IconName; label?: string }[];
+  /** `sub`: tela interna do módulo promovida a item (ex.: Horários da Agenda). */
+  items: { module: ModuleId; icon: IconName; label?: string; sub?: string }[];
 }
 
 export const SECTION_SPECS: readonly SectionSpec[] = [
   {
     id: "agenda", label: "Agenda", icon: "agenda", tab: true,
-    items: [{ module: "scheduling", icon: "agenda" }, { module: "waitlist", icon: "espera" }, { module: "pricing", icon: "preco" }],
+    items: [
+      { module: "scheduling", icon: "agenda" },
+      { module: "scheduling", sub: "horarios", label: "Horários", icon: "ajustes" },
+      { module: "waitlist", icon: "espera" },
+      { module: "pricing", icon: "preco" },
+    ],
   },
   {
     id: "clientes", label: "Clientes", icon: "cliente", tab: true,
-    items: [{ module: "crm", icon: "cliente" }, { module: "messaging", icon: "mensagem" }, { module: "sales", icon: "orcamento" }, { module: "lifecycle", icon: "relacionamento" }],
+    items: [
+      { module: "crm", icon: "cliente" },
+      { module: "crm", sub: "servicos", label: "Serviços", icon: "lista" },
+      { module: "messaging", icon: "mensagem" },
+      { module: "sales", icon: "orcamento" },
+      { module: "lifecycle", icon: "relacionamento" },
+    ],
   },
   {
     id: "dinheiro", label: "Dinheiro", icon: "receber", tab: true,
@@ -40,6 +52,8 @@ export const SECTION_SPECS: readonly SectionSpec[] = [
 
 export interface NavItem {
   module: ModuleId;
+  /** Tela interna promovida (sem `sub`, é a tela principal do módulo). */
+  sub: string | null;
   label: string;
   icon: IconName;
   to: string;
@@ -62,7 +76,7 @@ export function buildNavigation(modules: readonly ModuleDefinition[]): NavSectio
   const sections = SECTION_SPECS.map((s) => {
     const items = s.items.flatMap((i) => {
       const m = byId.get(i.module);
-      return m ? [{ module: m.id, label: i.label ?? m.navLabel, icon: i.icon, to: `/app/${m.path}` }] : [];
+      return m ? [{ module: m.id, sub: i.sub ?? null, label: i.label ?? m.navLabel, icon: i.icon, to: `/app/${m.path}${i.sub ? `/${i.sub}` : ""}` }] : [];
     });
     return { id: s.id, label: s.label, icon: s.icon, tab: s.tab, items, to: items[0]?.to ?? HOME.to };
   }).filter((s) => s.items.length > 0);
@@ -84,4 +98,11 @@ export function sectionFor(sections: readonly NavSection[], pathname: string): N
 
 export function isItemActive(item: NavItem, pathname: string): boolean {
   return within(pathname, item.to);
+}
+
+/** Destino do item mais específico que contém a rota (Horários vence Agenda em /app/agenda/horarios). */
+export function activeTo(sections: readonly NavSection[], pathname: string): string | null {
+  let best: string | null = null;
+  for (const s of sections) for (const i of s.items) if (within(pathname, i.to) && (!best || i.to.length > best.length)) best = i.to;
+  return best;
 }

@@ -52,6 +52,19 @@ export function PageHeader({ title, id, eyebrow, subtitle, actions }: { title: R
   );
 }
 
+/** Explicação longa recolhida ("Como funciona"): a tela abre direto no que importa; o texto continua a um toque. */
+export function Help({ children, label = "Como funciona" }: { children: ReactNode; label?: string }) {
+  return (
+    <details className="tn-help">
+      <summary>
+        <Icon name="info" size={18} />
+        {label}
+      </summary>
+      <div className="tn-help__body">{children}</div>
+    </details>
+  );
+}
+
 /** Seção com título (h2) e ação opcional à direita. */
 export function Section({ title, id, action, children }: { title: ReactNode; id: string; action?: ReactNode; children: ReactNode }) {
   return (

@@ -1,7 +1,6 @@
 // Expediente semanal e bloqueios pessoais (P03 · schedule.*). Sem expediente não há horário livre.
 // Bloqueio é indisponibilidade, não cliente fictício; não pode cobrir atendimento já marcado.
 import { type FormEvent, useState } from "react";
-import { Link } from "react-router";
 import type { ScheduleSettings } from "@contracts";
 import { Button, StatusBanner } from "../../components/ui/index.tsx";
 import { formatRange } from "./agenda.ts";
@@ -62,12 +61,8 @@ export function HoursPage() {
 
   return (
     <section aria-labelledby="hours-title" className="tn-sched">
-      <p className="tn-caps">Agenda</p>
       <h1 id="hours-title">Horários de atendimento</h1>
       <DemoNotice kind={port.kind} />
-      <p>
-        <Link to="..">Voltar para a agenda</Link>
-      </p>
       {settings.error ? (
         <ErrorPanel error={settings.error} operation="load" onRetry={settings.reload} />
       ) : !settings.data ? (

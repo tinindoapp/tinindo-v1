@@ -162,12 +162,32 @@ a.tn-stat:hover { background: var(--tn-action-subtle); }
 }
 
 /* Telas antigas abrem com um cartão que contém o h1: vira cabeçalho de tela (sem caixa, apoio em tom suave). */
-.tn-main__inner .tn-card:has(> h1) { background: transparent; border: 0; box-shadow: none; padding: 0; }
-.tn-main__inner .tn-card:has(> h1) > h1 { margin-bottom: var(--tn-space-1); }
+.tn-main__inner .tn-card:has(> h1) { display: grid; gap: var(--tn-space-2); background: transparent; border: 0; box-shadow: none; padding: 0; }
+.tn-main__inner .tn-card:has(> h1) > * { margin-top: 0; margin-bottom: 0; }
+.tn-main__inner .tn-card:has(> h1) > :is(div, button):not(.tn-banner) { justify-self: start; }
 .tn-main__inner .tn-card:has(> h1) > p:not([class*="banner"]) { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
-.tn-main__inner .tn-card:has(> h1) > .tn-banner { margin-top: var(--tn-space-2); }
 /* Títulos dentro de cartões no tamanho de seção. */
 .tn-main__inner .tn-card h2 { font-size: var(--tn-font-size-lg); }
 .tn-main__inner .tn-card h3 { font-size: var(--tn-font-size-md); }
 /* Avisos empilhados respiram. */
 .tn-banner + .tn-banner { margin-top: var(--tn-space-2); }
+
+.tn-help { margin: var(--tn-space-1) 0 var(--tn-space-3); }
+.tn-help summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tn-space-2);
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-3) 0 var(--tn-space-2);
+  border-radius: var(--tn-radius-pill);
+  color: var(--tn-text-muted);
+  font-size: var(--tn-font-size-sm);
+  font-weight: var(--tn-font-weight-medium);
+  cursor: pointer;
+  list-style: none;
+}
+.tn-help summary::-webkit-details-marker { display: none; }
+.tn-help summary:hover { background: var(--tn-action-subtle); color: var(--tn-text); }
+.tn-help[open] summary { color: var(--tn-text); }
+.tn-help__body { padding: var(--tn-space-2) var(--tn-space-4) var(--tn-space-1); border-left: 2px solid var(--tn-border); color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-help__body p { margin: 0 0 var(--tn-space-2); }

@@ -2,7 +2,7 @@
 // termos congelados na adesão; cada ciclo abre um pacote de sessões e uma cobrança pelo preço aceito; mudar o plano
 // não muda quem já assina; cancelar preserva o aceito e o saldo do ciclo. Assinar não é receber: a cobrança é do Caixa.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, StatusBanner } from "../../components/ui/index.tsx";
 import { cycleLabel, explain, formatCents, formatDate, RECEIVABLE_STATUS } from "./labels.ts";
 import { newKey, type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
 
@@ -167,7 +167,7 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
     <div className="tn-rc">
       <Card aria-labelledby="rc-title">
         <h1 id="rc-title">Assinaturas</h1>
-        <p className="tn-rc-muted">Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (Pix pelo provedor ou manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p>
+        <Help><p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (Pix pelo provedor ou manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p></Help>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é cobrado. "Avançar o ciclo" simula a renovação pelo worker.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}

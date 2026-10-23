@@ -6,7 +6,7 @@ import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { CSV_MAX_BYTES, type PreviewRow, readCustomerCsv } from "./csv.ts";
 import { formatPhone, REJECT_LABEL } from "./format.ts";
-import { SelectField } from "./shared.tsx";
+import { CrmDemoNotice, SelectField } from "./shared.tsx";
 
 type Matches = ImportPreviewOutput["rows"][number]["matches"];
 const REASON_LABEL = { phone: "telefone", email: "e-mail", name: "nome" } as const;
@@ -90,8 +90,8 @@ export function ImportPage() {
   return (
     <div className="crm-stack">
       <Card aria-labelledby="crm-import-title">
-        <p className="tn-caps">Clientes e catálogo</p>
         <h1 id="crm-import-title">Importar clientes de planilha</h1>
+        <CrmDemoNotice />
         <p className="crm-note">
           CSV com cabeçalho na primeira linha: <strong>nome</strong> (obrigatório), telefone, e-mail e origem. Até 500
           clientes por vez. Exporte do Excel ou do Google Planilhas como CSV.

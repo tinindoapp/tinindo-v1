@@ -17,8 +17,13 @@ O shell herdado do P00 era uma faixa horizontal de abas com um item por módulo 
 7. **Ícones:** os 12 da marca são usados direto do arquivo oficial (`brand/assets/icons/ui-icons-sprite.svg`, injetado uma vez e referenciado por `<use>`). Os que a marca ainda não tem (início, assistente, crescer, negócio, menu, fechar, seta, mais, preço, pagamento, assinatura, relacionamento, campanha, indicação, metas, resultado, perfil, plano, conta, sair) seguem a especificação do manual (grade 24 px, traço 2 px, pontas arredondadas, `currentColor`) e evitam robô, cérebro e faísca de "IA". Ficam no código do app (`icons.tsx`) até a marca incorporá-los ao sprite oficial; nenhum arquivo de `brand/` foi alterado.
 8. **Marca:** só tokens (`var(--tn-…)`), ação principal preta, laranja apenas como traço decorativo do item ativo no menu, vidro só nas barras (superior e abas) com a alternativa opaca do `tokens.css`. Símbolo no celular (32 px, mínimo do manual) e wordmark no desktop (120 px).
 
+9. **Telas internas promovidas a item de navegação:** "Horários" (Agenda) e "Serviços" (Clientes) entram no grupo como itens próprios (`sub` no mapa); o item ativo é o mais específico. Some a segunda fileira de abas de Clientes e o botão "Horários" da Agenda. "Importar planilha" vira ação no cabeçalho de Clientes, ao lado de "Novo cliente".
+10. **Explicações longas recolhidas:** o componente `Help` ("Como funciona") guarda os parágrafos longos de Pagamentos, Assinaturas, Relacionamento, Mensagens, Campanhas, Indicações e Metas. Avisos de honestidade continuam visíveis (faixas de "Medição honesta", "Sem inteligência artificial", "O benefício não é avaliação", "Aceito não é pago", "não prova que a mudança veio da Tinindo", "não é pagamento"). Em Indicações, o convite pelo Perfil virou botão visível no cabeçalho.
+11. **Agenda no celular:** "Novo agendamento" vira botão flutuante acima das abas (mesmo elemento que, no desktop, fica na barra); o conteúdo ganha folga embaixo para não ficar coberto.
+12. **Instalável:** `manifest.webmanifest` com os ícones de app oficiais (`brand/assets/app-icons`, copiados sem alteração), abre em tela cheia no `/app`. As cores do manifesto repetem os tokens papel-50 e tinta-950 porque o formato não aceita variáveis CSS.
+
 ## Consequências
 
 - Testes e2e navegam pelo helper `openFromNav`, que abre o Menu no celular. Alvos de toque: abas ≥ 44 px, linhas do menu no celular com 48 px.
 - O texto de desenvolvimento "Pacote P04" saiu da Agenda.
-- Etapa seguinte: cada tela adota `PageHeader`, listas no lugar de cartões empilhados e ações principais compactas (Agenda, Clientes, Caixa primeiro).
+- Próximos passos de UI (não feitos aqui): formulários de criação que hoje abrem a tela (planos, campanhas, orçamentos) podem virar folhas abertas por um botão "Novo …", com a lista primeiro; cada tela pode trocar o cartão de abertura pelo `PageHeader` explícito e aposentar a regra de CSS com `:has`.

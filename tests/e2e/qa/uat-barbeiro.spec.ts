@@ -10,7 +10,7 @@ test.describe("UAT barbeiro", () => {
   test("1a · catálogo mostra Corte de 30 min com preço base e piso", async ({ page }) => {
     await page.goto("/app");
     await openFromNav(page, "Clientes");
-    await page.getByRole("navigation", { name: "Seções de clientes e catálogo" }).getByRole("link", { name: "Serviços" }).click();
+    await openFromNav(page, "Serviços");
     await expect(page.getByRole("heading", { name: "Serviços", level: 1 })).toBeVisible();
     const corte = page.getByRole("list").getByRole("listitem").filter({ hasText: "Corte" }).first();
     await expect(corte).toContainText("30 min");

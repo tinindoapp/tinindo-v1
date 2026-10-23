@@ -2,7 +2,7 @@
 // gasto aplicados no servidor, oferta vinculada, grupo de controle sorteado e resultado por braço com intervalo.
 // O que a tela promete é o que o banco garante; sem controle, o resultado é observação, não efeito.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, StatusBanner } from "../../components/ui/index.tsx";
 import { ci, DESIGN, explain, formatCents, formatDate, offerLabel, pct, segmentLabel, STATUS, VERDICT } from "./labels.ts";
 import { type Campaign, type CampaignDetail, type CampaignSegment, type CampaignsPort, newKey, type Preview } from "./port.ts";
 
@@ -163,7 +163,7 @@ export function CampaignsPage({ port }: { port: CampaignsPort }) {
     <div className="tn-cp">
       <Card aria-labelledby="cp-title">
         <h1 id="cp-title">Campanhas</h1>
-        <p className="tn-cp-muted">Convide um grupo de clientes com uma oferta e meça o que aconteceu. Só entra quem consentiu receber marketing (Relacionamento), sem atendimento marcado e fora de outra campanha. Os tetos de envio e de gasto valem no servidor. Sem canal conectado, as mensagens ficam para você compartilhar.</p>
+        <Help><p>Convide um grupo de clientes com uma oferta e meça o que aconteceu. Só entra quem consentiu receber marketing (Relacionamento), sem atendimento marcado e fora de outra campanha. Os tetos de envio e de gasto valem no servidor. Sem canal conectado, as mensagens ficam para você compartilhar.</p></Help>
         <StatusBanner tone="info"><strong>Medição honesta.</strong> Um grupo de controle sorteado fica sem a oferta; o resultado compara os dois grupos com intervalo. Sem controle, o que você vê é observação, não efeito da campanha.</StatusBanner>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é enviado. "Simular janela" fecha a medição como o worker faria.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}

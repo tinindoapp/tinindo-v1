@@ -6,11 +6,11 @@ import {
   CrmCustomerUpsertInput,
   DeclaredSource,
 } from "@contracts";
-import { Button, Card, Field, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, LinkButton, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
-import { fieldErrors, SelectField, Tag } from "./shared.tsx";
+import { CrmDemoNotice, fieldErrors, SelectField, Tag } from "./shared.tsx";
 
 type Draft = { id?: string; version?: number; name: string; phone: string; email: string; source: string };
 const EMPTY: Draft = { name: "", phone: "", email: "", source: "" };
@@ -81,16 +81,22 @@ export function CustomersPage() {
 
   return (
     <div className="crm-stack">
-      <Card aria-labelledby="crm-customers-title">
-        <div className="crm-head">
-          <div>
-            <p className="tn-caps">Clientes e catálogo</p>
-            <h1 id="crm-customers-title">{capitalize(noun.many)}</h1>
-          </div>
-          <Button onClick={() => setDraft(EMPTY)} disabled={api.readOnly}>
-            Novo {noun.one}
-          </Button>
-        </div>
+      <PageHeader
+        title={capitalize(noun.many)}
+        id="crm-customers-title"
+        actions={
+          <>
+            <Button onClick={() => setDraft(EMPTY)} disabled={api.readOnly}>
+              Novo {noun.one}
+            </Button>
+            <LinkButton to="importar" variant="secondary">
+              Importar planilha
+            </LinkButton>
+          </>
+        }
+      />
+      <CrmDemoNotice />
+      <div className="crm-filters">
         <div className="crm-toolbar">
           <Field
             label="Buscar por nome, e-mail ou telefone"
@@ -104,7 +110,7 @@ export function CustomersPage() {
             Mostrar arquivados
           </label>
         </div>
-      </Card>
+      </div>
 
       {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
 

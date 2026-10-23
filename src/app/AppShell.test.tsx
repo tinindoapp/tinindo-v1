@@ -36,15 +36,19 @@ describe("shell do app (demonstração sem servidor)", () => {
     expect(await screen.findByRole("heading", { name: "Agenda", level: 1 })).toBeInTheDocument();
     const tabs = screen.getByRole("navigation", { name: "Telas de Agenda" });
     expect(tabs).toHaveTextContent("Lista de espera");
+    expect(within(tabs).getByRole("link", { name: "Agenda" })).toHaveAttribute("aria-current", "page");
+    expect(within(tabs).getByRole("link", { name: "Horários" })).not.toHaveAttribute("aria-current");
     expect(tabs).toHaveTextContent("Preços");
     expect(screen.getByText(/ainda não guarda nem altera dados/)).toBeInTheDocument();
   });
 
   it("todo módulo registrado está em exatamente um grupo do menu", () => {
     expect(ungrouped(MODULES)).toEqual([]);
-    const all = SECTION_SPECS.flatMap((s) => s.items.map((i) => i.module));
-    expect(new Set(all).size).toBe(all.length);
-    expect(buildNavigation(MODULES).flatMap((s) => s.items).length).toBe(MODULES.length);
+    const main = SECTION_SPECS.flatMap((s) => s.items.filter((i) => !i.sub).map((i) => i.module));
+    expect(new Set(main).size).toBe(main.length);
+    expect(buildNavigation(MODULES).flatMap((s) => s.items).filter((i) => !i.sub).length).toBe(MODULES.length);
+    const tos = buildNavigation(MODULES).flatMap((s) => s.items.map((i) => i.to));
+    expect(new Set(tos).size).toBe(tos.length);
   });
 
   it("abas do celular: Hoje, Agenda, Clientes, Dinheiro e Assistente (doc 12)", async () => {

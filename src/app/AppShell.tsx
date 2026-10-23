@@ -4,7 +4,7 @@ import { BrandSymbol, Wordmark } from "../components/ui/index.tsx";
 import { Icon, IconSprite } from "../components/ui/icons.tsx";
 import { DemoBanner } from "./DemoBanner.tsx";
 import { MODULES } from "./modules.ts";
-import { buildNavigation, HOME, isItemActive, type NavSection, sectionFor } from "./navigation.ts";
+import { activeTo, buildNavigation, HOME, isItemActive, type NavSection, sectionFor } from "./navigation.ts";
 import { useSession } from "./session.tsx";
 import "./shell.css";
 
@@ -36,13 +36,15 @@ function TenantSwitcher({ compact }: { compact?: boolean }) {
 }
 
 /** Sub-abas do grupo atual (ex.: Dinheiro → Caixa, Pagamentos, Assinaturas). No desktop a barra lateral já mostra. */
-function SectionTabs({ section }: { section: NavSection }) {
+function SectionTabs({ section, active }: { section: NavSection; active: string | null }) {
   return (
     <nav className="tn-subnav" aria-label={`Telas de ${section.label}`}>
       <ul>
         {section.items.map((i) => (
           <li key={i.to}>
-            <NavLink to={i.to}>{i.label}</NavLink>
+            <Link to={i.to} aria-current={i.to === active ? "page" : undefined}>
+              {i.label}
+            </Link>
           </li>
         ))}
       </ul>
@@ -89,6 +91,7 @@ export function AppShell() {
 
   const memberships = state.memberships;
   const current = sectionFor(sections, pathname);
+  const active = activeTo(sections, pathname);
   const closeMenu = () => {
     setOpenAt(null);
     menuButton.current?.focus();
@@ -162,10 +165,10 @@ export function AppShell() {
             <ul className="tn-nav__list">
               {s.items.map((i) => (
                 <li key={i.to}>
-                  <NavLink to={i.to} className="tn-nav__link">
+                  <Link to={i.to} className="tn-nav__link" aria-current={i.to === active ? "page" : undefined}>
                     <Icon name={i.icon} size={20} />
                     {i.label}
-                  </NavLink>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -183,7 +186,7 @@ export function AppShell() {
       </nav>
 
       <main className="tn-main" id="conteudo" tabIndex={-1}>
-        {current && current.items.length > 1 ? <SectionTabs section={current} /> : null}
+        {current && current.items.length > 1 ? <SectionTabs section={current} active={active} /> : null}
         <div className="tn-main__inner">
           {/* Sem negócio, só a Conta abre: ela lê tudo pelo servidor (RLS/RPC), sem dado de tenant. */}
           {memberships.length === 0 && !isAccountArea(pathname) ? (
