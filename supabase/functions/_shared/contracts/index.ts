@@ -17,6 +17,7 @@ export * from "./analytics.ts";
 export * from "./messaging.ts";
 export * from "./payments.ts";
 export * from "./lifecycle.ts";
+export * from "./recurrence.ts";
 export * from "./network.ts";
 export * from "./events.ts";
 export * from "./operations.ts";

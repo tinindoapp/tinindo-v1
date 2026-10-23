@@ -144,6 +144,13 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `lifecycle.audience` | — | Público elegível à reativação agora, com hash |
 | `lifecycle.campaign_approve` | audience_hash, max_sends, key | Aprova a campanha citando o público visto e o teto; agenda os passos |
 | `lifecycle.campaigns` | — | Campanhas com agendados/enviados/pulados |
+| `recurrence.plan_save` | plano (novo ou id + versão), serviço, sessões por ciclo, dias, preço, ativo, key | Plano do profissional; mudar não afeta assinaturas em curso |
+| `recurrence.plans` | — | Planos com assinantes ativos |
+| `recurrence.subscribe` | plan_id, customer_id, key | Adesão declarada: termos congelados (hash) e primeiro ciclo (pacote + recebível) |
+| `recurrence.cancel` | subscription_id, versão, fim do ciclo (padrão) ou agora, motivo, key | Preserva termos e saldo do ciclo corrente |
+| `recurrence.resume` | subscription_id, versão, key | Desfaz o cancelamento ao fim do ciclo |
+| `recurrence.subscriptions` | — | Assinaturas com o ciclo corrente (saldo e recebível) |
+| `recurrence.cycles` | subscription_id | Histórico de ciclos |
 
 ## Exemplo de cotação
 
