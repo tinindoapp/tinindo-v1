@@ -11,6 +11,7 @@ import { createCrmHandler } from "../../supabase/functions/crm/handler.ts";
 import { createFinanceHandler } from "../../supabase/functions/finance/handler.ts";
 import { createIdentityHandler } from "../../supabase/functions/identity/handler.ts";
 import { createJobsHandler, JOBS_SECRET_HEADER } from "../../supabase/functions/jobs/handler.ts";
+import { createLifecycleHandler } from "../../supabase/functions/lifecycle/handler.ts";
 import { createMessagingHandler, DISPATCH_SECRET_HEADER } from "../../supabase/functions/messaging/handler.ts";
 import { createSimulatedProvider } from "../../supabase/functions/_shared/domain/messaging/providers.ts";
 import { createNetworkHandler } from "../../supabase/functions/network/handler.ts";
@@ -126,6 +127,7 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   sales: createSalesHandler({ ...deps, rpc: anyRpc }),
   "service-ops": createServiceOpsHandler({ ...deps, rpc: userRpc }),
   analytics: createAnalyticsHandler({ ...deps, rpc: userRpc }),
+  lifecycle: createLifecycleHandler({ ...deps, rpc: userRpc }),
   messaging: createMessagingHandler({ ...deps, rpc: userRpc, dispatchSecret: DISPATCH_SECRET, simulatedSecret: SIM_SECRET, verifyToken: null,
     serviceRpc: (fn, args) => rpc("worker", fn, args),
     providers: { simulated: createSimulatedProvider({ secret: SIM_SECRET, deliver: async (phone, from, body, id) => {

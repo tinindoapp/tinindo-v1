@@ -9,8 +9,8 @@ test("resultado: conta e denominador, dado ausente não vira zero, baseline cong
   await expect(occupancy).toContainText(/Conta: [\d.]+ min de [\d.]+ min/);
   await expect(occupancy).toContainText("expediente menos bloqueios");
   const reminders = metrics.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Lembretes enviados" }) });
-  await expect(reminders).toContainText("Ainda não medido");
-  await expect(reminders).not.toContainText("0%");
+  await expect(reminders).toContainText("Conta: 3 de 4");
+  await expect(reminders).toContainText("Enviado não é entregue nem lido");
   const quotes = metrics.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Orçamentos aceitos" }) });
   await expect(quotes).toContainText("Dados insuficientes");
   await expect(page.getByRole("region", { name: "O que falta nos dados" })).toContainText("sem cobrança registrada");
@@ -20,7 +20,7 @@ test("resultado: conta e denominador, dado ausente não vira zero, baseline cong
   await expect(page.getByText(/Baseline “Antes da Tinindo” congelada/)).toBeVisible();
   await page.getByLabel("Período").selectOption({ label: "Últimos 7 dias (até ontem)" });
   await expect(occupancy).toContainText(/Baseline: .* · diferença: /);
-  await expect(reminders).toContainText("sem comparação");
+  await expect(reminders).toContainText(/Baseline: .* · diferença: /);
   await expect(metrics).toContainText("não prova que a Tinindo causou a mudança");
 
   await page.getByLabel("Período").selectOption({ label: "Hoje e próximos 6 dias" });

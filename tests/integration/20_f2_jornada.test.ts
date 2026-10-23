@@ -110,7 +110,7 @@ describe("P11 → P08 → P15 → P18", () => {
     const period = { starts_at: new Date(Date.now() - 28 * 86_400_000).toISOString(), ends_at: new Date(Date.now() + 14 * 86_400_000).toISOString() };
     const m = await ok(AnalyticsMetricsOutput, "analytics", "analytics.metrics", { ...owner, body: { period } });
     expect(m.causality).toBe("not_established");
-    expect(m.metrics.find((x) => x.key === "reminders")?.status).toBe("unavailable");
+    expect(m.metrics.find((x) => x.key === "reminders")?.status).not.toBe("unavailable"); // P13 mede: enviado/compartilhado sobre atendimentos
     expect(m.metrics.find((x) => x.key === "human_minutes")?.value).toBe(45);
     const occ = m.metrics.find((x) => x.key === "occupancy")!;
     expect(occ.denominator).toBeGreaterThan(0);
