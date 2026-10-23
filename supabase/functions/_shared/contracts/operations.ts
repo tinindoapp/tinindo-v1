@@ -15,6 +15,7 @@ import * as messaging from "./messaging.ts";
 import * as payments from "./payments.ts";
 import * as lifecycle from "./lifecycle.ts";
 import * as recurrence from "./recurrence.ts";
+import * as referrals from "./referrals.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -33,7 +34,8 @@ export type ModuleId =
   | "messaging"
   | "payments"
   | "lifecycle"
-  | "recurrence";
+  | "recurrence"
+  | "referrals";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -589,6 +591,14 @@ export const OPERATIONS = {
   "recurrence.cycles": {
     module: "recurrence", owner: "P20", kind: "query", idempotent: false,
     input: recurrence.RecurrenceCyclesInput, output: recurrence.RecurrenceCyclesOutput,
+  },
+  "referrals.dashboard": {
+    module: "referrals", owner: "P21", kind: "query", idempotent: false,
+    input: referrals.ReferralDashboardInput, output: referrals.ReferralDashboardOutput,
+  },
+  "referrals.rewards": {
+    module: "referrals", owner: "P21", kind: "query", idempotent: false,
+    input: referrals.ReferralRewardsListInput, output: referrals.ReferralRewardsListOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 

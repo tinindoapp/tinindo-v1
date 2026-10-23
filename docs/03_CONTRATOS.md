@@ -151,6 +151,8 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `recurrence.resume` | subscription_id, versão, key | Desfaz o cancelamento ao fim do ciclo |
 | `recurrence.subscriptions` | — | Assinaturas com o ciclo corrente (saldo e recebível) |
 | `recurrence.cycles` | subscription_id | Histórico de ciclos |
+| `referrals.dashboard` | — | Regras do programa, convites de colega com adesão (medida) e benefício, resumo da franquia |
+| `referrals.rewards` | — | Benefícios concedidos (crédito de franquia por mês) |
 
 ## Exemplo de cotação
 
