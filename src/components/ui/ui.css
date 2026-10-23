@@ -10,31 +10,42 @@
   border: 1px solid transparent;
   font: inherit;
   font-weight: var(--tn-font-weight-medium);
+  text-decoration: none;
   cursor: pointer;
-  transition: background var(--tn-motion-fast) var(--tn-motion-ease);
+  transition: background var(--tn-motion-fast) var(--tn-motion-ease), transform var(--tn-motion-fast) var(--tn-motion-ease);
+  -webkit-tap-highlight-color: transparent;
 }
+.tn-button:active:not(:disabled) { transform: scale(.98); }
 .tn-button[data-variant="primary"] { background: var(--tn-action); color: var(--tn-text-on-action); }
 .tn-button[data-variant="primary"]:hover:not(:disabled) { background: var(--tn-action-hover); }
 .tn-button[data-variant="secondary"] { background: var(--tn-surface); color: var(--tn-text); border-color: var(--tn-border-control); }
 .tn-button[data-variant="secondary"]:hover:not(:disabled) { background: var(--tn-action-subtle); }
 .tn-button[data-variant="ghost"] { background: transparent; color: var(--tn-text); }
 .tn-button[data-variant="ghost"]:hover:not(:disabled) { background: var(--tn-action-subtle); }
+.tn-button[data-block] { width: 100%; }
 .tn-button:disabled { opacity: .55; cursor: not-allowed; }
 
 .tn-card {
   background: var(--tn-surface);
   border: 1px solid var(--tn-border);
   border-radius: var(--tn-radius-lg);
-  padding: var(--tn-space-6);
+  padding: var(--tn-space-4);
   box-shadow: var(--tn-shadow-sm);
 }
+@media (min-width: 900px) { .tn-card { padding: var(--tn-space-6); } }
 
 /* min-width/width: campos nativos não podem alargar o cartão em 320 px (WCAG 1.4.10). */
 .tn-field { display: grid; gap: var(--tn-space-1); min-width: 0; }
 .tn-field label { font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); }
-.tn-field input,
-.tn-field select {
+.tn-field input:not([type="checkbox"], [type="radio"]),
+.tn-field select,
+.tn-field textarea { width: 100%; min-width: 0; max-width: 100%; }
+.tn-field [role="alert"] { color: var(--tn-danger-text); font-size: var(--tn-font-size-sm); }
+
+/* Campos de todas as telas do app com a mesma linguagem (especificidade zero: o módulo ainda pode ajustar). */
+:where(.tn-app, .tn-auth) :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
   min-height: var(--tn-size-touch);
+  max-width: 100%;
   padding: 0 var(--tn-space-3);
   border: 1px solid var(--tn-border-control);
   border-radius: var(--tn-radius-sm);
@@ -42,10 +53,10 @@
   color: var(--tn-text);
   font: inherit;
 }
-.tn-field input:not([type="checkbox"], [type="radio"]),
-.tn-field select,
-.tn-field textarea { width: 100%; min-width: 0; max-width: 100%; }
-.tn-field [role="alert"] { color: var(--tn-danger-text); font-size: var(--tn-font-size-sm); }
+:where(.tn-app, .tn-auth) :where(textarea) { padding: var(--tn-space-2) var(--tn-space-3); min-height: 96px; }
+:where(.tn-app, .tn-auth) :where(input, select, textarea):focus-visible { border-color: var(--tn-text); }
+:where(.tn-app, .tn-auth) :where(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; accent-color: var(--tn-action); }
+:where(.tn-app, .tn-auth) :where(fieldset) { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3) var(--tn-space-4); }
 
 .tn-banner {
   display: flex;
@@ -61,3 +72,102 @@
 .tn-banner[data-tone="danger"] { background: var(--tn-danger-bg); color: var(--tn-danger-text); }
 .tn-banner strong { font-weight: var(--tn-font-weight-semibold); }
 .tn-banner svg { flex: none; margin-top: 2px; }
+
+/* ------------------------------------------------------------------ linguagem de app */
+.tn-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--tn-space-3);
+  margin-bottom: var(--tn-space-4);
+}
+.tn-page-header__text { min-width: 0; flex: 1 1 16rem; }
+.tn-page-header h1 { margin: 0; }
+.tn-page-header .tn-caps { margin: 0 0 var(--tn-space-1); }
+.tn-page-header__sub { margin: var(--tn-space-1) 0 0; color: var(--tn-text-muted); }
+.tn-page-header__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+
+.tn-section { margin-top: var(--tn-space-6); }
+.tn-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tn-space-3);
+  margin-bottom: var(--tn-space-2);
+}
+.tn-section__head h2 { margin: 0; font-size: var(--tn-font-size-lg); }
+.tn-section__head a { font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); min-height: var(--tn-size-touch); display: inline-flex; align-items: center; }
+
+.tn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-lg);
+  overflow: hidden;
+}
+.tn-list > li + li { border-top: 1px solid var(--tn-border); }
+.tn-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tn-space-3);
+  min-height: 60px;
+  padding: var(--tn-space-3) var(--tn-space-4);
+  color: var(--tn-text);
+  text-decoration: none;
+}
+a.tn-list__row:hover { background: var(--tn-action-subtle); }
+.tn-list__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface-sunken);
+}
+.tn-list__text { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.tn-list__title { font-weight: var(--tn-font-weight-medium); overflow-wrap: anywhere; }
+.tn-list__meta { font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); overflow-wrap: anywhere; }
+.tn-list__trailing { flex: none; font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); font-variant-numeric: tabular-nums; text-align: right; }
+.tn-list__chevron { color: var(--tn-text-muted); }
+
+.tn-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--tn-space-3); }
+.tn-stat {
+  display: grid;
+  gap: var(--tn-space-1);
+  align-content: start;
+  min-height: 96px;
+  padding: var(--tn-space-4);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-lg);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  text-decoration: none;
+}
+a.tn-stat:hover { background: var(--tn-action-subtle); }
+.tn-stat__label { font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
+.tn-stat__value { font-family: var(--tn-font-display); font-size: var(--tn-font-size-2xl); font-weight: var(--tn-font-weight-semibold); letter-spacing: var(--tn-letter-spacing-display); }
+.tn-stat__hint { font-size: var(--tn-font-size-xs); color: var(--tn-text-muted); }
+
+/* Títulos de tela compactos no celular, maiores no desktop. */
+:where(.tn-main__inner) h1 { font-size: var(--tn-font-size-2xl); }
+:where(.tn-main__inner) h2 { font-size: var(--tn-font-size-xl); }
+@media (min-width: 900px) {
+  :where(.tn-main__inner) h1 { font-size: var(--tn-font-size-3xl); }
+  :where(.tn-main__inner) h2 { font-size: var(--tn-font-size-2xl); }
+}
+
+/* Telas antigas abrem com um cartão que contém o h1: vira cabeçalho de tela (sem caixa, apoio em tom suave). */
+.tn-main__inner .tn-card:has(> h1) { background: transparent; border: 0; box-shadow: none; padding: 0; }
+.tn-main__inner .tn-card:has(> h1) > h1 { margin-bottom: var(--tn-space-1); }
+.tn-main__inner .tn-card:has(> h1) > p:not([class*="banner"]) { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-main__inner .tn-card:has(> h1) > .tn-banner { margin-top: var(--tn-space-2); }
+/* Títulos dentro de cartões no tamanho de seção. */
+.tn-main__inner .tn-card h2 { font-size: var(--tn-font-size-lg); }
+.tn-main__inner .tn-card h3 { font-size: var(--tn-font-size-md); }
+/* Avisos empilhados respiram. */
+.tn-banner + .tn-banner { margin-top: var(--tn-space-2); }

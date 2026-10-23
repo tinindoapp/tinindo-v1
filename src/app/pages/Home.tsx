@@ -1,74 +1,163 @@
-// Início: demonstra o caminho request → autorização → banco (Edge Function `context`).
-import { useEffect, useState } from "react";
-import { ContextResponse } from "@contracts";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
-import { ApiError, createApiClient } from "../../lib/api/client.ts";
+// Hoje (doc 12): próximos atendimentos, pendências e até três ações úteis. Lê as mesmas portas da Agenda, do Caixa e das
+// Metas (na demonstração, as mesmas instâncias: o que muda numa tela aparece aqui). Cada bloco falha sozinho; conta vazia
+// mostra a lacuna e a próxima ação, nunca número inventado.
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
+import type { Booking } from "@contracts";
+import { List, ListItem, PageHeader, Section, Stat, Stats, StatusBanner } from "../../components/ui/index.tsx";
+import { Icon } from "../../components/ui/icons.tsx";
+import { createApiClient } from "../../lib/api/client.ts";
+import { getDemoPort as getFinanceDemoPort } from "../../features/finance/module.tsx";
+import { formatCents, monthPeriod } from "../../features/finance/money.ts";
+import type { FinancePort } from "../../features/finance/port.ts";
+import { createServerPort as createFinanceServerPort } from "../../features/finance/serverPort.ts";
+import { createDemoPort as createAdviceDemoPort } from "../../features/growth-advice/demoPort.ts";
+import type { GrowthAdvicePort } from "../../features/growth-advice/port.ts";
+import { createServerPort as createAdviceServerPort } from "../../features/growth-advice/serverPort.ts";
+import { getDemoPort as getSchedulingDemoPort } from "../../features/scheduling/SchedulingLayout.tsx";
+import type { SchedulingPort } from "../../features/scheduling/port.ts";
+import { createServerPort as createSchedulingServerPort } from "../../features/scheduling/serverPort.ts";
+import { dayWindow, formatDayLong, formatTime, localParts } from "../../features/scheduling/time.ts";
 import { appEnv } from "../env.ts";
 import { useSession } from "../session.tsx";
 
-type Check =
-  | { kind: "idle" }
-  | { kind: "ok"; tenant: string; role: string; requestId: string }
-  | { kind: "error"; message: string; requestId: string | null };
+interface Ports {
+  scheduling: SchedulingPort;
+  finance: FinancePort;
+  advice: GrowthAdvicePort;
+}
 
-const ROLE_LABEL: Record<string, string> = { owner: "dono", staff: "equipe" };
+interface Today {
+  tenantName: string;
+  timezone: string;
+  dateLabel: string;
+  agenda: { upcoming: (Booking & { serviceName: string; customerName: string | null })[]; confirmed: number; held: number } | null;
+  money: { unchargedCount: number; unchargedCents: number; receivedCents: number } | null;
+  advice: { count: number; first: string | null } | null;
+}
+
+const STATUS: Partial<Record<Booking["status"], string>> = { held: "Provisória", confirmed: "Confirmado", completed: "Concluído", no_show: "Falta" };
+
+async function loadToday(p: Ports): Promise<Today> {
+  const ctx = await p.scheduling.context();
+  const tz = ctx.timezone;
+  const now = p.scheduling.now();
+  const today = localParts(now, tz).date;
+  const month = today.slice(0, 7);
+  const [agenda, money, advice] = await Promise.allSettled([
+    (async () => {
+      const [bookings, services, customers] = await Promise.all([p.scheduling.listBookings(dayWindow(today, tz)), p.scheduling.listServices(), p.scheduling.listCustomers()]);
+      const svc = new Map(services.map((s) => [s.id, s.name]));
+      const cus = new Map(customers.map((c) => [c.id, c.name]));
+      const live = bookings.filter((b) => b.status === "confirmed" || b.status === "held");
+      const upcoming = live
+        .filter((b) => Date.parse(b.ends_at) > now.getTime())
+        .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+        .map((b) => ({ ...b, serviceName: svc.get(b.service_id) ?? "Atendimento", customerName: b.customer_id ? (cus.get(b.customer_id) ?? null) : null }));
+      return { upcoming, confirmed: live.filter((b) => b.status === "confirmed").length, held: live.filter((b) => b.status === "held").length };
+    })(),
+    (async () => {
+      const period = monthPeriod(month, tz);
+      const [uncharged, summary] = await Promise.all([p.finance.uncharged(period), p.finance.summary(period, tz)]);
+      return { unchargedCount: uncharged.length, unchargedCents: uncharged.reduce((s, b) => s + (b.agreed_price_cents ?? 0), 0), receivedCents: summary.received_cents };
+    })(),
+    (async () => {
+      const a = await p.advice.advice();
+      return { count: a.suggestions.length, first: a.suggestions[0]?.title ?? null };
+    })(),
+  ]);
+  return {
+    tenantName: ctx.tenantName,
+    timezone: tz,
+    dateLabel: formatDayLong(today),
+    agenda: agenda.status === "fulfilled" ? agenda.value : null,
+    money: money.status === "fulfilled" ? money.value : null,
+    advice: advice.status === "fulfilled" ? advice.value : null,
+  };
+}
 
 export function Home() {
   const session = useSession();
-  const [check, setCheck] = useState<Check>({ kind: "idle" });
-  const tenantId = session.tenantId;
-  const online = session.state.status === "signed_in";
-  const { getAccessToken } = session;
+  const { state, tenantId, getAccessToken } = session;
+  const ports = useMemo<Ports | null>(() => {
+    if (state.status === "offline_demo" || !appEnv.supabase) {
+      return { scheduling: getSchedulingDemoPort(), finance: getFinanceDemoPort(), advice: createAdviceDemoPort() };
+    }
+    if (!tenantId) return null;
+    const call = createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken });
+    return { scheduling: createSchedulingServerPort(call, tenantId), finance: createFinanceServerPort(call, tenantId), advice: createAdviceServerPort(call, tenantId) };
+  }, [state.status, tenantId, getAccessToken]);
+  const [data, setData] = useState<{ ports: Ports; value?: Today; error?: unknown } | null>(null);
 
   useEffect(() => {
-    if (!online || !tenantId || !appEnv.supabase) return;
-    const call = createApiClient({
-      baseUrl: appEnv.supabase.url,
-      publishableKey: appEnv.supabase.publishableKey,
-      getAccessToken,
-    });
-    let cancelled = false;
-    call("/context", ContextResponse, { tenantId })
-      .then(({ data, meta }) => {
-        if (!cancelled) setCheck({ kind: "ok", tenant: data.tenant_name, role: data.role, requestId: meta.request_id });
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        const err = e instanceof ApiError ? e : null;
-        setCheck({ kind: "error", message: err?.message ?? "Falha inesperada.", requestId: err?.requestId ?? null });
-      });
+    if (!ports) return;
+    let alive = true;
+    loadToday(ports).then(
+      (value) => alive && setData({ ports, value }),
+      (error: unknown) => alive && setData({ ports, error: error ?? new Error("erro") }),
+    );
     return () => {
-      cancelled = true;
+      alive = false;
     };
-  }, [online, tenantId, getAccessToken]);
+  }, [ports]);
+
+  const current = data && data.ports === ports ? data : null;
+  const t = current?.value;
+  const upcoming = t?.agenda?.upcoming ?? [];
 
   return (
-    <div className="tn-stack">
-      <Card aria-labelledby="home-title">
-        <p className="tn-caps">Início</p>
-        <h1 id="home-title">Seu negócio em ordem</h1>
-        <p>
-          Esta é a fundação do aplicativo. Agenda, clientes, caixa e assistente chegam pelos pacotes P01 a P09.
-        </p>
-        {session.state.status === "offline_demo" ? (
-          <StatusBanner tone="info">
-            Demonstração sem servidor: dados de exemplo, nada é salvo. Configure o Supabase para entrar de verdade.
-          </StatusBanner>
-        ) : null}
-        {check.kind === "ok" ? (
-          <StatusBanner tone="success">
-            Acesso confirmado pelo servidor: <strong>{check.tenant}</strong> como {ROLE_LABEL[check.role] ?? check.role}.
-            <br />
-            <span className="tn-num">Pedido {check.requestId.slice(0, 8)}</span>
-          </StatusBanner>
-        ) : null}
-        {check.kind === "error" ? (
-          <StatusBanner tone="danger">
-            {check.message}
-            {check.requestId ? <span className="tn-num"> Pedido {check.requestId.slice(0, 8)}.</span> : null}
-          </StatusBanner>
-        ) : null}
-      </Card>
+    <div className="tn-today">
+      <PageHeader eyebrow={t ? t.dateLabel : "Hoje"} title="Hoje" id="home-title" />
+      {current?.error ? <StatusBanner tone="danger">Não foi possível carregar o resumo agora. As telas de Agenda e Caixa continuam disponíveis.</StatusBanner> : null}
+      {!current && ports ? <p role="status" className="tn-today__loading">Carregando o seu dia…</p> : null}
+
+      {t ? (
+        <>
+          <Stats label="Resumo">
+            <Stat label="Atendimentos hoje" value={t.agenda ? t.agenda.confirmed : "—"} hint={t.agenda ? (t.agenda.held ? `+${t.agenda.held} provisória` : "confirmados") : "indisponível"} to="/app/agenda" />
+            <Stat label="A cobrar" value={t.money ? t.money.unchargedCount : "—"} hint={t.money ? formatCents(t.money.unchargedCents) : "indisponível"} to="/app/caixa" />
+            <Stat label="Recebido no mês" value={t.money ? formatCents(t.money.receivedCents) : "—"} hint="registrado" to="/app/caixa" />
+          </Stats>
+
+          <ul className="tn-quick" aria-label="Ações rápidas">
+            <li><Link to="/app/agenda/novo" className="tn-quick__item" data-primary><span className="tn-quick__icon"><Icon name="mais" /></span>Novo agendamento</Link></li>
+            <li><Link to="/app/caixa" className="tn-quick__item"><span className="tn-quick__icon"><Icon name="receber" /></span>Registrar recebimento</Link></li>
+            <li><Link to="/app/assistente" className="tn-quick__item"><span className="tn-quick__icon"><Icon name="assistente" /></span>Perguntar ao assistente</Link></li>
+          </ul>
+
+          <Section title="Próximos atendimentos" id="home-next" action={<Link to="/app/agenda">Ver agenda</Link>}>
+            {!t.agenda ? (
+              <StatusBanner tone="warning">A agenda não respondeu agora.</StatusBanner>
+            ) : upcoming.length === 0 ? (
+              <p className="tn-today__empty">Nenhum atendimento até o fim do dia.</p>
+            ) : (
+              <List label="Próximos atendimentos">
+                {upcoming.slice(0, 5).map((b) => (
+                  <ListItem
+                    key={b.id}
+                    to={`/app/agenda/atendimento/${b.id}`}
+                    title={<><span className="tn-num">{formatTime(b.starts_at, t.timezone)}</span> · {b.serviceName}</>}
+                    meta={b.customerName ?? "Sem cliente vinculado"}
+                    trailing={STATUS[b.status] ?? b.status}
+                  />
+                ))}
+              </List>
+            )}
+            {upcoming.length > 5 ? <p className="tn-today__more">E mais {upcoming.length - 5} hoje.</p> : null}
+          </Section>
+
+          <Section title="Pendências" id="home-pending">
+            {(() => {
+              const rows = [
+                t.money && t.money.unchargedCount > 0 ? <ListItem key="charge" to="/app/caixa" icon="receber" title={`${t.money.unchargedCount} atendimento(s) sem cobrança`} meta={`${formatCents(t.money.unchargedCents)} a registrar no Caixa`} /> : null,
+                t.agenda && t.agenda.held > 0 ? <ListItem key="held" to="/app/agenda" icon="agenda" title={`${t.agenda.held} reserva(s) provisória(s)`} meta="Confirme ou libere o horário" /> : null,
+                t.advice && t.advice.count > 0 ? <ListItem key="advice" to="/app/metas" icon="metas" title={`${t.advice.count} sugestão(ões) com base nos seus números`} meta={t.advice.first ?? undefined} /> : null,
+              ].filter(Boolean);
+              return rows.length ? <List label="Pendências">{rows}</List> : <p className="tn-today__empty">Nada pendente agora.</p>;
+            })()}
+          </Section>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openFromNav } from "../qa/helpers.ts";
 
 // Fluxo do dono em demonstração offline (sem servidor): publicar perfil, ver a prévia com
 // horários livres e gerar convite de colega. Rotas públicas: tests/e2e/network/public.spec.ts.
@@ -11,7 +12,7 @@ async function noHorizontalScroll(page: import("@playwright/test").Page) {
 
 test("dono publica o perfil, vê a prévia e gera convite sem envio automático", async ({ page }) => {
   await page.goto("/app");
-  await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Perfil" }).click();
+  await openFromNav(page, "Perfil");
   await expect(page.getByRole("heading", { name: "Seu perfil público" })).toBeVisible();
   await expect(page.getByText("Demonstração: nada é salvo")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Convidar um colega" })).toHaveCount(0);

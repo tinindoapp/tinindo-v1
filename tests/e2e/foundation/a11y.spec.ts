@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openFromNav } from "../qa/helpers.ts";
 
 // Correções do shell da auditoria docs/qa/acessibilidade.md (A11Y-01 a A11Y-04).
 
@@ -20,7 +21,7 @@ test("A11Y-03 · primeira tecla Tab mostra “Pular para o conteúdo” e Enter 
 
 test("A11Y-02 · cada tela tem título próprio", async ({ page }) => {
   for (const [path, title] of [
-    ["/app", "Seu negócio em ordem · Tinindo"],
+    ["/app", "Hoje · Tinindo"],
     ["/app/agenda", "Agenda · Tinindo"],
     ["/app/clientes", "Clientes · Tinindo"],
     ["/app/conta", "Sua conta · Tinindo"],
@@ -33,11 +34,11 @@ test("A11Y-02 · cada tela tem título próprio", async ({ page }) => {
 
 test("A11Y-04 · trocar de tela leva o foco ao título; mudar só o dia da agenda não", async ({ page }) => {
   await page.goto("/app");
-  await expect(page.getByRole("heading", { name: "Seu negócio em ordem" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hoje", level: 1 })).toBeVisible();
   // Carga inicial não rouba o foco.
   expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
 
-  await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Agenda", exact: true }).click();
+  await openFromNav(page, "Agenda");
   await expect(page.getByRole("heading", { name: "Agenda", level: 1 })).toBeFocused();
   await expect(page).toHaveTitle("Agenda · Tinindo");
 

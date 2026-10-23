@@ -37,7 +37,6 @@ export function AgendaPage() {
 
   return (
     <section aria-labelledby="agenda-title" className="tn-sched">
-      <p className="tn-caps">Pacote P04</p>
       <h1 id="agenda-title">Agenda</h1>
       <DemoNotice kind={port.kind} />
 
