@@ -15,6 +15,7 @@ import { createLifecycleHandler } from "../../supabase/functions/lifecycle/handl
 import { createRecurrenceHandler } from "../../supabase/functions/recurrence/handler.ts";
 import { createReferralsHandler } from "../../supabase/functions/referrals/handler.ts";
 import { createCampaignsHandler } from "../../supabase/functions/campaigns/handler.ts";
+import { createGrowthAdviceHandler } from "../../supabase/functions/growth-advice/handler.ts";
 import { createMessagingHandler, DISPATCH_SECRET_HEADER } from "../../supabase/functions/messaging/handler.ts";
 import { createSimulatedProvider } from "../../supabase/functions/_shared/domain/messaging/providers.ts";
 import { createNetworkHandler } from "../../supabase/functions/network/handler.ts";
@@ -134,6 +135,7 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   recurrence: createRecurrenceHandler({ ...deps, rpc: userRpc }),
   referrals: createReferralsHandler({ ...deps, rpc: userRpc }),
   campaigns: createCampaignsHandler({ ...deps, rpc: userRpc }),
+  "growth-advice": createGrowthAdviceHandler({ ...deps, rpc: userRpc }),
   messaging: createMessagingHandler({ ...deps, rpc: userRpc, dispatchSecret: DISPATCH_SECRET, simulatedSecret: SIM_SECRET, verifyToken: null,
     serviceRpc: (fn, args) => rpc("worker", fn, args),
     providers: { simulated: createSimulatedProvider({ secret: SIM_SECRET, deliver: async (phone, from, body, id) => {
