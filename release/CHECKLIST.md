@@ -12,7 +12,7 @@ Fluxo (docs/09): PR revisado → `main` → homologação → smoke → aprovaç
 
 ## 2 · Homologação
 
-- [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` das 19 funções; cron do `jobs` (worker + réguas do P13 + renovação do P20 + indicações do P21), do `channel.dispatch` e do `payment.sync` ativos (1 min).
+- [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` das 20 funções; cron do `jobs` (worker + réguas do P13 + renovação do P20 + indicações do P21 + fechamento de campanhas do P19), do `channel.dispatch` e do `payment.sync` ativos (1 min).
 - [ ] Smoke manual com a conta técnica sintética: entrar → agenda → novo agendamento → caixa → orçamento pelo link → pergunta ao assistente. Nenhum dado real.
 - [ ] `tests/e2e/qa` com `VITE_SUPABASE_URL` apontando para homologação (os roteiros UAT com servidor; hoje só a demonstração roda no CI).
 - [ ] Logs das funções sem PII (amostra de 20 linhas): só `fn`, `route`, `request_id`, `status`, `ms`.
