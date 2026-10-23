@@ -8,7 +8,7 @@ describe("demonstração do Resultado", () => {
   beforeEach(() => resetDemoState());
   it("respeita o contrato: sem dado não é zero, causalidade não estabelecida", async () => {
     const out = AnalyticsMetricsOutput.parse(await createDemoPort().metrics(past, null));
-    expect(out.metrics.find((m) => m.key === "reminders")?.value).toBeNull();
+    expect(out.metrics.find((m) => m.key === "reminders")?.value).toBe(0.75); // P13: medido (3 de 4 com lembrete)
     expect(out.metrics.find((m) => m.key === "quote_acceptance")?.status).toBe("insufficient");
     expect(out.causality).toBe("not_established");
   });
@@ -18,7 +18,7 @@ describe("demonstração do Resultado", () => {
     const b = await port.createBaseline("Antes", past, "k1");
     expect((await port.createBaseline("Antes", past, "k1")).id).toBe(b.id);
     const cmp = await port.metrics({ starts_at: "2026-10-13T03:00:00Z", ends_at: "2026-10-20T03:00:00Z" }, b.id);
-    expect(cmp.comparison?.find((c) => c.key === "reminders")?.delta).toBeNull();
+    expect(cmp.comparison?.find((c) => c.key === "reminders")?.delta).toBe(0);
     expect(cmp.comparison?.find((c) => c.key === "occupancy")?.delta).not.toBeNull();
   });
 });

@@ -50,7 +50,7 @@ function compute(p: TimeRange): Pick<AnalyticsMetricsOutput, "metrics" | "covera
     m("expenses", "Despesas registradas", "cents", { numerator: spent, denominator: null, value: spent, status: "ok" }, "Soma das despesas lançadas, já descontados estornos."),
     m("charge_coverage", "Atendimentos com cobrança registrada", "ratio", ratioMetric(charged, done), "Concluídos com cobrança ou crédito de pacote lançado. Mede a qualidade do registro, não o recebimento."),
     m("human_minutes", "Minutos da equipe Tinindo", "minutes", { numerator: 0, denominator: null, value: 0, status: "ok" }, "Minutos humanos medidos em serviços assistidos. Automação: 0 min; retrabalho: 0 min."),
-    m("reminders", "Lembretes enviados", "ratio", { numerator: null, denominator: null, value: null, status: "unavailable" }, "Lembretes e acompanhamento (P13) ainda não existem. Sem dado: não é zero."),
+    m("reminders", "Lembretes enviados", "ratio", { numerator: 3, denominator: 4, value: 0.75, status: "ok" }, "Atendimentos com cliente que tiveram lembrete enviado ao canal ou compartilhado pelo profissional, sobre os atendimentos do período. Enviado não é entregue nem lido."),
   ];
   const coverage: AnalyticsMetricsOutput["coverage"] = [];
   if (to > nowMs) coverage.push({ key: "future", count: null, note: "O período inclui dias futuros: faltas e cancelamentos contam só até agora; ocupação inclui reservas futuras." });

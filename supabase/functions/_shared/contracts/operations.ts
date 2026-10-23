@@ -13,6 +13,7 @@ import * as svc from "./service-ops.ts";
 import * as analytics from "./analytics.ts";
 import * as messaging from "./messaging.ts";
 import * as payments from "./payments.ts";
+import * as lifecycle from "./lifecycle.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -29,7 +30,8 @@ export type ModuleId =
   | "service-ops"
   | "analytics"
   | "messaging"
-  | "payments";
+  | "payments"
+  | "lifecycle";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -521,6 +523,42 @@ export const OPERATIONS = {
   "payment.sim_pay": {
     module: "payments", owner: "P14", kind: "command", idempotent: true,
     input: payments.SimPayInput, output: payments.SimPayOutput,
+  },
+  "lifecycle.settings_get": {
+    module: "lifecycle", owner: "P13", kind: "query", idempotent: false,
+    input: lifecycle.LifecycleSettingsGetInput, output: lifecycle.LifecycleSettingsOutput,
+  },
+  "lifecycle.settings_save": {
+    module: "lifecycle", owner: "P13", kind: "command", idempotent: true,
+    input: lifecycle.LifecycleSettingsSaveInput, output: lifecycle.LifecycleSettingsOutput,
+  },
+  "lifecycle.steps": {
+    module: "lifecycle", owner: "P13", kind: "query", idempotent: false,
+    input: lifecycle.LifecycleStepsListInput, output: lifecycle.LifecycleStepsListOutput,
+  },
+  "lifecycle.step_mark_shared": {
+    module: "lifecycle", owner: "P13", kind: "command", idempotent: true,
+    input: lifecycle.LifecycleStepRefInput, output: lifecycle.LifecycleStepOutput,
+  },
+  "lifecycle.step_cancel": {
+    module: "lifecycle", owner: "P13", kind: "command", idempotent: true,
+    input: lifecycle.LifecycleStepRefInput, output: lifecycle.LifecycleStepOutput,
+  },
+  "lifecycle.consent_set": {
+    module: "lifecycle", owner: "P13", kind: "command", idempotent: true,
+    input: lifecycle.LifecycleConsentSetInput, output: lifecycle.LifecycleConsentOutput,
+  },
+  "lifecycle.audience": {
+    module: "lifecycle", owner: "P13", kind: "query", idempotent: false,
+    input: lifecycle.LifecycleAudienceInput, output: lifecycle.LifecycleAudienceOutput,
+  },
+  "lifecycle.campaign_approve": {
+    module: "lifecycle", owner: "P13", kind: "command", idempotent: true,
+    input: lifecycle.LifecycleCampaignApproveInput, output: lifecycle.LifecycleCampaignOutput,
+  },
+  "lifecycle.campaigns": {
+    module: "lifecycle", owner: "P13", kind: "query", idempotent: false,
+    input: lifecycle.LifecycleCampaignListInput, output: lifecycle.LifecycleCampaignListOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 

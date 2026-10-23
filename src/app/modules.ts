@@ -14,6 +14,7 @@ import { serviceOpsModule } from "../features/service-ops/module.tsx";
 import { analyticsModule } from "../features/analytics/module.tsx";
 import { messagingModule } from "../features/messaging/module.tsx";
 import { paymentsModule } from "../features/payments/module.tsx";
+import { lifecycleModule } from "../features/lifecycle/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
@@ -21,6 +22,7 @@ export const MODULES: readonly ModuleDefinition[] = [
   messagingModule,
   financeModule,
   paymentsModule,
+  lifecycleModule,
   salesModule,
   analyticsModule,
   pricingModule,

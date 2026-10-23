@@ -87,8 +87,8 @@ select is((pg_temp.m('wk', 'human_minutes')->>'value')::int, 45, 'minutos humano
 select ok(pg_temp.m('wk', 'human_minutes')->>'note' ~ 'Automação: 15 min; retrabalho: 15 min', 'automação e retrabalho à parte');
 select is(pg_temp.m('wk', 'waitlist_acceptance')->>'status', 'insufficient', 'sem ofertas: denominador zero = dado insuficiente');
 select is(pg_temp.m('wk', 'waitlist_acceptance')->'value', 'null'::jsonb, 'insuficiente não vira 0%');
-select is(pg_temp.m('wk', 'reminders')->>'status', 'unavailable', 'lembretes (P13) indisponíveis');
-select is(pg_temp.m('wk', 'reminders')->'value', 'null'::jsonb, 'indisponível não é zero');
+select is(pg_temp.m('wk', 'reminders')->>'status', 'ok', 'lembretes (P13) medidos: 4 atendimentos com cliente no período');
+select is((pg_temp.m('wk', 'reminders')->>'numerator')::int, 0, 'nenhum lembrete enviado nesse histórico inserido direto');
 select ok(pg_temp.got('wk')->'coverage' @> '[{"key":"pending_outcome","count":1}]', 'cobertura: atendimento passado sem desfecho');
 select ok(pg_temp.got('wk')->'coverage' @> '[{"key":"uncharged","count":1}]', 'cobertura: concluído sem cobrança');
 select ok(not (pg_temp.got('wk')->'coverage' @> '[{"key":"future"}]'), 'período encerrado: sem aviso de futuro');
@@ -111,7 +111,7 @@ insert into r select 'cmp', public.analytics_metrics((select tenant_a from ids),
 select is((pg_temp.m('cmp', 'received')->>'value')::bigint, 12000::bigint, 'período atual vê o novo registro');
 select ok(pg_temp.got('cmp')->'baseline'->'metrics' @> '[{"key":"received","value":6000}]', 'baseline congelada com o valor antigo');
 select ok(pg_temp.got('cmp')->'comparison' @> '[{"key":"received","delta":6000}]', 'comparação mostra a diferença');
-select ok(pg_temp.got('cmp')->'comparison' @> '[{"key":"reminders","delta":null}]', 'sem dado, sem diferença');
+select ok(pg_temp.got('cmp')->'comparison' @> '[{"key":"reminders","delta":0}]', 'lembretes iguais nos dois períodos: diferença zero');
 select ok(pg_temp.got('cmp')->>'comparison_note' ~ 'não prova', 'aviso de que antes/depois não prova causa');
 select is(jsonb_array_length(public.analytics_baseline_list((select tenant_a from ids))->'baselines'), 1, 'lista de baselines');
 reset role;

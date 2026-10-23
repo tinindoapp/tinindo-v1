@@ -135,6 +135,15 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `payment.reconciliations` | — | Últimas conciliações por dia |
 | `payment.link_view` | token (anônimo, no corpo) | Valor, Pix e estado da cobrança |
 | `payment.sim_pay` | token, paid/expired, notify | Só cobrança simulada: o "cliente" paga; `notify=false` perde o webhook |
+| `lifecycle.settings_get` | — | Réguas do negócio (padrão se nunca salvas) e envios de hoje |
+| `lifecycle.settings_save` | campos alterados, versão, key | Liga/desliga réguas, horas dos lembretes, prazos, teto diário |
+| `lifecycle.steps` | estado opcional | Passos da régua com estado por palavra e contagens |
+| `lifecycle.step_mark_shared` | step_id, key | Passo manual compartilhado pelo dono (compartilhar ≠ entregar) |
+| `lifecycle.step_cancel` | step_id, key | Cancela passo pendente |
+| `lifecycle.consent_set` | customer_id, finalidade, granted, key | Consentimento transacional/marketing registrado pelo dono; revogar para a régua |
+| `lifecycle.audience` | — | Público elegível à reativação agora, com hash |
+| `lifecycle.campaign_approve` | audience_hash, max_sends, key | Aprova a campanha citando o público visto e o teto; agenda os passos |
+| `lifecycle.campaigns` | — | Campanhas com agendados/enviados/pulados |
 
 ## Exemplo de cotação
 
