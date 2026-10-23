@@ -153,6 +153,11 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `recurrence.cycles` | subscription_id | Histórico de ciclos |
 | `referrals.dashboard` | — | Regras do programa, convites de colega com adesão (medida) e benefício, resumo da franquia |
 | `referrals.rewards` | — | Benefícios concedidos (crédito de franquia por mês) |
+| `campaign.preview` | segment | Público autorizado do segmento (consentimento de marketing, sem atendimento futuro, fora de campanha em curso) e hash |
+| `campaign.approve` | name, segment, audience_hash, control_pct, max_sends, spend_cap_cents, window_days, offer, key | Aprova citando o público visto; o servidor sorteia o controle, aplica tetos de envio e gasto, cria os passos (P13) e abre a janela |
+| `campaign.list` | — | Campanhas com resultado por braço (intervalo) e veredito pelo desenho |
+| `campaign.get` | campaign_id | Campanha com participantes por braço e estado do passo |
+| `campaign.cancel` | campaign_id, expected_version, key | Para os passos pendentes; o que saiu não muda; resultado congela como observação parcial |
 
 ## Exemplo de cotação
 

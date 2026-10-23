@@ -16,6 +16,7 @@ import * as payments from "./payments.ts";
 import * as lifecycle from "./lifecycle.ts";
 import * as recurrence from "./recurrence.ts";
 import * as referrals from "./referrals.ts";
+import * as campaigns from "./campaigns.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -35,7 +36,8 @@ export type ModuleId =
   | "payments"
   | "lifecycle"
   | "recurrence"
-  | "referrals";
+  | "referrals"
+  | "campaigns";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -599,6 +601,26 @@ export const OPERATIONS = {
   "referrals.rewards": {
     module: "referrals", owner: "P21", kind: "query", idempotent: false,
     input: referrals.ReferralRewardsListInput, output: referrals.ReferralRewardsListOutput,
+  },
+  "campaign.preview": {
+    module: "campaigns", owner: "P19", kind: "query", idempotent: false,
+    input: campaigns.CampaignPreviewInput, output: campaigns.CampaignPreviewOutput,
+  },
+  "campaign.approve": {
+    module: "campaigns", owner: "P19", kind: "command", idempotent: true,
+    input: campaigns.CampaignApproveInput, output: campaigns.CampaignOutput,
+  },
+  "campaign.list": {
+    module: "campaigns", owner: "P19", kind: "query", idempotent: false,
+    input: campaigns.CampaignListInput, output: campaigns.CampaignListOutput,
+  },
+  "campaign.get": {
+    module: "campaigns", owner: "P19", kind: "query", idempotent: false,
+    input: campaigns.CampaignGetInput, output: campaigns.CampaignGetOutput,
+  },
+  "campaign.cancel": {
+    module: "campaigns", owner: "P19", kind: "command", idempotent: true,
+    input: campaigns.CampaignCancelInput, output: campaigns.CampaignOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 
