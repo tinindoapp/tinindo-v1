@@ -14,6 +14,7 @@ import * as analytics from "./analytics.ts";
 import * as messaging from "./messaging.ts";
 import * as payments from "./payments.ts";
 import * as lifecycle from "./lifecycle.ts";
+import * as recurrence from "./recurrence.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -31,7 +32,8 @@ export type ModuleId =
   | "analytics"
   | "messaging"
   | "payments"
-  | "lifecycle";
+  | "lifecycle"
+  | "recurrence";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -559,6 +561,34 @@ export const OPERATIONS = {
   "lifecycle.campaigns": {
     module: "lifecycle", owner: "P13", kind: "query", idempotent: false,
     input: lifecycle.LifecycleCampaignListInput, output: lifecycle.LifecycleCampaignListOutput,
+  },
+  "recurrence.plan_save": {
+    module: "recurrence", owner: "P20", kind: "command", idempotent: true,
+    input: recurrence.RecurrencePlanSaveInput, output: recurrence.RecurrencePlanOutput,
+  },
+  "recurrence.plans": {
+    module: "recurrence", owner: "P20", kind: "query", idempotent: false,
+    input: recurrence.RecurrencePlanListInput, output: recurrence.RecurrencePlanListOutput,
+  },
+  "recurrence.subscribe": {
+    module: "recurrence", owner: "P20", kind: "command", idempotent: true,
+    input: recurrence.RecurrenceSubscribeInput, output: recurrence.RecurrenceSubscriptionOutput,
+  },
+  "recurrence.cancel": {
+    module: "recurrence", owner: "P20", kind: "command", idempotent: true,
+    input: recurrence.RecurrenceCancelInput, output: recurrence.RecurrenceSubscriptionOutput,
+  },
+  "recurrence.resume": {
+    module: "recurrence", owner: "P20", kind: "command", idempotent: true,
+    input: recurrence.RecurrenceResumeInput, output: recurrence.RecurrenceSubscriptionOutput,
+  },
+  "recurrence.subscriptions": {
+    module: "recurrence", owner: "P20", kind: "query", idempotent: false,
+    input: recurrence.RecurrenceListInput, output: recurrence.RecurrenceListOutput,
+  },
+  "recurrence.cycles": {
+    module: "recurrence", owner: "P20", kind: "query", idempotent: false,
+    input: recurrence.RecurrenceCyclesInput, output: recurrence.RecurrenceCyclesOutput,
   },
 } as const satisfies Record<string, OperationSpec>;
 
