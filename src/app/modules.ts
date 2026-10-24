@@ -22,6 +22,7 @@ import { growthAdviceModule } from "../features/growth-advice/module.tsx";
 import { presenceModule } from "../features/presence/module.tsx";
 import { fiscalModule } from "../features/fiscal/module.tsx";
 import { discoveryModule } from "../features/discovery/module.tsx";
+import { reputationModule } from "../features/reputation/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
@@ -31,6 +32,7 @@ export const MODULES: readonly ModuleDefinition[] = [
   paymentsModule,
   fiscalModule,
   lifecycleModule,
+  reputationModule,
   recurrenceModule,
   referralsModule,
   campaignsModule,

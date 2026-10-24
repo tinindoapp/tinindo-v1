@@ -12,11 +12,12 @@ Fluxo (docs/09): PR revisado → `main` → homologação → smoke → aprovaç
 
 ## 2 · Homologação
 
-- [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` das 24 funções; cron do `jobs` (worker + réguas do P13 + renovação do P20 + indicações do P21 + fechamento de campanhas do P19 + acompanhamento de sugestões do P22), do `channel.dispatch`, do `payment.sync` e do `fiscal.sync` ativos (1 min).
+- [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` das 25 funções; cron do `jobs` (worker + réguas do P13 + renovação do P20 + indicações do P21 + fechamento de campanhas do P19 + acompanhamento de sugestões do P22), do `channel.dispatch`, do `payment.sync` e do `fiscal.sync` ativos (1 min).
 - [ ] Smoke manual com a conta técnica sintética: entrar → agenda → novo agendamento → caixa → orçamento pelo link → pergunta ao assistente. Nenhum dado real.
 - [ ] `tests/e2e/qa` com `VITE_SUPABASE_URL` apontando para homologação (os roteiros UAT com servidor; hoje só a demonstração roda no CI).
 - [ ] P16: nenhum negócio com `production_enabled` sem caso homologado e decisão por escrito do dono do projeto (provedor fiscal contratado, termos revisados por contador).
 - [ ] P23: rota pública `GET /functions/v1/discovery/page` (páginas por cidade e profissão) e moderação do diretório definida (quem suspende e como o dono contesta) antes de abrir ao público.
+- [ ] P24: fila de moderação de denúncias com responsável e prazo, e processo de verificação de identidade (quem verifica, por qual meio) definidos antes de abrir avaliações ao público.
 - [ ] P17: rota pública `GET /functions/v1/presence/page` servindo o site publicado (e o domínio do cliente apontando para ela, quando houver); revisar os textos da tela Site e Google antes de dado real.
 - [ ] Logs das funções sem PII (amostra de 20 linhas): só `fn`, `route`, `request_id`, `status`, `ms`.
 
