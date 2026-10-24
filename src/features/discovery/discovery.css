@@ -1,0 +1,23 @@
+/* Diretório (P23). Só tokens; ação preta; laranja nunca em botão ou texto. */
+.tn-dir { display: grid; gap: var(--tn-space-4); min-width: 0; }
+.tn-dir > :is(.tn-page-header, .tn-help) { margin: 0; }
+.tn-dir-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); margin: 0; }
+.tn-dir-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); }
+.tn-dir-head h2 { margin: 0; }
+.tn-dir-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--tn-space-3); border-radius: var(--tn-radius-pill); border: 1px solid var(--tn-border-control); font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); }
+.tn-dir-chip[data-status="listed"] { background: var(--tn-action); color: var(--tn-text-on-action); border-color: var(--tn-action); }
+.tn-dir-form { display: grid; gap: var(--tn-space-3); margin-top: var(--tn-space-3); }
+.tn-dir-inline { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; }
+.tn-dir-inline .tn-field { flex: 1 1 12rem; }
+.tn-dir-inline .tn-dir-uf { flex: 0 0 6rem; }
+.tn-dir-check { display: flex; align-items: center; gap: var(--tn-space-2); min-height: var(--tn-size-touch); }
+.tn-dir-list { list-style: none; margin: var(--tn-space-3) 0; padding: 0; background: var(--tn-surface); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-lg); overflow: hidden; }
+.tn-dir-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); padding: var(--tn-space-3) var(--tn-space-4); overflow-wrap: anywhere; }
+.tn-dir-card + .tn-dir-card { border-top: 1px solid var(--tn-border); }
+.tn-dir-card a { min-height: var(--tn-size-touch); display: inline-flex; align-items: center; color: var(--tn-text); }
+.tn-dir-link { font-weight: var(--tn-font-weight-medium); }
+.tn-dir-page { max-width: 720px; margin: 0 auto; padding: var(--tn-space-6) var(--tn-space-4) var(--tn-space-8); display: grid; gap: var(--tn-space-3); }
+.tn-dir-page h1 { margin: 0; font-size: var(--tn-font-size-2xl); }
+.tn-dir-filters { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; }
+.tn-dir-filters .tn-field { flex: 1 1 10rem; }
+.tn-dir-criteria summary { min-height: var(--tn-size-touch); display: flex; align-items: center; cursor: pointer; color: var(--tn-text-muted); }
