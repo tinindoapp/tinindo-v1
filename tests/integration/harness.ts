@@ -17,6 +17,8 @@ import { createReferralsHandler } from "../../supabase/functions/referrals/handl
 import { createCampaignsHandler } from "../../supabase/functions/campaigns/handler.ts";
 import { createGrowthAdviceHandler } from "../../supabase/functions/growth-advice/handler.ts";
 import { createPresenceHandler } from "../../supabase/functions/presence/handler.ts";
+import { createFiscalHandler, SYNC_SECRET_HEADER as FISCAL_SYNC_HEADER } from "../../supabase/functions/fiscal/handler.ts";
+import { createSimulatedFiscalProvider, type FiscalProviderPort } from "../../supabase/functions/_shared/domain/fiscal/providers.ts";
 import { createMessagingHandler, DISPATCH_SECRET_HEADER } from "../../supabase/functions/messaging/handler.ts";
 import { createSimulatedProvider } from "../../supabase/functions/_shared/domain/messaging/providers.ts";
 import { createNetworkHandler } from "../../supabase/functions/network/handler.ts";
@@ -113,6 +115,9 @@ const anyRpc = (token: string | null, fn: string, args: Record<string, unknown>)
 const deps = { allowedOrigins: [] as string[] };
 /** DNS simulado da P17: nome → valores TXT. O teste escreve aqui o que o cliente "criou" no DNS dele. */
 export const DNS = new Map<string, string[]>();
+/** Provedor fiscal da P16 nos testes: homologação simulada; produção trocável pelo teste. */
+export const FISCAL = { homologacao: createSimulatedFiscalProvider() as FiscalProviderPort, producao: { name: "rest", configured: false, environments: [] } as unknown as FiscalProviderPort };
+export const FISCAL_SYNC_SECRET = "segredo-do-sync-fiscal-de-teste-".repeat(2);
 
 export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   context: createContextHandler({ ...deps, resolveContext: async (token, tenantId) => {
@@ -141,6 +146,7 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   "growth-advice": createGrowthAdviceHandler({ ...deps, rpc: userRpc }),
   presence: createPresenceHandler({ ...deps, rpc: userRpc, anonRpc: (fn, args) => rpc(null, fn, args), serviceRpc: (fn, args) => rpc("worker", fn, args),
     publicAppUrl: PUBLIC_APP_URL, cnameTarget: null, resolveTxt: async (name) => DNS.get(name) ?? [] }),
+  fiscal: createFiscalHandler({ ...deps, rpc: userRpc, serviceRpc: (fn, args) => rpc("worker", fn, args), syncSecret: FISCAL_SYNC_SECRET, providers: FISCAL }),
   messaging: createMessagingHandler({ ...deps, rpc: userRpc, dispatchSecret: DISPATCH_SECRET, simulatedSecret: SIM_SECRET, verifyToken: null,
     serviceRpc: (fn, args) => rpc("worker", fn, args),
     providers: { simulated: createSimulatedProvider({ secret: SIM_SECRET, deliver: async (phone, from, body, id) => {
@@ -224,6 +230,13 @@ export async function runDispatch(): Promise<{ sent: number; failed: number; unk
 export async function runPaymentSync(): Promise<{ checked: number; settled: number; closed: number; still_unknown: number }> {
   const res = await handlers.payments!(new Request("http://edge/functions/v1/payments/payment.sync", { method: "POST", headers: { [SYNC_SECRET_HEADER]: SYNC_SECRET } }));
   const json = await res.json() as { data: { checked: number; settled: number; closed: number; still_unknown: number } };
+  return json.data;
+}
+
+/** Uma rodada da consulta fiscal (P16) como o cron chamaria. */
+export async function runFiscalSync(): Promise<{ checked: number; resolved: number; still_pending: number }> {
+  const res = await handlers.fiscal!(new Request("http://edge/functions/v1/fiscal/fiscal.sync", { method: "POST", headers: { [FISCAL_SYNC_HEADER]: FISCAL_SYNC_SECRET } }));
+  const json = await res.json() as { data: { checked: number; resolved: number; still_pending: number } };
   return json.data;
 }
 

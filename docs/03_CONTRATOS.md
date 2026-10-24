@@ -177,6 +177,13 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `google.set` | action (grant: profile_name, profile_url?; revoke), expected_version, key | Registra ou revoga o acesso de gerente ao Perfil da Empresa no Google concedido pelo dono |
 | `ops.presence_delivery` | kind, summary, evidence_url, service_order_id?, key | Operação Tinindo registra uma entrega no Google com evidência; só com acesso ativo |
 | `presence.public_site` | slug ou host | Página publicada (sem login), por endereço do perfil ou domínio verificado |
+| `fiscal.get` | — | Perfil fiscal, termos da representação (texto e hash), representação, credencial informada pelo provedor, elegibilidade com motivos, ambiente, notas e recebíveis sem nota |
+| `fiscal.profile_save` | expected_version, legal_name, cnpj, regime, municipality_ibge, service_code, key | Dados do prestador (CNPJ conferido pelos dígitos); trocar o CNPJ desliga a produção |
+| `fiscal.representation` | action (grant: terms_hash, valid_days; revoke), key | O dono autoriza a Tinindo a emitir em nome dele citando o hash dos termos vistos (até 1 ano) ou revoga |
+| `fiscal.credential_check` | — | A função consulta no provedor o status da credencial do prestador e o backend grava (nenhum certificado passa pela Tinindo) |
+| `fiscal.emit` | receivable_id?, taker_name, taker_document?, description, amount_cents, competence_date, key | Emite NFS-e no caso elegível pelo provedor (homologação até liberação); não confirma pagamento nem toca o recebível |
+| `fiscal.cancel` | document_id, expected_version, reason, key | Pede o cancelamento ao provedor; recusado → a nota continua autorizada |
+| `fiscal.folder` | month | Pasta do mês para o contador: notas autorizadas e canceladas por competência, com totais |
 
 ## Exemplo de cotação
 

@@ -24,10 +24,14 @@ export async function noHorizontalScroll(page: Page) {
 /** Abre uma tela pelo menu principal: barra lateral no desktop; no celular, o botão Menu abre a folha antes. */
 export async function openFromNav(page: Page, name: string) {
   const nav = page.getByRole("navigation", { name: "Principal" });
-  if (!(await nav.isVisible())) {
-    await page.getByRole("button", { name: "Menu" }).click();
-    await expect(nav).toBeVisible();
+  const menu = page.getByRole("button", { name: "Menu", exact: true });
+  // Decide pelo estado do botão, não pela visibilidade da folha: logo depois de navegar ela ainda está fechando
+  // (animação) e parece visível, mas o link não fica clicável.
+  if (await menu.isVisible()) {
+    if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
+    await expect(menu).toHaveAttribute("aria-expanded", "true");
   }
+  await expect(nav).toBeVisible();
   await nav.getByRole("link", { name, exact: true }).click();
 }
 
