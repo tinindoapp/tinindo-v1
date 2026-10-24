@@ -2,7 +2,7 @@
 // linha → relatório do servidor (criadas, puladas, rejeitadas). Nada é mesclado.
 import { type ChangeEvent, useMemo, useState } from "react";
 import type { ImportOutput, ImportPreviewOutput } from "@contracts";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { CSV_MAX_BYTES, type PreviewRow, readCustomerCsv } from "./csv.ts";
 import { formatPhone, REJECT_LABEL } from "./format.ts";
@@ -89,8 +89,8 @@ export function ImportPage() {
 
   return (
     <div className="crm-stack">
-      <Card aria-labelledby="crm-import-title">
-        <h1 id="crm-import-title">Importar clientes de planilha</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="crm-import-title" title="Importar clientes de planilha" />
         <CrmDemoNotice />
         <p className="crm-note">
           CSV com cabeçalho na primeira linha: <strong>nome</strong> (obrigatório), telefone, e-mail e origem. Até 500
@@ -109,7 +109,7 @@ export function ImportPage() {
             Ver prévia
           </Button>
         </div>
-      </Card>
+      </div>
 
       {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
 

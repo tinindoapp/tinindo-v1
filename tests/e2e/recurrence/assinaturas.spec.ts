@@ -8,7 +8,9 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await expect(plans).toContainText("Corte mensal");
   await expect(plans).toContainText("4 × Corte por mês · R$ 200,00 · 0 assinante(s)");
 
-  // Adesão exige a declaração de aceite.
+  // Lista primeiro: a adesão abre pelo botão; exige a declaração de aceite.
+  await expect(page.getByRole("form", { name: "Nova assinatura" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Nova assinatura" }).click();
   const form = page.getByRole("form", { name: "Nova assinatura" });
   await expect(form.getByRole("button", { name: "Registrar adesão" })).toBeDisabled();
   await form.getByLabel(/A cliente aceitou estes termos/).check();
@@ -19,12 +21,26 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await expect(subs).toContainText("Ciclo 1:");
   await expect(subs).toContainText("4 de 4 sessões restantes · cobrança em aberto (R$ 200,00)");
   await expect(plans).toContainText("1 assinante(s)");
+  await expect(form).toHaveCount(0);
+  await page.getByRole("button", { name: "Nova assinatura" }).click();
   await form.getByLabel(/A cliente aceitou estes termos/).check();
   await form.getByRole("button", { name: "Registrar adesão" }).click();
   await expect(page.getByText("Esta cliente já assina este plano.")).toBeVisible();
 
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  // Novo plano pelo botão da seção.
+  await page.getByRole("button", { name: "Novo plano" }).click();
+  const newPlan = page.getByRole("form", { name: "Novo plano" });
+  await newPlan.getByLabel("Nome do plano").fill("Barba quinzenal");
+  await newPlan.getByLabel("Preço por ciclo (R$)").fill("60,00");
+  await newPlan.getByRole("button", { name: "Criar plano" }).click();
+  await expect(page.getByText("Plano “Barba quinzenal” criado.")).toBeVisible();
+  await expect(newPlan).toHaveCount(0);
+  await expect(plans).toContainText("Barba quinzenal");
+
   // Mudar o preço do plano não muda a assinante.
-  await plans.getByRole("button", { name: "Editar" }).click();
+  await plans.getByRole("listitem").filter({ hasText: "Corte mensal" }).getByRole("button", { name: "Editar" }).click();
   const edit = page.getByRole("form", { name: "Editar Corte mensal" });
   await edit.getByLabel("Preço por ciclo (R$)").fill("250,00");
   await edit.getByRole("button", { name: "Salvar plano" }).click();

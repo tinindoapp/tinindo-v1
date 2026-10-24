@@ -1,7 +1,7 @@
 // Custo de atendimento por cliente (P18, operação Tinindo): minutos medidos × custo-hora informado. Premissa, não custo
 // contábil; valores contratados têm cobrança manual. O banco decide se quem consulta é operador.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { formatCents } from "./format.ts";
 import type { CostPort, CostToServe } from "./port.ts";
 
@@ -36,8 +36,8 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
 
   return (
     <div className="tn-an">
-      <Card aria-labelledby="cost-title">
-        <h1 id="cost-title">Custo por cliente</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="cost-title" title="Custo por cliente" />
         <p className="tn-an-muted">Últimos 30 dias. Custo estimado = minutos humanos medidos × custo-hora que você informar (premissa).</p>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Demonstração sem servidor.</StatusBanner> : null}
         {error?.code === "FORBIDDEN" ? <StatusBanner tone="warning">Só a equipe Tinindo acessa esta tela.</StatusBanner> : null}
@@ -48,7 +48,7 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
           </label>
           <Button type="submit" variant="secondary">Recalcular</Button>
         </form>
-      </Card>
+      </div>
       {data ? (
         <Card aria-labelledby="cost-table-title">
           <h2 id="cost-table-title">Por cliente</h2>

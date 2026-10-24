@@ -10,6 +10,9 @@ test("orçamento: rascunho, link, nova versão, aceite da versão vista com hor�
   await page.goto("/app/orcamentos");
   await expect(page.getByRole("heading", { name: "Orçamentos", level: 1 })).toBeVisible();
   await expect(page.getByText("Aceito não é pago", { exact: false }).first()).toBeVisible();
+  // Lista primeiro: o formulário só abre pelo botão.
+  await expect(page.getByRole("form", { name: "Novo orçamento" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Novo orçamento" }).click();
 
   const form = page.getByRole("form", { name: "Novo orçamento" });
   await form.getByLabel("Cliente", { exact: true }).selectOption({ label: "Cliente Exemplo Ana" });
@@ -21,6 +24,7 @@ test("orçamento: rascunho, link, nova versão, aceite da versão vista com hor�
   await form.getByLabel("Propor um horário").check();
   await form.getByRole("button", { name: "Salvar rascunho" }).click();
   await expect(page.getByText("Rascunho salvo")).toBeVisible();
+  await expect(form).toHaveCount(0);
 
   const list = page.getByRole("region", { name: "Seus orçamentos" });
   await expect(list).toContainText("Corte e barba");
@@ -68,6 +72,7 @@ test("orçamento: rascunho, link, nova versão, aceite da versão vista com hor�
 
 test("orçamento: formulário explica o que falta e não grava", async ({ page }) => {
   await page.goto("/app/orcamentos");
+  await page.getByRole("button", { name: "Novo orçamento" }).click();
   const form = page.getByRole("form", { name: "Novo orçamento" });
   await form.getByRole("button", { name: "Salvar rascunho" }).click();
   await expect(form.getByText("Dê um título ao orçamento.")).toBeVisible();
@@ -77,6 +82,9 @@ test("orçamento: formulário explica o que falta e não grava", async ({ page }
   await form.getByRole("button", { name: "Salvar rascunho" }).click();
   await expect(form.getByText(/valor inválido/)).toBeVisible();
   await expect(page.getByRole("region", { name: "Seus orçamentos" })).toContainText("Nenhum orçamento ainda");
+  await form.getByRole("button", { name: "Cancelar" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Novo orçamento" })).toBeVisible();
 });
 
 test("link de orçamento desconhecido não aceita nada", async ({ page }) => {

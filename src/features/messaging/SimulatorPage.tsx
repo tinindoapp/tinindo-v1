@@ -2,7 +2,7 @@
 // "entregou" ao número e deixa a cliente escrever ou o provedor confirmar entrega/leitura, pelo MESMO webhook
 // assinado que o provedor real usaria. Tudo rotulado como simulação.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { DEMO_CUSTOMERS } from "./demoPort.ts";
 import { explain, formatTime } from "./labels.ts";
 import { type MessagingPort, newKey, type SimPhone } from "./port.ts";
@@ -45,8 +45,8 @@ export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezon
 
   return (
     <div className="tn-msg">
-      <Card aria-labelledby="sim-title">
-        <h1 id="sim-title">Simulador do telefone</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="sim-title" title="Simulador do telefone" />
         <p className="tn-msg-muted">Simulação: o que o provedor fictício entregou a este número, e o que a cliente responde. Nada é enviado de verdade.</p>
         <StatusBanner tone="info"><strong>Simulação.</strong> Só existe com a conexão simulada. Na API oficial, estes eventos vêm do provedor.</StatusBanner>
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
@@ -55,7 +55,7 @@ export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezon
         </label>
         <datalist id="sim-phones">{DEMO_CUSTOMERS.map((c) => <option key={c.id} value={c.phone}>{c.name}</option>)}</datalist>
         {port.dispatch ? <div className="tn-msg-actions"><Button variant="secondary" onClick={() => void port.dispatch!().then((r) => { setNotice({ tone: "info", text: `Despacho (simulação): ${r.sent} enviada(s), ${r.failed} falhou(aram), ${r.unknown} desconhecida(s), ${r.reconciled} resolvida(s).` }); refresh(); })}>Rodar o despacho (simulação)</Button></div> : null}
-      </Card>
+      </div>
       <Card aria-labelledby="sim-phone-title">
         <h2 id="sim-phone-title">Recebidas neste número</h2>
         {shown && shown.messages.length === 0 ? <p className="tn-msg-muted">Nada entregue a este número ainda.</p> : null}

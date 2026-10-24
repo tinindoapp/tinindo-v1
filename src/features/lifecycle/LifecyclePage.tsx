@@ -2,7 +2,7 @@
 // passo visível e por palavra; textos prontos para compartilhar quando não há canal; consentimento por finalidade;
 // reativação só como campanha com público visto e teto. O que a tela promete é o que o banco garante.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, Help, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { explain, formatDate, formatDateTime, MESSAGE_STATUS, RULE_LABEL, SKIP_REASON, STEP_STATUS } from "./labels.ts";
 import { type Audience, type LifecycleCampaign, type LifecyclePort, type LifecycleSettings, type LifecycleStep, type LifecycleStepStatus, newKey, type StepsList } from "./port.ts";
 
@@ -112,14 +112,14 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
 
   return (
     <div className="tn-lc">
-      <Card aria-labelledby="lc-title">
-        <h1 id="lc-title">Relacionamento</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="lc-title" title="Relacionamento" />
         <Help><p>Confirmação e lembretes do agendamento, acompanhamento de orçamento parado e lembrete de cobrança vencida, com cada passo visível. A régua para sozinha no aceite, cancelamento, pagamento ou quando a cliente pede SAIR. Sem canal conectado, o texto fica pronto para você compartilhar.</p></Help>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Agenda de exemplo; nada é enviado. Use "Rodar a régua" para ver os passos vencidos saírem.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
         {port.tick ? <div className="tn-lc-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => done({ tone: "info", text: `Régua (simulação): ${r.sent} enviado(s) ao canal, ${r.manual} para compartilhar, ${r.deferred} adiado(s), ${r.skipped} pulado(s).` }))}>Rodar a régua (simulação)</Button></div> : null}
-      </Card>
+      </div>
 
       <Card aria-labelledby="lc-steps-title">
         <h2 id="lc-steps-title">Fila de mensagens</h2>

@@ -2,7 +2,8 @@
 // gasto aplicados no servidor, oferta vinculada, grupo de controle sorteado e resultado por braço com intervalo.
 // O que a tela promete é o que o banco garante; sem controle, o resultado é observação, não efeito.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, Help, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Icon } from "../../components/ui/icons.tsx";
 import { ci, DESIGN, explain, formatCents, formatDate, offerLabel, pct, segmentLabel, STATUS, VERDICT } from "./labels.ts";
 import { type Campaign, type CampaignDetail, type CampaignSegment, type CampaignsPort, newKey, type Preview } from "./port.ts";
 
@@ -145,6 +146,8 @@ export function CampaignsPage({ port }: { port: CampaignsPort }) {
   const [notice, setNotice] = useState<Notice>(null);
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
+  // Lista primeiro: o formulário abre por "Nova campanha" e fecha quando a campanha é aprovada.
+  const [composing, setComposing] = useState(false);
   useEffect(() => {
     let alive = true;
     Promise.all([port.services(), port.list()]).then(([s, c]) => {
@@ -157,25 +160,36 @@ export function CampaignsPage({ port }: { port: CampaignsPort }) {
   }, [port, nonce]);
   const done = (n: Notice) => {
     setNotice(n);
+    if (n?.tone === "success") setComposing(false);
     setNonce((x) => x + 1);
   };
   return (
     <div className="tn-cp">
-      <Card aria-labelledby="cp-title">
-        <h1 id="cp-title">Campanhas</h1>
-        <Help><p>Convide um grupo de clientes com uma oferta e meça o que aconteceu. Só entra quem consentiu receber marketing (Relacionamento), sem atendimento marcado e fora de outra campanha. Os tetos de envio e de gasto valem no servidor. Sem canal conectado, as mensagens ficam para você compartilhar.</p></Help>
-        <StatusBanner tone="info"><strong>Medição honesta.</strong> Um grupo de controle sorteado fica sem a oferta; o resultado compara os dois grupos com intervalo. Sem controle, o que você vê é observação, não efeito da campanha.</StatusBanner>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é enviado. "Simular janela" fecha a medição como o worker faria.</StatusBanner> : null}
-        {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-        {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-      </Card>
-      <Card aria-labelledby="cp-new-title">
-        <h2 id="cp-new-title">Nova campanha</h2>
-        {services ? <NewCampaign key={`new:${nonce}`} port={port} services={services} onDone={done} /> : null}
-      </Card>
+      <PageHeader
+        id="cp-title"
+        title="Campanhas"
+        actions={services && !composing ? (
+          <Button onClick={() => setComposing(true)}>
+            <Icon name="mais" size={20} />
+            Nova campanha
+          </Button>
+        ) : null}
+      />
+      <Help><p>Convide um grupo de clientes com uma oferta e meça o que aconteceu. Só entra quem consentiu receber marketing (Relacionamento), sem atendimento marcado e fora de outra campanha. Os tetos de envio e de gasto valem no servidor. Sem canal conectado, as mensagens ficam para você compartilhar.</p></Help>
+      <StatusBanner tone="info"><strong>Medição honesta.</strong> Um grupo de controle sorteado fica sem a oferta; o resultado compara os dois grupos com intervalo. Sem controle, o que você vê é observação, não efeito da campanha.</StatusBanner>
+      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é enviado. "Simular janela" fecha a medição como o worker faria.</StatusBanner> : null}
+      {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
+      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
+      {composing && services ? (
+        <Card aria-labelledby="cp-new-title">
+          <h2 id="cp-new-title">Nova campanha</h2>
+          <NewCampaign key={`new:${nonce}`} port={port} services={services} onDone={done} />
+          <div className="tn-cp-actions"><Button variant="ghost" onClick={() => setComposing(false)}>Fechar</Button></div>
+        </Card>
+      ) : null}
       <Card aria-labelledby="cp-list-title">
         <h2 id="cp-list-title">Campanhas</h2>
-        {campaigns && campaigns.length === 0 ? <p className="tn-cp-muted">Nenhuma campanha ainda.</p> : null}
+        {campaigns && campaigns.length === 0 ? <p className="tn-cp-muted">Nenhuma campanha ainda. Comece em “Nova campanha”.</p> : null}
         <ul className="tn-cp-list" aria-label="Campanhas">
           {campaigns?.map((c) => <CampaignItem key={c.id} c={c} port={port} onDone={done} />)}
         </ul>

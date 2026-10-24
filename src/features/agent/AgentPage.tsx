@@ -2,7 +2,7 @@
 // Cinco estados visíveis (BRAND.md): consultado, recomendação, pendente de aprovação, executado, falha.
 // Aprovar ≠ executar: a execução repete a checagem e pode recusar. Nada muda sem a aprovação do dono.
 import { createContext, type FormEvent, useContext, useRef, useState } from "react";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { type AgentPort, type Answer, type Approval, newKey, type Proposal, type Receipt } from "./port.ts";
 
 const PortContext = createContext<AgentPort | null>(null);
@@ -160,8 +160,8 @@ export function AgentPage() {
 
   return (
     <div className="tn-ag">
-      <Card aria-labelledby="ag-title">
-        <h1 id="ag-title">Assistente</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="ag-title" title="Assistente" />
         {port.kind === "demo" && (
           <StatusBanner tone="info">
             <strong>Dados de exemplo.</strong> Demonstração sem servidor: o assistente ainda não guarda nem altera dados no servidor;
@@ -185,7 +185,7 @@ export function AgentPage() {
             <button key={q} type="button" className="tn-ag-chip" onClick={() => void ask(q)} disabled={busy}>{q}</button>
           ))}
         </div>
-      </Card>
+      </div>
 
       <section className="tn-ag-log" aria-label="Conversa" aria-live="polite">
         {turns.map((t) => {

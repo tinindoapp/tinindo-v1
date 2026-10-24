@@ -3,7 +3,7 @@
 import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { ExpenseCategory, PackageDetail, PaymentRecord, Receivable, TimeRange, UnchargedBooking } from "@contracts";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import {
   centsToInput,
   endOfLocalDay,
@@ -196,8 +196,7 @@ export function FinancePage() {
 function Shell({ demo, children }: { demo: boolean; children: ReactNode }) {
   return (
     <section aria-labelledby="fin-title" className="tn-fin">
-      <h1 id="fin-title">Caixa</h1>
-      <p className="tn-fin-muted">Recebíveis, recebimentos manuais e pacotes de sessões.</p>
+      <PageHeader id="fin-title" title="Caixa" subtitle="Recebíveis, recebimentos manuais e pacotes de sessões." />
       {demo ? (
         <StatusBanner tone="info">
           <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no servidor;

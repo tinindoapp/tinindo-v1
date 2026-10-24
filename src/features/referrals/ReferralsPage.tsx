@@ -1,7 +1,7 @@
 // Indicações (P21): o dono vê os convites de colega (gerados no Perfil, P09), a adesão de cada um medida pelo backend
 // e os benefícios. O benefício é crédito de franquia do assistente no mês; nunca avaliação, nota ou posição.
 import { useEffect, useState } from "react";
-import { Button, Card, Help, LinkButton, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, LinkButton, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { activationLabel, explain, formatDate, formatMonth, STATE } from "./labels.ts";
 import type { ReferralDashboard, ReferralReward, ReferralsPort } from "./port.ts";
 
@@ -26,8 +26,8 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
 
   return (
     <div className="tn-ref">
-      <Card aria-labelledby="ref-title">
-        <h1 id="ref-title">Indicações</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="ref-title" title="Indicações" />
         <Help><p>
           O convite sai do seu Perfil: o link é pessoal e quem envia é você. Quando o negócio indicado passa a usar a Tinindo de verdade, você ganha crédito de perguntas do assistente no mês.
         </p></Help>
@@ -55,7 +55,7 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
             <Button variant="secondary" onClick={() => void port.simulateActivity!().then((r) => { setNotice(`Avaliação (simulação): ${r.rewarded} benefício(s) concedido(s).`); setNonce((x) => x + 1); })}>Simular uso real do indicado</Button>
           </div>
         ) : null}
-      </Card>
+      </div>
 
       <Card aria-labelledby="ref-invites-title">
         <h2 id="ref-invites-title">Convites de colega</h2>

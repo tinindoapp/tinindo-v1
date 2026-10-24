@@ -1,7 +1,7 @@
 // Operação Tinindo (P15): fila de pedidos de todos os negócios para a equipe. Não há acesso global: o operador só
 // começa e só lê dados com a concessão do dono, e a leitura fica registrada para o dono ver. Minutos têm teto.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { explain, formatCents, minutesText, ORDER_STATUS, SCOPE_LABEL } from "./labels.ts";
 import { newKey, type OpsPort, type OpsQueue, type QueueOrder, type Snapshot } from "./port.ts";
 
@@ -108,14 +108,14 @@ export function OpsPage({ port }: { port: OpsPort }) {
   const forbidden = (error as { code?: string } | null)?.code === "FORBIDDEN";
   return (
     <div className="tn-svc">
-      <Card aria-labelledby="ops-title">
-        <h1 id="ops-title">Operação Tinindo</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="ops-title" title="Operação Tinindo" />
         <p className="tn-svc-muted">Fila dos serviços assistidos. Sem acesso concedido pelo cliente não dá para começar nem ler dados; cada leitura fica no registro do cliente.</p>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Na demonstração você também é a operadora.</StatusBanner> : null}
         {forbidden ? <StatusBanner tone="warning">Só a equipe Tinindo acessa esta tela.</StatusBanner> : null}
         {error && !forbidden ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-      </Card>
+      </div>
       {queue ? (
         <Card aria-labelledby="ops-queue-title">
           <h2 id="ops-queue-title">Fila</h2>

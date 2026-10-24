@@ -2,7 +2,8 @@
 // termos congelados na adesão; cada ciclo abre um pacote de sessões e uma cobrança pelo preço aceito; mudar o plano
 // não muda quem já assina; cancelar preserva o aceito e o saldo do ciclo. Assinar não é receber: a cobrança é do Caixa.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, Help, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Icon } from "../../components/ui/icons.tsx";
 import { cycleLabel, explain, formatCents, formatDate, RECEIVABLE_STATUS } from "./labels.ts";
 import { newKey, type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
 
@@ -141,6 +142,8 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
   const [plans, setPlans] = useState<RecurrencePlan[]>([]);
   const [subs, setSubs] = useState<RecurrenceSubscription[] | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  // Lista primeiro: cada formulário abre pelo seu botão e fecha ao concluir.
+  const [open, setOpen] = useState<"plan" | "sub" | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
@@ -159,24 +162,48 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
   const done = (n: Notice) => {
     setNotice(n);
     setEditing(null);
+    if (n?.tone === "success") setOpen(null);
     setNonce((x) => x + 1);
   };
   const timezone = base?.timezone ?? "America/Sao_Paulo";
 
   return (
     <div className="tn-rc">
-      <Card aria-labelledby="rc-title">
-        <h1 id="rc-title">Assinaturas</h1>
-        <Help><p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (Pix pelo provedor ou manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p></Help>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é cobrado. "Avançar o ciclo" simula a renovação pelo worker.</StatusBanner> : null}
-        {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-        {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-        {port.tick ? <div className="tn-rc-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => done({ tone: "info", text: `Renovação (simulação): ${r.renewed} ciclo(s) aberto(s), ${r.closed} assinatura(s) encerrada(s).` }))}>Avançar o ciclo (simulação)</Button></div> : null}
-      </Card>
+      <PageHeader
+        id="rc-title"
+        title="Assinaturas"
+        actions={base && plans.some((p) => p.active) && open !== "sub" ? (
+          <Button onClick={() => setOpen("sub")}>
+            <Icon name="mais" size={20} />
+            Nova assinatura
+          </Button>
+        ) : null}
+      />
+      <Help><p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (Pix pelo provedor ou manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p></Help>
+      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é cobrado. "Avançar o ciclo" simula a renovação pelo worker.</StatusBanner> : null}
+      {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
+      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
+
+      {open === "sub" && base ? (
+        <Card aria-labelledby="rc-new-sub-title">
+          <h2 id="rc-new-sub-title">Nova assinatura</h2>
+          <SubscribeForm key={`sub:${nonce}`} port={port} base={base} plans={plans} onDone={done} />
+          <div className="tn-rc-actions"><Button variant="ghost" onClick={() => setOpen(null)}>Fechar</Button></div>
+        </Card>
+      ) : null}
 
       <Card aria-labelledby="rc-plans-title">
-        <h2 id="rc-plans-title">Planos</h2>
-        {base ? <PlanForm key={`new:${nonce}`} port={port} base={base} plan={null} onDone={done} /> : null}
+        <div className="tn-rc-head">
+          <h2 id="rc-plans-title">Planos</h2>
+          {base && open !== "plan" ? <Button variant="secondary" onClick={() => setOpen("plan")}><Icon name="mais" size={20} />Novo plano</Button> : null}
+        </div>
+        {open === "plan" && base ? (
+          <div className="tn-rc-new">
+            <PlanForm key={`new:${nonce}`} port={port} base={base} plan={null} onDone={done} />
+            <div className="tn-rc-actions"><Button variant="ghost" onClick={() => setOpen(null)}>Fechar</Button></div>
+          </div>
+        ) : null}
+        {plans.length === 0 ? <p className="tn-rc-muted">Nenhum plano ainda. Crie o primeiro em “Novo plano”.</p> : null}
         <ul className="tn-rc-list" aria-label="Planos cadastrados">
           {plans.map((p) => (
             <li key={p.id} className="tn-rc-item">
@@ -191,12 +218,13 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
 
       <Card aria-labelledby="rc-subs-title">
         <h2 id="rc-subs-title">Assinantes</h2>
-        {base && plans.some((p) => p.active) ? <SubscribeForm key={`sub:${nonce}`} port={port} base={base} plans={plans} onDone={done} /> : <p className="tn-rc-muted">Crie um plano ativo para registrar adesões.</p>}
+        {base && !plans.some((p) => p.active) ? <p className="tn-rc-muted">Crie um plano ativo para registrar adesões.</p> : null}
         {subs && subs.length === 0 ? <p className="tn-rc-muted">Nenhuma assinatura ainda.</p> : null}
         <ul className="tn-rc-list" aria-label="Assinaturas">
           {subs?.map((s) => <SubscriptionItem key={s.id} sub={s} port={port} timezone={timezone} onDone={done} />)}
         </ul>
       </Card>
+      {port.tick ? <div className="tn-rc-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => done({ tone: "info", text: `Renovação (simulação): ${r.renewed} ciclo(s) aberto(s), ${r.closed} assinatura(s) encerrada(s).` }))}>Avançar o ciclo (simulação)</Button></div> : null}
     </div>
   );
 }

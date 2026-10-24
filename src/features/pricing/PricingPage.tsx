@@ -2,7 +2,7 @@
 // explícita do dono (presa ao conteúdo e à versão) e publicação. Cotação não segura horário.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { PricingRule, PricingRuleProposal, ProviderService } from "@contracts";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { computePrice } from "../../../supabase/functions/_shared/domain/pricing/price.ts";
 import { endOfLocalDayExclusive, formatBps, formatCents, formatDate, localDate, parsePercent, WEEKDAYS } from "./format.ts";
 import { newKey, type PricingPort } from "./port.ts";
@@ -60,8 +60,7 @@ export function PricingPage() {
 
   return (
     <section aria-labelledby="pr-title" className="tn-pr">
-      <h1 id="pr-title">Preços</h1>
-      <p className="tn-pr-muted">Regras de preço por horário com piso e aprovação. Ver o valor não segura horário.</p>
+      <PageHeader id="pr-title" title="Preços" subtitle="Regras de preço por horário com piso e aprovação. Ver o valor não segura horário." />
       {port.kind === "demo" ? (
         <StatusBanner tone="info">
           <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no servidor;
