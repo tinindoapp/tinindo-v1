@@ -19,6 +19,7 @@ import * as referrals from "./referrals.ts";
 import * as campaigns from "./campaigns.ts";
 import * as growth from "./growth-advice.ts";
 import * as presence from "./presence.ts";
+import * as fiscal from "./fiscal.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -41,7 +42,8 @@ export type ModuleId =
   | "referrals"
   | "campaigns"
   | "growth-advice"
-  | "presence";
+  | "presence"
+  | "fiscal";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -645,6 +647,13 @@ export const OPERATIONS = {
   "google.set": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.GoogleSetInput, output: presence.PresenceOverview },
   "ops.presence_delivery": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.DeliveryRecordInput, output: presence.DeliveryRecordOutput },
   "presence.public_site": { module: "presence", owner: "P17", kind: "query", idempotent: false, input: presence.PublicSiteInput, output: presence.PublicSiteOutput },
+  "fiscal.get": { module: "fiscal", owner: "P16", kind: "query", idempotent: false, input: fiscal.FiscalGetInput, output: fiscal.FiscalOverview },
+  "fiscal.profile_save": { module: "fiscal", owner: "P16", kind: "command", idempotent: true, input: fiscal.FiscalProfileSaveInput, output: fiscal.FiscalOverview },
+  "fiscal.representation": { module: "fiscal", owner: "P16", kind: "command", idempotent: true, input: fiscal.FiscalRepresentationInput, output: fiscal.FiscalOverview },
+  "fiscal.credential_check": { module: "fiscal", owner: "P16", kind: "query", idempotent: false, input: fiscal.FiscalCredentialCheckInput, output: fiscal.FiscalOverview },
+  "fiscal.emit": { module: "fiscal", owner: "P16", kind: "command", idempotent: true, input: fiscal.FiscalEmitInput, output: fiscal.FiscalDocumentOutput },
+  "fiscal.cancel": { module: "fiscal", owner: "P16", kind: "command", idempotent: true, input: fiscal.FiscalCancelInput, output: fiscal.FiscalDocumentOutput },
+  "fiscal.folder": { module: "fiscal", owner: "P16", kind: "query", idempotent: false, input: fiscal.FiscalFolderInput, output: fiscal.FiscalFolderOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
