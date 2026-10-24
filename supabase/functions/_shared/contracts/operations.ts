@@ -21,6 +21,7 @@ import * as growth from "./growth-advice.ts";
 import * as presence from "./presence.ts";
 import * as fiscal from "./fiscal.ts";
 import * as discovery from "./discovery.ts";
+import * as reputation from "./reputation.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -45,7 +46,8 @@ export type ModuleId =
   | "growth-advice"
   | "presence"
   | "fiscal"
-  | "discovery";
+  | "discovery"
+  | "reputation";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -660,6 +662,13 @@ export const OPERATIONS = {
   "discovery.save": { module: "discovery", owner: "P23", kind: "command", idempotent: true, input: discovery.DiscoverySaveInput, output: discovery.DiscoveryOverview },
   "directory.search": { module: "discovery", owner: "P23", kind: "query", idempotent: false, input: discovery.DirectorySearchInput, output: discovery.DirectorySearchOutput },
   "directory.cities": { module: "discovery", owner: "P23", kind: "query", idempotent: false, input: discovery.DirectoryCitiesInput, output: discovery.DirectoryCitiesOutput },
+  "review.pending": { module: "reputation", owner: "P24", kind: "query", idempotent: false, input: reputation.ReviewPendingInput, output: reputation.ReviewPendingOutput },
+  "review.submit": { module: "reputation", owner: "P24", kind: "command", idempotent: true, input: reputation.ReviewSubmitInput, output: reputation.MyReviewOutput },
+  "review.withdraw": { module: "reputation", owner: "P24", kind: "command", idempotent: true, input: reputation.ReviewWithdrawInput, output: reputation.MyReviewOutput },
+  "review.report": { module: "reputation", owner: "P24", kind: "command", idempotent: true, input: reputation.ReviewReportInput, output: reputation.ReviewReportOutput },
+  "review.owner_list": { module: "reputation", owner: "P24", kind: "query", idempotent: false, input: reputation.ReviewOwnerListInput, output: reputation.ReviewOwnerListOutput },
+  "review.reply": { module: "reputation", owner: "P24", kind: "command", idempotent: true, input: reputation.ReviewReplyInput, output: reputation.ReviewReplyOutput },
+  "review.public_list": { module: "reputation", owner: "P24", kind: "query", idempotent: false, input: reputation.ReviewPublicListInput, output: reputation.ReviewPublicListOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;

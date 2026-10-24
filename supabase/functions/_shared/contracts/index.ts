@@ -24,6 +24,7 @@ export * from "./growth-advice.ts";
 export * from "./presence.ts";
 export * from "./fiscal.ts";
 export * from "./discovery.ts";
+export * from "./reputation.ts";
 export * from "./network.ts";
 export * from "./events.ts";
 export * from "./operations.ts";

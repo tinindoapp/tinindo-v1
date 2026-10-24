@@ -7,6 +7,7 @@ import { salesPublicRoutes } from "../features/sales/module.tsx";
 import { paymentsPublicRoutes } from "../features/payments/module.tsx";
 import { presencePublicRoutes } from "../features/presence/module.tsx";
 import { discoveryPublicRoutes } from "../features/discovery/module.tsx";
+import { reputationPublicRoutes } from "../features/reputation/module.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
@@ -38,6 +39,8 @@ export const routes: RouteObject[] = [
       ...presencePublicRoutes,
       // Diretório local (P23): busca e páginas por cidade; a versão indexável é servida pela função `discovery`.
       ...discoveryPublicRoutes,
+      // Avaliações (P24): o cliente avalia com login (sem negócio) e a lista pública do perfil.
+      ...reputationPublicRoutes,
       {
         path: "/app",
         element: <AppShell />,

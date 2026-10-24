@@ -188,6 +188,13 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `discovery.save` | expected_version, uf, city_name, show_hours, listed, key | Entra/sai do diretório (exige perfil publicado), cidade e se mostra os dias de atendimento; suspensão da moderação não é desfeita pelo dono |
 | `directory.search` | uf, city_slug, category?, area?, weekday?, page | Busca pública: filtros exatos, ordem alfabética do nome exibido, só campos autorizados, sem destaque pago |
 | `directory.cities` | category? | Cidades com profissionais listados (índice das páginas) |
+| `review.pending` | — | Cliente com login: atendimentos concluídos e vinculados ainda avaliáveis (30 dias) e as próprias avaliações |
+| `review.submit` | booking_id, rating, body?, key | Cliente registra a experiência de um atendimento concluído do cadastro vinculado; uma por atendimento |
+| `review.withdraw` | review_id, key | O autor retira a própria avaliação |
+| `review.report` | review_id, reason, note?, key | Denúncia; não esconde nada sozinha (moderação pelo backend) |
+| `review.owner_list` | — | Dono: avaliações recebidas (sem autor), selos e denúncias abertas |
+| `review.reply` | review_id, expected_version, body, key | Resposta pública do profissional; nota e texto do cliente não mudam |
+| `review.public_list` | slug | Avaliações publicadas e selos do perfil (sem login; sem autor; média só com 3+) |
 
 ## Exemplo de cotação
 

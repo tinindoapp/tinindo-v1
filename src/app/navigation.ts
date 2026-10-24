@@ -33,6 +33,7 @@ export const SECTION_SPECS: readonly SectionSpec[] = [
       { module: "messaging", icon: "mensagem" },
       { module: "sales", icon: "orcamento" },
       { module: "lifecycle", icon: "relacionamento" },
+      { module: "reputation", icon: "avaliacao" },
     ],
   },
   {
