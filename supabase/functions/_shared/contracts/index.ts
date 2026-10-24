@@ -21,6 +21,7 @@ export * from "./recurrence.ts";
 export * from "./referrals.ts";
 export * from "./campaigns.ts";
 export * from "./growth-advice.ts";
+export * from "./presence.ts";
 export * from "./network.ts";
 export * from "./events.ts";
 export * from "./operations.ts";
