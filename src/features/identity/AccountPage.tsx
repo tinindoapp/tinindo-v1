@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { MyCustomerLink, Onboarding } from "@contracts";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";
 import { OnboardingForm } from "./OnboardingForm.tsx";
@@ -31,9 +31,8 @@ export function AccountPage() {
 
   return (
     <div className="tn-stack">
-      <Card aria-labelledby="account-title">
-        <p className="tn-caps">Conta</p>
-        <h1 id="account-title">Sua conta</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="account-title" title="Sua conta" eyebrow="Conta" />
         {params.get("novo") === "1" && active ? (
           <StatusBanner tone="success">
             Negócio criado. Você é dono(a) de <strong>{active.tenant_name}</strong>.
@@ -50,7 +49,7 @@ export function AccountPage() {
         <div className="tn-id-actions">
           <Link to="novo-negocio">{active ? "Criar outro negócio" : "Criar meu negócio"}</Link>
         </div>
-      </Card>
+      </div>
 
       {active?.role === "owner" ? <BusinessOnboarding key={active.tenant_id} tenantId={active.tenant_id} /> : null}
 

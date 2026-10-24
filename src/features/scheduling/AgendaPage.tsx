@@ -1,5 +1,6 @@
 // Tela principal da agenda: Hoje/dia e semana, ocupação e horários livres.
 import { Icon } from "../../components/ui/icons.tsx";
+import { PageHeader } from "../../components/ui/index.tsx";
 import { Link, useSearchParams } from "react-router";
 import type { Booking, ProviderService } from "@contracts";
 import {
@@ -38,7 +39,7 @@ export function AgendaPage() {
 
   return (
     <section aria-labelledby="agenda-title" className="tn-sched">
-      <h1 id="agenda-title">Agenda</h1>
+      <PageHeader id="agenda-title" title="Agenda" />
       <DemoNotice kind={port.kind} />
 
       <div className="tn-sched-toolbar">

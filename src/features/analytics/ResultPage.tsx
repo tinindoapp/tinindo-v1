@@ -2,7 +2,7 @@
 // comparação com uma baseline congelada. Antes/depois não prova causa; insuficiente e indisponível não viram zero.
 import { type FormEvent, useEffect, useState } from "react";
 import type { AnalyticsBaseline, AnalyticsMetricsOutput, TimeRange } from "@contracts";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { deltaText, localDayStart, metricMath, metricValue, PERIODS } from "./format.ts";
 import { type AnalyticsPort, newKey } from "./port.ts";
 
@@ -65,10 +65,10 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
 
   if (error && !data) {
     return (
-      <Card aria-labelledby="an-title">
-        <h1 id="an-title">Resultado</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="an-title" title="Resultado" />
         <StatusBanner tone="danger">{explain(error)}</StatusBanner>
-      </Card>
+      </div>
     );
   }
   const zone = tz ?? "America/Sao_Paulo";
@@ -76,8 +76,8 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
 
   return (
     <div className="tn-an">
-      <Card aria-labelledby="an-title">
-        <h1 id="an-title">Resultado</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="an-title" title="Resultado" />
         <p className="tn-an-muted">
           Números do que foi registrado na Tinindo. Cada indicador mostra a conta e o que falta nos dados.
           <strong> Comparar antes e depois não prova que a mudança veio da Tinindo.</strong>
@@ -98,7 +98,7 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
           </label>
         </div>
         {data ? <p className="tn-an-muted">De {fmtDay(data.period.starts_at, zone)} a {fmtDay(data.period.ends_at, zone)} (fim não incluído) · atualizado agora.</p> : null}
-      </Card>
+      </div>
 
       {data ? (
         <Card aria-labelledby="an-metrics-title">

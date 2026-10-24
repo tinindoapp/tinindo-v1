@@ -2,7 +2,7 @@
 // de minutos próprios. A equipe Tinindo só acessa dados do negócio com a concessão daqui, e cada leitura aparece no registro.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { AccessScope, OfferingVersion, ServiceOrderDetail } from "@contracts";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { ACTION_LABEL, explain, formatDateTime, minutesText, ORDER_STATUS, priceLabel, SCOPE_LABEL } from "./labels.ts";
 import { type AccessLog, newKey, type PlanCurrent, type ServiceOpsPort } from "./port.ts";
 
@@ -186,10 +186,10 @@ export function ServicesPage() {
 
   if (error && !plan) {
     return (
-      <Card aria-labelledby="svc-title">
-        <h1 id="svc-title">Plano e serviços</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="svc-title" title="Plano e serviços" />
         <StatusBanner tone="danger">{explain(error)}</StatusBanner>
-      </Card>
+      </div>
     );
   }
   const plans = plan?.catalog.filter((c) => c.kind === "plan") ?? [];
@@ -197,15 +197,15 @@ export function ServicesPage() {
 
   return (
     <div className="tn-svc">
-      <Card aria-labelledby="svc-title">
-        <h1 id="svc-title">Plano e serviços</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="svc-title" title="Plano e serviços" />
         <p className="tn-svc-muted">
           Serviços feitos pela equipe Tinindo têm escopo, preço e minutos próprios e não estão no plano. No piloto a cobrança da Tinindo
           é combinada à parte: registrar plano ou pedido <strong>não é pagamento</strong>.
         </p>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Demonstração sem servidor: nada é cobrado.</StatusBanner> : null}
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-      </Card>
+      </div>
 
       {plan ? (
         <Card aria-labelledby="svc-plan-title">

@@ -2,7 +2,7 @@
 // A Tinindo não envia mensagens: o dono compartilha o link, e compartilhar não confirma entrega.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { TimeRange, WaitlistEntry, WaitlistOffer } from "@contracts";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { endOfLocalDay, formatDateTime, formatSlot, localDate, WEEKDAYS, windowsText } from "./format.ts";
 import { newKey, type WaitlistBase, type WaitlistPort } from "./port.ts";
 
@@ -87,8 +87,7 @@ export function WaitlistPage() {
 
   return (
     <section aria-labelledby="wl-title" className="tn-wl">
-      <h1 id="wl-title">Lista de espera</h1>
-      <p className="tn-wl-muted">Lista de espera e ofertas de vaga com aceite seguro. Abrir o link não reserva; o cliente aceita ou recusa.</p>
+      <PageHeader id="wl-title" title="Lista de espera" subtitle="Lista de espera e ofertas de vaga com aceite seguro. Abrir o link não reserva; o cliente aceita ou recusa." />
       {port.kind === "demo" ? (
         <StatusBanner tone="info">
           <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no servidor;

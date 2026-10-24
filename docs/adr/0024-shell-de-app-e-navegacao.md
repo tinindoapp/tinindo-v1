@@ -26,4 +26,4 @@ O shell herdado do P00 era uma faixa horizontal de abas com um item por módulo 
 
 - Testes e2e navegam pelo helper `openFromNav`, que abre o Menu no celular. Alvos de toque: abas ≥ 44 px, linhas do menu no celular com 48 px.
 - O texto de desenvolvimento "Pacote P04" saiu da Agenda.
-- Próximos passos de UI (não feitos aqui): formulários de criação que hoje abrem a tela (planos, campanhas, orçamentos) podem virar folhas abertas por um botão "Novo …", com a lista primeiro; cada tela pode trocar o cartão de abertura pelo `PageHeader` explícito e aposentar a regra de CSS com `:has`.
+- Etapa 2 (onda 3, PR 1): Orçamentos, Assinaturas e Campanhas abrem pela lista; o formulário de criação aparece por "Novo orçamento", "Nova assinatura"/"Novo plano" e "Nova campanha" e fecha ao concluir (erro mantém aberto). As telas internas do app usam o `PageHeader` explícito; a abertura sem caixa é `.tn-page-intro`. A regra com `:has` fica só para as telas de fallback e as páginas públicas, que ainda abrem com cartão.

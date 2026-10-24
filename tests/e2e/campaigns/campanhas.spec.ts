@@ -5,6 +5,9 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   await expect(page.getByRole("heading", { name: "Campanhas", level: 1 })).toBeVisible();
   await expect(page.getByText("Medição honesta.")).toBeVisible();
   await expect(page.getByText("nada é enviado")).toBeVisible();
+  // Lista primeiro: o formulário abre pelo botão.
+  await expect(page.getByRole("form", { name: "Nova campanha" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Nova campanha" }).click();
   const form = page.getByRole("form", { name: "Nova campanha" });
   await expect(form.getByText(/Público autorizado agora: 6 cliente\(s\)/)).toBeVisible();
   await form.getByRole("combobox", { name: "Segmento" }).selectOption("marketing_all");
@@ -22,8 +25,11 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   await expect(list).toContainText("Resultado parcial");
   await expect(list).toContainText("Inconclusivo: grupos pequenos demais para comparar.");
   // Quem entrou saiu do público da próxima campanha.
+  await expect(form).toHaveCount(0);
+  await page.getByRole("button", { name: "Nova campanha" }).click();
   await expect(page.getByRole("form", { name: "Nova campanha" }).getByText(/Público autorizado agora: 1 cliente\(s\)/)).toBeVisible();
 
+  await page.getByRole("button", { name: "Fechar" }).click();
   await list.getByRole("button", { name: "Ver participantes" }).click();
   const members = list.getByRole("list", { name: "Participantes de Volta pro corte" });
   await expect(members.getByRole("listitem")).toHaveCount(7);
@@ -39,6 +45,7 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   await expect(list).not.toContainText(/efeito da campanha foi|causou/);
 
   // Segunda campanha sem controle: só observação; cancelar para o pendente.
+  await page.getByRole("button", { name: "Nova campanha" }).click();
   const form2 = page.getByRole("form", { name: "Nova campanha" });
   await form2.getByRole("combobox", { name: "Segmento" }).selectOption("marketing_all");
   await form2.getByLabel("Nome").fill("Só observação");

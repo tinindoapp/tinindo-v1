@@ -2,7 +2,8 @@
 // A Tinindo não envia mensagens: o dono compartilha o link. Aceito não é pago: a cobrança fica no Caixa.
 import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useId, useState } from "react";
 import type { SalesQuote } from "@contracts";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Icon } from "../../components/ui/icons.tsx";
 import { newKey, type QuoteDetail, type QuoteDraft, type SalesBase, type SalesPort } from "./port.ts";
 import {
   centsToInput,
@@ -106,6 +107,8 @@ export function QuotesPage() {
   const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [editing, setEditing] = useState<SalesQuote | null>(null);
+  // Lista primeiro: o formulário abre por "Novo orçamento" ou "Revisar".
+  const [composing, setComposing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fresh, setFresh] = useState<{ quoteId: string; token: string } | null>(null);
   const [detail, setDetail] = useState<QuoteDetail | null>(null);
@@ -160,6 +163,7 @@ export function QuotesPage() {
       }
       setForm(emptyForm(base, port.now()));
       setEditing(null);
+      setComposing(false);
       setKeys({ save: newKey() });
     } catch (err) {
       setFormError(explain(err));
@@ -172,6 +176,7 @@ export function QuotesPage() {
   function startRevise(q: SalesQuote) {
     if (!base) return;
     setEditing(q);
+    setComposing(true);
     setForm(formFromQuote(q, base));
     setKeys({ save: newKey() });
     setFormError(null);
@@ -184,10 +189,10 @@ export function QuotesPage() {
 
   if (error && !quotes) {
     return (
-      <Card aria-labelledby="qt-title">
-        <h1 id="qt-title">Orçamentos</h1>
+      <div className="tn-qt">
+        <PageHeader id="qt-title" title="Orçamentos" />
         <StatusBanner tone="danger">{explain(error)}</StatusBanner>
-      </Card>
+      </div>
     );
   }
 
@@ -196,15 +201,20 @@ export function QuotesPage() {
 
   return (
     <div className="tn-qt">
-      <Card aria-labelledby="qt-title">
-        <h1 id="qt-title">Orçamentos</h1>
-        <p className="tn-qt-muted">
-          Proposta com validade. O cliente aceita pelo link a versão que viu; se houver horário proposto, o aceite só vale se o horário
-          ainda estiver livre. <strong>Aceito não é pago:</strong> a cobrança fica no Caixa.
-        </p>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Demonstração sem servidor: nada sai do navegador.</StatusBanner> : null}
-        {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-      </Card>
+      <PageHeader
+        id="qt-title"
+        title="Orçamentos"
+        subtitle={<><strong>Aceito não é pago:</strong> a cobrança fica no Caixa.</>}
+        actions={form && base && !composing ? (
+          <Button onClick={() => { setEditing(null); setForm(emptyForm(base, port.now())); setFormError(null); setComposing(true); }}>
+            <Icon name="mais" size={20} />
+            Novo orçamento
+          </Button>
+        ) : null}
+      />
+      <Help><p>Proposta com validade. O cliente aceita pelo link a versão que viu; se houver horário proposto, o aceite só vale se o horário ainda estiver livre.</p></Help>
+      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Demonstração sem servidor: nada sai do navegador.</StatusBanner> : null}
+      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
 
       {fresh ? (
         <Card aria-labelledby="qt-link-title">
@@ -220,7 +230,7 @@ export function QuotesPage() {
         </Card>
       ) : null}
 
-      {form && base ? (
+      {form && base && composing ? (
         <Card aria-labelledby="qt-form-title">
           <form aria-labelledby="qt-form-title" className="tn-qt-section" onSubmit={(e) => void save(e)} noValidate>
             <h2 id="qt-form-title">{editing ? `Revisar orçamento (nova versão ${editing.current_version + 1})` : "Novo orçamento"}</h2>
@@ -298,7 +308,9 @@ export function QuotesPage() {
             {formError ? <StatusBanner tone="danger">{formError}</StatusBanner> : null}
             <div className="tn-qt-actions">
               <Button type="submit" disabled={pending}>{editing ? "Salvar nova versão" : "Salvar rascunho"}</Button>
-              {editing ? <Button variant="ghost" onClick={() => { setEditing(null); setForm(emptyForm(base, port.now())); }}>Desistir da revisão</Button> : null}
+              <Button variant="ghost" onClick={() => { setEditing(null); setComposing(false); setFormError(null); setForm(emptyForm(base, port.now())); }}>
+                {editing ? "Desistir da revisão" : "Cancelar"}
+              </Button>
             </div>
           </form>
         </Card>

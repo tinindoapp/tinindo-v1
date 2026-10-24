@@ -4,7 +4,7 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { Profession, PublicProfileField as PublicProfileFieldSchema } from "@contracts";
 import type { z } from "zod";
-import { Button, Card, Field, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import type { NetworkApi, OwnerProfile, ReferralLinkData, ReferralSummary } from "./api.ts";
 import { ShareLink } from "./ShareLink.tsx";
 import { CATEGORY_LABEL, errorMessage, formatDateTime, newIdempotencyKey, useNetworkApi } from "./useNetworkApi.ts";
@@ -65,9 +65,8 @@ export function NetworkHome() {
 
   return (
     <div className="tn-stack">
-      <Card aria-labelledby="perfil-titulo">
-        <p className="tn-caps">Perfil e convites</p>
-        <h1 id="perfil-titulo">Seu perfil público</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="perfil-titulo" title="Seu perfil público" eyebrow="Perfil e convites" />
         <p>
           Você decide o que aparece. Clientes, telefones, valores combinados e sua agenda nunca entram no perfil.
         </p>
@@ -76,7 +75,7 @@ export function NetworkHome() {
         ) : null}
         {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
         <Onboarding published={published} bookingOn={bookingOn} invited={invited} />
-      </Card>
+      </div>
       {profile !== undefined ? <ProfileEditor api={api} profile={profile} onSaved={reload} /> : <p role="status">Carregando…</p>}
       {published ? <InvitePeer api={api} referrals={referrals} onCreated={reload} /> : null}
     </div>

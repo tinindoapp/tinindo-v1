@@ -2,7 +2,7 @@
 // enviado, entregue, lido, falhou e desconhecido são estados diferentes; nada é reenviado sozinho; fora da janela
 // de 24 h só modelo aprovado; a cliente que pediu SAIR não recebe nada; humano assume quando você pede.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, Help, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { CONNECTION_STATUS, explain, FAILURE_REASON, formatTime, MESSAGE_STATUS, PROVIDER_LABEL } from "./labels.ts";
 import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort, newKey } from "./port.ts";
 
@@ -156,13 +156,13 @@ export function InboxPage({ port, timezone }: { port: MessagingPort; timezone: s
 
   return (
     <div className="tn-msg">
-      <Card aria-labelledby="msg-title">
-        <h1 id="msg-title">Mensagens</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="msg-title" title="Mensagens" />
         <Help><p>Canal oficial do seu número. Enviada, entregue, lida e falhou são estados diferentes; nada é reenviado sem você saber. Fora de 24 h da última mensagem da cliente, só modelos aprovados. Quem responde SAIR não recebe mais nada.</p></Help>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> O provedor é simulado: nenhuma mensagem sai do navegador. O telefone da cliente é o simulador, no menu desta tela.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-      </Card>
+      </div>
 
       <Card aria-labelledby="msg-conn-title">
         <h2 id="msg-conn-title">Conexão</h2>

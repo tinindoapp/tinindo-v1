@@ -2,7 +2,7 @@
 // Bloqueio é indisponibilidade, não cliente fictício; não pode cobrir atendimento já marcado.
 import { type FormEvent, useState } from "react";
 import type { ScheduleSettings } from "@contracts";
-import { Button, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { formatRange } from "./agenda.ts";
 import { isErrorLike } from "./errors.ts";
 import { DemoNotice, ErrorPanel, TimezoneNote } from "./parts.tsx";
@@ -61,7 +61,7 @@ export function HoursPage() {
 
   return (
     <section aria-labelledby="hours-title" className="tn-sched">
-      <h1 id="hours-title">Horários de atendimento</h1>
+      <PageHeader id="hours-title" title="Horários de atendimento" />
       <DemoNotice kind={port.kind} />
       {settings.error ? (
         <ErrorPanel error={settings.error} operation="load" onRetry={settings.reload} />

@@ -161,6 +161,14 @@ a.tn-stat:hover { background: var(--tn-action-subtle); }
   :where(.tn-main__inner) h2 { font-size: var(--tn-font-size-2xl); }
 }
 
+/* Abertura de tela: cabeçalho padrão seguido de ajuda, avisos e ações rápidas, sem caixa. */
+.tn-page-intro { display: grid; gap: var(--tn-space-2); min-width: 0; }
+.tn-page-intro > * { margin-top: 0; margin-bottom: 0; }
+.tn-page-intro > :is(div, button):not(.tn-banner) { justify-self: start; }
+.tn-page-intro > p:not([class*="banner"]) { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+/* Em telas cuja raiz já espaça os blocos (grid com gap), o cabeçalho e a ajuda não somam margem. */
+:is(.tn-qt, .tn-rc, .tn-cp) > :is(.tn-page-header, .tn-help) { margin: 0; }
+
 /* Telas antigas abrem com um cartão que contém o h1: vira cabeçalho de tela (sem caixa, apoio em tom suave). */
 .tn-main__inner .tn-card:has(> h1) { display: grid; gap: var(--tn-space-2); background: transparent; border: 0; box-shadow: none; padding: 0; }
 .tn-main__inner .tn-card:has(> h1) > * { margin-top: 0; margin-bottom: 0; }
