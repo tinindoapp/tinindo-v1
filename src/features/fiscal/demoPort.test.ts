@@ -17,7 +17,7 @@ describe("demonstração de Notas fiscais", () => {
     await expect(p.saveProfile({ expected_version: 0, legal_name: "Barbearia", cnpj: "11222333000180", regime: "mei", municipality_ibge: "3550308", service_code: "06.01" }, k())).rejects.toMatchObject({ field: "cnpj" });
     o = await p.saveProfile({ expected_version: 0, legal_name: "Barbearia", cnpj: "11.222.333/0001-81", regime: "mei", municipality_ibge: "3550308", service_code: "06.01" }, k());
     await expect(p.grant("a".repeat(64), k())).rejects.toMatchObject({ code: "STALE_VERSION", field: "terms_hash" });
-    o = await p.grant(o.terms.hash, k());
+    await p.grant(o.terms.hash, k());
     o = await p.checkCredential();
     expect(o.eligibility).toEqual({ eligible: true, reasons: [], environment: "homologacao" });
   });
