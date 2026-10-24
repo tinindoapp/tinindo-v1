@@ -46,7 +46,7 @@ export const SECTION_SPECS: readonly SectionSpec[] = [
   },
   {
     id: "negocio", label: "Negócio", icon: "negocio", tab: false,
-    items: [{ module: "network", icon: "perfil" }, { module: "service-ops", icon: "plano" }, { module: "identity", icon: "conta" }],
+    items: [{ module: "network", icon: "perfil" }, { module: "presence", icon: "site" }, { module: "service-ops", icon: "plano" }, { module: "identity", icon: "conta" }],
   },
 ];
 

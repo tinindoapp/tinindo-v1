@@ -16,6 +16,7 @@ import { createRecurrenceHandler } from "../../supabase/functions/recurrence/han
 import { createReferralsHandler } from "../../supabase/functions/referrals/handler.ts";
 import { createCampaignsHandler } from "../../supabase/functions/campaigns/handler.ts";
 import { createGrowthAdviceHandler } from "../../supabase/functions/growth-advice/handler.ts";
+import { createPresenceHandler } from "../../supabase/functions/presence/handler.ts";
 import { createMessagingHandler, DISPATCH_SECRET_HEADER } from "../../supabase/functions/messaging/handler.ts";
 import { createSimulatedProvider } from "../../supabase/functions/_shared/domain/messaging/providers.ts";
 import { createNetworkHandler } from "../../supabase/functions/network/handler.ts";
@@ -110,6 +111,8 @@ export async function rpc(actor: Actor, fn: string, args: Record<string, unknown
 const userRpc = (token: string, fn: string, args: Record<string, unknown>) => rpc(token, fn, args);
 const anyRpc = (token: string | null, fn: string, args: Record<string, unknown>) => rpc(token, fn, args);
 const deps = { allowedOrigins: [] as string[] };
+/** DNS simulado da P17: nome → valores TXT. O teste escreve aqui o que o cliente "criou" no DNS dele. */
+export const DNS = new Map<string, string[]>();
 
 export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   context: createContextHandler({ ...deps, resolveContext: async (token, tenantId) => {
@@ -136,6 +139,8 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   referrals: createReferralsHandler({ ...deps, rpc: userRpc }),
   campaigns: createCampaignsHandler({ ...deps, rpc: userRpc }),
   "growth-advice": createGrowthAdviceHandler({ ...deps, rpc: userRpc }),
+  presence: createPresenceHandler({ ...deps, rpc: userRpc, anonRpc: (fn, args) => rpc(null, fn, args), serviceRpc: (fn, args) => rpc("worker", fn, args),
+    publicAppUrl: PUBLIC_APP_URL, cnameTarget: null, resolveTxt: async (name) => DNS.get(name) ?? [] }),
   messaging: createMessagingHandler({ ...deps, rpc: userRpc, dispatchSecret: DISPATCH_SECRET, simulatedSecret: SIM_SECRET, verifyToken: null,
     serviceRpc: (fn, args) => rpc("worker", fn, args),
     providers: { simulated: createSimulatedProvider({ secret: SIM_SECRET, deliver: async (phone, from, body, id) => {

@@ -166,6 +166,17 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `content.list` | — | Conteúdo pré-aprovado da profissão (com prévia), escopo do perfil (P09) e o que está publicado |
 | `content.publish` | template_code, key | Publica um texto aprovado como `bio` do perfil; só com perfil publicado e campo `bio` escolhido |
 | `content.unpublish` | expected_version, key | Remove o texto publicado |
+| `presence.get` | — | Rascunho do site, prévia com hash (só dados públicos do perfil P09 e serviços marcados), versão publicada, histórico, domínio, acesso ao Google e entregas |
+| `site.save` | expected_version, headline?, sections, theme, service_ids, key | Salva o rascunho do site (nada vai ao ar) |
+| `site.publish` | expected_hash, key | Publica exatamente a prévia vista (hash); mudou desde a prévia → 409; cria versão append-only |
+| `site.unpublish` | expected_version, key | Tira o site do ar (reversível) |
+| `site.restore` | version_no, expected_version, key | Põe no ar de novo uma versão aprovada antes, como foi aprovada |
+| `domain.add` | hostname, key | Liga um domínio do cliente (pendente) e devolve o registro TXT a criar; a Tinindo não compra domínio |
+| `domain.remove` | domain_id, expected_version, key | Desliga o domínio do site |
+| `domain.check` | domain_id | A função consulta o TXT no DNS e o banco decide (verificado, não encontrado, tomado por outro negócio) |
+| `google.set` | action (grant: profile_name, profile_url?; revoke), expected_version, key | Registra ou revoga o acesso de gerente ao Perfil da Empresa no Google concedido pelo dono |
+| `ops.presence_delivery` | kind, summary, evidence_url, service_order_id?, key | Operação Tinindo registra uma entrega no Google com evidência; só com acesso ativo |
+| `presence.public_site` | slug ou host | Página publicada (sem login), por endereço do perfil ou domínio verificado |
 
 ## Exemplo de cotação
 

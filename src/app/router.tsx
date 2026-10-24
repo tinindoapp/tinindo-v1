@@ -5,6 +5,7 @@ import { networkPublicRoutes } from "../features/network/module.tsx";
 import { waitlistPublicRoutes } from "../features/waitlist/module.tsx";
 import { salesPublicRoutes } from "../features/sales/module.tsx";
 import { paymentsPublicRoutes } from "../features/payments/module.tsx";
+import { presencePublicRoutes } from "../features/presence/module.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
@@ -32,6 +33,8 @@ export const routes: RouteObject[] = [
       ...salesPublicRoutes,
       // Link de pagamento (P14): anônimo, token no fragmento; pagar de verdade é no provedor, aqui só o simulado.
       ...paymentsPublicRoutes,
+      // Site do negócio (P17): só a versão publicada; a página indexável é servida pela função `presence`.
+      ...presencePublicRoutes,
       {
         path: "/app",
         element: <AppShell />,

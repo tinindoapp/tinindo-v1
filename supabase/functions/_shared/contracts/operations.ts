@@ -18,6 +18,7 @@ import * as recurrence from "./recurrence.ts";
 import * as referrals from "./referrals.ts";
 import * as campaigns from "./campaigns.ts";
 import * as growth from "./growth-advice.ts";
+import * as presence from "./presence.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -39,7 +40,8 @@ export type ModuleId =
   | "recurrence"
   | "referrals"
   | "campaigns"
-  | "growth-advice";
+  | "growth-advice"
+  | "presence";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -632,6 +634,17 @@ export const OPERATIONS = {
   "content.list": { module: "growth-advice", owner: "P22", kind: "query", idempotent: false, input: growth.ContentListInput, output: growth.ContentListOutput },
   "content.publish": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.ContentPublishInput, output: growth.ContentPublishOutput },
   "content.unpublish": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.ContentUnpublishInput, output: growth.ContentPublishOutput },
+  "presence.get": { module: "presence", owner: "P17", kind: "query", idempotent: false, input: presence.PresenceGetInput, output: presence.PresenceOverview },
+  "site.save": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.SiteSaveInput, output: presence.PresenceOverview },
+  "site.publish": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.SitePublishInput, output: presence.PresenceOverview },
+  "site.unpublish": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.SiteUnpublishInput, output: presence.PresenceOverview },
+  "site.restore": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.SiteRestoreInput, output: presence.PresenceOverview },
+  "domain.add": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.DomainAddInput, output: presence.PresenceOverview },
+  "domain.remove": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.DomainRemoveInput, output: presence.PresenceOverview },
+  "domain.check": { module: "presence", owner: "P17", kind: "query", idempotent: false, input: presence.DomainCheckInput, output: presence.DomainCheckOutput },
+  "google.set": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.GoogleSetInput, output: presence.PresenceOverview },
+  "ops.presence_delivery": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.DeliveryRecordInput, output: presence.DeliveryRecordOutput },
+  "presence.public_site": { module: "presence", owner: "P17", kind: "query", idempotent: false, input: presence.PublicSiteInput, output: presence.PublicSiteOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
