@@ -6,6 +6,7 @@ import { waitlistPublicRoutes } from "../features/waitlist/module.tsx";
 import { salesPublicRoutes } from "../features/sales/module.tsx";
 import { paymentsPublicRoutes } from "../features/payments/module.tsx";
 import { presencePublicRoutes } from "../features/presence/module.tsx";
+import { discoveryPublicRoutes } from "../features/discovery/module.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
@@ -35,6 +36,8 @@ export const routes: RouteObject[] = [
       ...paymentsPublicRoutes,
       // Site do negócio (P17): só a versão publicada; a página indexável é servida pela função `presence`.
       ...presencePublicRoutes,
+      // Diretório local (P23): busca e páginas por cidade; a versão indexável é servida pela função `discovery`.
+      ...discoveryPublicRoutes,
       {
         path: "/app",
         element: <AppShell />,
