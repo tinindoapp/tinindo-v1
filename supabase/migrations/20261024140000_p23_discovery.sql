@@ -149,9 +149,11 @@ begin
   select * into l from public.discovery_listings x where x.tenant_id = p_tenant_id for update;
   if not found then
     if coalesce(p_expected_version, 0) <> 0 then raise exception using errcode = 'PT409', message = 'STALE_VERSION'; end if;
+    -- Primeiro salvamento em paralelo: quem chega depois perde pela versão (nunca erro de chave duplicada).
     insert into public.discovery_listings (tenant_id, uf, city_name, city_slug, show_hours, status, listed_at)
     values (p_tenant_id, v_uf, btrim(p_city_name), v_slug, coalesce(p_show_hours, false), case when p_listed then 'listed' else 'unlisted' end,
-      case when p_listed then clock_timestamp() end) returning * into l;
+      case when p_listed then clock_timestamp() end) on conflict (tenant_id) do nothing returning * into l;
+    if l.tenant_id is null then raise exception using errcode = 'PT409', message = 'STALE_VERSION'; end if;
   else
     if l.version <> p_expected_version then raise exception using errcode = 'PT409', message = 'STALE_VERSION'; end if;
     -- Suspenso pela moderação não volta sozinho: o dono só pode sair (unlisted continua suspenso até o backend liberar).

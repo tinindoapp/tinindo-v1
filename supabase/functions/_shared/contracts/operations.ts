@@ -20,6 +20,7 @@ import * as campaigns from "./campaigns.ts";
 import * as growth from "./growth-advice.ts";
 import * as presence from "./presence.ts";
 import * as fiscal from "./fiscal.ts";
+import * as discovery from "./discovery.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -43,7 +44,8 @@ export type ModuleId =
   | "campaigns"
   | "growth-advice"
   | "presence"
-  | "fiscal";
+  | "fiscal"
+  | "discovery";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -654,6 +656,10 @@ export const OPERATIONS = {
   "fiscal.emit": { module: "fiscal", owner: "P16", kind: "command", idempotent: true, input: fiscal.FiscalEmitInput, output: fiscal.FiscalDocumentOutput },
   "fiscal.cancel": { module: "fiscal", owner: "P16", kind: "command", idempotent: true, input: fiscal.FiscalCancelInput, output: fiscal.FiscalDocumentOutput },
   "fiscal.folder": { module: "fiscal", owner: "P16", kind: "query", idempotent: false, input: fiscal.FiscalFolderInput, output: fiscal.FiscalFolderOutput },
+  "discovery.get": { module: "discovery", owner: "P23", kind: "query", idempotent: false, input: discovery.DiscoveryGetInput, output: discovery.DiscoveryOverview },
+  "discovery.save": { module: "discovery", owner: "P23", kind: "command", idempotent: true, input: discovery.DiscoverySaveInput, output: discovery.DiscoveryOverview },
+  "directory.search": { module: "discovery", owner: "P23", kind: "query", idempotent: false, input: discovery.DirectorySearchInput, output: discovery.DirectorySearchOutput },
+  "directory.cities": { module: "discovery", owner: "P23", kind: "query", idempotent: false, input: discovery.DirectoryCitiesInput, output: discovery.DirectoryCitiesOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;

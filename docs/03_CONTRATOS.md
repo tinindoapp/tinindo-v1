@@ -184,6 +184,10 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `fiscal.emit` | receivable_id?, taker_name, taker_document?, description, amount_cents, competence_date, key | Emite NFS-e no caso elegível pelo provedor (homologação até liberação); não confirma pagamento nem toca o recebível |
 | `fiscal.cancel` | document_id, expected_version, reason, key | Pede o cancelamento ao provedor; recusado → a nota continua autorizada |
 | `fiscal.folder` | month | Pasta do mês para o contador: notas autorizadas e canceladas por competência, com totais |
+| `discovery.get` | — | Listagem do negócio no diretório, critérios, escopo do perfil (P09) e o cartão como o público vê |
+| `discovery.save` | expected_version, uf, city_name, show_hours, listed, key | Entra/sai do diretório (exige perfil publicado), cidade e se mostra os dias de atendimento; suspensão da moderação não é desfeita pelo dono |
+| `directory.search` | uf, city_slug, category?, area?, weekday?, page | Busca pública: filtros exatos, ordem alfabética do nome exibido, só campos autorizados, sem destaque pago |
+| `directory.cities` | category? | Cidades com profissionais listados (índice das páginas) |
 
 ## Exemplo de cotação
 
