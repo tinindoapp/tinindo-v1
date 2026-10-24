@@ -171,7 +171,7 @@ select throws_ok(format($$ select public.action_approve(%L, %L, %L, 7, 'idem-ag-
   (select tenant_a from ids), pg_temp.got('p1')->'body'->>'proposal_id', pg_temp.got('p1')->'body'->>'payload_hash', pg_temp.h('ab2')),
   'PT409', 'STALE_VERSION', 'versão diferente não aprova');
 insert into r select 'a1', pg_temp.approve('idem-ag-appr-000001', 'p1');
-select ok((pg_temp.got('a1')->'body'->>'expires_at')::timestamptz <= now() + interval '15 minutes', 'aprovação vale 15 minutos');
+select ok((pg_temp.got('a1')->'body'->>'expires_at')::timestamptz between now() + interval '14 minutes' and clock_timestamp() + interval '15 minutes', 'aprovação vale 15 minutos');
 select is((select state from public.agent_proposals where id = (pg_temp.got('p1')->'body'->>'proposal_id')::uuid), 'approved',
   'proposta aprovada');
 select throws_ok(format($$ select public.action_approve(%L, %L, %L, 1, 'idem-ag-appr-000002', %L) $$,
