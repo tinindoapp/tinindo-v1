@@ -1,12 +1,12 @@
 // Catálogo do prestador: duração, intervalos, preço base, piso e custos. Arquivar = inativo.
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { type ProviderService, ServiceSaveInput } from "@contracts";
-import { Button, Card, Field, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { useProfession } from "./CustomersPage.tsx";
 import { centsToInput, formatCents, parseBRL, parsePercentToBps } from "./format.ts";
 import { PROFESSION_CONFIG, type ServiceTemplate } from "./profession.ts";
-import { fieldErrors, Tag } from "./shared.tsx";
+import { CrmDemoNotice, fieldErrors, Tag } from "./shared.tsx";
 
 type Draft = {
   id?: string;
@@ -94,16 +94,17 @@ export function ServicesPage() {
 
   return (
     <div className="crm-stack">
-      <Card aria-labelledby="crm-services-title">
-        <div className="crm-head">
-          <div>
-            <p className="tn-caps">Clientes e catálogo</p>
-            <h1 id="crm-services-title">Serviços</h1>
-          </div>
+      <PageHeader
+        title="Serviços"
+        id="crm-services-title"
+        actions={
           <Button onClick={() => setDraft(EMPTY)} disabled={api.readOnly}>
             Novo serviço
           </Button>
-        </div>
+        }
+      />
+      <CrmDemoNotice />
+      <div className="crm-filters">
         <div className="crm-toolbar">
           <label className="crm-check">
             <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
@@ -119,7 +120,7 @@ export function ServicesPage() {
             ))}
           </div>
         ) : null}
-      </Card>
+      </div>
 
       {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
       {draft ? (

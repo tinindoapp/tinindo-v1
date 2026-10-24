@@ -2,7 +2,7 @@
 // sem resposta), estornar e conciliar o dia com o provedor. O que a tela promete é o que o banco garante: pago só
 // com confirmação do provedor; notificação repetida não entra duas vezes; sem resposta nada é presumido.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, StatusBanner } from "../../components/ui/index.tsx";
 import { CHARGE_STATUS, DIFF_LABEL, explain, FAILURE_REASON, formatCents, formatDateTime, PROVIDER_LABEL, REFUND_STATUS, todayIn } from "./labels.ts";
 import { type ChargesList, newKey, type PaymentCharge, type PaymentProvider, type PaymentsPort, type Receivable, type Reconciliation } from "./port.ts";
 
@@ -112,7 +112,7 @@ export function PaymentsPage({ port, timezone }: { port: PaymentsPort; timezone:
     <div className="tn-pay">
       <Card aria-labelledby="pay-title">
         <h1 id="pay-title">Pagamentos</h1>
-        <p className="tn-pay-muted">Cobrança por Pix pelo provedor de pagamento. Pago só quando o provedor confirma; a mesma notificação nunca entra duas vezes; sem resposta, nada é presumido. A Tinindo não guarda dinheiro: o provedor repassa ao seu negócio.</p>
+        <Help><p>Cobrança por Pix pelo provedor de pagamento. Pago só quando o provedor confirma; a mesma notificação nunca entra duas vezes; sem resposta, nada é presumido. A Tinindo não guarda dinheiro: o provedor repassa ao seu negócio.</p></Help>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> O provedor é simulado: nenhum dinheiro existe. Abra o link da cobrança para "pagar" como a cliente.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}

@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { openFromNav } from "../qa/helpers.ts";
 
 test("horários: bloqueio criado aparece na lista e some dos horários livres", async ({ page }) => {
   await page.goto("/app/agenda");
-  await page.getByRole("link", { name: "Horários" }).click();
+  await openFromNav(page, "Horários");
   await expect(page.getByRole("heading", { name: "Horários de atendimento" })).toBeVisible();
   await expect(page.getByRole("group", { name: "Segunda" })).toBeVisible();
 
@@ -18,7 +19,7 @@ test("horários: bloqueio criado aparece na lista e some dos horários livres", 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 
   // Navegação dentro do app: a emulação guarda o estado só enquanto a página não recarrega.
-  await page.getByRole("link", { name: "Voltar para a agenda" }).click();
+  await openFromNav(page, "Agenda");
   await page.getByRole("link", { name: "Novo agendamento" }).click();
   await page.getByRole("button", { name: "Próximo dia" }).click();
   const slots = page.getByRole("group", { name: "Horários livres" });

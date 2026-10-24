@@ -1,24 +1,21 @@
 // Peças visuais internas do módulo CRM (sem novos componentes globais; ADR-0005).
 import { type ReactNode, useId } from "react";
-import { NavLink, Outlet } from "react-router";
+import { Outlet } from "react-router";
 import { StatusBanner } from "../../components/ui/index.tsx";
 import { useCrmApi } from "./api.ts";
 import "./crm.css";
 
-export function CrmTabs() {
+/** Aviso da demonstração, logo abaixo do cabeçalho de cada tela do módulo. */
+export function CrmDemoNotice() {
   const api = useCrmApi();
+  return api.readOnly ? (
+    <StatusBanner tone="info">Demonstração sem servidor: dados de exemplo, nada é salvo. Os formulários ficam bloqueados.</StatusBanner>
+  ) : null;
+}
+
+export function CrmTabs() {
   return (
     <div className="crm-stack">
-      <nav className="crm-tabs" aria-label="Seções de clientes e catálogo">
-        <NavLink to="." end>Clientes</NavLink>
-        <NavLink to="servicos">Serviços</NavLink>
-        <NavLink to="importar">Importar CSV</NavLink>
-      </nav>
-      {api.readOnly ? (
-        <StatusBanner tone="info">
-          Demonstração sem servidor: dados de exemplo, nada é salvo. Os formulários ficam bloqueados.
-        </StatusBanner>
-      ) : null}
       <Outlet />
     </div>
   );

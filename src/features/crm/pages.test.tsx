@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import type { ProviderService } from "@contracts";
 import { FX, services } from "@contracts/fixtures.ts";
@@ -36,7 +36,11 @@ function fakeApi(over: Partial<CrmApi> = {}): CrmApi {
 }
 
 const renderWith = (api: CrmApi, ui: React.ReactNode) =>
-  render(<CrmApiContext.Provider value={api}>{ui}</CrmApiContext.Provider>);
+  render(
+    <MemoryRouter>
+      <CrmApiContext.Provider value={api}>{ui}</CrmApiContext.Provider>
+    </MemoryRouter>,
+  );
 const type = (label: string | RegExp, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
@@ -247,7 +251,7 @@ describe("módulo no app (demonstração sem servidor)", () => {
     expect(await screen.findByText(DEMO_CUSTOMERS[0]!.name)).toBeInTheDocument();
     expect(screen.getByText(/nada é salvo\. Os formulários ficam bloqueados/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Novo cliente" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("link", { name: "Serviços" }));
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Telas de Clientes" })).getByRole("link", { name: "Serviços" }));
     expect(await screen.findByText("Barba")).toBeInTheDocument();
   });
 

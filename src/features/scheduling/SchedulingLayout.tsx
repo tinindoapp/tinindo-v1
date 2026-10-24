@@ -94,8 +94,7 @@ function BaseLoader({ port }: { port: SchedulingPort }) {
   if (base.error) {
     return (
       <section aria-labelledby="agenda-title">
-        <p className="tn-caps">Pacote P04</p>
-        <h1 id="agenda-title">Agenda</h1>
+          <h1 id="agenda-title">Agenda</h1>
         <ErrorPanel error={base.error} operation="load" onRetry={base.reload} />
       </section>
     );

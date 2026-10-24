@@ -21,8 +21,14 @@ export async function noHorizontalScroll(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 }
 
+/** Abre uma tela pelo menu principal: barra lateral no desktop; no celular, o botão Menu abre a folha antes. */
 export async function openFromNav(page: Page, name: string) {
-  await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name, exact: true }).click();
+  const nav = page.getByRole("navigation", { name: "Principal" });
+  if (!(await nav.isVisible())) {
+    await page.getByRole("button", { name: "Menu" }).click();
+    await expect(nav).toBeVisible();
+  }
+  await nav.getByRole("link", { name, exact: true }).click();
 }
 
 /** Toda tela operável precisa se identificar como demonstração (AGENTS.md, BRAND.md). */

@@ -1,16 +1,33 @@
-// Componentes visuais base (dono: integrador; propostas de novos componentes via PR pequeno).
+// Componentes visuais base (dono: integrador; propostas de novos componentes via PR pequeno). ADR-0024: linguagem de app
+// (cabeçalho de página, seções com título, listas agrupadas, indicadores) sobre os mesmos tokens da marca.
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { useId } from "react";
+import { Link } from "react-router";
+import symbolColor from "@brand/assets/logo/tinindo-symbol-color.svg";
+import symbolNegative from "@brand/assets/logo/tinindo-symbol-negativo-cor.svg";
 import wordmarkColor from "@brand/assets/logo/tinindo-wordmark-color.svg";
 import wordmarkNegative from "@brand/assets/logo/tinindo-wordmark-negativo-cor.svg";
+import { Icon, type IconName } from "./icons.tsx";
 import "./ui.css";
+
+type Variant = "primary" | "secondary" | "ghost";
 
 export function Button({
   variant = "primary",
   type = "button",
+  block,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" }) {
-  return <button type={type} className="tn-button" data-variant={variant} {...props} />;
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; block?: boolean }) {
+  return <button type={type} className="tn-button" data-variant={variant} data-block={block || undefined} {...props} />;
+}
+
+/** Link com aparência de botão (navegação, nunca ação com efeito). */
+export function LinkButton({ to, variant = "primary", block, children }: { to: string; variant?: Variant; block?: boolean; children: ReactNode }) {
+  return (
+    <Link to={to} className="tn-button" data-variant={variant} data-block={block || undefined}>
+      {children}
+    </Link>
+  );
 }
 
 export function Card({ children, as: Tag = "section", ...rest }: { children: ReactNode; as?: "section" | "div" | "article" } & { "aria-labelledby"?: string }) {
@@ -18,6 +35,94 @@ export function Card({ children, as: Tag = "section", ...rest }: { children: Rea
     <Tag className="tn-card" {...rest}>
       {children}
     </Tag>
+  );
+}
+
+/** Cabeçalho de tela: título (h1 único da rota), apoio curto e ações. Sem cartão em volta. */
+export function PageHeader({ title, id, eyebrow, subtitle, actions }: { title: ReactNode; id?: string; eyebrow?: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+  return (
+    <header className="tn-page-header">
+      <div className="tn-page-header__text">
+        {eyebrow ? <p className="tn-caps">{eyebrow}</p> : null}
+        <h1 id={id}>{title}</h1>
+        {subtitle ? <p className="tn-page-header__sub">{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="tn-page-header__actions">{actions}</div> : null}
+    </header>
+  );
+}
+
+/** Explicação longa recolhida ("Como funciona"): a tela abre direto no que importa; o texto continua a um toque. */
+export function Help({ children, label = "Como funciona" }: { children: ReactNode; label?: string }) {
+  return (
+    <details className="tn-help">
+      <summary>
+        <Icon name="info" size={18} />
+        {label}
+      </summary>
+      <div className="tn-help__body">{children}</div>
+    </details>
+  );
+}
+
+/** Seção com título (h2) e ação opcional à direita. */
+export function Section({ title, id, action, children }: { title: ReactNode; id: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="tn-section" aria-labelledby={id}>
+      <div className="tn-section__head">
+        <h2 id={id}>{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Lista agrupada (linhas tocáveis num bloco único). */
+export function List({ label, children }: { label?: string; children: ReactNode }) {
+  return (
+    <ul className="tn-list" aria-label={label}>
+      {children}
+    </ul>
+  );
+}
+
+export function ListItem({ to, icon, title, meta, trailing }: { to?: string; icon?: IconName; title: ReactNode; meta?: ReactNode; trailing?: ReactNode }) {
+  const body = (
+    <>
+      {icon ? (
+        <span className="tn-list__icon">
+          <Icon name={icon} size={20} />
+        </span>
+      ) : null}
+      <span className="tn-list__text">
+        <span className="tn-list__title">{title}</span>
+        {meta ? <span className="tn-list__meta">{meta}</span> : null}
+      </span>
+      {trailing ? <span className="tn-list__trailing">{trailing}</span> : null}
+      {to ? <Icon name="seta" size={18} className="tn-list__chevron" /> : null}
+    </>
+  );
+  return <li>{to ? <Link to={to} className="tn-list__row">{body}</Link> : <div className="tn-list__row">{body}</div>}</li>;
+}
+
+/** Indicador numérico com rótulo e nota (o número sempre com contexto). */
+export function Stat({ label, value, hint, to }: { label: string; value: ReactNode; hint?: ReactNode; to?: string }) {
+  const inner = (
+    <>
+      <span className="tn-stat__label">{label}</span>
+      <span className="tn-stat__value tn-num">{value}</span>
+      {hint ? <span className="tn-stat__hint">{hint}</span> : null}
+    </>
+  );
+  return to ? <Link to={to} className="tn-stat">{inner}</Link> : <div className="tn-stat">{inner}</div>;
+}
+
+export function Stats({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="tn-stats" role="group" aria-label={label}>
+      {children}
+    </div>
   );
 }
 
@@ -73,6 +178,17 @@ export function Wordmark({ width = 132 }: { width?: number }) {
     <picture>
       <source srcSet={wordmarkNegative} media="(prefers-color-scheme: dark)" />
       <img src={wordmarkColor} width={w} alt="Tinindo" style={{ display: "block", height: "auto" }} />
+    </picture>
+  );
+}
+
+/** Símbolo original sem anel (mínimo 32 px; abaixo disso a marca pede a variante óptica). */
+export function BrandSymbol({ size = 32 }: { size?: number }) {
+  const s = Math.max(size, 32);
+  return (
+    <picture>
+      <source srcSet={symbolNegative} media="(prefers-color-scheme: dark)" />
+      <img src={symbolColor} width={s} height={s} alt="Tinindo" style={{ display: "block" }} />
     </picture>
   );
 }

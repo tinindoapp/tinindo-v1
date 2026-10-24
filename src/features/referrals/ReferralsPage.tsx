@@ -1,8 +1,7 @@
 // Indicações (P21): o dono vê os convites de colega (gerados no Perfil, P09), a adesão de cada um medida pelo backend
 // e os benefícios. O benefício é crédito de franquia do assistente no mês; nunca avaliação, nota ou posição.
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
-import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, LinkButton, StatusBanner } from "../../components/ui/index.tsx";
 import { activationLabel, explain, formatDate, formatMonth, STATE } from "./labels.ts";
 import type { ReferralDashboard, ReferralReward, ReferralsPort } from "./port.ts";
 
@@ -29,9 +28,12 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
     <div className="tn-ref">
       <Card aria-labelledby="ref-title">
         <h1 id="ref-title">Indicações</h1>
-        <p className="tn-ref-muted">
-          Convide colegas pelo seu <Link to="/app/perfil">Perfil</Link>: o link é pessoal e quem envia é você. Quando o negócio indicado passa a usar a Tinindo de verdade, você ganha crédito de perguntas do assistente no mês.
-        </p>
+        <Help><p>
+          O convite sai do seu Perfil: o link é pessoal e quem envia é você. Quando o negócio indicado passa a usar a Tinindo de verdade, você ganha crédito de perguntas do assistente no mês.
+        </p></Help>
+        <div className="tn-ref-actions">
+          <LinkButton to="/app/perfil" variant="secondary">Convidar pelo Perfil</LinkButton>
+        </div>
         <StatusBanner tone="info">
           <strong>O benefício não é avaliação.</strong> Não existe nota, ranking nem posição por indicar. A Tinindo mede o uso real do negócio indicado
           {rules ? ` (${rules.min_customers} clientes e ${rules.min_completed_bookings} atendimentos concluídos em ${rules.window_days} dias)` : ""} e concede
