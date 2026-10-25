@@ -5,6 +5,7 @@ import type { ModuleDefinition } from "../../app/module-types.ts";
 import { AccountPage } from "./AccountPage.tsx";
 import { NewPasswordPage } from "./AuthPages.tsx";
 import { CreateBusinessPage } from "./CreateBusinessPage.tsx";
+import { MyBookingsPage } from "./MyBookingsPage.tsx";
 import { RedeemLinkPage } from "./RedeemLinkPage.tsx";
 import { IdentityServicesProvider } from "./services.tsx";
 import "./identity.css";
@@ -31,6 +32,7 @@ export const identityModule: ModuleDefinition = {
         { index: true, element: <AccountPage /> },
         { path: "novo-negocio", element: <CreateBusinessPage /> },
         { path: "vincular", element: <RedeemLinkPage /> },
+        { path: "reservas", element: <MyBookingsPage /> },
         { path: "nova-senha", element: <NewPasswordPage /> },
       ],
     },

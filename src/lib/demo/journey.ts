@@ -1,7 +1,7 @@
 // Ponte da DEMONSTRAÇÃO offline entre módulos (dono: integrador). Cada módulo emula o próprio backend na aba; aqui passa
 // só o que no servidor é um fato compartilhado: o atendimento concluído na Agenda (que o Caixa cobra e o cliente avalia),
-// o endereço do perfil publicado e o resumo das avaliações. Concluir NÃO gera cobrança nem recebimento: o Caixa só passa a
-// listar o atendimento como "sem cobrança". Nada persiste além da aba e nada daqui é usado com servidor.
+// as reservas da cliente ("Minhas reservas"), o endereço do perfil publicado e o resumo das avaliações. Concluir NÃO gera
+// cobrança nem recebimento: o Caixa só passa a listar o atendimento como "sem cobrança". Nada persiste além da aba e nada daqui é usado com servidor.
 
 /** Atendimento concluído na agenda da demonstração (mesmos campos que o Caixa precisa para cobrar). */
 export interface DemoCompletedVisit {
@@ -20,7 +20,21 @@ interface ReviewSummary {
   identity_verified: boolean;
 }
 
+/** Reserva como o cliente a vê em "Minhas reservas" (mesmos campos de public.my_bookings). */
+export interface DemoCustomerBooking {
+  booking_id: string;
+  tenant_id: string;
+  tenant_name: string;
+  timezone: string;
+  service_name: string;
+  starts_at: string;
+  ends_at: string;
+  status: "held" | "confirmed" | "completed" | "cancelled" | "no_show";
+  agreed_price_cents: number | null;
+}
+
 const visits = new Map<string, DemoCompletedVisit>();
+let customerBookingsSource: ((customerId: string) => Promise<DemoCustomerBooking[]>) | null = null;
 let publishedSlug: string | null = null;
 let reviewSummary: (() => ReviewSummary) | null = null;
 
@@ -53,6 +67,15 @@ export function provideReviewSummary(fn: () => ReviewSummary): void {
 
 export function currentReviewSummary(): ReviewSummary | null {
   return reviewSummary ? reviewSummary() : null;
+}
+
+/** A Agenda informa como listar as reservas de um cliente; "Minhas reservas" lê daqui (o estado atual da aba). */
+export function provideCustomerBookings(fn: (customerId: string) => Promise<DemoCustomerBooking[]>): void {
+  customerBookingsSource = fn;
+}
+
+export async function customerBookings(customerId: string): Promise<DemoCustomerBooking[]> {
+  return customerBookingsSource ? customerBookingsSource(customerId) : [];
 }
 
 /** Só para testes. */

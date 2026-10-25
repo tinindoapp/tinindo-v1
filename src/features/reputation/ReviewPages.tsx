@@ -127,6 +127,7 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
       <h1>Avaliar atendimentos</h1>
       {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Você vê como a Cliente Exemplo Ana: aparecem os exemplos e os atendimentos dela concluídos na Agenda desta aba. Nada é publicado fora da aba.</StatusBanner> : null}
       {signedOut ? <p><Link to="/entrar">Entre na sua conta</Link> para avaliar os atendimentos que você fez.</p> : null}
+      {!signedOut ? <p><Link to="/app/conta/reservas">Minhas reservas</Link></p> : null}
       {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
       {data ? (
         <>

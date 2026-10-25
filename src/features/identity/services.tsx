@@ -3,11 +3,12 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type BusinessCreateInput, BusinessCreateOutput, Profession } from "@contracts";
-import { tenantA } from "@contracts/fixtures.ts";
+import { FIXED_NOW, FX, tenantA } from "@contracts/fixtures.ts";
 import type { z } from "zod";
 import {
   CustomerLinkRedeemOutput,
   CustomerLinkRevokeOutput,
+  MyBooking,
   MyCustomerLink,
   Onboarding,
   OnboardingSaveOutput,
@@ -16,6 +17,7 @@ import {
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
+import { customerBookings } from "../../lib/demo/journey.ts";
 import { supabase } from "../../lib/supabase.ts";
 
 export type BusinessDraft = z.input<typeof BusinessCreateInput>;
@@ -37,6 +39,8 @@ export interface IdentityServices {
     idempotencyKey: string,
   ): Promise<Onboarding>;
   loadMyLinks(): Promise<MyCustomerLink[]>;
+  /** Minhas reservas (public.my_bookings): só leitura; `now` é o relógio da fonte (fixo na demonstração). */
+  loadMyBookings(): Promise<{ now: string; bookings: MyBooking[] }>;
   redeemLink(code: string, idempotencyKey: string): Promise<z.infer<typeof CustomerLinkRedeemOutput>>;
   revokeLink(tenantId: string, linkId: string, expectedVersion: number, idempotencyKey: string): Promise<void>;
   signUp(email: string, password: string): Promise<{ needsConfirmation: boolean }>;
@@ -86,6 +90,8 @@ export function createDefaultServices(
           : null,
       saveOnboarding: offline,
       loadMyLinks: async () => [],
+      // Demonstração: a cliente é a Cliente Exemplo Ana, com as reservas da Agenda desta aba.
+      loadMyBookings: async () => ({ now: FIXED_NOW, bookings: MyBooking.array().parse(await customerBookings(FX.customers.abInA)) }),
       redeemLink: offline,
       revokeLink: offline,
       signUp: offline,
@@ -131,6 +137,11 @@ export function createDefaultServices(
       const { data, error } = await client.rpc("my_customer_links");
       if (error) throw new AuthFlowError("failed");
       return MyCustomerLink.array().max(100).parse(data ?? []);
+    },
+    async loadMyBookings() {
+      const { data, error } = await client.rpc("my_bookings");
+      if (error) throw new AuthFlowError("failed");
+      return { now: new Date().toISOString(), bookings: MyBooking.array().max(200).parse(data ?? []) };
     },
     async redeemLink(code, idempotencyKey) {
       const { data } = await call("/identity/customer_link.redeem", CustomerLinkRedeemOutput, {

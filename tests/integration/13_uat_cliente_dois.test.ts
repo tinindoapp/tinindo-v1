@@ -2,7 +2,7 @@
 // vê só as próprias reservas em cada um, não vê notas, lista de clientes nem custos; o profissional A não
 // descobre o histórico da cliente com B (SEC-01/SEC-02 com RLS de verdade).
 import { afterAll, describe, expect, it } from "vitest";
-import { BookingOutput, CustomerLinkIssueOutput, CustomerLinkRedeemOutput, ScheduleSettings } from "@contracts";
+import { BookingOutput, CustomerLinkIssueOutput, CustomerLinkRedeemOutput, MyBooking, ScheduleSettings } from "@contracts";
 import { fails, FX, nextWeek, ok, plusMin, pool, rpc, T, U } from "./harness.ts";
 
 afterAll(() => pool.end());
@@ -68,6 +68,19 @@ describe("UAT cliente de dois profissionais", () => {
     // Só reservas dela, nos dois negócios: nenhuma de outro cliente.
     expect(mine.every((r) => r.customer_id === FX.customers.abInA || r.customer_id === FX.customers.abInB)).toBe(true);
     expect(new Set(mine.map((r) => r.tenant_id))).toEqual(new Set([T.A, T.B]));
+  });
+
+  it("2b · minhas reservas: a mesma lista pela função, com nomes e sem campos do CRM", async () => {
+    const res = await rpc(U.customerAB, "my_bookings", {});
+    expect(res.error).toBeNull();
+    const list = MyBooking.array().parse(res.data);
+    expect(list.map((b) => b.booking_id)).toEqual(expect.arrayContaining([bookings[T.A], bookings[T.B]]));
+    expect(list.map((b) => b.booking_id)).not.toContain(bookings.otherInA);
+    expect(new Set(list.map((b) => b.tenant_name))).toEqual(new Set(["Barbearia Exemplo A", "Personal Exemplo B"]));
+    expect(JSON.stringify(res.data)).not.toMatch(/customer_id|status_reason|guest_ref/);
+    // Quem não tem vínculo recebe lista vazia; anônimo nem executa.
+    expect((await rpc(U.outsider, "my_bookings", {})).data).toEqual([]);
+    expect((await rpc(null, "my_bookings", {})).error).not.toBeNull();
   });
 
   it("3 · a cliente não vê a lista de clientes, custos, notas nem o caixa", async () => {

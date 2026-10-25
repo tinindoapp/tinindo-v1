@@ -1,7 +1,8 @@
 // Identidade e onboarding (P01): onboarding mínimo e vínculo cliente ↔ login por código.
 // Promovido do módulo identity pelo integrador (aditivo; ADR-0007). business.create está em catalog.ts.
 import { z } from "zod";
-import { IsoDateTime, Uuid, Version } from "./common.ts";
+import { Cents, IsoDateTime, Uuid, Version } from "./common.ts";
+import { BookingStatus } from "./scheduling.ts";
 
 /** Objetivo principal declarado no onboarding (docs/15: diagnóstico mínimo, sem score). */
 export const OnboardingGoal = z.enum([
@@ -80,3 +81,20 @@ export const MyCustomerLink = z.object({
   version: Version,
 });
 export type MyCustomerLink = z.infer<typeof MyCustomerLink>;
+
+/**
+ * Linha de public.my_bookings(): reserva do próprio login num negócio com vínculo ativo. Só leitura, sem CRM
+ * (nada de notas, motivo, origem ou outros clientes). Reserva provisória vencida não aparece.
+ */
+export const MyBooking = z.object({
+  booking_id: Uuid,
+  tenant_id: Uuid,
+  tenant_name: z.string().min(1).max(120),
+  timezone: z.string().min(1).max(64),
+  service_name: z.string().min(1).max(120),
+  starts_at: IsoDateTime,
+  ends_at: IsoDateTime,
+  status: BookingStatus.exclude(["expired"]),
+  agreed_price_cents: Cents.nullable(),
+});
+export type MyBooking = z.infer<typeof MyBooking>;

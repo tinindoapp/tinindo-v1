@@ -11,6 +11,7 @@ import { AccountPage } from "./AccountPage.tsx";
 import { RecoverPasswordPage } from "./AuthPages.tsx";
 import { CreateBusinessPage } from "./CreateBusinessPage.tsx";
 import { identityModule } from "./module.tsx";
+import { MyBookingsPage } from "./MyBookingsPage.tsx";
 import { POLICY_VERSIONS, PROFESSION_PRESETS } from "./presets.ts";
 import { RedeemLinkPage } from "./RedeemLinkPage.tsx";
 import { type IdentityServices, IdentityServicesProvider } from "./services.tsx";
@@ -35,6 +36,7 @@ function fakeServices(over: Partial<IdentityServices> = {}): IdentityServices {
       completed_at: "2026-10-20T12:00:00.000Z", version: 2,
     })),
     loadMyLinks: vi.fn(async () => []),
+    loadMyBookings: vi.fn(async () => ({ now: "2026-10-20T12:00:00Z", bookings: [] })),
     redeemLink: vi.fn(async () => ({
       link_id: "0b1c2d3e-4f50-4a61-8b72-c3d4e5f60718", tenant_id: FX.tenants.A, tenant_name: tenantA.name,
       verified_at: "2026-10-20T12:00:00.000Z",
@@ -55,6 +57,7 @@ function renderPage(element: ReactNode, services: IdentityServices, path = "/app
       { path: "/app/conta", element: <IdentityServicesProvider value={services}>{element}</IdentityServicesProvider> },
       { path: "/app/conta/novo-negocio", element: <IdentityServicesProvider value={services}>{element}</IdentityServicesProvider> },
       { path: "/app/conta/vincular", element: <IdentityServicesProvider value={services}>{element}</IdentityServicesProvider> },
+      { path: "/app/conta/reservas", element: <IdentityServicesProvider value={services}>{element}</IdentityServicesProvider> },
     ],
     { initialEntries: [path] },
   );
@@ -202,6 +205,33 @@ describe("cliente em vários profissionais", () => {
     await waitFor(() =>
       expect(services.revokeLink).toHaveBeenCalledWith(FX.tenants.B, links[1]!.link_id, 1, `revoke-${links[1]!.link_id}-v1`),
     );
+  });
+
+  it("minhas reservas: próximas e anteriores, fuso do negócio, avaliar só concluída no prazo, sem ações de alterar", async () => {
+    const b = (id: string, tenant: string, tenant_name: string, service_name: string, starts_at: string, ends_at: string, status: "confirmed" | "completed" | "cancelled") =>
+      ({ booking_id: id, tenant_id: tenant, tenant_name, timezone: "America/Sao_Paulo", service_name, starts_at, ends_at, status, agreed_price_cents: 6000 });
+    const bookings = [
+      b("6a000000-0000-4000-8000-000000000001", FX.tenants.A, "Barbearia Exemplo A", "Corte", "2026-10-22T12:00:00Z", "2026-10-22T12:30:00Z", "confirmed"),
+      b("6a000000-0000-4000-8000-000000000002", FX.tenants.B, "Personal Exemplo B", "Sessão de treino", "2026-10-19T10:00:00Z", "2026-10-19T11:00:00Z", "completed"),
+      b("6a000000-0000-4000-8000-000000000003", FX.tenants.A, "Barbearia Exemplo A", "Corte", "2026-08-01T12:00:00Z", "2026-08-01T12:30:00Z", "completed"),
+      b("6a000000-0000-4000-8000-000000000004", FX.tenants.A, "Barbearia Exemplo A", "Barba", "2026-10-21T12:00:00Z", "2026-10-21T12:20:00Z", "cancelled"),
+    ];
+    renderPage(<MyBookingsPage />, fakeServices({ loadMyBookings: vi.fn(async () => ({ now: "2026-10-20T12:00:00Z", bookings })) }), "/app/conta/reservas");
+    const next = await screen.findByRole("list", { name: "Próximas reservas" });
+    expect(within(next).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(next).getByText(/qui\.?, 22\/10, 09:00–09:30/)).toBeInTheDocument();
+    const past = screen.getByRole("list", { name: "Reservas anteriores" });
+    expect(within(past).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(past).getByText(/Cancelada/)).toBeInTheDocument();
+    // Avaliar: só a concluída dentro de 30 dias (a de agosto passou do prazo).
+    expect(screen.getAllByRole("link", { name: "Avaliar" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /Cancelar|Remarcar|Reagendar/ })).not.toBeInTheDocument();
+  });
+
+  it("minhas reservas vazias explicam o vínculo", async () => {
+    renderPage(<MyBookingsPage />, fakeServices(), "/app/conta/reservas");
+    expect(await screen.findByText(/Nenhuma reserva por aqui ainda/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tenho um código de vínculo" })).toHaveAttribute("href", "/app/conta/vincular");
   });
 
   it("código: formato errado não chama o servidor; código inválido dá mensagem neutra", async () => {

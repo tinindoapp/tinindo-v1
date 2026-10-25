@@ -45,3 +45,7 @@
   border-bottom: 1px solid var(--tn-border);
 }
 .tn-id-list li span { min-width: 0; overflow-wrap: anywhere; }
+.tn-id-muted {
+  font-size: var(--tn-font-size-sm);
+  color: var(--tn-text-muted);
+}
