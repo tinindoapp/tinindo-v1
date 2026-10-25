@@ -1,6 +1,7 @@
 // Perfil público do profissional + horários do link de reserva. Usado na página pública
 // e na prévia do dono. Mostra só a projeção publicada: nada de CRM, contatos ou agenda alheia.
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { Button, Card, StatusBanner } from "../../components/ui/index.tsx";
 import type { NetworkApi, PublicProfileData, PublicService, SlotsData } from "./api.ts";
 import { CATEGORY_LABEL, errorMessage, formatTime } from "./useNetworkApi.ts";
@@ -18,11 +19,17 @@ export function PublicProfileView({ profile, api }: { profile: PublicProfileData
         <ul className="tn-net-badges" aria-label="Reputação">
           <li>{profile.reputation.identity_verified ? "Identidade verificada" : "Identidade não verificada"}</li>
           <li>
-            {profile.reputation.reviews_count === 0
-              ? "Perfil novo · ainda sem avaliações"
-              : `${profile.reputation.reviews_count} avaliações de clientes`}
+            {profile.reputation.reviews_count === 0 ? (
+              "Perfil novo · ainda sem avaliações"
+            ) : (
+              <Link to={`/avaliacoes/${profile.slug}`}>{profile.reputation.reviews_count} avaliações de clientes</Link>
+            )}
           </li>
         </ul>
+        {/* Avaliar exige login e só lista atendimentos concluídos do próprio cliente (regra do servidor). */}
+        <p className="tn-net-small">
+          Já foi atendido aqui? <Link to="/avaliar">Avaliar meu atendimento</Link>
+        </p>
         {profile.fields.bio ? <p>{profile.fields.bio}</p> : null}
         {profile.fields.services_summary ? <p>{profile.fields.services_summary}</p> : null}
       </Card>
@@ -120,10 +127,9 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
           ) : null}
           {chosen ? (
             <StatusBanner tone="info">
-              Horário das <span className="tn-num">{formatTime(chosen)}</span> selecionado.{" "}
-              {api.demo
-                ? "Demonstração: nada foi reservado."
-                : "Para pedir este horário, entre com seu e-mail. Uma escolha não segura o horário até a confirmação."}
+              {/* Reserva pelo link ainda não existe (sem public.book; docs/handoffs/P10): nada é criado nem simulado. */}
+              Horário das <span className="tn-num">{formatTime(chosen)}</span> selecionado, mas nada foi reservado: a
+              reserva on-line ainda não está disponível. Combine este horário diretamente com o profissional.
             </StatusBanner>
           ) : null}
         </div>

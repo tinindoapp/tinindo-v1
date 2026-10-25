@@ -85,7 +85,7 @@ describe("páginas públicas (demonstração)", () => {
     // Manhã lotada nas fixtures: 09:00 ocupado; 12:00 livre.
     expect(within(slots).queryByRole("button", { name: "09:00" })).not.toBeInTheDocument();
     fireEvent.click(within(slots).getByRole("button", { name: "12:00" }));
-    expect(screen.getByText(/Demonstração: nada foi reservado/)).toBeInTheDocument();
+    expect(screen.getByText(/nada foi reservado: a reserva on-line ainda não está disponível/)).toBeInTheDocument();
   });
 
   it("perfil tirado do ar some do link público", async () => {

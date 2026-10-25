@@ -8,6 +8,8 @@ import { type CustomerReviewsPort, newKey, type OwnerReviewsPort, type PublicRev
 
 const MONTH = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 const monthLabel = (ym: string) => MONTH.format(new Date(`${ym}-15T12:00:00Z`));
+// Data do atendimento no fuso do piloto (o pendente não traz o fuso do negócio).
+const DAY = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
 const stars = (n: number) => `${"★".repeat(n)}${"☆".repeat(5 - n)}`;
 
 function explain(err: unknown): string {
@@ -123,7 +125,7 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
   return (
     <main className="tn-rev-page">
       <h1>Avaliar atendimentos</h1>
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Atendimentos de exemplo; nada é publicado.</StatusBanner> : null}
+      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Você vê como a Cliente Exemplo Ana: aparecem os exemplos e os atendimentos dela concluídos na Agenda desta aba. Nada é publicado fora da aba.</StatusBanner> : null}
       {signedOut ? <p><Link to="/entrar">Entre na sua conta</Link> para avaliar os atendimentos que você fez.</p> : null}
       {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
       {data ? (
@@ -133,13 +135,13 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
           <ul className="tn-rev-list" aria-label="Para avaliar">
             {data.pending.map((p) => (
               <li key={p.booking_id} className="tn-rev-item">
-                <form aria-label={`Avaliar ${p.service_name} em ${p.tenant_name}`} className="tn-rev-form" onSubmit={(e) => {
+                <form aria-label={`Avaliar ${p.service_name} em ${p.tenant_name}, ${DAY.format(new Date(p.ended_at))}`} className="tn-rev-form" onSubmit={(e) => {
                   e.preventDefault();
                   void port.submit(p.booking_id, rating[p.booking_id] ?? 0, text[p.booking_id]?.trim() || null, newKey())
                     .then(() => { setNotice({ tone: "success", text: "Obrigado! Sua avaliação foi publicada sem o seu nome." }); setNonce((n) => n + 1); },
                       (err: unknown) => setNotice({ tone: "danger", text: explain(err) }));
                 }}>
-                  <p><strong>{p.service_name}</strong> · {p.tenant_name}</p>
+                  <p><strong>{p.service_name}</strong> · {p.tenant_name} · <span className="tn-num">{DAY.format(new Date(p.ended_at))}</span></p>
                   <fieldset className="tn-rev-stars">
                     <legend>Nota</legend>
                     {[1, 2, 3, 4, 5].map((n) => (

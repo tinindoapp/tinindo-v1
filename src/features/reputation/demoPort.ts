@@ -2,8 +2,9 @@
 // cliente vinculado, em 30 dias; resposta do profissional sem mexer na nota; denúncia não esconde; média só com 3+;
 // competência certificada sempre falsa; autor nunca aparece). Nada sai do navegador.
 import { DEFAULT_MESSAGES, ERROR_STATUS, type ErrorCode, RETRYABLE } from "@contracts";
-import { FIXED_NOW, tenantA } from "@contracts/fixtures.ts";
+import { FIXED_NOW, FX, services as fixtureServices, tenantA } from "@contracts/fixtures.ts";
 import { ApiError } from "../../lib/api/client.ts";
+import { completedVisits, getPublishedSlug, provideReviewSummary } from "../../lib/demo/journey.ts";
 import type { CustomerReviewsPort, OwnerReviewsPort, PublicReviewsPort, ReviewOwnerList, ReviewPending } from "./port.ts";
 
 function fail(code: ErrorCode, field?: string): never {
@@ -12,10 +13,28 @@ function fail(code: ErrorCode, field?: string): never {
 const clone = <T>(v: T): T => structuredClone(v);
 type Review = ReviewOwnerList["reviews"][number];
 const RULES = { window_days: 30, min_reviews_for_average: 3, body_max: 600 };
-const PENDING: ReviewPending["pending"] = [
+const SEEDED_PENDING: ReviewPending["pending"] = [
   { booking_id: "90000000-0000-4000-8000-0000000000e1", tenant_name: tenantA.name, service_name: "Corte", ended_at: "2026-10-18T13:30:00Z", review_until: "2026-11-17T13:30:00Z" },
   { booking_id: "90000000-0000-4000-8000-0000000000e2", tenant_name: tenantA.name, service_name: "Barba", ended_at: "2026-10-12T15:20:00Z", review_until: "2026-11-11T15:20:00Z" },
 ];
+const DAY_MS = 86_400_000;
+/**
+ * Na demonstração, quem avalia é a Cliente Exemplo Ana. Elegíveis: os exemplos + atendimentos dela concluídos na Agenda desta aba, dentro da janela (mesma regra do banco:
+ * só concluído, só do cliente vinculado, até 30 dias depois do fim).
+ */
+function pendingNow(): ReviewPending["pending"] {
+  const now = state().clock;
+  const fromAgenda = completedVisits()
+    .filter((v) => v.customer_id === FX.customers.abInA && now - Date.parse(v.ends_at) <= RULES.window_days * DAY_MS)
+    .map((v) => ({
+      booking_id: v.booking_id,
+      tenant_name: tenantA.name,
+      service_name: fixtureServices.find((x) => x.id === v.service_id)?.name ?? "Atendimento",
+      ended_at: new Date(v.ends_at).toISOString().replace(/\.\d{3}Z$/, "Z"),
+      review_until: new Date(Date.parse(v.ends_at) + RULES.window_days * DAY_MS).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    }));
+  return [...fromAgenda, ...SEEDED_PENDING];
+}
 interface State { reviews: (Review & { booking_id: string | null; mine: boolean })[]; seq: number; clock: number; reports: Set<string> }
 let shared: State | null = null;
 const seedReview = (n: number, rating: number, body: string, month: string): State["reviews"][number] => ({
@@ -33,6 +52,11 @@ function summary() {
   const avg = pub.length >= RULES.min_reviews_for_average ? Math.round((pub.reduce((a, r) => a + r.rating, 0) / pub.length) * 10) / 10 : null;
   return { identity_verified: false, completed_bookings: 12, reviews_count: pub.length, rating_average: avg, certified_competence: false as const };
 }
+// O perfil público da demonstração mostra o mesmo resumo que a lista de avaliações.
+provideReviewSummary(() => {
+  const s = summary();
+  return { reviews_count: s.reviews_count, identity_verified: s.identity_verified };
+});
 const strip = ({ booking_id: _b, mine: _m, ...r }: State["reviews"][number]) => r;
 const pub = ({ status: _s, version: _v, hidden_reason: _h, open_reports: _o, ...r }: Review) => r;
 
@@ -65,12 +89,12 @@ export function createDemoCustomerPort(): CustomerReviewsPort {
     kind: "demo",
     async pending() {
       const s = state();
-      return clone({ rules: RULES, pending: PENDING.filter((p) => !s.reviews.some((r) => r.booking_id === p.booking_id)),
+      return clone({ rules: RULES, pending: pendingNow().filter((p) => !s.reviews.some((r) => r.booking_id === p.booking_id)),
         mine: s.reviews.filter((r) => r.mine).map((r) => ({ ...pub(strip(r)), status: r.status, version: r.version, tenant_name: tenantA.name })) });
     },
     async submit(bookingId, rating, body) {
       const s = state();
-      const p = PENDING.find((x) => x.booking_id === bookingId);
+      const p = pendingNow().find((x) => x.booking_id === bookingId);
       if (!p) fail("NOT_FOUND");
       if (s.reviews.some((r) => r.booking_id === bookingId)) fail("POLICY_REJECTED", "already_reviewed");
       if (rating < 1 || rating > 5) fail("VALIDATION_ERROR", "rating");
@@ -90,7 +114,8 @@ export function createDemoPublicPort(): PublicReviewsPort {
   return {
     kind: "demo",
     async list(slug) {
-      if (slug !== "barbearia-exemplo-a") fail("NOT_FOUND");
+      // O perfil de exemplo, ou o endereço que o dono publicou nesta aba (o negócio da demonstração é um só).
+      if (slug !== "barbearia-exemplo-a" && slug !== getPublishedSlug()) fail("NOT_FOUND");
       return clone({ rules: RULES, summary: summary(), reviews: state().reviews.filter((r) => r.status === "published").map((r) => pub(strip(r))).sort((a, b) => b.created_at.localeCompare(a.created_at)) });
     },
   };

@@ -106,10 +106,10 @@ test.describe("UAT barbeiro", () => {
     await page.getByRole("link", { name: "Abrir perfil público" }).click();
     await expect(page).toHaveURL(/\/p\/barbeiro-uat$/);
     await expectDemoLabel(page);
-    await expect(page.getByText("Perfil novo · ainda sem avaliações")).toBeVisible();
+    await expect(page.getByRole("link", { name: "2 avaliações de clientes" })).toBeVisible();
     const slots = page.getByRole("list", { name: "Horários livres" });
     await slots.getByRole("button").first().click();
-    await expect(page.getByText("Demonstração: nada foi reservado.")).toBeVisible();
+    await expect(page.getByText(/nada foi reservado: a reserva on-line ainda não está disponível/)).toBeVisible();
     await noHorizontalScroll(page);
   });
 

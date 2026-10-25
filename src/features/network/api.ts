@@ -20,6 +20,7 @@ import {
   type ReferralSummary,
 } from "@contracts";
 import { ApiError, type CallOptions } from "../../lib/api/client.ts";
+import { currentReviewSummary, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { demoSlots } from "./demo-slots.ts";
 
 export type PublicProfileData = z.infer<typeof PublicProfile>;
@@ -111,6 +112,7 @@ const demoState: DemoState = { profile: null, referrals: [] };
 /** Só para testes: volta a demonstração ao estado inicial. */
 export function resetDemoNetwork() {
   demoState.profile = null;
+  setPublishedSlug(null);
   demoState.referrals = [];
 }
 
@@ -123,7 +125,9 @@ const notFound = () => new ApiError("NOT_FOUND", "Não encontrado.", 404, null, 
 
 function toPublic(p: OwnerProfile): PublicProfileData {
   if (!p.published_at) throw notFound();
-  return { slug: p.slug, category: p.category, area: p.area, fields: p.fields, published_at: p.published_at, reputation: p.reputation };
+  // Mesmo resumo da lista pública de avaliações da demonstração (no servidor, vem da mesma função).
+  const reputation = currentReviewSummary() ?? p.reputation;
+  return { slug: p.slug, category: p.category, area: p.area, fields: p.fields, published_at: p.published_at, reputation };
 }
 
 export function createDemoNetworkApi(origin: string): NetworkApi {
@@ -151,11 +155,13 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         reputation: { identity_verified: false, reviews_count: 0 },
         version: (demoState.profile?.version ?? 0) + 1,
       };
+      setPublishedSlug(input.slug);
       return toPublic(demoState.profile);
     },
     async unpublishProfile() {
       if (!demoState.profile) throw notFound();
       demoState.profile = { ...demoState.profile, published_at: null, version: demoState.profile.version + 1 };
+      setPublishedSlug(null);
     },
     async getPublicProfile(slug) {
       if (!demoState.profile || demoState.profile.slug !== slug) throw notFound();

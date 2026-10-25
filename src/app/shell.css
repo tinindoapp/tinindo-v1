@@ -7,6 +7,9 @@
   text-align: center;
   padding: var(--tn-space-1) var(--tn-space-4);
 }
+.tn-demo-banner__build {
+  white-space: nowrap;
+}
 
 /* "Pular para o conteúdo": fora do fluxo, visível só com foco (WCAG 2.4.1). */
 .tn-skip-link {

@@ -5,6 +5,7 @@ import { Outlet } from "react-router";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
+import { completionEventId, publishCompletedVisit } from "../../lib/demo/journey.ts";
 import { createFixturePort, type Simulation } from "./fixturePort.ts";
 import type { CustomerRef, SchedulingContext, SchedulingPort } from "./port.ts";
 import { createServerPort } from "./serverPort.ts";
@@ -25,7 +26,16 @@ function readSimulation(): Simulation {
 
 /** Uma emulação por carregamento de página: as mudanças valem enquanto a aba estiver aberta. */
 export function getDemoPort(): SchedulingPort {
-  demoPort ??= createFixturePort({ simulate: readSimulation(), latencyMs: 120 });
+  demoPort ??= createFixturePort({
+    simulate: readSimulation(),
+    latencyMs: 120,
+    // O mesmo atendimento segue para o Caixa (sem cobrança até o dono cobrar) e para a avaliação do cliente.
+    onCompleted: (b) =>
+      publishCompletedVisit({
+        booking_id: b.id, customer_id: b.customer_id, service_id: b.service_id, starts_at: b.starts_at, ends_at: b.ends_at,
+        agreed_price_cents: b.agreed_price_cents, completed_event_id: completionEventId(b.id),
+      }),
+  });
   return demoPort;
 }
 
