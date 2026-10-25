@@ -6,6 +6,7 @@ import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { Card, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
+import { completedVisits } from "../../lib/demo/journey.ts";
 import { createDemoPort } from "./demoPort.ts";
 import { FinancePage, FinancePortProvider } from "./FinancePage.tsx";
 import type { FinancePort } from "./port.ts";
@@ -15,7 +16,8 @@ import "./finance.css";
 let demoPort: FinancePort | null = null;
 /** Uma emulação por carregamento de página: as mudanças valem enquanto a aba estiver aberta. */
 export function getDemoPort(): FinancePort {
-  demoPort ??= createDemoPort();
+  // Atendimentos concluídos na Agenda da mesma aba aparecem aqui como "sem cobrança" (nunca como recebidos).
+  demoPort ??= createDemoPort({ visits: completedVisits });
   return demoPort;
 }
 /** Só para testes. */

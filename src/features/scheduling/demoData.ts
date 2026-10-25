@@ -52,12 +52,14 @@ const extra = (n: number, starts: string, ends: string, service: string, custome
   version: 1,
 });
 
-/** Semana de 19/10 além da terça das fixtures: concluído, falta, cancelamento e confirmado. */
+/** Semana de 19/10 além da terça das fixtures: concluídos, falta, cancelamento e confirmado. Os concluídos são os do Caixa. */
 export const DEMO_EXTRA_BOOKINGS: Booking[] = [
   extra(1, "2026-10-19T14:00:00-03:00", "2026-10-19T14:30:00-03:00", FX.services.corteA, FX.customers.abInA, "completed", 6000),
   extra(2, "2026-10-19T16:00:00-03:00", "2026-10-19T16:20:00-03:00", FX.services.barbaA, FX.customers.guestInA, "no_show", 4000),
   extra(3, "2026-10-21T10:00:00-03:00", "2026-10-21T10:30:00-03:00", FX.services.corteA, FX.customers.guestInA, "cancelled", 6000),
   extra(4, "2026-10-22T09:00:00-03:00", "2026-10-22T09:30:00-03:00", FX.services.corteA, FX.customers.abInA, "confirmed", 6000),
+  // Mesmo atendimento que o Caixa de exemplo lista como concluído sem cobrança (barba do Bruno, segunda 16:30).
+  extra(5, "2026-10-19T16:30:00-03:00", "2026-10-19T16:50:00-03:00", FX.services.barbaA, FX.customers.guestInA, "completed", 4000),
 ];
 
 export function demoBookings(): Booking[] {

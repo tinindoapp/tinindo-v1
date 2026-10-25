@@ -65,6 +65,8 @@ export interface FixturePortOptions {
   simulate?: Simulation;
   /** Atraso artificial (ms) para tornar estados de carregamento observáveis. */
   latencyMs?: number;
+  /** Demonstração: avisa a conclusão (o Caixa passa a listar o atendimento como sem cobrança). Não cobra nada. */
+  onCompleted?: (booking: Booking & { agreed_price_cents: number }) => void;
 }
 
 export function createFixturePort(options: FixturePortOptions = {}): SchedulingPort {
@@ -407,6 +409,8 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         if (current.status !== "confirmed" || Date.parse(current.starts_at) > now.getTime()) fail("POLICY_REJECTED");
         return update(current.id, { status: "completed" });
       });
+      // Preço combinado na reserva; sem ele, o preço base do serviço (mesma regra da cobrança no servidor).
+      options.onCompleted?.({ ...result, agreed_price_cents: result.agreed_price_cents ?? service(result.service_id).base_price_cents });
       return delay(result);
     },
   };

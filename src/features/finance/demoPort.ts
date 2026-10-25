@@ -49,7 +49,7 @@ const stable = (v: unknown) =>
 const id = (prefix: string, n: number) => `${prefix}-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const within = (iso: string, p: TimeRange) => Date.parse(iso) >= Date.parse(p.starts_at) && Date.parse(iso) < Date.parse(p.ends_at);
 
-interface DemoBooking {
+export interface DemoBooking {
   booking_id: string;
   customer_id: string | null;
   service_id: string;
@@ -82,7 +82,15 @@ export const DEMO_FINANCE_CUSTOMERS = [
   { id: FX.customers.guestInA, name: "Cliente Exemplo Bruno" },
 ];
 
-export function createDemoPort(): FinancePort {
+export interface DemoPortOptions {
+  /**
+   * Atendimentos concluídos na Agenda da mesma demonstração (src/lib/demo/journey.ts). Entram como "sem cobrança";
+   * cobrar e receber continuam sendo ações do dono. Sem a opção, só os exemplos fixos abaixo.
+   */
+  visits?: () => DemoBooking[];
+}
+
+export function createDemoPort(options: DemoPortOptions = {}): FinancePort {
   const tz = tenantA.timezone;
   const now = new Date(FIXED_NOW);
   const nowIso = () => now.toISOString();
@@ -90,13 +98,19 @@ export function createDemoPort(): FinancePort {
   let seq = 100;
   const next = (prefix: string) => id(prefix, ++seq);
 
-  // Atendimentos concluídos de exemplo (segunda 19/10), ainda sem cobrança.
-  const bookings: DemoBooking[] = [
+  // Atendimentos concluídos de exemplo (segunda 19/10, os mesmos da Agenda), ainda sem cobrança.
+  const seeded: DemoBooking[] = [
     { booking_id: id("60000000", 101), customer_id: FX.customers.abInA, service_id: FX.services.corteA,
       starts_at: "2026-10-19T17:00:00Z", agreed_price_cents: 6000, completed_event_id: id("65000000", 1) },
     { booking_id: id("60000000", 105), customer_id: FX.customers.guestInA, service_id: FX.services.barbaA,
       starts_at: "2026-10-19T19:30:00Z", agreed_price_cents: 4000, completed_event_id: id("65000000", 2) },
   ];
+  /** Exemplos + concluídos na Agenda, uma vez por atendimento (o mesmo id nunca vira duas cobranças). */
+  const allBookings = (): DemoBooking[] => {
+    const list = [...seeded];
+    for (const v of options.visits?.() ?? []) if (!list.some((b) => b.booking_id === v.booking_id)) list.push(v);
+    return list;
+  };
   const receivables: Receivable[] = [];
   const payments: PaymentRecord[] = [];
   const expenses: ExpenseEntry[] = [];
@@ -197,7 +211,7 @@ export function createDemoPort(): FinancePort {
       });
     },
     uncharged(period) {
-      const list: UnchargedBooking[] = bookings
+      const list: UnchargedBooking[] = allBookings()
         .filter((b) => within(b.starts_at, period) && !activeReceivable(b.booking_id) && !consumed(b.booking_id))
         .map((b) => ({
           ...b,
@@ -228,7 +242,7 @@ export function createDemoPort(): FinancePort {
     async chargeBooking(raw, key) {
       const i = parse(FinanceChargeBookingInput, raw);
       return delay(once("finance.charge_booking", key, i, () => {
-        const b = bookings.find((x) => x.booking_id === i.booking_id) ?? fail("NOT_FOUND");
+        const b = allBookings().find((x) => x.booking_id === i.booking_id) ?? fail("NOT_FOUND");
         if (consumed(b.booking_id)) fail("POLICY_REJECTED", "package");
         if (activeReceivable(b.booking_id)) fail("POLICY_REJECTED", "booking_id");
         const svc = services.find((s) => s.id === b.service_id);
@@ -307,7 +321,7 @@ export function createDemoPort(): FinancePort {
           if (prior.package_id !== pkg.id) fail("POLICY_REJECTED", "event_id");
           return balance(pkg.id);
         }
-        const b = bookings.find((x) => x.booking_id === i.booking_id) ?? fail("NOT_FOUND", "booking_id");
+        const b = allBookings().find((x) => x.booking_id === i.booking_id) ?? fail("NOT_FOUND", "booking_id");
         if (b.completed_event_id !== i.event_id) fail("POLICY_REJECTED", "event_id");
         if (b.customer_id !== pkg.customer_id || b.service_id !== pkg.service_id) fail("POLICY_REJECTED", "package_id");
         if (activeReceivable(b.booking_id)) fail("POLICY_REJECTED", "booking_id");

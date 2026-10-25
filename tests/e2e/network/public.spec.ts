@@ -14,11 +14,12 @@ test("perfil público abre fora do shell, sem dados privados, com horários sem 
   await expect(page.getByRole("navigation", { name: "Principal" })).toHaveCount(0);
   await expect(page.getByRole("note")).toContainText("Demonstração");
   await expect(page.getByRole("heading", { name: "Barbearia Exemplo A" })).toBeVisible();
-  await expect(page.getByText("Perfil novo · ainda sem avaliações")).toBeVisible();
+  // Mesmo resumo da lista de avaliações da demonstração (2 de exemplo), com link para ela.
+  await expect(page.getByRole("link", { name: "2 avaliações de clientes" })).toHaveAttribute("href", "/avaliacoes/barbearia-publica");
   await expect(page.locator("body")).not.toContainText("10000000-0000-4000-8000-00000000000a");
   const slots = page.getByRole("list", { name: "Horários livres" });
   await slots.getByRole("button", { name: "12:00" }).click();
-  await expect(page.getByText("Demonstração: nada foi reservado.")).toBeVisible();
+  await expect(page.getByText(/nada foi reservado: a reserva on-line ainda não está disponível/)).toBeVisible();
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 });

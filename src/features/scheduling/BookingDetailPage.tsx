@@ -114,7 +114,7 @@ function BookingDetail({
         onMessage("Atendimento cancelado. O horário voltou a ficar livre.");
       } else {
         await port.complete({ booking_id: booking.id, expected_version: booking.version }, keys.complete);
-        onMessage("Atendimento concluído. O pagamento não foi registrado: registre em Dinheiro quando receber.");
+        onMessage("Atendimento concluído. O pagamento não foi registrado: cobre e registre o recebimento no Caixa quando receber.");
       }
       setPanel(null);
       reload();
@@ -173,6 +173,12 @@ function BookingDetail({
             <Button variant="ghost" onClick={() => setPanel("cancel")}>
               Cancelar atendimento
             </Button>
+          ) : null}
+          {booking.status === "completed" ? (
+            // Concluir não é receber: a cobrança e o recebimento são registrados no Caixa, pelo dono.
+            <Link className="tn-button" data-variant="secondary" to="/app/caixa">
+              Cobrar no Caixa
+            </Link>
           ) : null}
         </div>
       ) : null}
