@@ -27,6 +27,9 @@ export async function openFromNav(page: Page, name: string) {
   const menu = page.getByRole("button", { name: "Menu", exact: true });
   // Decide pelo estado do botão, não pela visibilidade da folha: logo depois de navegar ela ainda está fechando
   // (animação) e parece visível, mas o link não fica clicável.
+  // isVisible() não espera: logo depois de navegar de uma página pública para /app o shell pode ainda não ter montado,
+  // e no celular o menu seria pulado. Espera o shell (botão Menu no celular, barra lateral no desktop) antes de decidir.
+  await expect(menu.or(nav).filter({ visible: true }).first()).toBeVisible();
   if (await menu.isVisible()) {
     if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
     await expect(menu).toHaveAttribute("aria-expanded", "true");
