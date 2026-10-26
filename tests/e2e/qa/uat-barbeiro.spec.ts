@@ -98,7 +98,7 @@ test.describe("UAT barbeiro", () => {
     await expect(page.getByRole("region", { name: "Regras ativas" }).getByRole("listitem")).toHaveCount(1);
   });
 
-  test("4a · link público abre o perfil e o cliente escolhe uma vaga sem reserva falsa", async ({ page }) => {
+  test("4a · link público abre o perfil e o cliente escolhe uma vaga; sem o código nada é reservado", async ({ page }) => {
     await page.goto("/app/perfil");
     await page.getByLabel("Endereço do perfil").fill("barbeiro-uat");
     await page.getByLabel("Bairro ou região").fill("Centro");
@@ -109,16 +109,33 @@ test.describe("UAT barbeiro", () => {
     await expect(page.getByRole("link", { name: "2 avaliações de clientes" })).toBeVisible();
     const slots = page.getByRole("list", { name: "Horários livres" });
     await slots.getByRole("button").first().click();
-    await expect(page.getByText(/nada foi reservado: a reserva on-line ainda não está disponível/)).toBeVisible();
+    await expect(page.getByRole("form", { name: "Pedir horário" })).toBeVisible();
+    await expect(page.getByText(/horário confirmado/i)).toHaveCount(0);
     await noHorizontalScroll(page);
   });
 
   test("4b · vaga escolhida pelo link público vira reserva na agenda do barbeiro", async ({ page }) => {
-    test.fixme(true, PENDING.publicBooking);
-    await page.goto("/p/barbeiro-uat");
-    await page.getByRole("list", { name: "Horários livres" }).getByRole("button").first().click();
-    await page.getByRole("button", { name: /Confirmar/ }).click();
-    await page.goto("/app/agenda");
+    // A demonstração vive na aba: publicar, reservar e abrir a Agenda sem recarregar a página.
+    await page.goto("/app/perfil");
+    await page.getByLabel("Endereço do perfil").fill("barbeiro-uat-4b");
+    await page.getByLabel("Bairro ou região").fill("Centro");
+    await page.getByRole("button", { name: "Publicar perfil" }).click();
+    await page.getByRole("link", { name: "Abrir perfil público" }).click();
+    const first = page.getByRole("list", { name: "Horários livres" }).getByRole("button").first();
+    const time = (await first.innerText()).trim();
+    await first.click();
+    await page.getByLabel("Seu nome").fill("Cliente do link");
+    await page.getByLabel("WhatsApp com DDD").fill("(11) 97777-4343");
+    await page.getByRole("button", { name: "Pedir este horário" }).click();
+    const code = /O código seria (\d{6})/.exec(await page.getByText(/nenhuma mensagem é enviada/).innerText())![1]!;
+    await page.getByLabel("Código recebido").fill(code);
+    await page.getByRole("button", { name: "Confirmar horário" }).click();
+    await expect(page.getByRole("heading", { name: "Horário confirmado" })).toBeVisible();
+    await page.evaluate(() => {
+      window.history.pushState(null, "", "/app/agenda");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await page.getByRole("link", { name: new RegExp(`^${time}–.*Confirmado`) }).click();
     await expect(page.getByText("Link de agendamento")).toBeVisible();
   });
 

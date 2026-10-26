@@ -65,7 +65,7 @@ test("atendimento futuro não conclui e não aparece no Caixa", async ({ page })
   await expect(page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }).getByRole("listitem")).toHaveCount(2);
 });
 
-test("cliente pelo perfil público: avaliações e caminho para avaliar; horário escolhido não vira reserva falsa", async ({ page }) => {
+test("cliente pelo perfil público: avaliações e caminho para avaliar; escolher horário não vira reserva sem o código", async ({ page }) => {
   await page.goto("/app/perfil");
   await page.getByLabel("Endereço do perfil").fill("barbearia-jornada");
   await page.getByLabel("Bairro ou região").fill("Centro");
@@ -73,9 +73,9 @@ test("cliente pelo perfil público: avaliações e caminho para avaliar; horári
   await page.getByRole("link", { name: "Abrir perfil público" }).click();
   await expect(page).toHaveURL(/\/p\/barbearia-jornada$/);
 
-  await page.getByRole("list", { name: "Horários livres" }).getByRole("button", { name: "12:00" }).click();
-  await expect(page.getByText(/nada foi reservado: a reserva on-line ainda não está disponível/)).toBeVisible();
-  await expect(page.getByText(/reserva confirmada|reservado com sucesso/i)).toHaveCount(0);
+  await page.getByRole("list", { name: "Horários livres" }).getByRole("button").first().click();
+  await expect(page.getByRole("form", { name: "Pedir horário" })).toBeVisible();
+  await expect(page.getByText(/horário confirmado|reserva confirmada|reservado com sucesso/i)).toHaveCount(0);
 
   await page.getByRole("link", { name: "2 avaliações de clientes" }).click();
   await expect(page).toHaveURL(/\/avaliacoes\/barbearia-jornada$/);

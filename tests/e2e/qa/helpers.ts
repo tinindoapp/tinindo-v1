@@ -7,7 +7,7 @@ import { expect, type Page } from "@playwright/test";
 /** Motivos padronizados de test.fixme: o que falta para o passo do roteiro rodar de verdade. */
 export const PENDING = {
   crmWrite: "A demonstração offline não grava (ADR-0006). A mesma regra roda com banco real em tests/integration (UAT barbeiro/cabeleireira pelos handlers); a tela com servidor só roda no staging hospedado (gate ADR-0006).",
-  publicBooking: "Reservar pelo link público não existe ainda: o link só mostra horários (P09/P03). Pendência de produto registrada no handoff do P10.",
+  clientReschedule: "A cliente ainda não remarca pelo link: a reserva pelo link existe (P43), mas remarcar e cancelar continuam com o profissional (ADR-0030).",
   pricing: "A regra publicada vale no servidor: provada em tests/integration/10_uat_barbeiro (cotação de terça com piso). A agenda da demonstração usa a regra de exemplo própria.",
   waitlist: "Candidatos por cancelamento dependem do worker: provado em tests/integration/10_uat_barbeiro (jobs → candidato → oferta → aceite pelo link).",
   finance: "Caixa com banco real provado em tests/integration/12_uat_personal (pacote, pagamento único, consumo por evento, cancelamento sem dupla baixa). A demonstração só tem o negócio A.",

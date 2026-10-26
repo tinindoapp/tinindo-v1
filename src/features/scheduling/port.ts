@@ -20,6 +20,11 @@ import type {
 import type { z } from "zod";
 import type { DayPlan } from "./agenda.ts";
 
+export interface PublicBookingContact {
+  name: string;
+  phone_e164: string;
+}
+
 export interface CustomerRef {
   id: string;
   name: string;
@@ -56,6 +61,11 @@ export interface SchedulingPort {
   reschedule(input: z.input<typeof BookingRescheduleInput>, idempotencyKey: string): Promise<Booking>;
   cancel(input: z.input<typeof BookingCancelInput>, idempotencyKey: string): Promise<Booking>;
   complete(input: z.input<typeof BookingCompleteInput>, idempotencyKey: string): Promise<Booking>;
+  /**
+   * Quem pediu o horário pelo link público (P43): nome e WhatsApp informados. null quando não há pedido
+   * (atendimento criado pelo dono, por exemplo).
+   */
+  publicContact(bookingId: string): Promise<PublicBookingContact | null>;
   /** Expediente semanal e recurso ativo. */
   settings(): Promise<ScheduleSettings>;
   saveRules(input: z.input<typeof ScheduleRulesSaveInput>, idempotencyKey: string): Promise<ScheduleSettings>;

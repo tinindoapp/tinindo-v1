@@ -3,7 +3,12 @@
 import {
   AvailabilityListOutput,
   type ProfilePublishInput,
+  type PublicBookInput,
+  PublicBookOutput,
+  type PublicConfirmInput,
+  PublicConfirmOutput,
   PublicProfile,
+  PublicServicesOutput,
   type ReferralCreateInput,
   ReferralLink,
 } from "@contracts";
@@ -20,7 +25,7 @@ import {
   type ReferralSummary,
 } from "@contracts";
 import { ApiError, type CallOptions } from "../../lib/api/client.ts";
-import { currentReviewSummary, setPublishedSlug } from "../../lib/demo/journey.ts";
+import { currentReviewSummary, providePublicContact, publicBooking, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { demoSlots } from "./demo-slots.ts";
 
 export type PublicProfileData = z.infer<typeof PublicProfile>;
@@ -34,6 +39,12 @@ export interface PublicService {
   duration_min: number;
 }
 
+export type BookRequest = z.infer<typeof PublicBookOutput> & {
+  /** Só na demonstração: o código que o canal enviaria (nada é enviado de verdade). */
+  demoCode?: string;
+};
+export type BookConfirmed = z.infer<typeof PublicConfirmOutput>;
+
 export interface NetworkApi {
   /** `true` quando os dados são de demonstração (sem servidor): a UI exibe o rótulo. */
   readonly demo: boolean;
@@ -41,9 +52,13 @@ export interface NetworkApi {
   publishProfile(input: z.input<typeof ProfilePublishInput>, idempotencyKey: string): Promise<PublicProfileData>;
   unpublishProfile(idempotencyKey: string): Promise<void>;
   getPublicProfile(slug: string): Promise<PublicProfileData>;
-  /** Serviços que o visitante pode escolher. Vazio enquanto o catálogo público não existe. */
+  /** Serviços que o visitante pode escolher (nome e duração). Vazio se o perfil não mostra o link de reserva. */
   publicServices(slug: string): Promise<PublicService[]>;
   publicSlots(slug: string, serviceId: string, window: { starts_at: string; ends_at: string }): Promise<SlotsData>;
+  /** Pede o horário: reserva provisória + código para o contato. Ainda não é confirmação. */
+  book(input: z.input<typeof PublicBookInput>, idempotencyKey: string): Promise<BookRequest>;
+  /** Confirma com o código recebido. */
+  confirmBooking(input: z.input<typeof PublicConfirmInput>, idempotencyKey: string): Promise<BookConfirmed>;
   createReferral(input: z.input<typeof ReferralCreateInput>, idempotencyKey: string): Promise<ReferralLinkData>;
   listReferrals(): Promise<ReferralSummary[]>;
   inspectReferral(token: string): Promise<ReferralInspectOutput>;
@@ -72,12 +87,23 @@ export function createHttpNetworkApi(call: Call, tenantId: string | null): Netwo
     async getPublicProfile(slug) {
       return (await call(`/network/public.profile?slug=${encodeURIComponent(slug)}`, PublicProfile)).data;
     },
-    async publicServices() {
-      // Catálogo público depende de P02 + proposta de contrato; sem fonte real, nada é inventado.
-      return [];
+    async publicServices(slug) {
+      try {
+        return (await call("/network/public.services", PublicServicesOutput, { method: "POST", body: { slug } })).data.services;
+      } catch (e) {
+        // Perfil sem o link de reserva: nada a escolher (a tela orienta a combinar direto).
+        if (e instanceof ApiError && e.code === "NOT_FOUND") return [];
+        throw e;
+      }
     },
     async publicSlots(slug, serviceId, window) {
       return (await call("/network/public.slots", AvailabilityListOutput, { method: "POST", body: { slug, service_id: serviceId, window } })).data;
+    },
+    async book(input, idempotencyKey) {
+      return (await call("/network/public.book", PublicBookOutput, { method: "POST", body: input, idempotencyKey })).data;
+    },
+    async confirmBooking(input, idempotencyKey) {
+      return (await call("/network/public.confirm", PublicConfirmOutput, { method: "POST", body: input, idempotencyKey })).data;
     },
     async createReferral(input, idempotencyKey) {
       return (await call("/network/referral.create", ReferralLink, { method: "POST", tenantId: tenant, body: input, idempotencyKey })).data;
@@ -102,18 +128,42 @@ interface DemoReferral extends ReferralSummary {
   token: string;
 }
 
+/** Pedido do link na demonstração: mesmas regras do banco (prazo, 5 tentativas), código mostrado na tela. */
+interface DemoBookRequest {
+  request: BookRequest;
+  bookingId: string;
+  code: string;
+  attempts: number;
+  confirmed: BookConfirmed | null;
+  hash: string;
+  serviceName: string;
+  contactName: string;
+  contactPhone: string;
+}
+
 interface DemoState {
   profile: OwnerProfile | null;
   referrals: DemoReferral[];
+  requests: Map<string, DemoBookRequest>;
+  /** Horários segurados quando a Agenda da demonstração não está carregada (testes do módulo). */
+  localHolds: { starts_at: string; ends_at: string }[];
 }
 
-const demoState: DemoState = { profile: null, referrals: [] };
+const demoState: DemoState = { profile: null, referrals: [], requests: new Map(), localHolds: [] };
+
+// A Agenda da demonstração mostra ao dono quem pediu cada horário pelo link (como public.contact no servidor).
+providePublicContact((bookingId) => {
+  const r = [...demoState.requests.values()].find((x) => x.bookingId === bookingId);
+  return r ? { name: r.contactName, phone_e164: r.contactPhone } : null;
+});
 
 /** Só para testes: volta a demonstração ao estado inicial. */
 export function resetDemoNetwork() {
   demoState.profile = null;
   setPublishedSlug(null);
   demoState.referrals = [];
+  demoState.requests.clear();
+  demoState.localHolds = [];
 }
 
 function randomToken(): string {
@@ -122,6 +172,16 @@ function randomToken(): string {
 }
 
 const notFound = () => new ApiError("NOT_FOUND", "Não encontrado.", 404, null, false);
+const rejected = (field: string) => new ApiError("POLICY_REJECTED", "Não foi possível confirmar.", 422, null, false, field);
+const overlaps = (a: { starts_at: string; ends_at: string }, b: { starts_at: string; ends_at: string }) =>
+  Date.parse(a.starts_at) < Date.parse(b.ends_at) && Date.parse(b.starts_at) < Date.parse(a.ends_at);
+/** Código de 6 dígitos sem viés: descarta sorteios acima do último múltiplo de 1.000.000 (como app.pbk_new_code). */
+function demoCode(): string {
+  const buf = new Uint32Array(1);
+  do crypto.getRandomValues(buf);
+  while (buf[0]! >= 4_294_000_000);
+  return String(buf[0]! % 1_000_000).padStart(6, "0");
+}
 
 function toPublic(p: OwnerProfile): PublicProfileData {
   if (!p.published_at) throw notFound();
@@ -173,10 +233,59 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         .filter((s) => s.tenant_id === tenantA.id && s.active)
         .map((s) => ({ id: s.id, name: s.name, duration_min: s.duration_min }));
     },
-    async publicSlots(_slug, serviceId) {
+    async publicSlots(_slug, serviceId, window) {
       const service = services.find((s) => s.id === serviceId);
       if (!service) throw notFound();
-      return { slots: demoSlots(bookingsA, service, FIXED_NOW), timezone: tenantA.timezone };
+      // Com a Agenda da aba carregada, os horários são os dela (o que o dono e outros visitantes ocuparam some).
+      const agenda = publicBooking();
+      if (agenda) return { slots: await agenda.slots(serviceId, window), timezone: tenantA.timezone };
+      const free = demoSlots(bookingsA, service, FIXED_NOW).filter((s) => !demoState.localHolds.some((h) => overlaps(h, s)));
+      return { slots: free, timezone: tenantA.timezone };
+    },
+    async book(input, key) {
+      if (!demoState.profile?.published_at || demoState.profile.slug !== input.slug) throw notFound();
+      const hash = JSON.stringify(input);
+      const prior = demoState.requests.get(key);
+      if (prior) {
+        if (prior.hash !== hash) throw new ApiError("IDEMPOTENCY_MISMATCH", "Pedido diferente com a mesma chave.", 409, null, false);
+        return prior.request;
+      }
+      const service = services.find((s) => s.id === input.service_id && s.tenant_id === tenantA.id);
+      if (!service) throw notFound();
+      const agenda = publicBooking();
+      let hold: { booking_id: string; starts_at: string; ends_at: string; hold_expires_at: string };
+      if (agenda) {
+        hold = await agenda.hold({ service_id: service.id, starts_at: input.starts_at });
+      } else {
+        const slot = { starts_at: input.starts_at, ends_at: new Date(Date.parse(input.starts_at) + service.duration_min * 60_000).toISOString() };
+        if (demoState.localHolds.some((h) => overlaps(h, slot))) throw new ApiError("SLOT_CONFLICT", "Este horário não está mais disponível.", 409, null, false, "slot");
+        demoState.localHolds.push(slot);
+        hold = { booking_id: crypto.randomUUID(), ...slot, hold_expires_at: new Date(Date.parse(FIXED_NOW) + 15 * 60_000).toISOString() };
+      }
+      const code = demoCode();
+      const request: BookRequest = {
+        request_id: crypto.randomUUID(),
+        slot: { starts_at: hold.starts_at, ends_at: hold.ends_at },
+        expires_at: hold.hold_expires_at,
+        delivery: "queued",
+        demoCode: code,
+      };
+      demoState.requests.set(key, { request, bookingId: hold.booking_id, code, attempts: 0, confirmed: null, hash, serviceName: service.name,
+        contactName: input.contact.name.trim(), contactPhone: input.contact.phone_e164 });
+      return request;
+    },
+    async confirmBooking(input) {
+      const r = [...demoState.requests.values()].find((x) => x.request.request_id === input.request_id);
+      if (!r) throw notFound();
+      if (r.confirmed) return r.confirmed;
+      if (r.attempts >= 5) throw rejected("attempts");
+      if (input.code !== r.code) {
+        r.attempts += 1;
+        throw rejected("code");
+      }
+      await publicBooking()?.confirm(r.bookingId);
+      r.confirmed = { status: "confirmed", slot: r.request.slot, timezone: tenantA.timezone, service_name: r.serviceName };
+      return r.confirmed;
     },
     async createReferral(input) {
       const token = randomToken();

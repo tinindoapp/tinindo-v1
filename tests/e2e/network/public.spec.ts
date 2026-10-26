@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 // Rotas públicas do P09 montadas no roteador: /p/:slug, /convite e /indicar.
 // Demonstração offline: o estado vive na aba, então os fluxos usam navegação do próprio app.
 
-test("perfil público abre fora do shell, sem dados privados, com horários sem reservar", async ({ page }) => {
+test("perfil público abre fora do shell, sem dados privados; escolher horário não reserva", async ({ page }) => {
   await page.goto("/app/perfil");
   await page.getByLabel("Endereço do perfil").fill("barbearia-publica");
   await page.getByLabel("Bairro ou região").fill("Centro");
@@ -18,8 +18,9 @@ test("perfil público abre fora do shell, sem dados privados, com horários sem 
   await expect(page.getByRole("link", { name: "2 avaliações de clientes" })).toHaveAttribute("href", "/avaliacoes/barbearia-publica");
   await expect(page.locator("body")).not.toContainText("10000000-0000-4000-8000-00000000000a");
   const slots = page.getByRole("list", { name: "Horários livres" });
-  await slots.getByRole("button", { name: "12:00" }).click();
-  await expect(page.getByText(/nada foi reservado: a reserva on-line ainda não está disponível/)).toBeVisible();
+  await slots.getByRole("button").first().click();
+  // Escolher só abre o pedido (nome, WhatsApp e código); o fluxo completo está em public-booking.spec.ts.
+  await expect(page.getByRole("form", { name: "Pedir horário" })).toBeVisible();
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 });

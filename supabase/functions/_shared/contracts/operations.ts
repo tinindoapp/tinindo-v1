@@ -328,6 +328,22 @@ export const OPERATIONS = {
     module: "network", owner: "P09", kind: "query", idempotent: false,
     input: network.PublicSlotsInput, output: scheduling.AvailabilityListOutput,
   },
+  "public.services": {
+    module: "network", owner: "P43", kind: "query", idempotent: false,
+    input: network.PublicProfileQuery, output: network.PublicServicesOutput,
+  },
+  "public.book": {
+    module: "network", owner: "P43", kind: "command", idempotent: true,
+    input: network.PublicBookInput, output: network.PublicBookOutput,
+  },
+  "public.confirm": {
+    module: "network", owner: "P43", kind: "command", idempotent: true,
+    input: network.PublicConfirmInput, output: network.PublicConfirmOutput,
+  },
+  "public.contact": {
+    module: "network", owner: "P43", kind: "query", idempotent: false,
+    input: network.PublicContactInput, output: network.PublicContactOutput,
+  },
   "referral.create": {
     module: "network", owner: "P09", kind: "command", idempotent: true,
     input: network.ReferralCreateInput, output: network.ReferralLink,

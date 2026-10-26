@@ -7,14 +7,19 @@
 //   (#t=…), que o navegador não envia ao servidor nem no Referer.
 // * Perfil público sai de uma projeção fixa do banco; o handler só monta os campos permitidos.
 // * Log técnico sem token, tenant, nome ou corpo.
+// * Reserva pelo link (P43): public.book só segura o horário e manda o código; public.confirm é quem confirma. Nenhuma
+//   das duas exige login; com login, o banco usa o vínculo do cliente (P01) para a reserva aparecer em "Minhas reservas".
 import type { z } from "zod";
 import {
   AvailabilityListOutput,
+  ERROR_STATUS,
+  type ErrorCode,
   IDEMPOTENCY_HEADER,
   IdempotencyKey,
   ProfilePublishInput,
   PublicProfile,
   PublicProfileField,
+  PublicProfileQuery,
   ReferralCreateInput,
   ReferralLink,
   TENANT_HEADER,
@@ -25,6 +30,13 @@ import {
   OwnerProfile,
   OwnerProfileOutput,
   ProfileUnpublishOutput,
+  PublicBookInput,
+  PublicBookOutput,
+  PublicConfirmInput,
+  PublicConfirmOutput,
+  PublicContactInput,
+  PublicContactOutput,
+  PublicServicesOutput,
   PublicSlotsInput,
   ReferralClaimOutput,
   ReferralInspectOutput,
@@ -98,6 +110,10 @@ const OPERATIONS = {
   "profile.get": { method: "GET", auth: true, tenant: true, idempotent: false },
   "public.profile": { method: "GET", auth: false, tenant: false, idempotent: false },
   "public.slots": { method: "POST", auth: false, tenant: false, idempotent: false },
+  "public.services": { method: "POST", auth: false, tenant: false, idempotent: false },
+  "public.book": { method: "POST", auth: false, tenant: false, idempotent: true },
+  "public.confirm": { method: "POST", auth: false, tenant: false, idempotent: true },
+  "public.contact": { method: "POST", auth: true, tenant: true, idempotent: false },
   "referral.create": { method: "POST", auth: true, tenant: false, idempotent: true },
   "referral.inspect": { method: "POST", auth: false, tenant: false, idempotent: false },
   "referral.claim": { method: "POST", auth: true, tenant: false, idempotent: true },
@@ -174,6 +190,17 @@ export function createNetworkHandler(deps: NetworkDeps) {
       } catch {
         return failWith("PROVIDER_UNAVAILABLE");
       }
+    };
+
+    /** Envelope {status_code, body} ou {status_code 4xx, error, field} das RPCs que gravam antes de recusar. */
+    const respondEnvelope = <T extends z.ZodType>(schema: T, data: unknown) => {
+      const env = data as { status_code?: unknown; body?: unknown; error?: unknown; field?: unknown } | null;
+      const status = typeof env?.status_code === "number" ? env.status_code : 0;
+      if (status >= 400 && status <= 499 && typeof env?.error === "string" && env.error in ERROR_STATUS) {
+        return failWith(env.error as ErrorCode, { field: typeof env.field === "string" ? env.field : undefined });
+      }
+      if (status !== 200 && status !== 201) return failWith("INTERNAL_ERROR");
+      return respond(schema, env?.body, status);
     };
 
     /** Valida a saída antes de responder: linha fora do contrato vira 500 sem vazar conteúdo. */
@@ -265,6 +292,54 @@ export function createNetworkHandler(deps: NetworkDeps) {
         } catch {
           return failWith("PROVIDER_UNAVAILABLE");
         }
+      }
+
+      case "public.services": {
+        // POST como public.slots: consulta anônima pelo slug, sem nada na query string.
+        const input = PublicProfileQuery.safeParse(body);
+        if (!input.success) return failWith("NOT_FOUND");
+        const r = await call("public_booking_services", { p_slug: input.data.slug }, false);
+        if (r instanceof Response) return r;
+        return respond(PublicServicesOutput, r.data);
+      }
+
+      case "public.book": {
+        const input = PublicBookInput.safeParse(body);
+        if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        // Com login, o JWT vai junto: o banco usa o vínculo do cliente. Sem login, anon.
+        const r = await call("public_booking_request", {
+          p_slug: input.data.slug,
+          p_service_id: input.data.service_id,
+          p_starts_at: input.data.starts_at,
+          p_contact_name: input.data.contact.name,
+          p_contact_phone: input.data.contact.phone_e164,
+          p_idem_key: idemKey,
+          p_request_hash: await requestHash(input.data),
+          p_request_id: requestId,
+        }, true);
+        if (r instanceof Response) return r;
+        return respondEnvelope(PublicBookOutput, r.data);
+      }
+
+      case "public.confirm": {
+        const input = PublicConfirmInput.safeParse(body);
+        if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        // A confirmação é idempotente pelo estado: repetir com o código certo devolve a mesma reserva.
+        const r = await call("public_booking_confirm", {
+          p_request: input.data.request_id,
+          p_code: input.data.code,
+          p_request_id: requestId,
+        }, false);
+        if (r instanceof Response) return r;
+        return respondEnvelope(PublicConfirmOutput, r.data);
+      }
+
+      case "public.contact": {
+        const input = PublicContactInput.safeParse(body);
+        if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        const r = await call("public_booking_contact", { p_tenant_id: tenantHeader, p_booking_id: input.data.booking_id }, true);
+        if (r instanceof Response) return r;
+        return respond(PublicContactOutput, r.data);
       }
 
       case "referral.create": {

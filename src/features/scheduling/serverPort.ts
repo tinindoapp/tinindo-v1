@@ -8,6 +8,7 @@ import {
   ContextResponse,
   CRM_ROUTES,
   CustomerListOutput,
+  PublicContactOutput,
   Quote,
   ScheduleBlockOutput,
   ScheduleDayPlansOutput,
@@ -15,7 +16,7 @@ import {
   ServiceListOutput,
 } from "@contracts";
 import type { z } from "zod";
-import type { createApiClient } from "../../lib/api/client.ts";
+import { ApiError, type createApiClient } from "../../lib/api/client.ts";
 import type { CustomerRef, SchedulingPort } from "./port.ts";
 
 type Call = ReturnType<typeof createApiClient>;
@@ -72,6 +73,16 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
         cursor = data.next_cursor;
       }
       return out;
+    },
+    async publicContact(bookingId) {
+      try {
+        const { data } = await call("/network/public.contact", PublicContactOutput, post({ booking_id: bookingId }));
+        return { name: data.name, phone_e164: data.phone_e164 };
+      } catch (err) {
+        // Atendimento sem pedido pelo link: nada a mostrar.
+        if (err instanceof ApiError && err.code === "NOT_FOUND") return null;
+        throw err;
+      }
     },
     async getBooking(id) {
       const { data } = await call(scheduling("booking.get"), BookingOutput, post({ booking_id: id }));

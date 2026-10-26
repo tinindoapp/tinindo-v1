@@ -5,16 +5,16 @@ import { Outlet } from "react-router";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
-import { completionEventId, provideCustomerBookings, publishCompletedVisit } from "../../lib/demo/journey.ts";
+import { completionEventId, provideCustomerBookings, providePublicBooking, publishCompletedVisit } from "../../lib/demo/journey.ts";
 import { customerBookingsFrom } from "./demoCustomerBookings.ts";
-import { createFixturePort, type Simulation } from "./fixturePort.ts";
+import { createFixturePort, type FixturePublicLink, type Simulation } from "./fixturePort.ts";
 import type { CustomerRef, SchedulingContext, SchedulingPort } from "./port.ts";
 import { createServerPort } from "./serverPort.ts";
 import type { ProviderService } from "@contracts";
 import { ErrorPanel } from "./parts.tsx";
 import "./scheduling.css";
 
-let demoPort: SchedulingPort | null = null;
+let demoPort: (SchedulingPort & Partial<FixturePublicLink>) | null = null;
 
 function readSimulation(): Simulation {
   try {
@@ -42,6 +42,27 @@ export function getDemoPort(): SchedulingPort {
 
 // "Minhas reservas" da demonstração lê a agenda desta aba (o que o dono criou, concluiu ou cancelou aparece para a cliente).
 provideCustomerBookings((customerId) => customerBookingsFrom(getDemoPort(), customerId));
+
+// Link público da demonstração (P43): o horário que o visitante pede e confirma entra na agenda desta aba.
+function demoPublicLink(): FixturePublicLink {
+  const port = getDemoPort() as SchedulingPort & Partial<FixturePublicLink>;
+  if (!port.publicHold || !port.publicConfirm) throw new Error("agenda da demonstração sem link público");
+  return port as SchedulingPort & FixturePublicLink;
+}
+providePublicBooking({
+  async slots(serviceId, window) {
+    const ctx = await getDemoPort().context();
+    if (!ctx.resourceId) return [];
+    return (await getDemoPort().availability({ resource_id: ctx.resourceId, service_id: serviceId, window })).slots;
+  },
+  async hold(input) {
+    const b = await demoPublicLink().publicHold(input);
+    return { booking_id: b.id, starts_at: b.starts_at, ends_at: b.ends_at, hold_expires_at: b.hold_expires_at! };
+  },
+  async confirm(bookingId) {
+    await demoPublicLink().publicConfirm(bookingId);
+  },
+});
 
 /** Só para testes. */
 export function resetDemoPort(port: SchedulingPort | null = null) {
