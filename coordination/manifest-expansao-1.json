@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "phase": "expansao-1",
+  "tasks": [
+    {
+      "id": "P11",
+      "title": "Orçamentos",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "sales"
+      ],
+      "paths": [
+        "src/features/sales/",
+        "supabase/functions/sales/",
+        "tests/contracts/sales/"
+      ]
+    },
+    {
+      "id": "P12",
+      "title": "Canal oficial",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "messaging"
+      ],
+      "paths": [
+        "src/features/messaging/",
+        "supabase/functions/messaging/",
+        "tests/contracts/messaging/"
+      ]
+    },
+    {
+      "id": "P13",
+      "title": "Relacionamento",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "lifecycle"
+      ],
+      "paths": [
+        "src/features/lifecycle/",
+        "supabase/functions/lifecycle/",
+        "tests/contracts/lifecycle/"
+      ]
+    },
+    {
+      "id": "P14",
+      "title": "Pagamentos",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "payments"
+      ],
+      "paths": [
+        "src/features/payments/",
+        "supabase/functions/payments/",
+        "tests/contracts/payments/"
+      ]
+    },
+    {
+      "id": "P15",
+      "title": "Planos e operação assistida",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "service-ops"
+      ],
+      "paths": [
+        "src/features/service-ops/",
+        "supabase/functions/service-ops/",
+        "tests/contracts/service-ops/"
+      ]
+    },
+    {
+      "id": "P16",
+      "title": "Fiscal seletivo",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "fiscal"
+      ],
+      "paths": [
+        "src/features/fiscal/",
+        "supabase/functions/fiscal/",
+        "tests/contracts/fiscal/"
+      ]
+    },
+    {
+      "id": "P17",
+      "title": "Presença digital",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "presence"
+      ],
+      "paths": [
+        "src/features/presence/",
+        "supabase/functions/presence/",
+        "tests/contracts/presence/"
+      ]
+    },
+    {
+      "id": "P18",
+      "title": "Evidência de valor",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "analytics"
+      ],
+      "paths": [
+        "src/features/analytics/",
+        "supabase/functions/analytics/",
+        "tests/contracts/analytics/"
+      ]
+    },
+    {
+      "id": "P19",
+      "title": "Campanhas e experimentos",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P13",
+        "P18"
+      ],
+      "resources": [
+        "campaigns"
+      ],
+      "paths": [
+        "src/features/campaigns/",
+        "supabase/functions/campaigns/",
+        "db/proposals/P19/",
+        "tests/contracts/campaigns/"
+      ]
+    },
+    {
+      "id": "P20",
+      "title": "Planos recorrentes do profissional",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P07",
+        "P11",
+        "P14"
+      ],
+      "resources": [
+        "recurrence"
+      ],
+      "paths": [
+        "src/features/recurrence/",
+        "supabase/functions/recurrence/",
+        "db/proposals/P20/",
+        "tests/contracts/recurrence/"
+      ]
+    },
+    {
+      "id": "P21",
+      "title": "Indicação de colegas",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P09",
+        "P15",
+        "P18"
+      ],
+      "resources": [
+        "referrals"
+      ],
+      "paths": [
+        "src/features/referrals/",
+        "supabase/functions/referrals/",
+        "db/proposals/P21/",
+        "tests/contracts/referrals/"
+      ]
+    },
+    {
+      "id": "P22",
+      "title": "Metas e conteúdo",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P15",
+        "P18",
+        "P19"
+      ],
+      "resources": [
+        "growth-advice"
+      ],
+      "paths": [
+        "src/features/growth-advice/",
+        "supabase/functions/growth-advice/",
+        "db/proposals/P22/",
+        "tests/contracts/growth-advice/"
+      ]
+    },
+    {
+      "id": "P23",
+      "title": "Diretório e busca local",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P09",
+        "P17"
+      ],
+      "resources": [
+        "discovery"
+      ],
+      "paths": [
+        "src/features/discovery/",
+        "supabase/functions/discovery/",
+        "db/proposals/P23/",
+        "tests/contracts/discovery/"
+      ]
+    },
+    {
+      "id": "P24",
+      "title": "Avaliações e verificação",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P09",
+        "P03"
+      ],
+      "resources": [
+        "reputation"
+      ],
+      "paths": [
+        "src/features/reputation/",
+        "supabase/functions/reputation/",
+        "db/proposals/P24/",
+        "tests/contracts/reputation/"
+      ]
+    },
+    {
+      "id": "P42",
+      "title": "Liberação do piloto (gates externos)",
+      "lead_hint": "Coordenador/integrador",
+      "depends_on": [
+        "P10"
+      ],
+      "resources": [
+        "release"
+      ],
+      "paths": [
+        "release/",
+        "docs/handoffs/",
+        "docs/qa/"
+      ]
+    },
+    {
+      "id": "P43",
+      "title": "Reserva pelo link público",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P03",
+        "P09",
+        "P12"
+      ],
+      "resources": [
+        "public-booking",
+        "network"
+      ],
+      "paths": [
+        "src/features/network/",
+        "supabase/functions/network/",
+        "db/proposals/P43/",
+        "tests/contracts/network/",
+        "tests/e2e/network/"
+      ]
+    }
+  ]
+}
