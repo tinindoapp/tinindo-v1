@@ -114,6 +114,16 @@ class CoordinationTests(unittest.TestCase):
         payload=calls[0][0][2]
         self.assertEqual(payload['sha'],'expected-blob-sha')
         self.assertEqual(payload['branch'],'coordination')
+    def test_remote_adapter_exposes_every_command_method(self):
+        # review/finish com --pr e init dependem destes métodos; uma função no meio da classe já os escondeu.
+        for name in ['actor','read','write','initialize','pull_request']:
+            self.assertTrue(callable(getattr(c.GithubStore,name,None)),name)
+    def test_pull_request_rejects_fork(self):
+        g=c.GithubStore('owner/repo')
+        g.api=lambda *a,**kw:{'base':{'repo':{'full_name':'owner/repo'}},'head':{'repo':{'full_name':'fork/repo'}}}
+        with self.assertRaises(c.BoardError):g.pull_request(42)
+        g.api=lambda *a,**kw:{'base':{'repo':{'full_name':'owner/repo'}},'head':{'repo':{'full_name':'Owner/Repo'}},'number':42}
+        self.assertEqual(g.pull_request(42)['number'],42)
     def test_repository_argument_rejects_shell_or_path_injection(self):
         for repo in ['owner/repo;cmd','../x/y','https://github.com/o/r']:
             with self.assertRaises(c.BoardError):c.GithubStore(repo)

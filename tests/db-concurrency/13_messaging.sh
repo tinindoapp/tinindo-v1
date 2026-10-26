@@ -33,7 +33,7 @@ for w in 1 2 3; do
 done
 wait
 # 20 mensagens + 1 verificação pendente da primeira conexão: cada item sai em UM despacho.
-check "21 itens reservados no total, sem repetição" "$(cat "$TMP"/cl.* | grep -E '^[0-9]+$' | paste -sd+ | bc)" 21
+check "21 itens reservados no total, sem repetição" "$(cat "$TMP"/cl.* | grep -E '^[0-9]+$' | paste -sd+ - | bc)" 21
 check "todas em 'enviando', nenhuma duas vezes" "$(psql -qXtA -c "select count(*) from public.channel_messages where status = 'sending' and attempts = 1")" 20
 
 # 3 · tentativas de código em paralelo
