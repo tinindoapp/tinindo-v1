@@ -674,12 +674,12 @@
       "owner": "gafpromos-alt",
       "session": "gabriel-p43-a",
       "branch": "task/p43/gabriel-p43-a",
-      "lease_until": "2026-10-26T21:06:51.632402Z",
+      "lease_until": "2026-10-26T21:13:28.950672Z",
       "pr": null,
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-26T19:06:51.632402Z",
+  "updated_at": "2026-10-26T19:13:28.950672Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1281,6 +1281,16 @@
     {
       "id": "cb3ba7fa-c135-4db2-8dbe-496976af0408",
       "at": "2026-10-26T19:06:51.632402Z",
+      "action": "heartbeat",
+      "task": "P43",
+      "actor": "gafpromos-alt",
+      "session": "gabriel-p43-a",
+      "pr": null,
+      "reason": null
+    },
+    {
+      "id": "4e62216a-b73d-4637-a089-70553846ed22",
+      "at": "2026-10-26T19:13:28.950672Z",
       "action": "heartbeat",
       "task": "P43",
       "actor": "gafpromos-alt",
