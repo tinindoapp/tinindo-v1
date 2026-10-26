@@ -670,16 +670,16 @@
         "tests/contracts/network/",
         "tests/e2e/network/"
       ],
-      "status": "pending",
-      "owner": null,
-      "session": null,
-      "branch": null,
-      "lease_until": null,
+      "status": "in_progress",
+      "owner": "gafpromos-alt",
+      "session": "gabriel-p43-a",
+      "branch": "task/p43/gabriel-p43-a",
+      "lease_until": "2026-10-26T20:59:24.409832Z",
       "pr": null,
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-26T17:19:41.212867Z",
+  "updated_at": "2026-10-26T18:59:24.409832Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1257,6 +1257,16 @@
       "session": "reconcile",
       "pr": 38,
       "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "e2a405bd-60c5-4a37-957b-db95d01b1a58",
+      "at": "2026-10-26T18:59:24.409832Z",
+      "action": "claim",
+      "task": "P43",
+      "actor": "gafpromos-alt",
+      "session": "gabriel-p43-a",
+      "pr": null,
+      "reason": null
     }
   ]
 }
