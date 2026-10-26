@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "phase": "pilot",
+  "phase": "expansao-1",
   "integrators": [
     "fffalleiros"
   ],
@@ -283,6 +283,393 @@
         "docs/adr/",
         "release/"
       ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p10-integracao",
+      "lease_until": null,
+      "pr": 25,
+      "block_reason": null,
+      "merge_sha": "d466a75a7b22f1f10f804a341c39e7a3b3949749"
+    },
+    "P11": {
+      "id": "P11",
+      "title": "Orçamentos",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "sales"
+      ],
+      "paths": [
+        "src/features/sales/",
+        "supabase/functions/sales/",
+        "tests/contracts/sales/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p11-orcamentos",
+      "lease_until": null,
+      "pr": 22,
+      "block_reason": null,
+      "merge_sha": "a05083c6a1b2c89df34f72f04ec8af2527bba07b"
+    },
+    "P12": {
+      "id": "P12",
+      "title": "Canal oficial",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "messaging"
+      ],
+      "paths": [
+        "src/features/messaging/",
+        "supabase/functions/messaging/",
+        "tests/contracts/messaging/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p12-canal",
+      "lease_until": null,
+      "pr": 26,
+      "block_reason": null,
+      "merge_sha": "24410fa4a743cc000ef34a2c8a4416e5f52de683"
+    },
+    "P13": {
+      "id": "P13",
+      "title": "Relacionamento",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "lifecycle"
+      ],
+      "paths": [
+        "src/features/lifecycle/",
+        "supabase/functions/lifecycle/",
+        "tests/contracts/lifecycle/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p13-relacionamento",
+      "lease_until": null,
+      "pr": 28,
+      "block_reason": null,
+      "merge_sha": "f5d59e9a17c9f6b5bfa22b3b5eb968a904991370"
+    },
+    "P14": {
+      "id": "P14",
+      "title": "Pagamentos",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "payments"
+      ],
+      "paths": [
+        "src/features/payments/",
+        "supabase/functions/payments/",
+        "tests/contracts/payments/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p14-pagamentos",
+      "lease_until": null,
+      "pr": 27,
+      "block_reason": null,
+      "merge_sha": "92ccf87bd82a6bd7e7dee81c2a77e99529ee8917"
+    },
+    "P15": {
+      "id": "P15",
+      "title": "Planos e operação assistida",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "service-ops"
+      ],
+      "paths": [
+        "src/features/service-ops/",
+        "supabase/functions/service-ops/",
+        "tests/contracts/service-ops/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p15-servicos-assistidos",
+      "lease_until": null,
+      "pr": 23,
+      "block_reason": null,
+      "merge_sha": "a8697746f2cd52ebb588b3c0bd5b77061bbd45b7"
+    },
+    "P16": {
+      "id": "P16",
+      "title": "Fiscal seletivo",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "fiscal"
+      ],
+      "paths": [
+        "src/features/fiscal/",
+        "supabase/functions/fiscal/",
+        "tests/contracts/fiscal/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p16-fiscal",
+      "lease_until": null,
+      "pr": 36,
+      "block_reason": null,
+      "merge_sha": "9aae76af82fae8979e7cdab27aab5a7ac6586886"
+    },
+    "P17": {
+      "id": "P17",
+      "title": "Presença digital",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "presence"
+      ],
+      "paths": [
+        "src/features/presence/",
+        "supabase/functions/presence/",
+        "tests/contracts/presence/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p17-presenca",
+      "lease_until": null,
+      "pr": 35,
+      "block_reason": null,
+      "merge_sha": "e560e01dafe8d1e2966e036d124f2c0c8357e422"
+    },
+    "P18": {
+      "id": "P18",
+      "title": "Evidência de valor",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [],
+      "resources": [
+        "analytics"
+      ],
+      "paths": [
+        "src/features/analytics/",
+        "supabase/functions/analytics/",
+        "tests/contracts/analytics/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p18-resultado-custo",
+      "lease_until": null,
+      "pr": 24,
+      "block_reason": null,
+      "merge_sha": "fafa925ab8dcb55cb128c69ea545aba854f7c813"
+    },
+    "P19": {
+      "id": "P19",
+      "title": "Campanhas e experimentos",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P13",
+        "P18"
+      ],
+      "resources": [
+        "campaigns"
+      ],
+      "paths": [
+        "src/features/campaigns/",
+        "supabase/functions/campaigns/",
+        "db/proposals/P19/",
+        "tests/contracts/campaigns/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p19-campanhas",
+      "lease_until": null,
+      "pr": 31,
+      "block_reason": null,
+      "merge_sha": "833fb8a0af6a24b725cd43b4471f7e7da1982871"
+    },
+    "P20": {
+      "id": "P20",
+      "title": "Planos recorrentes do profissional",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P07",
+        "P11",
+        "P14"
+      ],
+      "resources": [
+        "recurrence"
+      ],
+      "paths": [
+        "src/features/recurrence/",
+        "supabase/functions/recurrence/",
+        "db/proposals/P20/",
+        "tests/contracts/recurrence/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p20-recorrencia",
+      "lease_until": null,
+      "pr": 29,
+      "block_reason": null,
+      "merge_sha": "9374b31cc0910a0f77eca0a3aaa6ef49c50708a3"
+    },
+    "P21": {
+      "id": "P21",
+      "title": "Indicação de colegas",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P09",
+        "P15",
+        "P18"
+      ],
+      "resources": [
+        "referrals"
+      ],
+      "paths": [
+        "src/features/referrals/",
+        "supabase/functions/referrals/",
+        "db/proposals/P21/",
+        "tests/contracts/referrals/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p21-indicacao",
+      "lease_until": null,
+      "pr": 30,
+      "block_reason": null,
+      "merge_sha": "f29863b18804ec2069e85921c2c50e3696b68328"
+    },
+    "P22": {
+      "id": "P22",
+      "title": "Metas e conteúdo",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P15",
+        "P18",
+        "P19"
+      ],
+      "resources": [
+        "growth-advice"
+      ],
+      "paths": [
+        "src/features/growth-advice/",
+        "supabase/functions/growth-advice/",
+        "db/proposals/P22/",
+        "tests/contracts/growth-advice/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p22-metas",
+      "lease_until": null,
+      "pr": 32,
+      "block_reason": null,
+      "merge_sha": "6d70453ffce3ef99bfff9ea3ba3cce256cd86d20"
+    },
+    "P23": {
+      "id": "P23",
+      "title": "Diretório e busca local",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P09",
+        "P17"
+      ],
+      "resources": [
+        "discovery"
+      ],
+      "paths": [
+        "src/features/discovery/",
+        "supabase/functions/discovery/",
+        "db/proposals/P23/",
+        "tests/contracts/discovery/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p23-diretorio",
+      "lease_until": null,
+      "pr": 37,
+      "block_reason": null,
+      "merge_sha": "c7d056ed4d0501244833abaf57ed6db1e1ae9a1d"
+    },
+    "P24": {
+      "id": "P24",
+      "title": "Avaliações e verificação",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P09",
+        "P03"
+      ],
+      "resources": [
+        "reputation"
+      ],
+      "paths": [
+        "src/features/reputation/",
+        "supabase/functions/reputation/",
+        "db/proposals/P24/",
+        "tests/contracts/reputation/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/p24-avaliacoes",
+      "lease_until": null,
+      "pr": 38,
+      "block_reason": null,
+      "merge_sha": "f5008e0183a247842d98941d1cd06f924698f4b8"
+    },
+    "P42": {
+      "id": "P42",
+      "title": "Liberação do piloto (gates externos)",
+      "lead_hint": "Coordenador/integrador",
+      "depends_on": [
+        "P10"
+      ],
+      "resources": [
+        "release"
+      ],
+      "paths": [
+        "release/",
+        "docs/handoffs/",
+        "docs/qa/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P43": {
+      "id": "P43",
+      "title": "Reserva pelo link público",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P03",
+        "P09",
+        "P12"
+      ],
+      "resources": [
+        "public-booking",
+        "network"
+      ],
+      "paths": [
+        "src/features/network/",
+        "supabase/functions/network/",
+        "db/proposals/P43/",
+        "tests/contracts/network/",
+        "tests/e2e/network/"
+      ],
       "status": "pending",
       "owner": null,
       "session": null,
@@ -292,7 +679,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-18T19:35:55.581310Z",
+  "updated_at": "2026-10-26T17:19:41.212867Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -713,6 +1100,163 @@
       "session": "claude-int-p08",
       "pr": 21,
       "reason": null
+    },
+    {
+      "id": "c69b8bee-b1cf-4bfa-8f49-f9f50bbef42a",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P10",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 25,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "f729a9de-9dc4-46e7-a46f-f53d360d8f79",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "advance",
+      "actor": "fffalleiros",
+      "phase": "expansao-1"
+    },
+    {
+      "id": "2b8f8680-f4d6-4aaa-95d9-6a6943ffccaa",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P11",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 22,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "f3b0a8df-c940-45c0-968c-d2be7fe410a1",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P12",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 26,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "ad7d65d9-e71c-42db-9340-117f26780ec6",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P13",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 28,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "519799cf-455b-4fe8-b43e-85a102c2bbd0",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P14",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 27,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "459c9a85-a632-4f19-a58e-0e90924a5646",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P15",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 23,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "f328c2ff-38e3-421d-ac7b-26ed8c5744b3",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P16",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 36,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "b4173978-a8bb-4800-a327-f49408da1292",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P17",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 35,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "e7b3b3c8-cc3c-4059-8940-eab4e4501805",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P18",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 24,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "a939ccd4-08c3-47d5-bf98-7c691c425fc9",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P19",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 31,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "08d169cc-fc40-4456-ae8e-5dbbf89e2900",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P20",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 29,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "1f71e921-fbf4-44e0-b862-0a2fedd79d87",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P21",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 30,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "2494276a-660b-407f-b496-571ac7dc72a0",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P22",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 32,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "5bb89969-469d-465f-9cf6-151c399d2bf5",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P23",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 37,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
+    },
+    {
+      "id": "66bd7259-c042-49a7-a322-6e0ce179190d",
+      "at": "2026-10-26T17:19:41.212867Z",
+      "action": "reconcile",
+      "task": "P24",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 38,
+      "reason": "Entregue em PR merged fora do quadro; registrado pelo integrador (docs/COORDENACAO.md)."
     }
   ]
 }
