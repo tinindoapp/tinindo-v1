@@ -74,7 +74,7 @@ test.describe("UAT cabeleireira", () => {
   });
 
   test("3b · a própria cliente reagenda pelo link, dentro da política", async ({ page }) => {
-    test.fixme(true, `${PENDING.publicBooking} Também falta a área da cliente com as próprias reservas.`);
+    test.fixme(true, PENDING.clientReschedule);
     await page.goto("/app/conta");
     await page.getByRole("link", { name: /Reagendar/ }).click();
   });

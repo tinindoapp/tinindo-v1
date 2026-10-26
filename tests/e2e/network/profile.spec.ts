@@ -30,10 +30,12 @@ test("dono publica o perfil, vê a prévia e gera convite sem envio automático"
   await expect(page.getByRole("heading", { name: "Barbearia Exemplo A" })).toBeVisible();
   await expect(page.getByRole("link", { name: "2 avaliações de clientes" })).toBeVisible();
   const slots = page.getByRole("list", { name: "Horários livres" });
-  await expect(slots.getByRole("button", { name: "12:00" })).toBeVisible();
-  await slots.getByRole("button", { name: "12:00" }).click();
-  await expect(page.getByText(/nada foi reservado: a reserva on-line ainda não está disponível/)).toBeVisible();
-  const box = await slots.getByRole("button", { name: "12:00" }).boundingBox();
+  const first = slots.getByRole("button").first();
+  await expect(first).toBeVisible();
+  await first.click();
+  // Escolher o horário só abre o pedido (nome, WhatsApp e código): nada é reservado ainda.
+  await expect(page.getByRole("form", { name: "Pedir horário" })).toBeVisible();
+  const box = await first.boundingBox();
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   await noHorizontalScroll(page);
 
