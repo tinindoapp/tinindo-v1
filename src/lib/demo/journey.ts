@@ -43,6 +43,13 @@ export interface DemoPublicBookingPort {
 
 const visits = new Map<string, DemoCompletedVisit>();
 let publicBookingSource: DemoPublicBookingPort | null = null;
+let publicContactSource: ((bookingId: string) => DemoPublicContact | null) | null = null;
+
+/** Quem pediu pelo link, como o dono vê no detalhe do atendimento (mesmos campos de public.contact). */
+export interface DemoPublicContact {
+  name: string;
+  phone_e164: string;
+}
 let customerBookingsSource: ((customerId: string) => Promise<DemoCustomerBooking[]>) | null = null;
 let publishedSlug: string | null = null;
 let reviewSummary: (() => ReviewSummary) | null = null;
@@ -95,6 +102,15 @@ export function providePublicBooking(port: DemoPublicBookingPort): void {
 /** null quando a Agenda da demonstração não está carregada (o perfil usa a própria emulação). */
 export function publicBooking(): DemoPublicBookingPort | null {
   return publicBookingSource;
+}
+
+/** O perfil público informa quem pediu cada horário pelo link; a Agenda mostra ao dono. */
+export function providePublicContact(fn: (bookingId: string) => DemoPublicContact | null): void {
+  publicContactSource = fn;
+}
+
+export function publicContact(bookingId: string): DemoPublicContact | null {
+  return publicContactSource ? publicContactSource(bookingId) : null;
 }
 
 /** Só para testes. */

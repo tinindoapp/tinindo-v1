@@ -22,6 +22,7 @@ import {
   type ScheduleSettings,
   type TimeRange,
 } from "@contracts";
+import { publicContact } from "../../lib/demo/journey.ts";
 import { FIXED_NOW, FX, services as fixtureServices, tenantA } from "@contracts/fixtures.ts";
 import type { z } from "zod";
 import { ApiError } from "../../lib/api/client.ts";
@@ -268,6 +269,8 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
           .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at)),
       ),
     getBooking: async (id) => delay(booking(id)),
+    // Demonstração: o perfil público da aba informa quem pediu (src/lib/demo/journey.ts).
+    publicContact: async (id) => delay(publicContact(id)),
     dayPlans: (window) => delay(datesIn(window).map(plan)),
 
     async availability(raw) {

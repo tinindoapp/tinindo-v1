@@ -34,6 +34,8 @@ import {
   PublicBookOutput,
   PublicConfirmInput,
   PublicConfirmOutput,
+  PublicContactInput,
+  PublicContactOutput,
   PublicServicesOutput,
   PublicSlotsInput,
   ReferralClaimOutput,
@@ -111,6 +113,7 @@ const OPERATIONS = {
   "public.services": { method: "POST", auth: false, tenant: false, idempotent: false },
   "public.book": { method: "POST", auth: false, tenant: false, idempotent: true },
   "public.confirm": { method: "POST", auth: false, tenant: false, idempotent: true },
+  "public.contact": { method: "POST", auth: true, tenant: true, idempotent: false },
   "referral.create": { method: "POST", auth: true, tenant: false, idempotent: true },
   "referral.inspect": { method: "POST", auth: false, tenant: false, idempotent: false },
   "referral.claim": { method: "POST", auth: true, tenant: false, idempotent: true },
@@ -329,6 +332,14 @@ export function createNetworkHandler(deps: NetworkDeps) {
         }, false);
         if (r instanceof Response) return r;
         return respondEnvelope(PublicConfirmOutput, r.data);
+      }
+
+      case "public.contact": {
+        const input = PublicContactInput.safeParse(body);
+        if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        const r = await call("public_booking_contact", { p_tenant_id: tenantHeader, p_booking_id: input.data.booking_id }, true);
+        if (r instanceof Response) return r;
+        return respond(PublicContactOutput, r.data);
       }
 
       case "referral.create": {

@@ -1,9 +1,9 @@
 // Atendimento: detalhe, cancelar (com motivo e política) e concluir. Reagendar abre o fluxo.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import type { Booking } from "@contracts";
 import { Button, StatusBanner } from "../../components/ui/index.tsx";
-import { newIdempotencyKey } from "./port.ts";
+import { newIdempotencyKey, type PublicBookingContact } from "./port.ts";
 import { canCancel, canComplete, canReschedule, formatCents, formatRange, serviceName } from "./agenda.ts";
 import { formatDayLong, localParts } from "./time.ts";
 import { DemoNotice, ErrorPanel, PolicyNote, StatusBadge, TimezoneNote } from "./parts.tsx";
@@ -99,6 +99,16 @@ function BookingDetail({
   const [keys] = useState(() => ({ cancel: newIdempotencyKey(), complete: newIdempotencyKey() }));
 
   const customer = customers.find((c) => c.id === booking.customer_id)?.name ?? (booking.customer_id ? "Cliente" : "Sem cliente cadastrado");
+  // Pedido pelo link público (P43): nome e WhatsApp que a pessoa informou, para o dono poder falar com ela.
+  const [contact, setContact] = useState<PublicBookingContact | null>(null);
+  useEffect(() => {
+    if (booking.source !== "public_link") return;
+    let cancelled = false;
+    port.publicContact(booking.id).then((c) => !cancelled && setContact(c), () => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [port, booking.id, booking.source]);
   const date = localParts(booking.starts_at, tz).date;
 
   async function submit(op: "cancel" | "complete") {
@@ -144,6 +154,17 @@ function BookingDetail({
         </dd>
         <dt>Cliente</dt>
         <dd>{customer}</dd>
+        {contact ? (
+          <>
+            <dt>Pedido pelo link</dt>
+            <dd>
+              {contact.name} ·{" "}
+              <a href={`https://wa.me/${contact.phone_e164.slice(1)}`} target="_blank" rel="noreferrer">
+                <span className="tn-num">{contact.phone_e164}</span>
+              </a>
+            </dd>
+          </>
+        ) : null}
         <dt>Preço combinado</dt>
         <dd className="tn-num">{booking.agreed_price_cents === null ? "A definir" : formatCents(booking.agreed_price_cents)}</dd>
         {booking.status === "held" && booking.hold_expires_at ? (

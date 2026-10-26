@@ -8,6 +8,8 @@ export {
   PublicBookOutput,
   PublicConfirmInput,
   PublicConfirmOutput,
+  PublicContactInput,
+  PublicContactOutput,
   PublicServicesOutput,
   PublicSlotsInput,
   ReferralClaimOutput,

@@ -3,7 +3,7 @@
 -- repetições e as tentativas do código são provadas com conexões simultâneas em tests/db-concurrency/24_public_booking.sh.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(24);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -12,6 +12,7 @@ create temp table ids as select
   '10000000-0000-4000-8000-00000000000b'::uuid as tenant_b,
   '20000000-0000-4000-8000-00000000000a'::uuid as res_a,
   '30000000-0000-4000-8000-0000000000a1'::uuid as ab_in_a,
+  'b0000000-0000-4000-8000-00000000000b'::uuid as owner_b,
   '40000000-0000-4000-8000-0000000000a1'::uuid as corte_a,
   '40000000-0000-4000-8000-0000000000b1'::uuid as sessao_b,
   -- Segunda-feira da próxima semana, 10:00 em São Paulo.
@@ -87,6 +88,26 @@ select is((select b.status || ':' || b.source || ':' || coalesce(b.customer_id::
 select ok(not exists (select 1 from public.audit_events a where a.action like 'public.%'
   and (a.after::text ~ '(5511955550001|Maria)' or a.before::text ~ '(5511955550001|Maria)')),
   'auditoria sem nome nem telefone');
+
+-- ------------------------------------------------------------------ dono vê quem pediu
+select ok(not has_function_privilege('anon', 'public.public_booking_contact(uuid, uuid)', 'execute'), 'anon não lê o contato do pedido');
+select pg_temp.login_as((select owner_a from ids));
+set local role authenticated;
+select is((select public.public_booking_contact((select tenant_a from ids), b.id)->>'phone_e164'
+  from public.bookings b where b.starts_at = (select monday_10 from ids) and b.source = 'public_link'),
+  '+5511955550001', 'dono de A vê o WhatsApp informado no pedido');
+reset role;
+select pg_temp.login_as((select owner_b from ids));
+set local role authenticated;
+select throws_ok($$ select public.public_booking_contact((select tenant_a from ids),
+    (select b.id from public.bookings b where b.starts_at = (select monday_10 from ids) and b.source = 'public_link')) $$,
+  'PT403', 'FORBIDDEN', 'dono de outro negócio não lê o contato');
+reset role;
+select pg_temp.login_as((select owner_a from ids));
+set local role authenticated;
+select throws_ok($$ select public.public_booking_contact((select tenant_a from ids), '6f000000-0000-4000-8000-000000000001') $$,
+  'PT404', 'NOT_FOUND', 'atendimento sem pedido pelo link: nada a mostrar');
+reset role;
 
 -- ------------------------------------------------------------------ cliente com vínculo
 insert into public.customer_links (tenant_id, customer_id, user_id, verification_method, verified_at)

@@ -25,7 +25,7 @@ import {
   type ReferralSummary,
 } from "@contracts";
 import { ApiError, type CallOptions } from "../../lib/api/client.ts";
-import { currentReviewSummary, publicBooking, setPublishedSlug } from "../../lib/demo/journey.ts";
+import { currentReviewSummary, providePublicContact, publicBooking, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { demoSlots } from "./demo-slots.ts";
 
 export type PublicProfileData = z.infer<typeof PublicProfile>;
@@ -137,6 +137,8 @@ interface DemoBookRequest {
   confirmed: BookConfirmed | null;
   hash: string;
   serviceName: string;
+  contactName: string;
+  contactPhone: string;
 }
 
 interface DemoState {
@@ -148,6 +150,12 @@ interface DemoState {
 }
 
 const demoState: DemoState = { profile: null, referrals: [], requests: new Map(), localHolds: [] };
+
+// A Agenda da demonstração mostra ao dono quem pediu cada horário pelo link (como public.contact no servidor).
+providePublicContact((bookingId) => {
+  const r = [...demoState.requests.values()].find((x) => x.bookingId === bookingId);
+  return r ? { name: r.contactName, phone_e164: r.contactPhone } : null;
+});
 
 /** Só para testes: volta a demonstração ao estado inicial. */
 export function resetDemoNetwork() {
@@ -262,7 +270,8 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         delivery: "queued",
         demoCode: code,
       };
-      demoState.requests.set(key, { request, bookingId: hold.booking_id, code, attempts: 0, confirmed: null, hash, serviceName: service.name });
+      demoState.requests.set(key, { request, bookingId: hold.booking_id, code, attempts: 0, confirmed: null, hash, serviceName: service.name,
+        contactName: input.contact.name.trim(), contactPhone: input.contact.phone_e164 });
       return request;
     },
     async confirmBooking(input) {

@@ -151,3 +151,12 @@ export const PublicConfirmOutput = z.object({
   timezone: z.string(),
   service_name: z.string(),
 });
+
+/** Dono: nome e WhatsApp informados no pedido pelo link, para falar com quem reservou. Só o dono do negócio lê. */
+export const PublicContactInput = z.object({ booking_id: Uuid });
+export const PublicContactOutput = z.object({
+  name: z.string(),
+  phone_e164: PhoneE164,
+  requested_at: IsoDateTime,
+  status: z.enum(["pending", "confirmed"]),
+});

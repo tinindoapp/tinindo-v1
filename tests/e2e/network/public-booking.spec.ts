@@ -43,6 +43,9 @@ test("visitante reserva pelo link e o dono vê na Agenda", async ({ page }) => {
   await expect(row).toBeVisible();
   await row.click();
   await expect(page.getByText("Link de agendamento")).toBeVisible();
+  // O dono vê quem pediu, com o WhatsApp para falar com a pessoa.
+  await expect(page.getByText(/Maria Visitante/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "+5511977774343" })).toHaveAttribute("href", "https://wa.me/5511977774343");
 
   await go(page, "/p/barbearia-link");
   await expect(page.getByRole("list", { name: "Horários livres" })).toBeVisible();

@@ -264,6 +264,28 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
+-- Dono: quem pediu pelo link (nome e WhatsApp informados), para poder falar com a pessoa
+-- ---------------------------------------------------------------------------
+
+create function public.public_booking_contact(p_tenant_id uuid, p_booking_id uuid) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_q public.public_booking_requests;
+begin
+  if not app.is_member(p_tenant_id, array['owner']) then
+    raise exception using errcode = 'PT403', message = 'FORBIDDEN';
+  end if;
+  select * into v_q from public.public_booking_requests q
+  where q.tenant_id = p_tenant_id and q.booking_id = p_booking_id
+  order by q.created_at desc limit 1;
+  if not found then
+    raise exception using errcode = 'PT404', message = 'NOT_FOUND';
+  end if;
+  return jsonb_build_object('name', v_q.contact_name, 'phone_e164', v_q.contact_phone_e164,
+    'requested_at', app.sched_ts(v_q.created_at), 'status', v_q.status);
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- Despacho (P12 estendido): o código sai pela mesma fila e pelo mesmo provedor do canal do negócio
 -- ---------------------------------------------------------------------------
 
@@ -362,6 +384,8 @@ end $$;
 revoke all on function public.public_booking_services(text) from public, anon, authenticated;
 revoke all on function public.public_booking_request(text, uuid, timestamptz, text, text, text, text, uuid) from public, anon, authenticated;
 revoke all on function public.public_booking_confirm(uuid, text, uuid) from public, anon, authenticated;
+revoke all on function public.public_booking_contact(uuid, uuid) from public, anon;
+grant execute on function public.public_booking_contact(uuid, uuid) to authenticated;
 grant execute on function public.public_booking_services(text) to anon, authenticated;
 grant execute on function public.public_booking_request(text, uuid, timestamptz, text, text, text, text, uuid) to anon, authenticated;
 grant execute on function public.public_booking_confirm(uuid, text, uuid) to anon, authenticated;

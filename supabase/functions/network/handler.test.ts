@@ -303,6 +303,15 @@ describe("network · reserva pelo link (P43)", () => {
     expect((await handler(req("public.confirm", { headers: visitor, body: { request_id: bookRow.request_id, code: "123456" } }))).status).toBe(500);
   });
 
+  it("public.contact é do dono: exige login e negócio; passa o tenant para a RPC", async () => {
+    const rpc = vi.fn(async () => ({ data: { name: "Maria", phone_e164: "+5511977774343", requested_at: "2026-10-27T12:00:00Z", status: "confirmed" }, error: null }));
+    const { handler } = setup(rpc);
+    expect((await handler(req("public.contact", { body: { booking_id: bookRow.request_id } }))).status).toBe(401);
+    const res = await handler(req("public.contact", { headers: { Authorization: "Bearer user-jwt", "X-Tinindo-Tenant": FX.tenants.A }, body: { booking_id: bookRow.request_id } }));
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("user-jwt", "public_booking_contact", { p_tenant_id: FX.tenants.A, p_booking_id: bookRow.request_id });
+  });
+
   it("public.services é consulta por POST com o slug no corpo; saída fora do contrato vira 500", async () => {
     const rpc = vi.fn(async () => ({ data: { services: [{ id: FX.services.corteA, name: "Corte", duration_min: 30 }] }, error: null }));
     const { handler } = setup(rpc);

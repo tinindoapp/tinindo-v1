@@ -3,7 +3,7 @@
 // certo confirma → o dono vê na Agenda com origem public_link → outra pessoa não pega o mesmo horário → cliente com
 // vínculo vê a provisória em "Minhas reservas". SEC: perfil sem link, chave obrigatória, nada de contato na resposta.
 import { afterAll, describe, expect, it } from "vitest";
-import { AvailabilityListOutput, BookingListOutput, PublicBookOutput, PublicConfirmOutput, PublicServicesOutput } from "@contracts";
+import { AvailabilityListOutput, BookingListOutput, PublicBookOutput, PublicConfirmOutput, PublicContactOutput, PublicServicesOutput } from "@contracts";
 import { call, fails, FX, newKey, nextWeek, ok, plusMin, pool, rpc, runDispatch, sql, T, U } from "./harness.ts";
 
 const SLUG = "barbearia-exemplo-a";
@@ -92,6 +92,10 @@ describe("P43 · reserva pelo link público", () => {
     const mine = list.bookings.filter((b) => b.starts_at === slot.starts_at && b.status === "confirmed");
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ source: "public_link", customer_id: null, agreed_price_cents: 6000 });
+    const contact = await ok(PublicContactOutput, "network", "public.contact", { as: U.ownerA, tenant: T.A, body: { booking_id: mine[0]!.id } });
+    expect(contact).toMatchObject({ name: "Maria Visitante", phone_e164: VISITOR, status: "confirmed" });
+    await fails("network", "public.contact", { as: U.ownerB, tenant: T.A, body: { booking_id: mine[0]!.id } }, "FORBIDDEN");
+    await fails("network", "public.contact", { as: null, tenant: T.A, body: { booking_id: mine[0]!.id } }, "AUTH_REQUIRED");
   });
 
   it("6 · cliente com vínculo reserva no próprio cadastro e vê a provisória em Minhas reservas", async () => {

@@ -18,19 +18,25 @@ function handlerArgs(fn: string): string[] {
 }
 
 describe("P43 · registro ↔ handler ↔ SQL", () => {
-  it("três operações do link público, públicas e com dono P43", () => {
-    for (const name of ["public.services", "public.book", "public.confirm"] as const) {
+  it("operações do link público com dono P43; só o contato é do dono", () => {
+    for (const name of ["public.services", "public.book", "public.confirm", "public.contact"] as const) {
       expect(OPERATIONS[name]).toMatchObject({ module: "network", owner: "P43" });
     }
     expect(OPERATIONS["public.book"].kind).toBe("command");
     expect(OPERATIONS["public.confirm"].kind).toBe("command");
     expect(OPERATIONS["public.services"].kind).toBe("query");
+    expect(OPERATIONS["public.contact"].kind).toBe("query");
+    expect(sql).toMatch(/revoke all on function public\.public_booking_contact\(uuid, uuid\) from public, anon;/);
+    expect(sql).not.toMatch(/grant execute on function public\.public_booking_contact\([^)]*\) to anon/);
+    const contactFn = sql.slice(sql.indexOf("create function public.public_booking_contact"), sql.indexOf("-- Despacho (P12 estendido)"));
+    expect(contactFn).toContain("app.is_member(p_tenant_id, array['owner'])");
   });
 
   it.each([
     ["public_booking_services"],
     ["public_booking_request"],
     ["public_booking_confirm"],
+    ["public_booking_contact"],
   ])("%s recebe exatamente os parâmetros da função SQL", (fn) => {
     expect(handlerArgs(fn).sort()).toEqual(sqlParams(fn).sort());
   });
