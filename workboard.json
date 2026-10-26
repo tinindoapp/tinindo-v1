@@ -670,16 +670,16 @@
         "tests/contracts/network/",
         "tests/e2e/network/"
       ],
-      "status": "in_progress",
+      "status": "review",
       "owner": "gafpromos-alt",
       "session": "gabriel-p43-a",
       "branch": "task/p43/gabriel-p43-a",
       "lease_until": "2026-10-26T22:45:37.457964Z",
-      "pr": null,
+      "pr": 42,
       "block_reason": null
     }
   },
-  "updated_at": "2026-10-26T20:45:37.457964Z",
+  "updated_at": "2026-10-26T21:42:11.333540Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1316,6 +1316,16 @@
       "actor": "gafpromos-alt",
       "session": "gabriel-p43-a",
       "pr": null,
+      "reason": null
+    },
+    {
+      "id": "ee125014-4260-45a5-befe-35e10c76e7d8",
+      "at": "2026-10-26T21:42:11.333540Z",
+      "action": "review",
+      "task": "P43",
+      "actor": "gafpromos-alt",
+      "session": "gabriel-p43-a",
+      "pr": 42,
       "reason": null
     }
   ]
