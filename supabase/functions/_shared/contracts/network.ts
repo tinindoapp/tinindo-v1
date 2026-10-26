@@ -1,6 +1,6 @@
 // Perfil público e indicações (P09). Perfil é projeção opt-in, nunca o CRM.
 import { z } from "zod";
-import { IsoDateTime, Uuid } from "./common.ts";
+import { IsoDateTime, PhoneE164, TimeRange, Uuid } from "./common.ts";
 import { Profession } from "./context.ts";
 import { AvailabilityListInput } from "./scheduling.ts";
 
@@ -106,4 +106,48 @@ export const PublicSlotsInput = z.object({
   slug: Slug,
   service_id: Uuid,
   window: AvailabilityListInput.shape.window,
+});
+
+// ---------------------------------------------------------------------------
+// Reserva pelo link público (P43, ADR-0030). Pedido → código pelo canal do negócio → confirmação.
+// Antes da confirmação o horário é só uma reserva provisória, que vence sozinha.
+// ---------------------------------------------------------------------------
+
+/** Serviço que o visitante escolhe: nome e duração. Preço, piso e custos ficam fora. */
+export const PublicService = z.object({
+  id: Uuid,
+  name: z.string(),
+  duration_min: z.int().min(5),
+});
+export const PublicServicesOutput = z.object({ services: z.array(PublicService).max(50) });
+
+export const PublicBookInput = z.object({
+  slug: Slug,
+  service_id: Uuid,
+  /** Início de um horário devolvido por public.slots; o fim sai da duração do serviço. */
+  starts_at: IsoDateTime,
+  /** Para quem vai o código. Fica só no pedido: não cria cliente no CRM. */
+  contact: z.object({
+    name: z.string().trim().min(1).max(80),
+    phone_e164: PhoneE164,
+  }),
+});
+export const PublicBookOutput = z.object({
+  request_id: Uuid,
+  slot: TimeRange,
+  /** Depois disso o código não vale e o horário volta a ficar livre. */
+  expires_at: IsoDateTime,
+  /** Situação do envio do código. Enviado não é entregue. */
+  delivery: z.enum(["queued", "sending", "sent", "failed", "delivery_unknown"]),
+});
+
+export const PublicConfirmInput = z.object({
+  request_id: Uuid,
+  code: z.string().regex(/^\d{6}$/),
+});
+export const PublicConfirmOutput = z.object({
+  status: z.literal("confirmed"),
+  slot: TimeRange,
+  timezone: z.string(),
+  service_name: z.string(),
 });

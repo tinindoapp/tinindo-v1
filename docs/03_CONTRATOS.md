@@ -82,6 +82,9 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `profile.get` | — | Visão do dono (inclui despublicado e versão) |
 | `public.profile` | slug | Perfil publicado, sem tenant_id (anônimo) |
 | `public.slots` | slug, service, janela | Horários livres do link público (anônimo) |
+| `public.services` | slug | Serviços do link público: nome e duração, sem preço (anônimo) |
+| `public.book` | slug, service, início, contato (nome e telefone), key | Reserva provisória e código enviado ao contato pelo canal do negócio; não é confirmação (anônimo) |
+| `public.confirm` | request_id, código, key | Provisória vira confirmada; código errado conta tentativa (máx. 5); vencido não confirma (anônimo) |
 | `referral.create` | kind, dados mínimos, origem | Link pessoal de convite, sem envio automático |
 | `referral.inspect` | token (no corpo) | Leitura mínima do convite; não muda estado (anônimo) |
 | `referral.claim` | token, key | Convite usado uma vez, contato confirmado |

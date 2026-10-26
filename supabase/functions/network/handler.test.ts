@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ErrorEnvelope, PublicProfile, ReferralLink, successEnvelope } from "../_shared/contracts/index.ts";
 import { FX } from "../_shared/contracts/fixtures.ts";
 import { createNetworkHandler, type NetworkDeps, requestHash } from "./handler.ts";
-import { OwnerProfileOutput, ReferralInspectOutput } from "./schemas.ts";
+import { OwnerProfileOutput, PublicBookOutput, PublicServicesOutput, ReferralInspectOutput } from "./schemas.ts";
 
 const ORIGIN = "http://localhost:5173";
 const APP = "https://app.exemplo.test";
@@ -239,5 +239,78 @@ describe("network · transversal", () => {
     for (const secret of ["segredo", FX.tenants.A, "Nome Privado", TOKEN]) expect(logged).not.toContain(secret);
     const pre = await handler(new Request("http://edge/network/referral.claim", { method: "OPTIONS", headers: { Origin: "https://evil.example" } }));
     expect(pre.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+});
+
+describe("network · reserva pelo link (P43)", () => {
+  const visitor = { "Idempotency-Key": IDEM };
+  const bookBody = {
+    slug: "barbearia-a",
+    service_id: FX.services.corteA,
+    starts_at: "2026-10-27T13:00:00Z",
+    contact: { name: "Maria", phone_e164: "+5511977774343" },
+  };
+  const bookRow = {
+    request_id: "70000000-0000-4000-8000-000000000043",
+    slot: { starts_at: "2026-10-27T13:00:00Z", ends_at: "2026-10-27T13:30:00Z" },
+    expires_at: "2026-10-27T12:15:00Z",
+    delivery: "queued",
+  };
+
+  it("public.book exige Idempotency-Key e telefone E.164 antes de tocar no banco", async () => {
+    const rpc = vi.fn();
+    const { handler } = setup(rpc);
+    const noKey = await handler(req("public.book", { body: bookBody }));
+    expect(ErrorEnvelope.parse(await noKey.json()).error.field).toBe("idempotency_key");
+    const badPhone = await handler(req("public.book", { headers: visitor, body: { ...bookBody, contact: { name: "Maria", phone_e164: "11977774343" } } }));
+    expect(badPhone.status).toBe(400);
+    expect(ErrorEnvelope.parse(await badPhone.json()).error.field).toBe("contact.phone_e164");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("public.book chama a RPC como anon (ou com o JWT, se houver) e hash estável; responde 201", async () => {
+    const rpc = vi.fn(async () => ({ data: { status_code: 201, body: bookRow }, error: null }));
+    const { handler } = setup(rpc);
+    const res = await handler(req("public.book", { headers: visitor, body: bookBody }));
+    expect(res.status).toBe(201);
+    expect(successEnvelope(PublicBookOutput).parse(await res.json()).data.request_id).toBe(bookRow.request_id);
+    expect(rpc).toHaveBeenCalledWith(null, "public_booking_request", expect.objectContaining({
+      p_slug: "barbearia-a",
+      p_contact_phone: "+5511977774343",
+      p_idem_key: IDEM,
+      p_request_hash: await requestHash(bookBody),
+    }));
+    await handler(req("public.book", { headers: { ...visitor, Authorization: "Bearer cliente-jwt" }, body: bookBody }));
+    expect(rpc).toHaveBeenLastCalledWith("cliente-jwt", "public_booking_request", expect.anything());
+  });
+
+  it("public.confirm traduz código errado (envelope 4xx gravado) e erro do banco", async () => {
+    const wrong = vi.fn(async () => ({ data: { status_code: 422, error: "POLICY_REJECTED", field: "code" }, error: null }));
+    const res = await setup(wrong).handler(req("public.confirm", { headers: visitor, body: { request_id: bookRow.request_id, code: "123456" } }));
+    expect(res.status).toBe(422);
+    expect(ErrorEnvelope.parse(await res.json()).error).toMatchObject({ code: "POLICY_REJECTED", field: "code" });
+    expect(wrong).toHaveBeenCalledWith(null, "public_booking_confirm", expect.objectContaining({ p_request: bookRow.request_id, p_code: "123456" }));
+    const expired = vi.fn(async () => ({ data: null, error: { code: "PT422", message: "POLICY_REJECTED", hint: "expires_at" } }));
+    const late = await setup(expired).handler(req("public.confirm", { headers: visitor, body: { request_id: bookRow.request_id, code: "123456" } }));
+    expect(ErrorEnvelope.parse(await late.json()).error).toMatchObject({ code: "POLICY_REJECTED", field: "expires_at" });
+  });
+
+  it("public.confirm recusa código fora do formato sem chamar o banco; status inesperado vira 500", async () => {
+    const rpc = vi.fn(async () => ({ data: { status_code: 302, body: {} }, error: null }));
+    const { handler } = setup(rpc);
+    expect((await handler(req("public.confirm", { headers: visitor, body: { request_id: bookRow.request_id, code: "12a456" } }))).status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+    expect((await handler(req("public.confirm", { headers: visitor, body: { request_id: bookRow.request_id, code: "123456" } }))).status).toBe(500);
+  });
+
+  it("public.services é consulta por POST com o slug no corpo; saída fora do contrato vira 500", async () => {
+    const rpc = vi.fn(async () => ({ data: { services: [{ id: FX.services.corteA, name: "Corte", duration_min: 30 }] }, error: null }));
+    const { handler } = setup(rpc);
+    expect(ErrorEnvelope.parse(await (await handler(req("public.services", { method: "GET", query: "?slug=barbearia-a" }))).json()).error.message).toBe("Use POST.");
+    const res = await handler(req("public.services", { body: { slug: "barbearia-a" } }));
+    expect(successEnvelope(PublicServicesOutput).parse(await res.json()).data.services).toHaveLength(1);
+    expect(rpc).toHaveBeenCalledWith(null, "public_booking_services", { p_slug: "barbearia-a" });
+    const leaky = vi.fn(async () => ({ data: { services: [{ id: FX.services.corteA, name: "Corte" }] }, error: null }));
+    expect((await setup(leaky).handler(req("public.services", { body: { slug: "barbearia-a" } }))).status).toBe(500);
   });
 });

@@ -1,6 +1,7 @@
 // Ponte da DEMONSTRAÇÃO offline entre módulos (dono: integrador). Cada módulo emula o próprio backend na aba; aqui passa
 // só o que no servidor é um fato compartilhado: o atendimento concluído na Agenda (que o Caixa cobra e o cliente avalia),
-// as reservas da cliente ("Minhas reservas"), o endereço do perfil publicado e o resumo das avaliações. Concluir NÃO gera
+// as reservas da cliente ("Minhas reservas"), o endereço do perfil publicado, o resumo das avaliações e a reserva pelo
+// link público (a Agenda da aba segura e confirma o horário que o visitante pediu). Concluir NÃO gera
 // cobrança nem recebimento: o Caixa só passa a listar o atendimento como "sem cobrança". Nada persiste além da aba e nada daqui é usado com servidor.
 
 /** Atendimento concluído na agenda da demonstração (mesmos campos que o Caixa precisa para cobrar). */
@@ -33,7 +34,15 @@ export interface DemoCustomerBooking {
   agreed_price_cents: number | null;
 }
 
+/** A Agenda da aba vista pelo link público (P43): horários livres, segurar e confirmar. Sem CRM nem contato. */
+export interface DemoPublicBookingPort {
+  slots(serviceId: string, window: { starts_at: string; ends_at: string }): Promise<{ starts_at: string; ends_at: string }[]>;
+  hold(input: { service_id: string; starts_at: string }): Promise<{ booking_id: string; starts_at: string; ends_at: string; hold_expires_at: string }>;
+  confirm(bookingId: string): Promise<void>;
+}
+
 const visits = new Map<string, DemoCompletedVisit>();
+let publicBookingSource: DemoPublicBookingPort | null = null;
 let customerBookingsSource: ((customerId: string) => Promise<DemoCustomerBooking[]>) | null = null;
 let publishedSlug: string | null = null;
 let reviewSummary: (() => ReviewSummary) | null = null;
@@ -76,6 +85,16 @@ export function provideCustomerBookings(fn: (customerId: string) => Promise<Demo
 
 export async function customerBookings(customerId: string): Promise<DemoCustomerBooking[]> {
   return customerBookingsSource ? customerBookingsSource(customerId) : [];
+}
+
+/** A Agenda informa como o link público segura e confirma horários; o perfil público usa daqui. */
+export function providePublicBooking(port: DemoPublicBookingPort): void {
+  publicBookingSource = port;
+}
+
+/** null quando a Agenda da demonstração não está carregada (o perfil usa a própria emulação). */
+export function publicBooking(): DemoPublicBookingPort | null {
+  return publicBookingSource;
 }
 
 /** Só para testes. */

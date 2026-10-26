@@ -69,7 +69,16 @@ export interface FixturePortOptions {
   onCompleted?: (booking: Booking & { agreed_price_cents: number }) => void;
 }
 
-export function createFixturePort(options: FixturePortOptions = {}): SchedulingPort {
+/** Demonstração do link público (P43): segura com origem public_link, sem cliente, e confirma com o preço base. */
+export interface FixturePublicLink {
+  publicHold(input: { service_id: string; starts_at: string }): Promise<Booking>;
+  publicConfirm(bookingId: string): Promise<Booking>;
+}
+
+/** Prazo da reserva provisória do link (app.sched_hold_minutes no servidor). */
+const PUBLIC_HOLD_MIN = 15;
+
+export function createFixturePort(options: FixturePortOptions = {}): SchedulingPort & FixturePublicLink {
   const tz = tenantA.timezone;
   const now = new Date(FIXED_NOW);
   const services: ProviderService[] = fixtureServices.filter((s) => s.tenant_id === FX.tenants.A);
@@ -365,6 +374,37 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         return created;
       });
       return delay(result);
+    },
+
+    async publicHold(input) {
+      const svc = service(input.service_id);
+      const slot = { starts_at: input.starts_at, ends_at: toZonedIso(Date.parse(input.starts_at) + svc.duration_min * MIN, tz) };
+      const fit = fits(svc.id, slot);
+      if (fit === "conflict") fail("SLOT_CONFLICT", "slot");
+      if (fit === "closed") fail("POLICY_REJECTED", "slot");
+      const created: Booking = {
+        id: `60000000-0000-4000-8000-${String(500 + ++seq).padStart(12, "0")}`,
+        tenant_id: FX.tenants.A,
+        resource_id: FX.resources.A,
+        customer_id: null,
+        service_id: svc.id,
+        starts_at: slot.starts_at,
+        ends_at: slot.ends_at,
+        status: "held",
+        hold_expires_at: toZonedIso(now.getTime() + PUBLIC_HOLD_MIN * MIN, tz),
+        price_quote_id: null,
+        agreed_price_cents: null,
+        source: "public_link",
+        version: 1,
+      };
+      bookings.push(created);
+      return delay(created);
+    },
+
+    async publicConfirm(id) {
+      const current = booking(id);
+      if (current.status !== "held") fail("POLICY_REJECTED", "expires_at");
+      return delay(update(id, { status: "confirmed", hold_expires_at: null, agreed_price_cents: service(current.service_id).base_price_cents }));
     },
 
     async reschedule(raw, key) {
