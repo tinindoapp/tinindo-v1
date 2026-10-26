@@ -215,6 +215,32 @@ def advance_phase(board, manifest, actor, now):
                          action='advance',actor=actor,phase=result['phase'])])[-200:]
     return result
 
+def git(*args,input=None):
+    process=subprocess.run(['git',*args],input=input,text=True,capture_output=True,timeout=60)
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode,args,process.stdout,process.stderr)
+    return process.stdout.strip()
+
+def git_cas_write(text,expected_sha,remote='origin',branch='coordination',path='workboard.json'):
+    """Compare-and-swap by git: commit only on top of the board blob that was read; never force-push."""
+    try:
+        git('fetch','--quiet',remote,f'+refs/heads/{branch}:refs/coord/{branch}')
+        current=git('rev-parse',f'refs/coord/{branch}:{path}')
+        if current!=expected_sha:
+            raise Conflict('SHA desatualizado (git).')
+        blob=git('hash-object','-w','--stdin',input=text)
+        entries=[line for line in git('ls-tree',f'refs/coord/{branch}').splitlines() if not line.endswith('\t'+path)]
+        tree=git('mktree',input='\n'.join(entries+[f'100644 blob {blob}\t{path}'])+'\n')
+        commit=git('commit-tree',tree,'-p',f'refs/coord/{branch}','-m','coord: update work reservations')
+    except subprocess.CalledProcessError as exc:
+        raise BoardError('Escrita por git falhou antes do push; nada foi alterado. Consulte status.') from exc
+    try:
+        git('push','--quiet',remote,f'{commit}:refs/heads/{branch}')
+    except subprocess.CalledProcessError as exc:
+        if 'non-fast-forward' in exc.stderr or 'rejected' in exc.stderr or 'fetch first' in exc.stderr:
+            raise Conflict('Quadro mudou durante a escrita (git).') from exc
+        raise BoardError('Push do quadro falhou; não presumir que a escrita falhou. Consulte status antes de repetir.') from exc
+
 class GithubStore:
     def __init__(self,repo):
         if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',repo):
@@ -269,32 +295,6 @@ class GithubStore:
             if exc.code!=403 or sha is None:
                 raise
             git_cas_write(text,sha)
-
-def git(*args,input=None):
-    process=subprocess.run(['git',*args],input=input,text=True,capture_output=True,timeout=60)
-    if process.returncode:
-        raise subprocess.CalledProcessError(process.returncode,args,process.stdout,process.stderr)
-    return process.stdout.strip()
-
-def git_cas_write(text,expected_sha,remote='origin',branch='coordination',path='workboard.json'):
-    """Compare-and-swap by git: commit only on top of the board blob that was read; never force-push."""
-    try:
-        git('fetch','--quiet',remote,f'+refs/heads/{branch}:refs/coord/{branch}')
-        current=git('rev-parse',f'refs/coord/{branch}:{path}')
-        if current!=expected_sha:
-            raise Conflict('SHA desatualizado (git).')
-        blob=git('hash-object','-w','--stdin',input=text)
-        entries=[line for line in git('ls-tree',f'refs/coord/{branch}').splitlines() if not line.endswith('\t'+path)]
-        tree=git('mktree',input='\n'.join(entries+[f'100644 blob {blob}\t{path}'])+'\n')
-        commit=git('commit-tree',tree,'-p',f'refs/coord/{branch}','-m','coord: update work reservations')
-    except subprocess.CalledProcessError as exc:
-        raise BoardError('Escrita por git falhou antes do push; nada foi alterado. Consulte status.') from exc
-    try:
-        git('push','--quiet',remote,f'{commit}:refs/heads/{branch}')
-    except subprocess.CalledProcessError as exc:
-        if 'non-fast-forward' in exc.stderr or 'rejected' in exc.stderr or 'fetch first' in exc.stderr:
-            raise Conflict('Quadro mudou durante a escrita (git).') from exc
-        raise BoardError('Push do quadro falhou; não presumir que a escrita falhou. Consulte status antes de repetir.') from exc
 
     def initialize(self,board):
         # Verify branch and access first. A masked 404 is not treated as permission to create elsewhere.
