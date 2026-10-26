@@ -5,8 +5,9 @@ import { FX } from "@contracts/fixtures.ts";
 import { createDemoPort as createFinanceDemo } from "../../features/finance/demoPort.ts";
 import { monthPeriod } from "../../features/finance/money.ts";
 import { createDemoCustomerPort, resetDemoState as resetReviews } from "../../features/reputation/demoPort.ts";
+import { customerBookingsFrom } from "../../features/scheduling/demoCustomerBookings.ts";
 import { createFixturePort } from "../../features/scheduling/fixturePort.ts";
-import { completedVisits, completionEventId, publishCompletedVisit, resetDemoJourney } from "./journey.ts";
+import { completedVisits, completionEventId, provideCustomerBookings, publishCompletedVisit, resetDemoJourney } from "./journey.ts";
 
 const TZ = "America/Sao_Paulo";
 const period = monthPeriod("2026-10", TZ);
@@ -21,6 +22,8 @@ function demo() {
         agreed_price_cents: b.agreed_price_cents, completed_event_id: completionEventId(b.id),
       }),
   });
+  // Como no app: "Minhas reservas" e a avaliação leem a mesma agenda.
+  provideCustomerBookings((customerId) => customerBookingsFrom(agenda, customerId));
   return { agenda, caixa: createFinanceDemo({ visits: completedVisits }), cliente: createDemoCustomerPort() };
 }
 
@@ -90,10 +93,8 @@ describe("jornada integrada da demonstração", () => {
     await expect(agenda.complete({ booking_id: later, expected_version: b!.version }, key())).rejects.toMatchObject({ code: "POLICY_REJECTED" });
     expect((await caixa.uncharged(period)).map((x) => x.booking_id)).not.toContain(later);
 
-    // Atendimento concluído de outro cliente (Bruno) não aparece para a Ana avaliar.
+    // Atendimento concluído de outro cliente (barba do Bruno, 19/10, na agenda) não aparece para a Ana avaliar.
     const bruno = "60000000-0000-4000-8000-000000000105";
-    publishCompletedVisit({ booking_id: bruno, customer_id: FX.customers.guestInA, service_id: FX.services.barbaA,
-      starts_at: "2026-10-19T16:30:00-03:00", ends_at: "2026-10-19T16:50:00-03:00", agreed_price_cents: 4000, completed_event_id: completionEventId(bruno) });
     expect((await cliente.pending()).pending.map((p) => p.booking_id)).not.toContain(bruno);
     await expect(cliente.submit(bruno, 5, null, key())).rejects.toMatchObject({ code: "NOT_FOUND" });
   });

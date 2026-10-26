@@ -38,7 +38,7 @@ function Item({ b, now }: { b: MyBooking; now: number }) {
           {price ? <> · <span className="tn-num">{price}</span></> : null}
         </>
       }
-      trailing={reviewable ? <Link to="/avaliar">Avaliar</Link> : undefined}
+      trailing={reviewable ? <Link to={`/avaliar?atendimento=${b.booking_id}`}>Avaliar</Link> : undefined}
     />
   );
 }

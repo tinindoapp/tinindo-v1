@@ -6,7 +6,7 @@ import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { completionEventId, provideCustomerBookings, publishCompletedVisit } from "../../lib/demo/journey.ts";
-import { tenantA } from "@contracts/fixtures.ts";
+import { customerBookingsFrom } from "./demoCustomerBookings.ts";
 import { createFixturePort, type Simulation } from "./fixturePort.ts";
 import type { CustomerRef, SchedulingContext, SchedulingPort } from "./port.ts";
 import { createServerPort } from "./serverPort.ts";
@@ -41,23 +41,7 @@ export function getDemoPort(): SchedulingPort {
 }
 
 // "Minhas reservas" da demonstração lê a agenda desta aba (o que o dono criou, concluiu ou cancelou aparece para a cliente).
-provideCustomerBookings(async (customerId) => {
-  const port = getDemoPort();
-  const [ctx, services, bookings] = await Promise.all([
-    port.context(),
-    port.listServices(),
-    port.listBookings({ starts_at: "2026-09-01T00:00:00-03:00", ends_at: "2027-01-01T00:00:00-03:00" }),
-  ]);
-  return bookings
-    .filter((b) => b.customer_id === customerId && b.status !== "expired")
-    .map((b) => ({
-      booking_id: b.id, tenant_id: b.tenant_id, tenant_name: tenantA.name, timezone: ctx.timezone,
-      service_name: services.find((s) => s.id === b.service_id)?.name ?? "Atendimento",
-      starts_at: b.starts_at, ends_at: b.ends_at, status: b.status as Exclude<typeof b.status, "expired">,
-      agreed_price_cents: b.agreed_price_cents,
-    }))
-    .sort((a, b) => b.starts_at.localeCompare(a.starts_at));
-});
+provideCustomerBookings((customerId) => customerBookingsFrom(getDemoPort(), customerId));
 
 /** Só para testes. */
 export function resetDemoPort(port: SchedulingPort | null = null) {

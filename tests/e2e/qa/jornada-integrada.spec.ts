@@ -173,7 +173,13 @@ test("minhas reservas: a cliente vê o que o dono agenda e conclui na mesma aba,
   await expect(next.getByRole("listitem")).toHaveCount(3);
   const past = page.getByRole("list", { name: "Reservas anteriores" });
   await expect(past.getByRole("listitem").filter({ hasText: "20/10" })).toContainText("Concluída");
+  await expect(past.getByRole("link", { name: "Avaliar" })).toHaveCount(2); // 20/10 e 19/10
   await past.getByRole("listitem").filter({ hasText: "20/10" }).getByRole("link", { name: "Avaliar" }).click();
-  await expect(page).toHaveURL(/\/avaliar$/);
-  await expect(page.getByRole("form", { name: /Avaliar Corte em Barbearia Exemplo A, 20\/10/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/avaliar\?atendimento=/);
+  // Mesmos atendimentos concluídos nas duas telas, e o escolhido vem focado.
+  const forms = page.getByRole("form", { name: /^Avaliar / });
+  await expect(forms).toHaveCount(2);
+  await expect(page.getByRole("form", { name: /, 19\/10/ })).toBeVisible();
+  const chosen = page.getByRole("form", { name: /Avaliar Corte em Barbearia Exemplo A, 20\/10/ });
+  await expect(chosen.getByLabel("1", { exact: true })).toBeFocused();
 });
