@@ -129,3 +129,37 @@ class CoordinationTests(unittest.TestCase):
         self.assertFalse(c.reasons_unavailable(b,b['tasks']['P11']))
 
 if __name__=='__main__':unittest.main()
+
+class GitFallbackTests(unittest.TestCase):
+    """Escrita por git quando a Contents API recusa (403): só grava sobre o blob lido; mudou no meio = conflito."""
+    def setUp(self):
+        import os, subprocess, tempfile
+        self.os, self.sp = os, subprocess
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.remote, self.work = root / 'remote.git', root / 'work'
+        run = lambda *a, cwd=None: subprocess.run(['git', *a], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+        self.run = run
+        run('init', '--quiet', '--bare', str(self.remote))
+        run('init', '--quiet', str(self.work))
+        for k, v in (('user.name', 'teste'), ('user.email', 'teste@exemplo.test')):
+            run('config', k, v, cwd=self.work)
+        (self.work / 'workboard.json').write_text('{"v": 1}\n')
+        run('add', 'workboard.json', cwd=self.work)
+        run('commit', '--quiet', '-m', 'init', cwd=self.work)
+        run('remote', 'add', 'origin', str(self.remote), cwd=self.work)
+        run('push', '--quiet', 'origin', 'HEAD:refs/heads/coordination', cwd=self.work)
+        self.prev = os.getcwd(); os.chdir(self.work)
+    def tearDown(self):
+        self.os.chdir(self.prev); self.tmp.cleanup()
+    def blob(self):
+        return self.run('rev-parse', 'refs/heads/coordination:workboard.json', cwd=self.remote)
+    def test_writes_on_top_of_read_blob(self):
+        c.git_cas_write('{"v": 2}\n', self.blob())
+        self.assertEqual(self.run('show', 'refs/heads/coordination:workboard.json', cwd=self.remote), '{"v": 2}')
+    def test_stale_sha_is_conflict_and_changes_nothing(self):
+        stale = self.blob()
+        c.git_cas_write('{"v": 2}\n', stale)
+        with self.assertRaises(c.Conflict):
+            c.git_cas_write('{"v": 3}\n', stale)
+        self.assertEqual(self.run('show', 'refs/heads/coordination:workboard.json', cwd=self.remote), '{"v": 2}')

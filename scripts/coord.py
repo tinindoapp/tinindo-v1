@@ -3,6 +3,10 @@
 
 Remote authority: coordination:workboard.json. Updates use the blob SHA returned
 by GitHub's Contents API and retry conflicts by rereading and revalidating.
+Where the Contents API refuses writes (HTTP 403, e.g. a cloud session proxy), the
+same compare-and-swap is done with git: the commit is created only if the board
+blob on coordination still has the SHA that was read, and a non-fast-forward
+push is treated as a conflict.
 This is coordination among trusted collaborators, not a security boundary.
 """
 from __future__ import annotations
@@ -254,11 +258,43 @@ class GithubStore:
         return board,response['sha']
 
     def write(self,board,sha):
-        content=base64.b64encode((json.dumps(board,ensure_ascii=False,indent=2)+'\n').encode()).decode()
+        text=json.dumps(board,ensure_ascii=False,indent=2)+'\n'
+        content=base64.b64encode(text.encode()).decode()
         payload={'message':'coord: update work reservations','content':content,'branch':'coordination'}
         if sha is not None:
             payload['sha']=sha
-        self.api('PUT',self.path,payload)
+        try:
+            self.api('PUT',self.path,payload)
+        except ApiError as exc:
+            if exc.code!=403 or sha is None:
+                raise
+            git_cas_write(text,sha)
+
+def git(*args,input=None):
+    process=subprocess.run(['git',*args],input=input,text=True,capture_output=True,timeout=60)
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode,args,process.stdout,process.stderr)
+    return process.stdout.strip()
+
+def git_cas_write(text,expected_sha,remote='origin',branch='coordination',path='workboard.json'):
+    """Compare-and-swap by git: commit only on top of the board blob that was read; never force-push."""
+    try:
+        git('fetch','--quiet',remote,f'+refs/heads/{branch}:refs/coord/{branch}')
+        current=git('rev-parse',f'refs/coord/{branch}:{path}')
+        if current!=expected_sha:
+            raise Conflict('SHA desatualizado (git).')
+        blob=git('hash-object','-w','--stdin',input=text)
+        entries=[line for line in git('ls-tree',f'refs/coord/{branch}').splitlines() if not line.endswith('\t'+path)]
+        tree=git('mktree',input='\n'.join(entries+[f'100644 blob {blob}\t{path}'])+'\n')
+        commit=git('commit-tree',tree,'-p',f'refs/coord/{branch}','-m','coord: update work reservations')
+    except subprocess.CalledProcessError as exc:
+        raise BoardError('Escrita por git falhou antes do push; nada foi alterado. Consulte status.') from exc
+    try:
+        git('push','--quiet',remote,f'{commit}:refs/heads/{branch}')
+    except subprocess.CalledProcessError as exc:
+        if 'non-fast-forward' in exc.stderr or 'rejected' in exc.stderr or 'fetch first' in exc.stderr:
+            raise Conflict('Quadro mudou durante a escrita (git).') from exc
+        raise BoardError('Push do quadro falhou; não presumir que a escrita falhou. Consulte status antes de repetir.') from exc
 
     def initialize(self,board):
         # Verify branch and access first. A masked 404 is not treated as permission to create elsewhere.
