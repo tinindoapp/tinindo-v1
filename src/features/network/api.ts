@@ -167,7 +167,13 @@ const notFound = () => new ApiError("NOT_FOUND", "Não encontrado.", 404, null, 
 const rejected = (field: string) => new ApiError("POLICY_REJECTED", "Não foi possível confirmar.", 422, null, false, field);
 const overlaps = (a: { starts_at: string; ends_at: string }, b: { starts_at: string; ends_at: string }) =>
   Date.parse(a.starts_at) < Date.parse(b.ends_at) && Date.parse(b.starts_at) < Date.parse(a.ends_at);
-const demoCode = () => String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0");
+/** Código de 6 dígitos sem viés: descarta sorteios acima do último múltiplo de 1.000.000 (como app.pbk_new_code). */
+function demoCode(): string {
+  const buf = new Uint32Array(1);
+  do crypto.getRandomValues(buf);
+  while (buf[0]! >= 4_294_000_000);
+  return String(buf[0]! % 1_000_000).padStart(6, "0");
+}
 
 function toPublic(p: OwnerProfile): PublicProfileData {
   if (!p.published_at) throw notFound();

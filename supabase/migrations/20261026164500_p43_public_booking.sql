@@ -62,6 +62,22 @@ language sql stable security definer set search_path = '' as $$
     and 'booking_link' = any (p.public_fields)
 $$;
 
+/**
+ * Código de 6 dígitos com sorteio criptográfico (pgcrypto) e sem viés: descarta os valores de 32 bits acima do último
+ * múltiplo de 1.000.000, para que todo código tenha a mesma chance.
+ */
+create function app.pbk_new_code() returns text
+language plpgsql volatile set search_path = '' as $$
+declare
+  v bigint;
+begin
+  loop
+    v := ('x' || encode(extensions.gen_random_bytes(4), 'hex'))::bit(32)::bigint;
+    exit when v < 4294000000;
+  end loop;
+  return lpad((v % 1000000)::text, 6, '0');
+end $$;
+
 /** Resposta do pedido: horário e prazo, sem contato nem código. */
 create function app.pbk_request_json(q public.public_booking_requests) returns jsonb
 language sql stable security definer set search_path = '' as $$
@@ -186,7 +202,7 @@ begin
     case when v_customer is null then v_name end,
     p_starts_at, p_starts_at + make_interval(mins => v_svc.duration_min), null, 'hold', 'public_link', null, p_request_id);
 
-  v_code := lpad((floor(random() * 1000000))::int::text, 6, '0');
+  v_code := app.pbk_new_code();
   insert into public.public_booking_requests (tenant_id, booking_id, connection_id, contact_name, contact_phone_e164,
     code, code_hash, expires_at, idem_key, request_hash)
   values (v_tenant, v_b.id, v_conn.id, v_name, p_contact_phone, v_code, app.token_sha256(v_code), v_b.hold_expires_at,
@@ -350,6 +366,7 @@ grant execute on function public.public_booking_services(text) to anon, authenti
 grant execute on function public.public_booking_request(text, uuid, timestamptz, text, text, text, text, uuid) to anon, authenticated;
 grant execute on function public.public_booking_confirm(uuid, text, uuid) to anon, authenticated;
 revoke all on function app.pbk_tenant(text) from public;
+revoke all on function app.pbk_new_code() from public;
 revoke all on function app.pbk_request_json(public.public_booking_requests) from public;
 revoke all on function app.pbk_confirmed_json(public.bookings) from public;
 

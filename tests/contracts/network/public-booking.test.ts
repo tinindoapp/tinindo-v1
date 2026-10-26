@@ -53,6 +53,14 @@ describe("P43 · registro ↔ handler ↔ SQL", () => {
     expect(reqJson).not.toMatch(/contact_|code/);
   });
 
+  it("código com sorteio criptográfico sem viés, nunca random()", () => {
+    expect(sql).toContain("extensions.gen_random_bytes(4)");
+    expect(sql).toContain("exit when v < 4294000000;");
+    expect(sql).not.toMatch(/\brandom\(\)/);
+    expect(4294000000 % 1_000_000).toBe(0);
+    expect(4294000000).toBeLessThanOrEqual(2 ** 32);
+  });
+
   it("o código só sai pelo despacho do canal, com o modelo próprio", () => {
     expect(sql).toContain("('codigo_reserva', 'utility'");
     expect(sql).toMatch(/'ref', 'pbk:' \|\| r\.id/);
