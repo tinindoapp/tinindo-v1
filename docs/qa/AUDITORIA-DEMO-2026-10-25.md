@@ -70,7 +70,7 @@ atendimento, mas o Caixa listava apenas os dois atendimentos de exemplo dele (um
 | Elegibilidade na avaliação | Estava correta | Na demonstração, `/avaliar` mostra os exemplos e os atendimentos da Cliente Exemplo Ana concluídos na Agenda, dentro de 30 dias. Atendimentos de outro cliente não aparecem nem são aceitos. A data aparece em cada item. |
 | Perfil "sem avaliações" com lista de 2 avaliações | Estava desconectado | Na demonstração, o perfil e a lista usam o mesmo resumo. A lista aceita o endereço que o dono publicou. |
 | Escolher horário no perfil público | **Lacuna conhecida, não intencional** | Não existe `public.book` (registrado no handoff do P10). A mensagem agora diz que nada foi reservado e que a reserva on-line ainda não existe, nos dois modos. Antes, o modo com servidor pedia "entre com seu e-mail", um passo que não existe. |
-| Minhas reservas | **Lacuna conhecida** (handoff do P10) | Não implementado: é expansão de escopo e depende de decisão. |
+| Minhas reservas | **Lacuna conhecida** (handoff do P10) | **Implementado depois da decisão do dono (ADR-0029):** `/app/conta/reservas`, só leitura, sobre `public.my_bookings()`. |
 
 **Menor solução coerente com o piloto, para decidir:**
 - **Reserva pelo link:** operação anônima `public.book` que cria um *hold* curto no motor do P03 e confirma por

@@ -196,6 +196,8 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `review.reply` | review_id, expected_version, body, key | Resposta pública do profissional; nota e texto do cliente não mudam |
 | `review.public_list` | slug | Avaliações publicadas e selos do perfil (sem login; sem autor; média só com 3+) |
 
+Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
+
 ## Exemplo de cotação
 
 ```json

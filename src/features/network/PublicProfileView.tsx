@@ -28,7 +28,8 @@ export function PublicProfileView({ profile, api }: { profile: PublicProfileData
         </ul>
         {/* Avaliar exige login e só lista atendimentos concluídos do próprio cliente (regra do servidor). */}
         <p className="tn-net-small">
-          Já foi atendido aqui? <Link to="/avaliar">Avaliar meu atendimento</Link>
+          Já foi atendido aqui? <Link to="/avaliar">Avaliar meu atendimento</Link> ·{" "}
+          <Link to="/app/conta/reservas">Minhas reservas</Link>
         </p>
         {profile.fields.bio ? <p>{profile.fields.bio}</p> : null}
         {profile.fields.services_summary ? <p>{profile.fields.services_summary}</p> : null}

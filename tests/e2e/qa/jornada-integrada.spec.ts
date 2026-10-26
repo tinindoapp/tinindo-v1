@@ -143,3 +143,43 @@ test.describe("regressões da auditoria", () => {
     await expect(received(page)).toHaveText("R$ 260,00");
   });
 });
+
+test("minhas reservas: a cliente vê o que o dono agenda e conclui na mesma aba, sem ações de alterar", async ({ page }) => {
+  await page.goto("/app/agenda");
+  await page.getByRole("link", { name: "Novo agendamento" }).click();
+  await page.getByRole("radio", { name: /Corte/ }).check();
+  await page.getByRole("button", { name: "13:00", exact: true }).click();
+  await page.getByLabel("Cliente").selectOption({ label: "Cliente Exemplo Ana" });
+  await page.getByRole("button", { name: "Confirmar agendamento" }).click();
+  await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
+
+  await softGo(page, "/app/conta/reservas");
+  await expect(page.getByRole("heading", { name: "Minhas reservas", level: 1 })).toBeVisible();
+  await expect(page.getByText(/Você vê como a Cliente Exemplo Ana/)).toBeVisible();
+  const next = page.getByRole("list", { name: "Próximas reservas" });
+  await expect(next.getByRole("listitem")).toHaveCount(4);
+  await expect(next).toContainText("13:00–13:30");
+  await expect(page.getByRole("list", { name: "Reservas anteriores" }).getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /Cancelar|Remarcar|Reagendar/ })).toHaveCount(0);
+  await noHorizontalScroll(page);
+
+  // O dono conclui o atendimento das 09:00: para a cliente ele vira "Concluída" e avaliável.
+  await softGo(page, "/app/agenda");
+  await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
+  await page.getByRole("button", { name: "Concluir atendimento" }).click();
+  await page.getByRole("button", { name: "Confirmar conclusão" }).click();
+  await expect(page.getByText(/Atendimento concluído/)).toBeVisible();
+  await softGo(page, "/app/conta/reservas");
+  await expect(next.getByRole("listitem")).toHaveCount(3);
+  const past = page.getByRole("list", { name: "Reservas anteriores" });
+  await expect(past.getByRole("listitem").filter({ hasText: "20/10" })).toContainText("Concluída");
+  await expect(past.getByRole("link", { name: "Avaliar" })).toHaveCount(2); // 20/10 e 19/10
+  await past.getByRole("listitem").filter({ hasText: "20/10" }).getByRole("link", { name: "Avaliar" }).click();
+  await expect(page).toHaveURL(/\/avaliar\?atendimento=/);
+  // Mesmos atendimentos concluídos nas duas telas, e o escolhido vem focado.
+  const forms = page.getByRole("form", { name: /^Avaliar / });
+  await expect(forms).toHaveCount(2);
+  await expect(page.getByRole("form", { name: /, 19\/10/ })).toBeVisible();
+  const chosen = page.getByRole("form", { name: /Avaliar Corte em Barbearia Exemplo A, 20\/10/ });
+  await expect(chosen.getByLabel("1", { exact: true })).toBeFocused();
+});

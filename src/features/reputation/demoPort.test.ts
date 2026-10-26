@@ -1,9 +1,18 @@
 // A emulação segue as regras do banco (pgTAP 23, integração 40).
 import { beforeEach, describe, expect, it } from "vitest";
+import { FX, tenantA } from "@contracts/fixtures.ts";
+import { provideCustomerBookings } from "../../lib/demo/journey.ts";
 import { createDemoCustomerPort, createDemoOwnerPort, createDemoPublicPort, resetDemoState } from "./demoPort.ts";
 
 const k = () => crypto.randomUUID();
-beforeEach(() => resetDemoState());
+beforeEach(() => {
+  resetDemoState();
+  // Elegíveis vêm da agenda da demonstração (no app, a Agenda informa): um corte concluído da Ana em 19/10.
+  provideCustomerBookings(async (customerId) => customerId !== FX.customers.abInA ? [] : [{
+    booking_id: "60000000-0000-4000-8000-000000000101", tenant_id: FX.tenants.A, tenant_name: tenantA.name, timezone: tenantA.timezone,
+    service_name: "Corte", starts_at: "2026-10-19T14:00:00-03:00", ends_at: "2026-10-19T14:30:00-03:00", status: "completed", agreed_price_cents: 6000,
+  }]);
+});
 
 describe("demonstração de Avaliações", () => {
   it("cliente avalia uma vez; média aparece só com 3; dono responde sem mudar a nota; competência nunca certificada", async () => {

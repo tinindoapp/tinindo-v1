@@ -7,6 +7,8 @@
 .tn-rev-badges li[data-on] { border-color: var(--tn-action); font-weight: var(--tn-font-weight-medium); }
 .tn-rev-list { list-style: none; margin: 0; padding: 0; }
 .tn-rev-item { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); overflow-wrap: anywhere; }
+/* Atendimento escolhido em "Minhas reservas": destaque discreto, sem cor de marca. */
+.tn-rev-item[data-target="true"] { background: var(--tn-action-subtle); padding-inline: var(--tn-space-3); border-radius: var(--tn-radius-sm); }
 .tn-rev-head, .tn-rev-body, .tn-rev-reply { margin: 0; }
 .tn-rev-reply { padding-left: var(--tn-space-3); border-left: 2px solid var(--tn-border-control); }
 .tn-rev-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }

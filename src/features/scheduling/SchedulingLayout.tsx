@@ -5,7 +5,8 @@ import { Outlet } from "react-router";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
-import { completionEventId, publishCompletedVisit } from "../../lib/demo/journey.ts";
+import { completionEventId, provideCustomerBookings, publishCompletedVisit } from "../../lib/demo/journey.ts";
+import { customerBookingsFrom } from "./demoCustomerBookings.ts";
 import { createFixturePort, type Simulation } from "./fixturePort.ts";
 import type { CustomerRef, SchedulingContext, SchedulingPort } from "./port.ts";
 import { createServerPort } from "./serverPort.ts";
@@ -38,6 +39,9 @@ export function getDemoPort(): SchedulingPort {
   });
   return demoPort;
 }
+
+// "Minhas reservas" da demonstração lê a agenda desta aba (o que o dono criou, concluiu ou cancelou aparece para a cliente).
+provideCustomerBookings((customerId) => customerBookingsFrom(getDemoPort(), customerId));
 
 /** Só para testes. */
 export function resetDemoPort(port: SchedulingPort | null = null) {

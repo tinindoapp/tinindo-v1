@@ -1,7 +1,7 @@
 // Avaliações (P24): painel do dono (responder, denunciar), página do cliente para avaliar atendimentos concluídos e lista
 // pública do perfil. Selos separados: identidade verificada, atendimentos verificados, competência certificada (ainda não).
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router";
 import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { type CustomerReviewsPort, newKey, type OwnerReviewsPort, type PublicReviewsPort, type ReviewOwnerList, type ReviewPending, type ReviewPublicList } from "./port.ts";
@@ -115,7 +115,19 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
   const [nonce, setNonce] = useState(0);
   const [rating, setRating] = useState<Record<string, number>>({});
   const [text, setText] = useState<Record<string, string>>({});
+  // Uma publicação por vez: o clique duplo não manda a segunda (que voltaria "já avaliado" por cima do sucesso).
+  const sending = useRef(false);
+  const [busy, setBusy] = useState(false);
   const signedOut = state.status === "signed_out";
+  // Vindo de "Minhas reservas" (?atendimento=id): leva ao formulário daquele atendimento.
+  const target = useSearchParams()[0].get("atendimento");
+  const targetPending = target ? data?.pending.some((p) => p.booking_id === target) : undefined;
+  useEffect(() => {
+    if (!targetPending) return;
+    const el = document.getElementById(`avaliar-${target}`);
+    el?.scrollIntoView({ block: "center" });
+    el?.querySelector<HTMLInputElement>("input[type=radio]")?.focus();
+  }, [target, targetPending]);
   useEffect(() => {
     if (signedOut) return;
     let alive = true;
@@ -127,19 +139,27 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
       <h1>Avaliar atendimentos</h1>
       {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Você vê como a Cliente Exemplo Ana: aparecem os exemplos e os atendimentos dela concluídos na Agenda desta aba. Nada é publicado fora da aba.</StatusBanner> : null}
       {signedOut ? <p><Link to="/entrar">Entre na sua conta</Link> para avaliar os atendimentos que você fez.</p> : null}
+      {!signedOut ? <p><Link to="/app/conta/reservas">Minhas reservas</Link></p> : null}
       {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
+      {data && target && targetPending === false && !notice ? (
+        <StatusBanner tone="info">Esse atendimento não está mais para avaliar: já foi avaliado ou passou o prazo de {data.rules.window_days} dias.</StatusBanner>
+      ) : null}
       {data ? (
         <>
           <p className="tn-rev-muted">Aparecem só atendimentos concluídos nos negócios em que você tem vínculo, até {data.rules.window_days} dias depois. Seu nome não aparece na avaliação.</p>
           {data.pending.length === 0 ? <p>Nada para avaliar agora.</p> : null}
           <ul className="tn-rev-list" aria-label="Para avaliar">
             {data.pending.map((p) => (
-              <li key={p.booking_id} className="tn-rev-item">
+              <li key={p.booking_id} id={`avaliar-${p.booking_id}`} className="tn-rev-item" data-target={p.booking_id === target ? "true" : undefined}>
                 <form aria-label={`Avaliar ${p.service_name} em ${p.tenant_name}, ${DAY.format(new Date(p.ended_at))}`} className="tn-rev-form" onSubmit={(e) => {
                   e.preventDefault();
+                  if (sending.current) return;
+                  sending.current = true;
+                  setBusy(true);
                   void port.submit(p.booking_id, rating[p.booking_id] ?? 0, text[p.booking_id]?.trim() || null, newKey())
                     .then(() => { setNotice({ tone: "success", text: "Obrigado! Sua avaliação foi publicada sem o seu nome." }); setNonce((n) => n + 1); },
-                      (err: unknown) => setNotice({ tone: "danger", text: explain(err) }));
+                      (err: unknown) => setNotice({ tone: "danger", text: explain(err) }))
+                    .finally(() => { sending.current = false; setBusy(false); });
                 }}>
                   <p><strong>{p.service_name}</strong> · {p.tenant_name} · <span className="tn-num">{DAY.format(new Date(p.ended_at))}</span></p>
                   <fieldset className="tn-rev-stars">
@@ -149,7 +169,7 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
                     ))}
                   </fieldset>
                   <label className="tn-field"><span>Comentário (opcional)</span><textarea value={text[p.booking_id] ?? ""} maxLength={600} onChange={(e) => setText({ ...text, [p.booking_id]: e.target.value })} /></label>
-                  <div><Button type="submit" disabled={!rating[p.booking_id]}>Publicar avaliação</Button></div>
+                  <div><Button type="submit" disabled={!rating[p.booking_id] || busy}>Publicar avaliação</Button></div>
                 </form>
               </li>
             ))}

@@ -158,6 +158,7 @@ function MyLinks() {
       ) : null}
       {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
       <div className="tn-id-actions">
+        <Link to="reservas">Minhas reservas</Link>
         <Link to="vincular">Tenho um código de vínculo</Link>
       </div>
     </Card>
