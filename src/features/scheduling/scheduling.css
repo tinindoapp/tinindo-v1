@@ -16,9 +16,21 @@
     right: max(var(--tn-space-4), env(safe-area-inset-right));
     bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-4));
     margin: 0;
-    min-height: 52px;
-    padding: 0 var(--tn-space-5) 0 var(--tn-space-4);
+    width: 56px;
+    min-height: 56px;
+    padding: 0;
+    border-radius: var(--tn-radius-pill);
     box-shadow: var(--tn-shadow-lg);
+  }
+  /* Só o +: o botão redondo cobre menos do cartão (Atendido e Faltou ficam à esquerda). O nome continua no leitor de tela. */
+  .tn-sched-new__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
   .tn-main:has(.tn-sched-new) { padding-bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + 104px); }
 }
@@ -45,6 +57,10 @@
   min-width: 0;
 }
 .tn-sched-confirm h3 { margin: 0; font-size: var(--tn-text-body); }
+/* Próximo passo depois de cancelar: barra à esquerda separa do detalhe logo abaixo. */
+.tn-sched-after { border-left: 4px solid var(--tn-border-control); }
+.tn-sched-after h2 { margin: 0; font-size: var(--tn-text-group); }
+.tn-sched-after p { margin: 0; }
 /* Ocupação compacta: uma linha com barra fina; o resto fica em "Ver números". */
 .tn-sched-occline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-1) var(--tn-space-3); margin: 0; min-width: 0; font-size: var(--tn-text-support); }
 .tn-sched-occline__figure { margin: 0; }
@@ -99,6 +115,8 @@
   border-radius: inherit;
 }
 @media (hover: hover) { .tn-sched-item__link:hover { background: var(--tn-action-subtle); } }
+/* Atendido e Faltou no cartão do dia: linha própria embaixo do link, alinhada ao conteúdo. */
+.tn-sched-item > .tn-sched-attend { grid-column: 1 / -1; margin: 0 var(--tn-space-3) var(--tn-space-3); }
 .tn-sched-item[data-kind="free"] { border-style: dashed; background: transparent; }
 .tn-sched-item[data-kind="pause"],
 .tn-sched-item[data-kind="block"] { background: var(--tn-surface-sunken); color: var(--tn-text-muted); }

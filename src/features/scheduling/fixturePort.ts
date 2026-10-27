@@ -7,7 +7,9 @@ import {
   type Booking,
   BookingCancelInput,
   BookingCompleteInput,
+  BookingConfirmInput,
   BookingCreateInput,
+  BookingNoShowInput,
   BookingRescheduleInput,
   DEFAULT_MESSAGES,
   ERROR_STATUS,
@@ -32,6 +34,7 @@ import {
   DEMO_BLOCKS,
   DEMO_CUSTOMERS,
   DEMO_OFF_PEAK,
+  DEMO_WAITLIST,
   DEMO_WEEKLY_HOURS,
   demoBookings,
 } from "./demoData.ts";
@@ -231,6 +234,12 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
     return next;
   }
 
+  function overlap(a: Booking, b: Booking): boolean {
+    const [as, ae] = occupied(a);
+    const [bs, be] = occupied(b);
+    return as < be && bs < ae;
+  }
+
   /** Simula outra pessoa confirmando o mesmo horário um instante antes. */
   function takeSimulatedConflict(serviceId: string, slot: TimeRange) {
     if (simulate !== "conflito") return;
@@ -254,6 +263,24 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
 
   function checkVersion(b: Booking, expected: number) {
     if (b.version !== expected) fail("STALE_VERSION", "expected_version");
+  }
+
+  /**
+   * held → confirmed, mesma regra do servidor (scheduling_booking_confirm): prazo vencido vira `expired` e recusa;
+   * o preço é o da cotação vinculada ou, sem ela, o preço base do serviço, congelado aqui.
+   */
+  function confirmHeld(current: Booking, expiredField = "hold_expires_at"): Booking {
+    if (current.status === "held" && current.hold_expires_at && Date.parse(current.hold_expires_at) <= now.getTime()) {
+      update(current.id, { status: "expired" });
+      fail("POLICY_REJECTED", expiredField);
+    }
+    if (current.status !== "held") fail("POLICY_REJECTED", current.status === "expired" ? expiredField : "status");
+    const quoted = current.price_quote_id ? quotes.get(current.price_quote_id)?.final_price_cents : undefined;
+    return update(current.id, {
+      status: "confirmed",
+      hold_expires_at: null,
+      agreed_price_cents: quoted ?? service(current.service_id).base_price_cents,
+    });
   }
 
   return {
@@ -405,10 +432,43 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
     },
 
     async publicConfirm(id) {
+      // Mesma confirmação do dono (confirmHeld): o código do link só troca quem confirma.
+      // O link público trata qualquer recusa aqui como prazo vencido (campo expires_at do contrato do link).
       const current = booking(id);
       if (current.status !== "held") fail("POLICY_REJECTED", "expires_at");
-      return delay(update(id, { status: "confirmed", hold_expires_at: null, agreed_price_cents: service(current.service_id).base_price_cents }));
+      return delay(confirmHeld(current, "expires_at"));
     },
+
+    async confirm(raw, key) {
+      const input = parse(BookingConfirmInput, raw);
+      const result = idempotent("booking.confirm", key, input, () => {
+        const current = booking(input.booking_id);
+        takeSimulatedStale(current.id);
+        checkVersion(current, input.expected_version);
+        return confirmHeld(current);
+      });
+      return delay(result);
+    },
+
+    async noShow(raw, key) {
+      const input = parse(BookingNoShowInput, raw);
+      const result = idempotent("booking.no_show", key, input, () => {
+        const current = booking(input.booking_id);
+        takeSimulatedStale(current.id);
+        checkVersion(current, input.expected_version);
+        if (current.status !== (input.revert ? "no_show" : "confirmed")) fail("POLICY_REJECTED", "status");
+        if (Date.parse(current.starts_at) > now.getTime()) fail("POLICY_REJECTED", "starts_at");
+        // Falta libera o horário; desfazer volta a ocupar e pode bater com quem marcou depois.
+        if (input.revert && bookings.some((b) => b.id !== current.id && ACTIVE_STATUSES.includes(b.status) && overlap(b, current))) {
+          fail("SLOT_CONFLICT", "slot");
+        }
+        return update(current.id, { status: input.revert ? "confirmed" : "no_show" });
+      });
+      return delay(result);
+    },
+
+    // Demonstração: espelha a entrada de exemplo da tela Lista de espera (os módulos não se importam).
+    waitlistEntries: () => delay(DEMO_WAITLIST.map((e) => ({ ...e }))),
 
     async reschedule(raw, key) {
       const input = parse(BookingRescheduleInput, raw);

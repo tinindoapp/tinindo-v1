@@ -4,6 +4,7 @@ import { Button, IconButton, PageHeader, Segmented } from "../../components/ui/i
 import { Link, useSearchParams } from "react-router";
 import type { Booking, ProviderService } from "@contracts";
 import {
+  canComplete,
   dayTimeline,
   type DayPlan,
   formatCents,
@@ -15,6 +16,7 @@ import {
 import { addDays, dayWindow, formatDayLong, formatDayShort, isCivilDate, localParts, weekStart } from "./time.ts";
 import { DemoNotice, ErrorPanel, StatusBadge, TimezoneNote, useSchedulingExtensions } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
+import { AttendanceActions } from "./attendance.tsx";
 
 type View = "dia" | "semana";
 
@@ -61,10 +63,10 @@ export function AgendaPage() {
           <IconButton icon="seta" variant="secondary" label={view === "semana" ? "Próxima semana" : "Próximo dia"}
             onClick={() => go({ data: addDays(date, step) })} />
         </div>
-        {/* No celular vira botão flutuante acima das abas; no desktop fica na barra. Mesmo elemento nos dois. */}
+        {/* No celular vira botão flutuante redondo (só o +) acima das abas; no desktop fica na barra com o texto. Mesmo elemento. */}
         <Link className="tn-button tn-sched-new" data-variant="primary" to={`novo?data=${date}`}>
           <Icon name="mais" size={20} />
-          Novo agendamento
+          <span className="tn-sched-new__label">Novo agendamento</span>
         </Link>
       </div>
 
@@ -82,13 +84,18 @@ function useRange(first: string, days: number) {
   const port = usePort();
   const { ctx } = useBase();
   const window = dayWindow(first, ctx.timezone, days);
-  return useAsync(`range:${first}:${days}`, async () => {
-    const [bookings, plans] = await Promise.all([port.listBookings(window), port.dayPlans(window)]);
-    return { bookings, plans };
-  });
+  return useAsync(
+    `range:${first}:${days}`,
+    async () => {
+      const [bookings, plans] = await Promise.all([port.listBookings(window), port.dayPlans(window)]);
+      return { bookings, plans };
+    },
+    true,
+  );
 }
 
 function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo: boolean }) {
+  const port = usePort();
   const { ctx, services, customers } = useBase();
   const ext = useSchedulingExtensions();
   const range = useRange(date, 1);
@@ -114,6 +121,8 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
             serviceOf={(id) => serviceName(services, id)}
             customerOf={(id) => customers.find((c) => c.id === id)?.name ?? (id ? "Cliente" : "Sem cliente cadastrado")}
             freeActions={ext.freeSlotActions}
+            now={port.now()}
+            reload={range.reload}
           />
         </>
       )}
@@ -168,6 +177,8 @@ function DayList({
   serviceOf,
   customerOf,
   freeActions,
+  now,
+  reload,
 }: {
   date: string;
   plan: DayPlan | null;
@@ -177,6 +188,8 @@ function DayList({
   serviceOf: (id: string) => string;
   customerOf: (id: string | null) => string;
   freeActions?: ReturnType<typeof useSchedulingExtensions>["freeSlotActions"];
+  now: Date;
+  reload: () => void;
 }) {
   const items = dayTimeline(plan, bookings, 20, services);
   if (plan && plan.open.length === 0 && bookings.length === 0) {
@@ -202,6 +215,10 @@ function DayList({
                   {b.agreed_price_cents !== null ? <span className="tn-num">{formatCents(b.agreed_price_cents)}</span> : null}
                 </span>
               </Link>
+              {/* Depois do início: Atendido e Faltou no próprio cartão, fora do link (botão dentro de link não é permitido). */}
+              {canComplete(b, now) ? (
+                <AttendanceActions booking={b} when={`às ${localParts(b.starts_at, tz).time}`} onChanged={reload} />
+              ) : null}
             </li>
           );
         }

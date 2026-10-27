@@ -6,7 +6,9 @@ import type {
   Booking,
   BookingCancelInput,
   BookingCompleteInput,
+  BookingConfirmInput,
   BookingCreateInput,
+  BookingNoShowInput,
   BookingRescheduleInput,
   PricingQuoteInput,
   ProviderService,
@@ -16,6 +18,7 @@ import type {
   ScheduleRulesSaveInput,
   ScheduleSettings,
   TimeRange,
+  WaitlistEntry,
 } from "@contracts";
 import type { z } from "zod";
 import type { DayPlan } from "./agenda.ts";
@@ -28,6 +31,8 @@ export interface PublicBookingContact {
 export interface CustomerRef {
   id: string;
   name: string;
+  /** WhatsApp do cadastro (E.164), quando o CRM informa. Serve só para o dono abrir a conversa. */
+  phone?: string | null;
 }
 
 export interface SchedulingContext {
@@ -61,6 +66,15 @@ export interface SchedulingPort {
   reschedule(input: z.input<typeof BookingRescheduleInput>, idempotencyKey: string): Promise<Booking>;
   cancel(input: z.input<typeof BookingCancelInput>, idempotencyKey: string): Promise<Booking>;
   complete(input: z.input<typeof BookingCompleteInput>, idempotencyKey: string): Promise<Booking>;
+  /** Reserva provisória → confirmada. O servidor confere o prazo e congela o preço. */
+  confirm(input: z.input<typeof BookingConfirmInput>, idempotencyKey: string): Promise<Booking>;
+  /** Confirmado → falta (depois do início); com `revert`, volta a confirmado. Motivo obrigatório. */
+  noShow(input: z.input<typeof BookingNoShowInput>, idempotencyKey: string): Promise<Booking>;
+  /**
+   * Entradas da lista de espera (P06), só para dizer quantas pessoas aceitam um horário que ficou livre.
+   * Quem decide a oferta é a tela da lista de espera.
+   */
+  waitlistEntries(): Promise<WaitlistEntry[]>;
   /**
    * Quem pediu o horário pelo link público (P43): nome e WhatsApp informados. null quando não há pedido
    * (atendimento criado pelo dono, por exemplo).
