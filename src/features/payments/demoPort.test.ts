@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { advanceDemoClock, createDemoLinkPort, createDemoPort, resetDemoState } from "./demoPort.ts";
+import { advanceDemoClock, createDemoLinkPort, createDemoPort, DEMO_BUSINESS, forgetDemoMemory, resetDemoState } from "./demoPort.ts";
 
 const code = (p: Promise<unknown>) => p.then(() => "ok", (e: { code: string; field?: string }) => `${e.code}/${e.field ?? "-"}`);
 const tokenOf = (url: string | null) => /#t=([A-Za-z0-9_-]{43})$/.exec(url!)![1]!;
@@ -50,5 +50,23 @@ describe("demonstração de Pagamentos (mesmas regras do banco)", () => {
     expect(await code(port.cancelCharge({ ...retry.charge, version: 1 }, "x1"))).toBe("STALE_VERSION/-");
     expect((await port.cancelCharge(retry.charge, "x2")).status).toBe("cancelled");
     expect(await link.simPay(tokenOf(retry.pay_url), "paid", true)).toEqual({ status: "cancelled", applied: 0, duplicates: 0 });
+  });
+
+  it("o link da cobrança continua valendo depois de recarregar a página (cobrança guardada na sessão da aba)", async () => {
+    const port = createDemoPort();
+    const [corte] = await port.openReceivables();
+    const c = await port.createCharge(corte!.id, "simulated", "k-reload");
+    forgetDemoMemory();
+    const link = createDemoLinkPort();
+    expect(link.businessName).toBe(DEMO_BUSINESS);
+    const v = await link.view(tokenOf(c.pay_url));
+    expect(v).toMatchObject({ status: "pending", amount_cents: 6000 });
+    expect(await link.simPay(tokenOf(c.pay_url), "paid", true)).toMatchObject({ applied: 1 });
+    forgetDemoMemory();
+    expect((await createDemoPort().charges()).charges[0]).toMatchObject({ status: "paid" });
+    // A mesma chave depois de recarregar não cria outra cobrança.
+    expect((await createDemoPort().createCharge(corte!.id, "simulated", "k-reload")).charge.id).toBe(c.charge.id);
+    resetDemoState();
+    expect((await createDemoPort().charges()).charges).toHaveLength(0);
   });
 });

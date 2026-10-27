@@ -36,6 +36,8 @@ export interface PaymentsPort {
 /** Visão do link público (cliente, sem login). */
 export interface PaymentLinkPort {
   readonly kind: "demo" | "server";
+  /** Nome do negócio para a mensagem de link não encontrado, quando conhecido sem o token (demonstração). */
+  readonly businessName?: string;
   view(token: string): Promise<LinkView>;
   /** Só cobrança simulada: o cliente "paga"; notify=false simula o webhook perdido. */
   simPay(token: string, outcome: "paid" | "expired", notify: boolean): Promise<SimPayResult>;

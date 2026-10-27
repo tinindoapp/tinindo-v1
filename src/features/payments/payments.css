@@ -14,3 +14,11 @@
 .tn-pay-amount { font-size: 1.75rem; font-weight: 700; margin: 0; }
 @media (max-width: 30rem) { .tn-pay-form { display: grid; grid-template-columns: minmax(0, 1fr); } }
 .tn-pay-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
+/* Copiar e compartilhar: botão primeiro, código completo recolhido em "Ver código". */
+.tn-pay-share { display: grid; gap: var(--tn-space-2); min-width: 0; }
+.tn-pay-copy { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
+.tn-pay-copy__fail { color: var(--tn-text); font-size: var(--tn-font-size-sm); }
+.tn-pay-details { min-width: 0; }
+.tn-pay-details summary { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); cursor: pointer; font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); }
+.tn-pay-details[open] { display: grid; gap: var(--tn-space-1); }
+.tn-pay-share a:not(.tn-button) { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }
