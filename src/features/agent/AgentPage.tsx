@@ -64,7 +64,7 @@ function Sources({ answer }: { answer: Answer }) {
   const counts = new Map<string, number>();
   for (const s of answer.sources) counts.set(s.kind, (counts.get(s.kind) ?? 0) + 1);
   const asOf = answer.sources.map((s) => s.as_of).sort().at(-1)!;
-  const parts = [...counts.entries()].map(([k, n]) => `${SOURCE_LABEL[k] ?? k}${n > 1 ? ` (${n})` : ""}`);
+  const parts = [...counts.entries()].map(([k, n]) => `${SOURCE_LABEL[k] ?? "outro registro"}${n > 1 ? ` (${n})` : ""}`);
   return <p className="tn-ag-sources">Fontes: {parts.join(", ")} · dados de {time(asOf)}</p>;
 }
 
@@ -77,14 +77,17 @@ function ProposalCard({ turn, proposal, onApprove, onExecute }: {
   const titleId = `ag-prop-${turn.id}`;
   return (
     <section className="tn-ag-proposal" aria-labelledby={titleId}>
-      <h3 id={titleId}>Proposta: {TOOL_LABEL[proposal.tool] ?? proposal.tool}</h3>
+      <h3 id={titleId}>Proposta: {TOOL_LABEL[proposal.tool] ?? "alteração"}</h3>
       <p>{proposal.summary}</p>
       <dl className="tn-ag-meta">
         <dt>Validade</dt>
         <dd>até {time(proposal.expires_at)}{turn.approval ? ` · aprovação vale até ${time(turn.approval.expires_at)}` : ""}</dd>
-        <dt>Conferência</dt>
-        <dd><code>{proposal.payload_hash.slice(0, 12)}</code> (versão {proposal.version})</dd>
       </dl>
+      {/* Identificador da proposta: só para o suporte conferir, fora do texto principal. */}
+      <details className="tn-ag-support">
+        <summary>Detalhes para o suporte</summary>
+        <p className="tn-ag-muted">Código da proposta: <code>{proposal.payload_hash.slice(0, 12)}</code> · versão {proposal.version}</p>
+      </details>
       {turn.actionError && <StatusBanner tone="danger">{turn.actionError}</StatusBanner>}
       {turn.receipt ? (
         turn.receipt.status === "executed"
