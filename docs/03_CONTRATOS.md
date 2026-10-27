@@ -199,6 +199,21 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `review.owner_list` | — | Dono: avaliações recebidas (sem autor), selos e denúncias abertas |
 | `review.reply` | review_id, expected_version, body, key | Resposta pública do profissional; nota e texto do cliente não mudam |
 | `review.public_list` | slug | Avaliações publicadas e selos do perfil (sem login; sem autor; média só com 3+) |
+| `resources.list` | — | Profissionais, salas, cadeiras e equipamentos da equipe, regras de comissão e fuso |
+| `resources.save` | recurso (novo ou id + versão), tipo, nome, ativo, comissão padrão, vínculo com a agenda individual, key | Tipo não muda; desativar exige não ter uso futuro |
+| `resources.commission_rule_save` | profissional, serviço, bps (null remove), key | Comissão por serviço; vale para reservas e turmas novas |
+| `resources.availability` | serviço, profissional, recursos, janela | Horários em que o profissional e todos os recursos estão livres |
+| `resources.booking_create` | serviço, cliente, profissional, até 4 recursos, início, key | Reserva composta tudo ou nada; conflito diz o tipo do recurso ocupado |
+| `resources.booking_cancel` | booking_id, versão, motivo, key | Libera todos os recursos de uma vez |
+| `resources.booking_complete` | booking_id, versão, key | Recebível no Caixa e comissão lançada uma vez |
+| `resources.schedule` | janela | Reservas e turmas da equipe |
+| `resources.class_create` | serviço, profissional, sala, título, início, vagas, preço por vaga, key | Turma com profissional e sala alocados juntos |
+| `resources.class_enroll` | class_id, customer_id, key | Vaga com lotação conferida sob lock; uma por cliente |
+| `resources.class_seat_cancel` | seat_id, versão, key | Libera a vaga |
+| `resources.class_cancel` | class_id, versão, key | Libera profissional e sala e cancela as vagas |
+| `resources.class_complete` | class_id, versão, vagas presentes, key | Presentes geram recebível; ausentes viram falta; comissão uma vez |
+| `resources.commission_reverse` | entry_id, key | Estorno da comissão, uma vez |
+| `resources.commissions` | período | Comissão por profissional (lançada, estornada, líquida) e lançamentos |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 

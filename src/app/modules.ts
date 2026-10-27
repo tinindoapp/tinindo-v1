@@ -23,6 +23,7 @@ import { presenceModule } from "../features/presence/module.tsx";
 import { fiscalModule } from "../features/fiscal/module.tsx";
 import { discoveryModule } from "../features/discovery/module.tsx";
 import { reputationModule } from "../features/reputation/module.tsx";
+import { resourcesModule } from "../features/resources/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
@@ -46,5 +47,6 @@ export const MODULES: readonly ModuleDefinition[] = [
   presenceModule,
   discoveryModule,
   serviceOpsModule,
+  resourcesModule,
   identityModule,
 ];
