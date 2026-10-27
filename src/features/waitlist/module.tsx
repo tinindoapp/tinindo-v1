@@ -5,7 +5,7 @@ import type { RouteObject } from "react-router";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { createDemoLinkPort, createDemoPort } from "./demoPort.ts";
 import { OfferPage } from "./OfferPage.tsx";
@@ -23,10 +23,10 @@ function WaitlistLayout() {
   }, [state.status, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="wl-no-tenant">
-        <h1 id="wl-no-tenant">Lista de espera</h1>
+      <section aria-labelledby="wl-no-tenant" className="tn-wl">
+        <PageHeader id="wl-no-tenant" title="Lista de espera" />
         <StatusBanner tone="info">Selecione um negócio para ver a lista de espera.</StatusBanner>
-      </Card>
+      </section>
     );
   }
   return (

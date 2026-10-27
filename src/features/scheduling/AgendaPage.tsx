@@ -1,6 +1,6 @@
 // Tela principal da agenda: Hoje/dia e semana, ocupação e horários livres.
 import { Icon } from "../../components/ui/icons.tsx";
-import { PageHeader } from "../../components/ui/index.tsx";
+import { Button, IconButton, PageHeader, Segmented } from "../../components/ui/index.tsx";
 import { Link, useSearchParams } from "react-router";
 import type { Booking, ProviderService } from "@contracts";
 import {
@@ -42,24 +42,24 @@ export function AgendaPage() {
       <DemoNotice kind={port.kind} />
 
       <div className="tn-sched-toolbar">
-        <div className="tn-sched-segmented" role="group" aria-label="Visualização">
-          <button type="button" aria-pressed={view === "dia"} onClick={() => go({ visao: "dia" })}>
-            Dia
-          </button>
-          <button type="button" aria-pressed={view === "semana"} onClick={() => go({ visao: "semana" })}>
-            Semana
-          </button>
-        </div>
+        <Segmented
+          label="Visualização"
+          hideLabel
+          value={view}
+          options={[
+            { value: "dia", label: "Dia" },
+            { value: "semana", label: "Semana" },
+          ]}
+          onChange={(v) => go({ visao: v })}
+        />
         <div className="tn-sched-datenav" role="group" aria-label="Navegar nas datas">
-          <button type="button" onClick={() => go({ data: addDays(date, -step) })} aria-label={view === "semana" ? "Semana anterior" : "Dia anterior"}>
-            ‹
-          </button>
-          <button type="button" onClick={() => go({ data: today })} aria-pressed={date === today}>
+          <IconButton icon="seta" data-dir="prev" variant="secondary" label={view === "semana" ? "Semana anterior" : "Dia anterior"}
+            onClick={() => go({ data: addDays(date, -step) })} />
+          <Button variant="secondary" onClick={() => go({ data: today })} aria-current={date === today ? "date" : undefined}>
             Hoje
-          </button>
-          <button type="button" onClick={() => go({ data: addDays(date, step) })} aria-label={view === "semana" ? "Próxima semana" : "Próximo dia"}>
-            ›
-          </button>
+          </Button>
+          <IconButton icon="seta" variant="secondary" label={view === "semana" ? "Próxima semana" : "Próximo dia"}
+            onClick={() => go({ data: addDays(date, step) })} />
         </div>
         {/* No celular vira botão flutuante acima das abas; no desktop fica na barra. Mesmo elemento nos dois. */}
         <Link className="tn-button tn-sched-new" data-variant="primary" to={`novo?data=${date}`}>
@@ -99,7 +99,7 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
     <div className="tn-sched-day">
       <h2 className="tn-sched-daytitle">
         {title}
-        {isToday && demo ? <span className="tn-sched-muted"> (data da demonstração)</span> : null}
+        {isToday && demo ? <span className="tn-muted"> (data da demonstração)</span> : null}
       </h2>
       {range.error ? (
         <ErrorPanel error={range.error} operation="load" onRetry={range.reload} />
@@ -125,7 +125,7 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
 function OccupancyLine({ plans, bookings, label, more }: { plans: DayPlan[] | null; bookings: Booking[]; label: string; more: string }) {
   if (!plans) {
     return (
-      <p className="tn-sched-occline tn-sched-muted" aria-label={label}>
+      <p className="tn-sched-occline tn-muted" aria-label={label}>
         Ocupação indisponível: o expediente ainda não vem do servidor.
       </p>
     );
@@ -134,7 +134,7 @@ function OccupancyLine({ plans, bookings, label, more }: { plans: DayPlan[] | nu
   return (
     <div className="tn-sched-occline" role="group" aria-label={label}>
       {o.percent === null ? (
-        <p className="tn-sched-occline__figure tn-sched-muted">Sem expediente neste período.</p>
+        <p className="tn-sched-occline__figure tn-muted">Sem expediente neste período.</p>
       ) : (
         <>
           <p className="tn-sched-occline__figure tn-num">
@@ -195,7 +195,7 @@ function DayList({
                 {time}
                 <span className="tn-sched-item__main">
                   <span className="tn-sched-item__title">{serviceOf(b.service_id)}</span>
-                  <span className="tn-sched-muted">{customerOf(b.customer_id)}</span>
+                  <span className="tn-muted">{customerOf(b.customer_id)}</span>
                 </span>
                 <span className="tn-sched-item__side">
                   <StatusBadge status={b.status} />
@@ -212,7 +212,7 @@ function DayList({
               {time}
               <span className="tn-sched-item__main">
                 <span className="tn-sched-item__title">Horário livre</span>
-                <span className="tn-sched-muted">{formatMinutes(item.minutes)}</span>
+                <span className="tn-muted">{formatMinutes(item.minutes)}</span>
               </span>
               <span className="tn-sched-item__side">
                 {freeActions?.(item.range)}
@@ -269,7 +269,7 @@ function WeekView({ first, today, onPick }: { first: string; today: string; onPi
                   {formatDayShort(d)}
                   {d === today ? " · hoje" : ""}
                 </span>
-                <span className="tn-sched-muted tn-num">
+                <span className="tn-muted tn-num">
                   {plan && plan.open.length === 0
                     ? "Fechado"
                     : `${active} ${active === 1 ? "atendimento" : "atendimentos"}${o?.percent != null ? ` · ${o.percent}% ocupado` : ""}`}

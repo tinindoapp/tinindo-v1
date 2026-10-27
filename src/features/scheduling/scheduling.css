@@ -1,13 +1,12 @@
 /* Agenda (P04). Só tokens da marca: ação principal preta, laranja nunca em texto nem estado. */
 .tn-sched { display: grid; gap: var(--tn-space-4); min-width: 0; }
 .tn-sched h1 { margin-bottom: 0; }
-.tn-sched-muted { color: var(--tn-text-muted); }
 .tn-sched-loading,
 .tn-sched-empty { color: var(--tn-text-muted); padding: var(--tn-space-4) 0; }
 .tn-sched-tz { font-size: var(--tn-text-label); color: var(--tn-text-muted); margin: 0; }
 .tn-sched-back { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
 
-.tn-sched-toolbar { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: center; }
+.tn-sched-toolbar { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
 .tn-sched-new { text-decoration: none; margin-left: auto; }
 /* Celular: botão flutuante acima da barra de abas (o conteúdo ganha folga embaixo para não ficar coberto). */
 @media (max-width: 899.98px) {
@@ -24,37 +23,11 @@
   .tn-main:has(.tn-sched-new) { padding-bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + 104px); }
 }
 
-.tn-sched-segmented,
-.tn-sched-datenav {
-  display: inline-flex;
-  border: 1px solid var(--tn-border-control);
-  border-radius: var(--tn-radius-pill);
-  overflow: hidden;
-  background: var(--tn-surface);
-}
-.tn-sched-segmented button,
-.tn-sched-datenav button {
-  min-height: var(--tn-size-touch);
-  min-width: var(--tn-size-touch);
-  padding: 0 var(--tn-space-4);
-  border: 0;
-  background: transparent;
-  color: var(--tn-text);
- 
-  cursor: pointer;
-}
-.tn-sched-segmented button + button,
-.tn-sched-datenav button + button { border-left: 1px solid var(--tn-border); }
-.tn-sched-segmented button[aria-pressed="true"] {
-  background: var(--tn-action);
-  color: var(--tn-text-on-action);
-  font-weight: var(--tn-font-weight-medium);
-}
-.tn-sched-datenav button[aria-pressed="true"] { font-weight: var(--tn-font-weight-semibold); }
-@media (hover: hover) {
-  .tn-sched-datenav button:hover,
-  .tn-sched-segmented button:hover:not([aria-pressed="true"]) { background: var(--tn-action-subtle); }
-}
+/* Navegação de datas: ‹ Hoje ›. A seta "anterior" é a mesma seta do sistema, espelhada. */
+/* Compacta para caber na mesma linha do Dia/Semana em 375 px (a lista do dia aparece sem rolar). */
+.tn-sched-datenav { display: inline-flex; align-items: center; gap: var(--tn-space-1); }
+.tn-sched-datenav .tn-button { padding: 0 var(--tn-space-4); }
+.tn-sched .tn-icon-button[data-dir="prev"] .tn-icon { transform: scaleX(-1); }
 
 .tn-sched-daytitle { font-size: var(--tn-text-section); margin: 0; }
 .tn-sched-daytitle::first-letter { text-transform: uppercase; }
@@ -184,15 +157,13 @@
   cursor: pointer;
 }
 @media (hover: hover) { .tn-sched-weekday:hover { background: var(--tn-action-subtle); } }
-.tn-sched-weekday[aria-current="date"] { border-color: var(--tn-border-control); box-shadow: inset 3px 0 0 var(--tn-brand); }
+.tn-sched-weekday[aria-current="date"] { border-color: var(--tn-border-control); box-shadow: inset 3px 0 0 var(--tn-selected-border); }
 
 .tn-sched-detail__head { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: center; justify-content: space-between; }
 .tn-sched-detail__head h2 { margin: 0; font-size: var(--tn-text-section); }
 .tn-sched-dl { display: grid; grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr); gap: var(--tn-space-2) var(--tn-space-4); margin: 0; }
 .tn-sched-dl dt { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-sched-dl dd { margin: 0; }
-.tn-sched-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
-.tn-sched-actions .tn-button { text-decoration: none; }
 .tn-sched-confirm textarea {
   padding: var(--tn-space-2) var(--tn-space-3);
   border: 1px solid var(--tn-border-control);
@@ -214,34 +185,9 @@
 .tn-sched-fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: var(--tn-space-3); min-width: 0; }
 .tn-sched-fieldset legend { font-weight: var(--tn-font-weight-semibold); font-size: var(--tn-text-group); margin-bottom: var(--tn-space-2); padding: 0; }
 .tn-sched-options { display: grid; gap: var(--tn-space-2); }
-.tn-sched-option {
-  display: flex;
-  gap: var(--tn-space-3);
-  align-items: center;
-  min-height: var(--tn-size-touch);
-  padding: var(--tn-space-2) var(--tn-space-3);
-  border: 1px solid var(--tn-border);
-  border-radius: var(--tn-radius-md);
-  background: var(--tn-surface);
-  cursor: pointer;
-}
-.tn-sched-option:has(input:checked) { border-color: var(--tn-action); box-shadow: inset 0 0 0 1px var(--tn-action); }
-.tn-sched-option input { width: 20px; height: 20px; accent-color: var(--tn-action); }
-.tn-sched-option > span { display: grid; }
 .tn-sched-dateline { display: flex; align-items: flex-end; gap: var(--tn-space-2); }
 .tn-sched-dateline .tn-field { flex: 1; min-width: 0; }
 .tn-sched-dateline input { width: 100%; }
-.tn-sched-iconbtn {
-  min-width: var(--tn-size-touch);
-  min-height: var(--tn-size-touch);
-  border: 1px solid var(--tn-border-control);
-  border-radius: var(--tn-radius-pill);
-  background: var(--tn-surface);
-  color: var(--tn-text);
- 
-  cursor: pointer;
-}
-.tn-sched-iconbtn:disabled { opacity: .45; cursor: not-allowed; }
 .tn-sched-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap: var(--tn-space-2); }
 .tn-sched-slots button {
   min-height: var(--tn-size-touch);
@@ -253,7 +199,8 @@
   cursor: pointer;
 }
 @media (hover: hover) { .tn-sched-slots button:hover { background: var(--tn-action-subtle); } }
-.tn-sched-slots button[aria-pressed="true"] { background: var(--tn-action); color: var(--tn-text-on-action); border-color: var(--tn-action); }
+/* Horário escolhido: mesmo "selecionado" do sistema (--tn-selected-*). */
+.tn-sched-slots button[aria-pressed="true"] { background: var(--tn-selected-bg); color: var(--tn-selected-text); border-color: var(--tn-selected-bg); font-weight: var(--tn-selected-weight); }
 .tn-sched-review h2 { margin: 0; font-size: var(--tn-text-section); }
 .tn-sched-price { display: inline; }
 .tn-sched-price__change { display: block; margin-top: var(--tn-space-1); font-size: var(--tn-text-support); }

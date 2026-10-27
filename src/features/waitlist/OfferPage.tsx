@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { WaitlistOfferView } from "@contracts";
 import type { z } from "zod";
-import { Button, Card, StatusBanner, Wordmark } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, StatusBanner, Wordmark } from "../../components/ui/index.tsx";
 import { formatCents, formatDateTime, formatSlot } from "./format.ts";
 import { newKey, type OfferLinkPort } from "./port.ts";
 
@@ -35,7 +35,7 @@ export function OfferPage({ port }: { port: OfferLinkPort }) {
   const [state, setState] = useState<"loading" | "ready" | "missing" | "accepted" | "declined" | "error">(token ? "loading" : "missing");
   const [message, setMessage] = useState<string | null>(null);
   const [keys] = useState(() => ({ accept: newKey(), decline: newKey() }));
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<"accept" | "decline" | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -49,7 +49,7 @@ export function OfferPage({ port }: { port: OfferLinkPort }) {
 
   async function act(kind: "accept" | "decline") {
     if (!token) return;
-    setPending(true);
+    setPending(kind);
     setMessage(null);
     try {
       if (kind === "accept") {
@@ -63,7 +63,7 @@ export function OfferPage({ port }: { port: OfferLinkPort }) {
       const code = (err as { code?: string } | null)?.code;
       setMessage(code === "POLICY_REJECTED" ? "Esta oferta venceu ou não está mais disponível. Nenhuma reserva foi feita." : "Não foi possível concluir agora. Tentar de novo é seguro.");
     } finally {
-      setPending(false);
+      setPending(null);
     }
   }
 
@@ -85,11 +85,20 @@ export function OfferPage({ port }: { port: OfferLinkPort }) {
         ) : null}
         {state === "ready" && view?.status === "offered" ? (
           <>
-            <p className="tn-wl-muted">Abrir esta página não reserva nada. A oferta vale até {formatDateTime(view.expires_at, view.timezone)}.</p>
+            <p className="tn-muted">Abrir esta página não reserva nada. A oferta vale até {formatDateTime(view.expires_at, view.timezone)}.</p>
             {message ? <StatusBanner tone="danger">{message}</StatusBanner> : null}
-            <div className="tn-wl-actions">
-              <Button disabled={pending} onClick={() => void act("accept")}>Aceitar e reservar</Button>
-              <Button variant="secondary" disabled={pending} onClick={() => void act("decline")}>Não quero</Button>
+            <div className="tn-actions">
+              <Button loading={pending === "accept"} disabled={pending !== null} onClick={() => void act("accept")}>Aceitar e reservar</Button>
+              {/* Recusar libera a vaga para a próxima pessoa e não volta atrás: confirma antes. */}
+              <ConfirmAction
+                trigger="Não quero"
+                triggerVariant="secondary"
+                disabled={pending !== null}
+                title="Recusar esta vaga?"
+                consequence="A vaga vai para outra pessoa da lista e este link deixa de valer."
+                confirmLabel="Sim, recusar"
+                onConfirm={() => act("decline")}
+              />
             </div>
           </>
         ) : null}
