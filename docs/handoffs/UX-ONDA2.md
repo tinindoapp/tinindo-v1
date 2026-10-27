@@ -19,6 +19,16 @@ Na auditoria, ✓ ao lado do número marca o item feito.
   
   As quatro foram mescladas na branch sem conflito.
 
+## Aviso para quem cria telas novas
+
+A regra de CSS do CI (`src/app/css-system.test.ts`) vale para todo módulo novo. Por isso:
+
+- **CSS:** use os papéis `--tn-text-*`, sem `font: inherit` e com o hover dentro de `@media (hover: hover)`.
+- **Classes de layout:** use `.tn-muted`, `.tn-actions` e `.tn-stack`, sem criar `-muted`, `-actions` ou `-stack` próprios.
+- **Componentes:** use `Field`, `toast` e `ConfirmAction` de `src/components/ui`.
+
+Equipe (P28) e Materiais (P30) entraram na `main` durante o bloco 1 e foram ajustados neste PR.
+
 ## Bloco 1 · padrões do sistema
 
 ### Componentes novos em `src/components/ui`
@@ -106,6 +116,8 @@ O `css-tokens.test.ts` ficou sem a lista de pendências: as duas reservas `var(-
 | Google e Plano e serviços | Revogar acesso; cancelar pedido | Confirmar |
 | Equipe (P28, chegou na `main` durante o bloco) | Remover comissão por serviço, liberar vaga de turma | Desfazer (grava o mesmo percentual; inscreve a mesma cliente) |
 | Equipe | Cancelar reserva, cancelar turma, estornar comissão | Confirmar |
+| Materiais (P30, chegou na `main` durante o bloco) | Tirar item da ficha de uso | Desfazer (grava a mesma quantidade) |
+| Materiais | Estornar uso, estornar compra | Confirmar |
 | Agenda | Cancelar atendimento | Botão final `danger` e Toast. O fluxo é refeito no item 27 (bloco 2) |
 
 ### Decisões
