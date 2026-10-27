@@ -31,6 +31,16 @@ export function formatPhone(e164: string | null): string {
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
 }
 
+/** Link para ligar (tel:) a partir do E.164 guardado. Sem telefone, null (a tela não mostra o botão). */
+export function telHref(e164: string | null): string | null {
+  return e164 && /^\+[1-9]\d{7,14}$/.test(e164) ? `tel:${e164}` : null;
+}
+
+/** Conversa no WhatsApp (wa.me só aceita os dígitos, com o código do país e sem "+"). Sem telefone, null. */
+export function whatsappHref(e164: string | null): string | null {
+  return e164 && /^\+[1-9]\d{7,14}$/.test(e164) ? `https://wa.me/${e164.slice(1)}` : null;
+}
+
 const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 /** Centavos inteiros → "R$ 60,00". */
