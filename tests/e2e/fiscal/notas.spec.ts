@@ -14,7 +14,9 @@ test("notas fiscais: passo a passo até elegível, nota em homologação não é
   const profile = page.getByRole("form", { name: "Dados fiscais" });
   await profile.getByLabel("Razão social").fill("Barbearia Exemplo A ME");
   await profile.getByLabel("CNPJ").fill("11.222.333/0001-80");
-  await profile.getByLabel("Código IBGE do município").fill("3550308");
+  const ibge = profile.getByLabel("Código da sua cidade (IBGE)");
+  await expect(ibge).toHaveAccessibleDescription(/7 números.*São Paulo 3550308/);
+  await ibge.fill("3550308");
   await profile.getByRole("button", { name: "Salvar dados fiscais" }).click();
   await expect(page.getByText("CNPJ inválido. Confira os números.")).toBeVisible();
   await profile.getByLabel("CNPJ").fill("11.222.333/0001-81");
@@ -31,7 +33,22 @@ test("notas fiscais: passo a passo até elegível, nota em homologação não é
   const form = page.getByRole("form", { name: "Nova nota" });
   await expect(form.getByLabel("Nome do cliente (tomador)")).toHaveValue("Ana Beatriz (exemplo)");
   await form.getByLabel("CPF ou CNPJ do cliente (opcional)").fill("123.456.789-09");
-  await form.getByRole("button", { name: "Emitir nota" }).click();
+  // Antes de emitir, a tela mostra tudo para conferir; "Corrigir" volta ao formulário com os dados.
+  await expect(form.getByRole("button", { name: "Emitir nota" })).toHaveCount(0);
+  await form.getByRole("button", { name: "Revisar a nota" }).click();
+  await expect(page.getByRole("heading", { name: "Confira antes de emitir" })).toBeVisible();
+  const data = page.getByLabel("Dados da nota");
+  await expect(data).toContainText("Ana Beatriz (exemplo)");
+  await expect(data).toContainText("Cliente (tomador)");
+  await expect(data).toContainText("123.456.789-09");
+  await expect(data).toContainText(/R\$\s?\d/);
+  await expect(data).toContainText(/\d{2}\/\d{2}\/\d{4}/);
+  await expect(data).toContainText("Homologação (teste, sem valor fiscal)");
+  await expect(page.getByRole("list", { name: "Notas emitidas" })).not.toContainText("Nota H000001");
+  await page.getByRole("button", { name: "Corrigir" }).click();
+  await expect(form.getByLabel("CPF ou CNPJ do cliente (opcional)")).toHaveValue("123.456.789-09");
+  await form.getByRole("button", { name: "Revisar a nota" }).click();
+  await page.getByRole("button", { name: "Emitir nota" }).click();
   await expect(page.getByText("Emitir não registra recebimento: o Caixa continua igual.")).toBeVisible();
   const list = page.getByRole("list", { name: "Notas emitidas" });
   await expect(list).toContainText("Nota H000001");

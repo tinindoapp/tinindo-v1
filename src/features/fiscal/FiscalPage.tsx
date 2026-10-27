@@ -31,7 +31,11 @@ function ProfileForm({ o, port, run, onClose }: { o: FiscalOverview; port: Fisca
           {Object.entries(REGIME_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </label>
-      <label className="tn-field"><span>Código IBGE do município</span><input value={ibge} inputMode="numeric" maxLength={7} onChange={(e) => setIbge(e.target.value)} placeholder="3550308" /></label>
+      <div className="tn-field">
+        <label htmlFor="fsc-ibge">Código da sua cidade (IBGE)</label>
+        <input id="fsc-ibge" value={ibge} inputMode="numeric" maxLength={7} aria-describedby="fsc-ibge-help" onChange={(e) => setIbge(e.target.value.replace(/\D/g, ""))} placeholder="3550308" />
+        <small id="fsc-ibge-help" className="tn-fsc-muted">São 7 números que a prefeitura usa na nota. Exemplos: São Paulo 3550308, Rio de Janeiro 3304557, Belo Horizonte 3106200. Não sabe? Pesquise “código IBGE” e o nome da sua cidade, ou pergunte ao seu contador.</small>
+      </div>
       <label className="tn-field"><span>Serviço (lista nacional)</span>
         <select value={service} onChange={(e) => setService(e.target.value as typeof service)}>
           {Object.entries(SERVICE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -106,16 +110,44 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
     }
   };
   const cents = Math.round(Number(amount.replace(/\./g, "").replace(",", ".")) * 100);
+  // Emitir não se desfaz com um toque (cancelar exige motivo): antes, a tela mostra tudo para conferir.
+  const [reviewing, setReviewing] = useState(false);
+  // Mesma chave ao repetir o mesmo pedido; ao corrigir, pedido novo.
+  const [key, setKey] = useState(newKey);
+  const [sending, setSending] = useState(false);
+  const env = o.eligibility.environment;
+  if (reviewing) {
+    return (
+      <Card aria-labelledby="fsc-new-title">
+        <h2 id="fsc-new-title">Confira antes de emitir</h2>
+        <dl className="tn-fsc-review" aria-label="Dados da nota">
+          <div><dt>Cliente (tomador)</dt><dd>{taker.trim()}{doc.trim() ? ` · ${doc.trim()}` : " · sem CPF/CNPJ"}</dd></div>
+          <div><dt>Serviço</dt><dd>{desc.trim()}</dd></div>
+          <div><dt>Valor</dt><dd className="tn-num">{formatCents(cents)}</dd></div>
+          <div><dt>Data do serviço</dt><dd className="tn-num">{formatDate(`${date}T12:00:00Z`)}</dd></div>
+          <div><dt>Ambiente</dt><dd>{ENV_LABEL[env]}</dd></div>
+        </dl>
+        {env === "homologacao" ? <p className="tn-fsc-muted">Ambiente de teste: a nota sai sem valor fiscal.</p> : <p className="tn-fsc-muted">Nota de verdade: depois de emitida, só sai com pedido de cancelamento e motivo.</p>}
+        <div className="tn-fsc-actions">
+          <Button disabled={sending} onClick={() => {
+            setSending(true);
+            void run(async () => {
+              const d = await port.emit({ receivable_id: rec || null, taker_name: taker, taker_document: doc.trim() || null, description: desc, amount_cents: cents, competence_date: date }, key);
+              onClose();
+              return d;
+            }, "Pedido enviado ao provedor. Emitir não registra recebimento: o Caixa continua igual.").finally(() => setSending(false));
+          }}>Emitir nota</Button>
+          <Button variant="ghost" disabled={sending} onClick={() => { setKey(newKey()); setReviewing(false); }}>Corrigir</Button>
+        </div>
+      </Card>
+    );
+  }
   return (
     <Card aria-labelledby="fsc-new-title">
       <h2 id="fsc-new-title">Nova nota</h2>
       <form className="tn-fsc-form" aria-label="Nova nota" onSubmit={(e) => {
         e.preventDefault();
-        void run(async () => {
-          const d = await port.emit({ receivable_id: rec || null, taker_name: taker, taker_document: doc.trim() || null, description: desc, amount_cents: cents, competence_date: date }, newKey());
-          onClose();
-          return d;
-        }, "Pedido enviado ao provedor. Emitir não registra recebimento: o Caixa continua igual.");
+        setReviewing(true);
       }}>
         <label className="tn-field"><span>Atendimento cobrado</span>
           <select value={rec} onChange={(e) => pick(e.target.value)}>
@@ -130,7 +162,7 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
         <label className="tn-field"><span>Data do serviço</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
         {r && cents > r.amount_cents ? <StatusBanner tone="warning">O valor passa o que foi cobrado ({formatCents(r.amount_cents)}).</StatusBanner> : null}
         <div className="tn-fsc-actions">
-          <Button type="submit" disabled={!taker.trim() || desc.trim().length < 3 || !(cents > 0)}>Emitir nota</Button>
+          <Button type="submit" disabled={!taker.trim() || desc.trim().length < 3 || !(cents > 0)}>Revisar a nota</Button>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
         </div>
       </form>
