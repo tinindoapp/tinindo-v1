@@ -12,7 +12,7 @@ export type ToastInput = {
   tone?: Tone;
   /** "Desfazer" (ou outra ação curta). Ao tocar, o aviso fecha e a ação roda. */
   action?: { label: string; onAction: () => void | Promise<void> };
-  /** Tempo na tela em ms. Padrão: 5 s; com ação, 6 s. O tempo para enquanto o ponteiro ou o foco estão no aviso. */
+  /** Tempo na tela em ms. Padrão: 5 s; com ação, 6 s. O tempo para enquanto o ponteiro ou o foco estão nos botões do aviso. */
   duration?: number;
 };
 type ToastItem = ToastInput & { id: number };

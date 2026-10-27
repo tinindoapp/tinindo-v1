@@ -19,6 +19,16 @@ Na auditoria, ✓ ao lado do número marca o item feito.
   
   As quatro foram mescladas na branch sem conflito.
 
+## Aviso para quem cria telas novas
+
+A regra de CSS do CI (`src/app/css-system.test.ts`) vale para todo módulo novo. Por isso:
+
+- **CSS:** use os papéis `--tn-text-*`, sem `font: inherit` e com o hover dentro de `@media (hover: hover)`.
+- **Classes de layout:** use `.tn-muted`, `.tn-actions` e `.tn-stack`, sem criar `-muted`, `-actions` ou `-stack` próprios.
+- **Componentes:** use `Field`, `toast` e `ConfirmAction` de `src/components/ui`.
+
+Equipe (P28) e Materiais (P30) entraram na `main` durante o bloco 1 e foram ajustados neste PR.
+
 ## Bloco 1 · padrões do sistema
 
 ### Componentes novos em `src/components/ui`
@@ -106,13 +116,15 @@ O `css-tokens.test.ts` ficou sem a lista de pendências: as duas reservas `var(-
 | Google e Plano e serviços | Revogar acesso; cancelar pedido | Confirmar |
 | Equipe (P28, chegou na `main` durante o bloco) | Remover comissão por serviço, liberar vaga de turma | Desfazer (grava o mesmo percentual; inscreve a mesma cliente) |
 | Equipe | Cancelar reserva, cancelar turma, estornar comissão | Confirmar |
+| Materiais (P30, chegou na `main` durante o bloco) | Tirar item da ficha de uso | Desfazer (grava a mesma quantidade) |
+| Materiais | Estornar uso, estornar compra | Confirmar |
 | Agenda | Cancelar atendimento | Botão final `danger` e Toast. O fluxo é refeito no item 27 (bloco 2) |
 
 ### Decisões
 
 - **Erro sem asterisco.** O campo obrigatório não tem marca visual: o `required` nativo e o erro no envio bastam. O asterisco quebrava os rótulos que os testes leem.
 - **Erro sem `role="alert"`.** O erro do campo é lido pelo `aria-describedby` quando o foco chega nele. Com `role="alert"`, todos os erros seriam anunciados de uma vez.
-- **Toast por cima de botões.** No celular, o Toast fica 5 a 6 s acima da barra de abas e pode cobrir o botão logo acima dela. Ele tem botão de fechar e pausa ao toque. Foi escolhido por ficar sempre à vista, que era o problema medido na auditoria (aviso a −667 px).
+- **Toast que não bloqueia o toque.** No celular, o Toast fica 5 a 6 s acima da barra de abas e pode ficar por cima do botão logo acima dela. O corpo do aviso deixa o toque atravessar para o que está embaixo; só "Desfazer" e "Fechar aviso" recebem toque. O e2e `foundation/toast.spec.ts` confere isso. O problema apareceu no CI: o aviso cobria "Cobrar no Caixa".
 - **Aviso depois de mudar de tela.** No novo agendamento e no reagendar, o Toast sai depois que a tela do atendimento carrega. Voltar no histórico para essa entrada pode mostrar o aviso de novo.
 - **Segmented com 44 px.** A opção tem 44 px e o rádio fica por cima, então o toque e o `check()` do Playwright caem no rádio.
 
