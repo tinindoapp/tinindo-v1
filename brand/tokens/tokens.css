@@ -95,6 +95,7 @@
   --tn-bg: var(--tn-color-papel-50);
   --tn-surface: var(--tn-color-branco-0);
   --tn-surface-sunken: var(--tn-color-tinta-100);
+  --tn-surface-raised: var(--tn-color-tinta-100);
   --tn-text: var(--tn-color-tinta-950);
   --tn-text-muted: var(--tn-color-tinta-600);
   --tn-text-on-action: var(--tn-color-branco-0);
@@ -106,6 +107,7 @@
   --tn-action: var(--tn-color-tinta-950);
   --tn-action-hover: var(--tn-color-tinta-800);
   --tn-action-subtle: var(--tn-color-tinta-100);
+  --tn-selected-indicator: var(--tn-color-tinta-950);
   --tn-link: var(--tn-color-tinta-950);
   --tn-focus: var(--tn-color-azul-700);
   --tn-success-text: var(--tn-color-verde-700);
@@ -125,6 +127,7 @@
   --tn-bg: var(--tn-color-tinta-950);
   --tn-surface: var(--tn-color-tinta-900);
   --tn-surface-sunken: var(--tn-color-tinta-950);
+  --tn-surface-raised: var(--tn-color-tinta-800);
   --tn-text: var(--tn-color-papel-50);
   --tn-text-muted: var(--tn-color-tinta-300);
   --tn-text-on-action: var(--tn-color-tinta-950);
@@ -136,6 +139,7 @@
   --tn-action: var(--tn-color-papel-50);
   --tn-action-hover: var(--tn-color-tinta-200);
   --tn-action-subtle: var(--tn-color-tinta-800);
+  --tn-selected-indicator: var(--tn-color-papel-50);
   --tn-link: var(--tn-color-papel-50);
   --tn-focus: var(--tn-color-azul-300);
   --tn-success-text: var(--tn-color-verde-300);
@@ -154,6 +158,7 @@
   --tn-bg: var(--tn-color-tinta-950);
   --tn-surface: var(--tn-color-tinta-900);
   --tn-surface-sunken: var(--tn-color-tinta-950);
+  --tn-surface-raised: var(--tn-color-tinta-800);
   --tn-text: var(--tn-color-papel-50);
   --tn-text-muted: var(--tn-color-tinta-300);
   --tn-text-on-action: var(--tn-color-tinta-950);
@@ -165,6 +170,7 @@
   --tn-action: var(--tn-color-papel-50);
   --tn-action-hover: var(--tn-color-tinta-200);
   --tn-action-subtle: var(--tn-color-tinta-800);
+  --tn-selected-indicator: var(--tn-color-papel-50);
   --tn-link: var(--tn-color-papel-50);
   --tn-focus: var(--tn-color-azul-300);
   --tn-success-text: var(--tn-color-verde-300);

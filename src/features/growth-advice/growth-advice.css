@@ -1,9 +1,9 @@
 .tn-ga { display: grid; gap: 1rem; }
-.tn-ga-muted { color: var(--tn-muted, #555); }
+.tn-ga-muted { color: var(--tn-text-muted); }
 .tn-ga-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.75rem; align-items: end; }
 .tn-ga-form .tn-ga-muted { grid-column: 1 / -1; margin: 0; }
 .tn-ga-field { display: grid; gap: 0.25rem; font-size: 0.9rem; }
-.tn-ga-field input, .tn-ga-field select { padding: 0.45rem 0.6rem; border: 1px solid var(--tn-border, #ccc); border-radius: 0.4rem; font: inherit; }
+.tn-ga-field input, .tn-ga-field select { padding: 0.45rem 0.6rem; border: 1px solid var(--tn-border-control); border-radius: 0.4rem; font: inherit; }
 .tn-ga-list { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.75rem; }
 .tn-ga-item h3 { margin: 0 0 0.25rem; font-size: 1rem; }
 .tn-ga-item p { margin: 0.15rem 0; overflow-wrap: anywhere; }

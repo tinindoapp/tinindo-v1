@@ -24,6 +24,10 @@ Gerado por script; razões arredondadas a 2 casas. Limiares: 4,5:1 texto normal;
 | claro | Informação: texto sobre fundo do aviso | `info-text` #1D5AA6 | `info-bg` #E1ECF9 | 5.73 | 4.5 | passa |
 | claro | Ponto/marca barro sobre fundo (não textual) | `brand-accent` #FF4B1F | `bg` #F7F7F5 | 3.12 | 3.0 | passa |
 | claro | Texto de ação sutil | `action` #111111 | `action-subtle` #EDEDEA | 16.10 | 4.5 | passa |
+| claro | Texto principal sobre superfície elevada (balão enviado) | `text` #111111 | `surface-raised` #EDEDEA | 16.10 | 4.5 | passa |
+| claro | Texto secundário sobre superfície elevada | `text-muted` #4A4A46 | `surface-raised` #EDEDEA | 7.59 | 4.5 | passa |
+| claro | Indicador de selecionado sobre fundo (aba ativa) | `selected-indicator` #111111 | `bg` #F7F7F5 | 17.60 | 3.0 | passa |
+| claro | Indicador de selecionado sobre realce (item ativo do menu) | `selected-indicator` #111111 | `action-subtle` #EDEDEA | 16.10 | 3.0 | passa |
 | escuro | Texto principal sobre fundo | `text` #F7F7F5 | `bg` #111111 | 17.60 | 4.5 | passa |
 | escuro | Texto principal sobre superfície | `text` #F7F7F5 | `surface` #1C1C1A | 15.91 | 4.5 | passa |
 | escuro | Texto secundário sobre fundo | `text-muted` #BDBDB7 | `bg` #111111 | 10.00 | 4.5 | passa |
@@ -42,6 +46,13 @@ Gerado por script; razões arredondadas a 2 casas. Limiares: 4,5:1 texto normal;
 | escuro | Informação: texto sobre fundo do aviso | `info-text` #8DB6E8 | `info-bg` #1C1C1A | 8.12 | 4.5 | passa |
 | escuro | Ponto/marca barro sobre fundo (não textual) | `brand-accent` #FF6A3D | `bg` #111111 | 6.64 | 3.0 | passa |
 | escuro | Texto de ação sutil | `action` #F7F7F5 | `action-subtle` #2A2A28 | 13.41 | 4.5 | passa |
+| escuro | Texto principal sobre superfície elevada (balão enviado) | `text` #F7F7F5 | `surface-raised` #2A2A28 | 13.41 | 4.5 | passa |
+| escuro | Texto secundário sobre superfície elevada | `text-muted` #BDBDB7 | `surface-raised` #2A2A28 | 7.62 | 4.5 | passa |
+| escuro | Indicador de selecionado sobre fundo (aba ativa) | `selected-indicator` #F7F7F5 | `bg` #111111 | 17.60 | 3.0 | passa |
+| escuro | Indicador de selecionado sobre superfície | `selected-indicator` #F7F7F5 | `surface` #1C1C1A | 15.91 | 3.0 | passa |
+| escuro | Indicador de selecionado sobre realce (item ativo do menu) | `selected-indicator` #F7F7F5 | `action-subtle` #2A2A28 | 13.41 | 3.0 | passa |
+
+Ícone da aba ativa: `text-on-action` sobre `selected-indicator` é o mesmo par de "Texto do botão sobre ação" (18,88 claro; 17,60 escuro).
 
 ## Pares fora da matriz
 
