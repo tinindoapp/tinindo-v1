@@ -8,6 +8,7 @@ import {
   FiscalOverview, FiscalProfileSaveInput, FiscalRepresentationInput, TENANT_HEADER,
 } from "../_shared/contracts/index.ts";
 import type { FiscalEnv, FiscalEmitRequest, FiscalProviderPort } from "../_shared/domain/fiscal/providers.ts";
+import { hmacSha256Hex, sameHex } from "../_shared/domain/messaging/providers.ts";
 import { mapDbError } from "../_shared/http/errors.ts";
 import { corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
 import { createRpcHandler, type Route, route, type RpcHandlerDeps, type RpcResult } from "../_shared/http/rpc-handler.ts";
@@ -162,7 +163,9 @@ export function createFiscalHandler(deps: FiscalDeps) {
   /** Cron: consulta pela referência as notas incertas, em processamento ou presas no envio. Nunca reenvia. */
   async function sync(req: Request, requestId: string): Promise<Response> {
     if (req.method !== "POST") return fail("VALIDATION_ERROR", requestId, { message: "Use POST." });
-    if (req.headers.get(SYNC_SECRET_HEADER) !== deps.syncSecret) return fail("FORBIDDEN", requestId);
+    // Comparação em tempo constante, como channel.dispatch e payment.sync: `!==` vaza pelo tempo quanto do segredo acertou.
+    const given = req.headers.get(SYNC_SECRET_HEADER) ?? "";
+    if (!sameHex(await hmacSha256Hex("k", given), await hmacSha256Hex("k", deps.syncSecret))) return fail("FORBIDDEN", requestId);
     const claim = await deps.serviceRpc("fiscal_sync_claim", { p_batch: 50 }).catch(() => null);
     const items = ((claim?.data as { items?: { document_id: string; provider_ref: string; environment: FiscalEnv }[] } | null)?.items) ?? [];
     let resolved = 0;

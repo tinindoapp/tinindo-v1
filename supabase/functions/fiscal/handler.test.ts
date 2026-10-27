@@ -90,6 +90,8 @@ describe("Edge Function fiscal", () => {
       : { data: { document: authorized }, error: null }));
     const { handler } = setup({ serviceRpc, providers: { homologacao: provider, producao: { configured: false } as unknown as FiscalProviderPort } });
     expect((await handler(new Request("http://edge/functions/v1/fiscal/fiscal.sync", { method: "POST" }))).status).toBe(403);
+    const wrong = SECRET.slice(0, -1) + "x";
+    expect((await handler(new Request("http://edge/functions/v1/fiscal/fiscal.sync", { method: "POST", headers: { [SYNC_SECRET_HEADER]: wrong } }))).status).toBe(403);
     const res = await handler(new Request("http://edge/functions/v1/fiscal/fiscal.sync", { method: "POST", headers: { [SYNC_SECRET_HEADER]: SECRET } }));
     expect((await res.json()).data).toEqual({ checked: 2, resolved: 1, still_pending: 1 });
     expect(serviceRpc).toHaveBeenCalledWith("fiscal_emit_result", expect.objectContaining({ p_document_id: doc.id, p_outcome: "authorized" }));
