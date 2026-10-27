@@ -1,15 +1,10 @@
 /* Módulo Perfil (P09). Só tokens da marca; laranja não é texto, botão nem estado. */
-.tn-net-muted { color: var(--tn-text-muted); }
-.tn-net-small { font-size: var(--tn-text-support); }
-
-.tn-net-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
-
 .tn-net-badges {
   display: flex;
   flex-wrap: wrap;
   gap: var(--tn-space-2);
   list-style: none;
-  margin: var(--tn-space-3) 0 0;
+  margin: 0;
   padding: 0;
 }
 .tn-net-badges li {
