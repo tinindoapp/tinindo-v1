@@ -1,12 +1,16 @@
-// Deploy do frontend como Worker de arquivos estáticos (Cloudflare Workers Builds).
-// O nome precisa bater com o Worker criado no painel. Sem código de servidor: só o build do Vite.
+// Deploy do frontend como Worker (Cloudflare Workers Builds). O nome precisa bater com o Worker criado no painel.
+// Quase tudo é arquivo estático do build do Vite. O código do Worker (worker/index.ts) roda só em /p/* e /s/*, para a
+// prévia do link no WhatsApp (auditoria de UX, E1); se falhar, devolve o app como ele é.
 {
   "name": "tinindo-v1",
   "compatibility_date": "2026-10-12",
+  "main": "worker/index.ts",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     // App de página única: rotas como /app/agenda devolvem index.html em vez de 404.
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/p/*", "/s/*"]
   },
   // Previews por PR (`npx wrangler preview` nos builds de branch). Bloco vazio = mesmas configurações.
   "previews": {}

@@ -6,9 +6,13 @@
   "name": "tinindo-homolog",
   "account_id": "f939b6ba7116b6bb6c087e1f9be9363e",
   "compatibility_date": "2026-10-12",
+  // Prévia do link (E1): mesmo Worker do tinindo-v1, só em /p/* e /s/*.
+  "main": "worker/index.ts",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/p/*", "/s/*"]
   },
   "routes": [{ "pattern": "homolog.tinindoapp.com.br", "custom_domain": true }],
   "workers_dev": false

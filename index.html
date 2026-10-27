@@ -14,7 +14,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Tinindo" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- Prévia do link (WhatsApp, redes). Padrão genérico; em /p/:slug e /s/:slug o Worker troca este bloco pelo
+         perfil publicado (worker/og.ts). Manter os marcadores og:start e og:end. -->
+    <!-- og:start -->
     <title>Tinindo</title>
+    <meta name="description" content="Agenda, clientes e dinheiro do seu negócio em ordem." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Tinindo" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="Tinindo" />
+    <meta property="og:description" content="Agenda, clientes e dinheiro do seu negócio em ordem." />
+    <meta property="og:image" content="/icons/app-icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <!-- og:end -->
   </head>
   <body>
     <div id="root"></div>

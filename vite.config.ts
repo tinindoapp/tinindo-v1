@@ -2,7 +2,7 @@
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import { BaseSequencer, type TestSpecification } from "vitest/node";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -33,6 +33,22 @@ function versionFile(): Plugin {
   };
 }
 
+/**
+ * Configuração pública da prévia do link (worker/og.ts): a mesma URL do Supabase e a mesma chave pública que já vão no
+ * bundle. Sem Supabase (demonstração), os campos ficam null e o Worker usa a prévia genérica.
+ */
+function ogConfigFile(mode: string): Plugin {
+  return {
+    name: "tinindo-og-config",
+    apply: "build",
+    generateBundle() {
+      const env = loadEnv(mode, process.cwd(), "VITE_");
+      const config = { supabase_url: env.VITE_SUPABASE_URL || null, publishable_key: env.VITE_SUPABASE_PUBLISHABLE_KEY || null };
+      this.emitFile({ type: "asset", fileName: "og-config.json", source: `${JSON.stringify(config, null, 2)}\n` });
+    },
+  };
+}
+
 /** Integração: arquivos em ordem alfabética (00 segurança → 1x UATs → 20 fase 2), sempre a mesma, num banco só. */
 class AlphabeticalSequencer extends BaseSequencer {
   override async sort(files: TestSpecification[]): Promise<TestSpecification[]> {
@@ -40,8 +56,8 @@ class AlphabeticalSequencer extends BaseSequencer {
   }
 }
 
-export default defineConfig({
-  plugins: [react(), versionFile()],
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), versionFile(), ogConfigFile(mode)],
   define: { __TININDO_BUILD__: JSON.stringify(BUILD) },
   resolve: {
     alias: {
@@ -61,7 +77,7 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "jsdom",
-          include: ["src/**/*.test.{ts,tsx}", "supabase/functions/**/*.test.ts"],
+          include: ["src/**/*.test.{ts,tsx}", "worker/**/*.test.ts", "supabase/functions/**/*.test.ts"],
           setupFiles: ["./src/test/setup.ts"],
         },
       },
@@ -90,4 +106,4 @@ export default defineConfig({
         : []),
     ],
   },
-});
+}));
