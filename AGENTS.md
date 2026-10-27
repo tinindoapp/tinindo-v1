@@ -65,6 +65,7 @@ Felipe (`fffalleiros`) e Gabriel (`gafpromos-alt`) rodam Claude Code em contas s
   ```
 - **Quem pega o recado** troca `para-*` por `em-andamento`, trabalha em branch própria e abre PR para a `main` sem mergear. Depois comenta na issue o PR e o resultado dos testes e fecha a issue. Se precisar devolver algo, abre outra issue com a etiqueta do outro.
 - Tarefa agendada em cada conta confere as issues de hora em hora. Se uma issue `em-andamento` estiver parada há mais de 6 horas sem PR, ela pode ser retomada.
+- **Horário dos recados para o Felipe** (combinado na #49): o robô do Felipe lê na hora cheia (08:00, 09:00…). Junte os recados durante a hora e publique de uma vez entre HH:50 e HH:55; depois disso, o recado só é visto na rodada seguinte. Uma issue `[recado]` por assunto, cada uma autossuficiente (o que precisa, links de arquivos ou PRs, critério de pronto e prazo). Sem nada a falar, não poste nada.
 
 ## Revisão com os documentos do Gabriel
 
