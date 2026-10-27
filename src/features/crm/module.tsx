@@ -5,7 +5,7 @@ import { Profession } from "@contracts";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { supabase } from "../../lib/supabase.ts";
 import { type CrmApi, CrmApiContext, createDemoCrmApi, createServerCrmApi } from "./api.ts";
@@ -39,10 +39,10 @@ function CrmLayout() {
 
   if (!api) {
     return (
-      <Card aria-labelledby="crm-no-tenant">
-        <h1 id="crm-no-tenant">Clientes</h1>
+      <div className="tn-stack">
+        <PageHeader id="crm-no-tenant" title="Clientes" />
         <StatusBanner tone="info">Selecione um negócio para ver clientes e serviços.</StatusBanner>
-      </Card>
+      </div>
     );
   }
   return (
