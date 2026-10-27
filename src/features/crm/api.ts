@@ -5,6 +5,9 @@ import type { z } from "zod";
 import { type Profession, type ProviderService, ServiceSaveInput, ServiceSaveOutput } from "@contracts";
 import { FX, services as fixtureServices, tenantA } from "@contracts/fixtures.ts";
 import {
+  BookingListOutput,
+  type BookingStatus,
+  ContextResponse,
   CRM_ROUTES,
   type CrmCustomer,
   type CrmCustomerUpsertInput,
@@ -22,11 +25,32 @@ import { fold } from "./format.ts";
 export type ServiceSave = z.input<typeof ServiceSaveInput>;
 export type PreviewRowInput = { line: number; name: string; phone: string | null; email: string | null };
 
+/** Um atendimento no histórico da ficha (leitura da agenda, só do cliente aberto). */
+export interface HistoryItem {
+  id: string;
+  starts_at: string;
+  service: string;
+  status: BookingStatus;
+  price_cents: number | null;
+}
+/** Histórico da ficha: atendimentos que começam entre `from` e `until`, no fuso do negócio. */
+export interface CustomerHistory {
+  timezone: string;
+  now: string;
+  from: string;
+  until: string;
+  items: HistoryItem[];
+}
+
 export interface CrmApi {
   /** true = demonstração sem servidor: leitura de exemplo, gravação desabilitada. */
   readOnly: boolean;
   profession(): Promise<Profession>;
   listCustomers(q: { q?: string; include_archived?: boolean; cursor?: string; limit?: number }): Promise<CustomerListOutput>;
+  /** Ficha do cliente; null quando não existe neste negócio. */
+  getCustomer(id: string): Promise<CrmCustomer | null>;
+  /** Atendimentos do cliente na agenda (anteriores e próximos, janela limitada). */
+  customerHistory(customerId: string): Promise<CustomerHistory>;
   upsertCustomer(input: CrmCustomerUpsertInput, idempotencyKey: string): Promise<z.infer<typeof CrmCustomerUpsertOutput>>;
   archiveCustomer(
     input: { customer_id: string; expected_version: number; archived: boolean },
@@ -39,6 +63,15 @@ export interface CrmApi {
 }
 
 type Call = ReturnType<typeof createApiClient>;
+
+const DAY_MS = 86_400_000;
+/** Janela do histórico na ficha: até 60 dias para trás e 60 para frente (booking.list aceita até 62 por pedido). */
+export const HISTORY_DAYS = 60;
+/** Teto de páginas por leitura de lista (100 itens cada): protege a tela de laço infinito. */
+const MAX_PAGES = 10;
+
+/** Mais recentes primeiro (os próximos em cima, depois os anteriores). */
+const byStartDesc = (a: HistoryItem, b: HistoryItem) => Date.parse(b.starts_at) - Date.parse(a.starts_at);
 
 const qs = (params: Record<string, string | number | boolean | undefined>) => {
   const s = new URLSearchParams();
@@ -56,10 +89,60 @@ export function createServerCrmApi(opts: {
   const path = (route: string) => `/crm/${route}`;
   const command = async <T extends z.ZodType>(route: string, schema: T, body: unknown, key: string) =>
     (await call(path(route), schema, { method: "POST", tenantId, body, idempotencyKey: key })).data;
+  const listCustomers: CrmApi["listCustomers"] = async (q) =>
+    (await call(path(CRM_ROUTES.listCustomers) + qs(q), CustomerListOutput, { tenantId })).data;
   return {
     readOnly: false,
     profession: opts.readProfession,
-    listCustomers: async (q) => (await call(path(CRM_ROUTES.listCustomers) + qs(q), CustomerListOutput, { tenantId })).data,
+    listCustomers,
+    // Ainda não há leitura por id no contrato (pedido registrado no handoff): percorre a lista, arquivados inclusive.
+    getCustomer: async (id) => {
+      let cursor: string | undefined;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const out = await listCustomers({ include_archived: true, limit: 100, cursor });
+        const found = out.items.find((c) => c.id === id);
+        if (found) return found;
+        if (!out.next_cursor) return null;
+        cursor = out.next_cursor;
+      }
+      return null;
+    },
+    // Histórico pela agenda (booking.list, que já existe): duas janelas de 60 dias, filtradas por este cliente.
+    customerHistory: async (customerId) => {
+      const now = Date.now();
+      const from = new Date(now - HISTORY_DAYS * DAY_MS).toISOString();
+      const mid = new Date(now).toISOString();
+      const until = new Date(now + HISTORY_DAYS * DAY_MS).toISOString();
+      const post = (body: unknown) => ({ method: "POST" as const, tenantId, body });
+      const window = async (starts_at: string, ends_at: string) => {
+        const out = [];
+        let cursor: string | undefined;
+        for (let page = 0; page < MAX_PAGES; page++) {
+          const { data } = await call("/scheduling/booking.list", BookingListOutput, post({ window: { starts_at, ends_at }, cursor, limit: 100 }));
+          out.push(...data.bookings);
+          if (!data.next_cursor) break;
+          cursor = data.next_cursor;
+        }
+        return out;
+      };
+      const [ctx, services, past, next] = await Promise.all([
+        call("/context", ContextResponse, { tenantId }),
+        call(path(CRM_ROUTES.listServices) + qs({ include_inactive: true, limit: 100 }), ServiceListOutput, { tenantId }),
+        window(from, mid),
+        window(mid, until),
+      ]);
+      const names = new Map(services.data.items.map((s) => [s.id, s.name]));
+      return {
+        timezone: ctx.data.timezone,
+        now: mid,
+        from,
+        until,
+        items: [...past, ...next]
+          .filter((b) => b.customer_id === customerId && b.status !== "expired")
+          .map((b) => ({ id: b.id, starts_at: b.starts_at, service: names.get(b.service_id) ?? "Atendimento", status: b.status, price_cents: b.agreed_price_cents }))
+          .sort(byStartDesc),
+      };
+    },
     listServices: async (q) => (await call(path(CRM_ROUTES.listServices) + qs(q), ServiceListOutput, { tenantId })).data,
     upsertCustomer: (input, key) => command(CRM_ROUTES.upsertCustomer, CrmCustomerUpsertOutput, input, key),
     archiveCustomer: (input, key) => command(CRM_ROUTES.archiveCustomer, CustomerArchiveOutput, input, key),
@@ -70,10 +153,11 @@ export function createServerCrmApi(opts: {
   };
 }
 
-/** Clientes sintéticos da demonstração (IDs de FX.customers; domínio exemplo.test). */
+/** Clientes sintéticos da demonstração (IDs de FX.customers; domínio exemplo.test). Um com telefone (o mesmo do Canal de
+ *  exemplo) e outro sem, para a lista mostrar os dois casos. */
 export const DEMO_CUSTOMERS: CrmCustomer[] = [
   {
-    id: FX.customers.abInA, tenant_id: FX.tenants.A, name: "Cliente AB (exemplo)", phone: null,
+    id: FX.customers.abInA, tenant_id: FX.tenants.A, name: "Cliente AB (exemplo)", phone: "+5511988887777",
     email: "cliente.ab@exemplo.test", declared_source: "referral", archived_at: null, version: 1,
   },
   {
@@ -98,6 +182,25 @@ export function createDemoCrmApi(): CrmApi {
           (c) => (include_archived || !c.archived_at) && (!needle || fold(c.name).includes(needle)),
         ),
         next_cursor: null,
+      };
+    },
+    getCustomer: async (id) => customers.find((c) => c.id === id) ?? null,
+    // Histórico da base de exemplo única (src/lib/demo/dataset.ts), com a mesma janela do servidor em volta do "agora" fixo.
+    customerHistory: async (customerId) => {
+      // Carregada só quando a ficha abre: a base de exemplo não entra no pacote da lista de clientes.
+      const { DEMO_SERVICES, DEMO_TZ, demoNow, demoVisits } = await import("../../lib/demo/dataset.ts");
+      const now = demoNow().getTime();
+      const from = now - HISTORY_DAYS * DAY_MS;
+      const until = now + HISTORY_DAYS * DAY_MS;
+      return {
+        timezone: DEMO_TZ,
+        now: new Date(now).toISOString(),
+        from: new Date(from).toISOString(),
+        until: new Date(until).toISOString(),
+        items: demoVisits()
+          .filter((v) => v.customer_id === customerId && v.status !== "expired" && Date.parse(v.starts_at) >= from && Date.parse(v.starts_at) < until)
+          .map((v) => ({ id: v.id, starts_at: v.starts_at, service: DEMO_SERVICES[v.service_id]?.name ?? "Atendimento", status: v.status, price_cents: v.agreed_price_cents }))
+          .sort(byStartDesc),
       };
     },
     listServices: async ({ include_inactive }) => ({

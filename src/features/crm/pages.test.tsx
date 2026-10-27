@@ -8,7 +8,7 @@ import { ApiError } from "../../lib/api/client.ts";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { SessionProvider } from "../../app/session.tsx";
 import { routes } from "../../app/router.tsx";
-import { type CrmApi, CrmApiContext, createDemoCrmApi, DEMO_CUSTOMERS } from "./api.ts";
+import { type CrmApi, CrmApiContext, createDemoCrmApi, type CustomerHistory, DEMO_CUSTOMERS } from "./api.ts";
 import { CustomersPage } from "./CustomersPage.tsx";
 import { ImportPage } from "./ImportPage.tsx";
 import { ServicesPage } from "./ServicesPage.tsx";
@@ -18,11 +18,31 @@ const ana: CrmCustomer = {
   email: "ana@exemplo.test", declared_source: "instagram", archived_at: null, version: 3,
 };
 
+const history: CustomerHistory = {
+  timezone: "America/Sao_Paulo",
+  now: "2026-10-20T12:00:00.000Z",
+  from: "2026-08-21T12:00:00.000Z",
+  until: "2026-12-19T12:00:00.000Z",
+  items: [
+    { id: "b3", starts_at: "2026-10-27T13:00:00.000Z", service: "Corte", status: "confirmed", price_cents: 6000 },
+    { id: "b2", starts_at: "2026-10-13T13:00:00.000Z", service: "Barba", status: "no_show", price_cents: 4000 },
+    { id: "b1", starts_at: "2026-10-06T13:00:00.000Z", service: "Corte", status: "completed", price_cents: 6000 },
+  ],
+};
+
+/** Abre o menu "⋯" do cartão e escolhe a ação. */
+async function menuAction(customer: string, action: string) {
+  fireEvent.click(await screen.findByRole("button", { name: `Mais ações para ${customer}` }));
+  fireEvent.click(screen.getByRole("menuitem", { name: action }));
+}
+
 function fakeApi(over: Partial<CrmApi> = {}): CrmApi {
   return {
     readOnly: false,
     profession: vi.fn(async () => "barber" as const),
     listCustomers: vi.fn(async () => ({ items: [ana], next_cursor: null })),
+    getCustomer: vi.fn(async (id: string) => (id === ana.id ? ana : null)),
+    customerHistory: vi.fn(async () => history),
     upsertCustomer: vi.fn<CrmApi["upsertCustomer"]>(async (input) => ({
       customer: { ...ana, id: FX.customers.guestInA, name: input.name, phone: input.phone ?? null, version: 1 },
       possible_duplicates: [],
@@ -121,7 +141,7 @@ describe("clientes", () => {
       }),
     });
     renderWith(api, <CustomersPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Editar Ana Exemplo" }));
+    await menuAction("Ana Exemplo", "Editar");
     expect(screen.getByLabelText("Telefone")).toHaveValue("(11) 98765-4321");
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText(/alterado por outra pessoa/)).toBeInTheDocument();
@@ -131,7 +151,7 @@ describe("clientes", () => {
   it("arquiva com expected_version", async () => {
     const api = fakeApi();
     renderWith(api, <CustomersPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Arquivar Ana Exemplo" }));
+    await menuAction("Ana Exemplo", "Arquivar");
     await waitFor(() =>
       expect(api.archiveCustomer).toHaveBeenCalledWith(
         { customer_id: ana.id, expected_version: 3, archived: true },
@@ -144,7 +164,7 @@ describe("clientes", () => {
   it("Desfazer depois de arquivar desarquiva com a versão nova", async () => {
     const api = fakeApi();
     renderWith(api, <CustomersPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Arquivar Ana Exemplo" }));
+    await menuAction("Ana Exemplo", "Arquivar");
     fireEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
     await waitFor(() => expect(api.archiveCustomer).toHaveBeenCalledTimes(2));
     expect(vi.mocked(api.archiveCustomer).mock.calls[1]![0]).toEqual({ customer_id: ana.id, expected_version: 4, archived: false });
@@ -158,7 +178,7 @@ describe("clientes", () => {
       }),
     });
     renderWith(api, <CustomersPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Arquivar Ana Exemplo" }));
+    await menuAction("Ana Exemplo", "Arquivar");
     expect(within(await screen.findByRole("status")).getByText(/alterado por outra pessoa/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument();
   });

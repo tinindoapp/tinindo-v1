@@ -4,8 +4,53 @@
 .tn-msg-form > .tn-field { flex: 1 1 12rem; }
 .tn-msg-form > :is(.tn-banner, p) { flex-basis: 100%; margin: 0; }
 .tn-msg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
-.tn-msg-contact { display: grid; gap: var(--tn-space-1); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0; overflow-wrap: anywhere; }
-.tn-msg-contact h3 { margin: 0; }
+/* Linha da conversa: o cartão inteiro é o link (alvo grande), com seta à direita. */
+.tn-msg-list > li { border-bottom: 1px solid var(--tn-border); }
+.tn-msg-list > li:last-child { border-bottom: 0; }
+.tn-msg-row {
+  position: relative;
+  display: grid;
+  gap: var(--tn-space-1);
+  min-height: var(--tn-size-touch);
+  padding: var(--tn-space-3) calc(var(--tn-space-6) + var(--tn-space-2)) var(--tn-space-3) var(--tn-space-2);
+  border-radius: var(--tn-radius-md);
+  color: var(--tn-text);
+  text-decoration: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (hover: hover) { .tn-msg-row:hover { background: var(--tn-action-subtle); } }
+.tn-msg-row:active { background: var(--tn-action-subtle); }
+.tn-msg-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
+.tn-msg-row__chevron { position: absolute; right: var(--tn-space-2); top: 50%; transform: translateY(-50%); color: var(--tn-text-muted); }
+/* Selo de não lidas: o número escrito, com contraste do botão principal (nunca só a cor). */
+.tn-msg-badge {
+  display: inline-block;
+  padding: 0 var(--tn-space-2);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-action);
+  color: var(--tn-text-on-action);
+  font-size: var(--tn-text-label);
+  font-weight: var(--tn-font-weight-semibold);
+}
+.tn-msg-steps { margin: 0; padding-left: var(--tn-space-6); display: grid; gap: var(--tn-space-1); }
+/* Linha de status da conexão (número conectado). */
+.tn-msg-status { display: grid; gap: var(--tn-space-2); min-width: 0; }
+.tn-msg-status__line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); padding: var(--tn-space-1) var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); background: var(--tn-surface); }
+.tn-msg-status__line p { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: var(--tn-text-support); }
+.tn-msg-back { justify-self: start; padding-left: var(--tn-space-2); }
+/* Campo de escrever fixo no rodapé da conversa: acima da barra de abas no celular, respeitando a área segura. */
+.tn-msg-composer {
+  position: sticky;
+  /* + 1px: a borda de cima da barra de abas fica fora de --tn-tabbar-h. */
+  bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + 1px);
+  z-index: 2;
+  margin: 0 calc(-1 * var(--tn-space-4));
+  padding: var(--tn-space-3) var(--tn-space-4);
+  border-top: 1px solid var(--tn-border);
+  background: var(--tn-bg);
+}
+.tn-msg-composer textarea { min-height: 3rem; }
 .tn-msg-thread { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
 .tn-msg-bubble { display: grid; gap: var(--tn-space-1); padding: var(--tn-space-2) var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); max-width: 100%; overflow-wrap: anywhere; }
 .tn-msg-bubble[data-direction="outbound"] { justify-self: end; background: var(--tn-surface-raised); }
