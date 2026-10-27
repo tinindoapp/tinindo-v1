@@ -48,7 +48,7 @@ export const SECTION_SPECS: readonly SectionSpec[] = [
   },
   {
     id: "negocio", label: "Negócio", icon: "negocio", tab: false,
-    items: [{ module: "network", icon: "perfil" }, { module: "presence", icon: "site" }, { module: "discovery", icon: "local" }, { module: "service-ops", icon: "plano" }, { module: "resources", icon: "equipe" }, { module: "identity", icon: "conta" }],
+    items: [{ module: "network", icon: "perfil" }, { module: "presence", icon: "site" }, { module: "discovery", icon: "local" }, { module: "service-ops", icon: "plano" }, { module: "resources", icon: "equipe" }, { module: "materials", icon: "material" }, { module: "identity", icon: "conta" }],
   },
 ];
 
