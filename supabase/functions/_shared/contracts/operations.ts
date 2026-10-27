@@ -22,6 +22,7 @@ import * as presence from "./presence.ts";
 import * as fiscal from "./fiscal.ts";
 import * as discovery from "./discovery.ts";
 import * as reputation from "./reputation.ts";
+import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
 
@@ -47,7 +48,8 @@ export type ModuleId =
   | "presence"
   | "fiscal"
   | "discovery"
-  | "reputation";
+  | "reputation"
+  | "resources";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -685,6 +687,21 @@ export const OPERATIONS = {
   "review.owner_list": { module: "reputation", owner: "P24", kind: "query", idempotent: false, input: reputation.ReviewOwnerListInput, output: reputation.ReviewOwnerListOutput },
   "review.reply": { module: "reputation", owner: "P24", kind: "command", idempotent: true, input: reputation.ReviewReplyInput, output: reputation.ReviewReplyOutput },
   "review.public_list": { module: "reputation", owner: "P24", kind: "query", idempotent: false, input: reputation.ReviewPublicListInput, output: reputation.ReviewPublicListOutput },
+  "resources.list": { module: "resources", owner: "P28", kind: "query", idempotent: false, input: resources.TeamListInput, output: resources.TeamListOutput },
+  "resources.save": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamResourceSaveInput, output: resources.TeamResourceOutput },
+  "resources.commission_rule_save": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamCommissionRuleSaveInput, output: resources.TeamCommissionRulesOutput },
+  "resources.availability": { module: "resources", owner: "P28", kind: "query", idempotent: false, input: resources.TeamAvailabilityInput, output: resources.TeamAvailabilityOutput },
+  "resources.booking_create": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamBookingCreateInput, output: resources.TeamBookingOutput },
+  "resources.booking_cancel": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamBookingCancelInput, output: resources.TeamBookingOutput },
+  "resources.booking_complete": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamBookingCompleteInput, output: resources.TeamBookingOutput },
+  "resources.schedule": { module: "resources", owner: "P28", kind: "query", idempotent: false, input: resources.TeamScheduleInput, output: resources.TeamScheduleOutput },
+  "resources.class_create": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamClassCreateInput, output: resources.TeamClassOutput },
+  "resources.class_enroll": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamClassEnrollInput, output: resources.TeamClassOutput },
+  "resources.class_seat_cancel": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamSeatCancelInput, output: resources.TeamClassOutput },
+  "resources.class_cancel": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamClassCancelInput, output: resources.TeamClassOutput },
+  "resources.class_complete": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamClassCompleteInput, output: resources.TeamClassOutput },
+  "resources.commission_reverse": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamCommissionReverseInput, output: resources.TeamCommissionEntryOutput },
+  "resources.commissions": { module: "resources", owner: "P28", kind: "query", idempotent: false, input: resources.TeamCommissionsInput, output: resources.TeamCommissionsOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
