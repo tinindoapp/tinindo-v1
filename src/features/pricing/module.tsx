@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { createDemoPort } from "./demoPort.ts";
 import type { PricingPort } from "./port.ts";
@@ -28,10 +28,10 @@ function PricingLayout() {
   }, [state.status, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="pr-no-tenant">
-        <h1 id="pr-no-tenant">Preços</h1>
+      <section aria-labelledby="pr-no-tenant" className="tn-pr">
+        <PageHeader id="pr-no-tenant" title="Preços" />
         <StatusBanner tone="info">Selecione um negócio para ver os preços.</StatusBanner>
-      </Card>
+      </section>
     );
   }
   return (
