@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FX } from "@contracts/fixtures.ts";
 import { SessionProvider } from "../../app/session.tsx";
@@ -7,6 +7,7 @@ import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
 import { createDemoNetworkApi, createHttpNetworkApi, resetDemoNetwork } from "./api.ts";
 import { networkModule, networkPublicRoutes } from "./module.tsx";
+import { PublicProfileView } from "./PublicProfileView.tsx";
 
 function renderAt(path: string) {
   const router = createMemoryRouter(
@@ -27,6 +28,12 @@ async function publishDemoProfile() {
   fireEvent.change(screen.getByLabelText("Bairro ou região"), { target: { value: "Centro" } });
   fireEvent.click(screen.getByRole("button", { name: "Publicar perfil" }));
   await screen.findByText("Perfil publicado.");
+}
+
+/** Passo 1 da reserva pelo link: serviço (o primeiro já vem marcado) e segue para o dia e a hora. */
+async function chooseService(name?: string) {
+  if (name) fireEvent.click(await screen.findByRole("radio", { name: new RegExp(`^${name}`) }));
+  fireEvent.click(await screen.findByRole("button", { name: "Escolher dia e hora" }));
 }
 
 beforeEach(() => {
@@ -121,6 +128,9 @@ describe("páginas públicas (demonstração)", () => {
     expect(screen.getByText("Perfil novo · ainda sem avaliações")).toBeInTheDocument();
     expect(document.body.textContent).not.toContain(FX.tenants.A);
     expect(document.body.textContent).not.toMatch(/Tinindo garante/);
+    // Só selos positivos: o que falta não vira selo (auditoria E5).
+    expect(document.body.textContent).not.toMatch(/não verificada/);
+    await chooseService();
     const slots = await screen.findByRole("list", { name: "Horários livres" });
     // Manhã lotada nas fixtures: 09:00 ocupado; 12:00 livre.
     expect(within(slots).queryByRole("button", { name: "09:00" })).not.toBeInTheDocument();
@@ -133,6 +143,7 @@ describe("páginas públicas (demonstração)", () => {
     await publishDemoProfile();
     cleanup();
     renderAt("/p/barbearia-exemplo");
+    await chooseService();
     const slots = await screen.findByRole("list", { name: "Horários livres" });
     fireEvent.click(within(slots).getByRole("button", { name: "12:00" }));
     fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
@@ -162,8 +173,100 @@ describe("páginas públicas (demonstração)", () => {
 
     cleanup();
     renderAt("/p/barbearia-exemplo");
+    await chooseService();
     const again = await screen.findByRole("list", { name: "Horários livres" });
     expect(within(again).queryByRole("button", { name: "12:00" })).not.toBeInTheDocument();
+  });
+
+  it("reserva em etapas: passo atual marcado, dia antes da hora, resumo da escolha e voltar sem perder nada", async () => {
+    await publishDemoProfile();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    const steps = await screen.findByRole("navigation", { name: "Etapas da reserva" });
+    expect(steps).toHaveTextContent("Passo 1 de 4");
+    expect(within(steps).getByText("Serviço").closest("li")).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("radio", { name: /^Corte/ })).toBeChecked();
+    await chooseService("Barba");
+
+    expect(await screen.findByRole("heading", { name: "Escolha o dia e a hora" })).toHaveFocus();
+    expect(steps).toHaveTextContent("Passo 2 de 4");
+    expect(within(steps).getByText("Dia e hora").closest("li")).toHaveAttribute("aria-current", "step");
+    const days = screen.getByRole("group", { name: "Dia" });
+    expect(within(days).getAllByRole("radio")).toHaveLength(14);
+    expect(within(days).getByRole("radio", { name: "ter 20/10" })).toBeChecked();
+    fireEvent.click(within(days).getByRole("radio", { name: "qua 21/10" }));
+    expect(screen.getByText("Barba · qua 21/10")).toBeInTheDocument();
+    const slots = await screen.findByRole("list", { name: "Horários livres" });
+    // Outro dia: a manhã está livre (as reservas das fixtures são do dia 20).
+    fireEvent.click(within(slots).getByRole("button", { name: "09:00" }));
+
+    expect(await screen.findByRole("heading", { name: "Seus dados" })).toBeInTheDocument();
+    expect(steps).toHaveTextContent("Passo 3 de 4");
+    expect(screen.getByText("Barba · qua 21/10 · 09:00")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
+
+    // Voltar até o serviço e avançar de novo: serviço, dia, hora e nome continuam escolhidos.
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    const again = await screen.findByRole("list", { name: "Horários livres" });
+    expect(within(again).getByRole("button", { name: "09:00" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("radio", { name: "qua 21/10" })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    expect(await screen.findByRole("radio", { name: /^Barba/ })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Escolher dia e hora" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continuar" }));
+    expect(await screen.findByLabelText("Seu nome")).toHaveValue("Maria");
+    expect(screen.getByText("Barba · qua 21/10 · 09:00")).toBeInTheDocument();
+  });
+
+  it("selos: identidade só aparece quando verificada; com avaliações, link para elas e nada de perfil novo", async () => {
+    const api = createDemoNetworkApi("http://localhost");
+    const base = { slug: "x", category: "barber" as const, area: "Centro", fields: { display_name: "Barbearia X" }, published_at: "2026-10-20T12:00:00Z" };
+    const { rerender } = render(
+      <MemoryRouter>
+        <PublicProfileView api={api} profile={{ ...base, reputation: { identity_verified: true, reviews_count: 1 } }} />
+      </MemoryRouter>,
+    );
+    const badges = screen.getByRole("list", { name: "Reputação" });
+    expect(badges).toHaveTextContent("Identidade verificada");
+    expect(within(badges).getByRole("link", { name: "1 avaliação de cliente" })).toHaveAttribute("href", "/avaliacoes/x");
+    expect(badges).not.toHaveTextContent("Perfil novo");
+    rerender(
+      <MemoryRouter>
+        <PublicProfileView api={api} profile={{ ...base, reputation: { identity_verified: false, reviews_count: 0 } }} />
+      </MemoryRouter>,
+    );
+    expect(within(badges).getAllByRole("listitem")).toHaveLength(1);
+    expect(badges).toHaveTextContent("Perfil novo · ainda sem avaliações");
+    expect(badges).not.toHaveTextContent(/Identidade/);
+  });
+
+  it("horário tomado por outra pessoa: volta ao passo 2 com o aviso, a lista recarrega e o nome continua", async () => {
+    const book = vi.fn().mockRejectedValue(new ApiError("SLOT_CONFLICT", "x", 409, null, false, "slot"));
+    const slotsCall = vi.fn().mockResolvedValue({ slots: [{ starts_at: "2026-10-20T15:00:00Z", ends_at: "2026-10-20T15:30:00Z" }], timezone: "America/Sao_Paulo" });
+    const api = {
+      ...createDemoNetworkApi("http://localhost"),
+      publicServices: async () => [{ id: FX.services.corteA, name: "Corte", duration_min: 30 }],
+      publicSlots: slotsCall,
+      book,
+    };
+    const profile = { slug: "x", category: "barber" as const, area: "Centro", published_at: "2026-10-20T12:00:00Z",
+      fields: { display_name: "Barbearia X", booking_link: "http://localhost/p/x" }, reputation: { identity_verified: false, reviews_count: 0 } };
+    render(
+      <MemoryRouter>
+        <PublicProfileView api={api} profile={profile} />
+      </MemoryRouter>,
+    );
+    await chooseService();
+    fireEvent.click(within(await screen.findByRole("list", { name: "Horários livres" })).getByRole("button", { name: "12:00" }));
+    fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
+    fireEvent.change(screen.getByLabelText("WhatsApp com DDD"), { target: { value: "(11) 97777-4343" } });
+    fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
+    expect(await screen.findByText(/acabou de ser reservado por outra pessoa/)).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Etapas da reserva" })).toHaveTextContent("Passo 2 de 4");
+    await waitFor(() => expect(slotsCall).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("button", { name: "Continuar" })).not.toBeInTheDocument();
+    fireEvent.click(within(await screen.findByRole("list", { name: "Horários livres" })).getByRole("button", { name: "12:00" }));
+    expect(await screen.findByLabelText("Seu nome")).toHaveValue("Maria");
   });
 
   it("toE164 aceita os formatos comuns e recusa número sem DDD", async () => {

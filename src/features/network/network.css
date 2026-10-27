@@ -68,7 +68,80 @@
   grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   gap: var(--tn-space-2);
 }
-.tn-net-slots .tn-button { width: 100%; padding: 0 var(--tn-space-2); }
+.tn-net-slots button {
+  width: 100%;
+  min-height: var(--tn-size-touch);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  cursor: pointer;
+}
+@media (hover: hover) { .tn-net-slots button:hover { background: var(--tn-action-subtle); } }
+/* Horário escolhido: mesmo "selecionado" do sistema (--tn-selected-*), com aria-pressed. */
+.tn-net-slots button[aria-pressed="true"] { background: var(--tn-selected-bg); color: var(--tn-selected-text); border-color: var(--tn-selected-bg); font-weight: var(--tn-selected-weight); }
+
+/* Reserva pelo link em etapas (auditoria E4): indicador, resumo da escolha e fileira de dias. */
+.tn-net-wizard { display: grid; gap: var(--tn-space-2); margin-bottom: var(--tn-space-3); }
+.tn-net-wizard__count { margin: 0; font-size: var(--tn-text-support); color: var(--tn-text-muted); }
+.tn-net-wizard ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--tn-space-1); }
+.tn-net-wizard li { display: grid; justify-items: center; gap: var(--tn-space-1); text-align: center; font-size: var(--tn-text-label); color: var(--tn-text-muted); }
+.tn-net-wizard__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--tn-border-control);
+  border-radius: 50%;
+  font-size: var(--tn-text-label);
+}
+.tn-net-wizard li[aria-current="step"] { color: var(--tn-text); font-weight: var(--tn-selected-weight); }
+.tn-net-wizard li[aria-current="step"] .tn-net-wizard__mark { background: var(--tn-selected-bg); border-color: var(--tn-selected-bg); color: var(--tn-selected-text); }
+.tn-net-wizard li[data-done] { color: var(--tn-text); }
+.tn-net-wizard li[data-done] .tn-net-wizard__mark { background: var(--tn-success-bg); color: var(--tn-success-text); border-color: currentColor; }
+
+.tn-net-summary {
+  margin: 0 0 var(--tn-space-3);
+  padding: var(--tn-space-2) var(--tn-space-3);
+  border-radius: var(--tn-radius-sm);
+  background: var(--tn-surface-sunken);
+  font-weight: var(--tn-font-weight-medium);
+}
+
+.tn-net-choices { display: grid; gap: var(--tn-space-2); margin: 0; padding: 0; border: 0; min-width: 0; }
+
+.tn-net-days-group { margin: 0; padding: 0; border: 0; min-width: 0; }
+.tn-net-days-group legend { padding: 0; margin-bottom: var(--tn-space-1); font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
+/* Fileira rolável: cabe no celular sem rolar a página para o lado. */
+.tn-net-days {
+  display: flex;
+  gap: var(--tn-space-2);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: var(--tn-space-1) var(--tn-space-1) var(--tn-space-2);
+}
+.tn-net-day {
+  position: relative;
+  flex: none;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 64px;
+  min-height: 56px;
+  padding: var(--tn-space-1) var(--tn-space-2);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  font-size: var(--tn-text-support);
+  scroll-snap-align: start;
+  cursor: pointer;
+}
+.tn-net-day input { position: absolute; z-index: 1; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.tn-net-day:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
+@media (hover: hover) { .tn-net-day:hover { background: var(--tn-action-subtle); } }
+.tn-net-day[data-selected] { background: var(--tn-selected-bg); border-color: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
 
 .tn-net-public { min-height: 100dvh; background: var(--tn-bg); }
 .tn-net-public__header { padding: var(--tn-space-4); max-width: 720px; margin: 0 auto; }
