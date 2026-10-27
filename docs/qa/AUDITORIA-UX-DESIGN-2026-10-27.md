@@ -58,10 +58,10 @@ Varredura de cinco especialistas, cada um numa área: Agenda; Clientes e Mensage
 
 | # | Oportunidade | Onde | Proposta | Imp. | Esf. | Origem |
 |---|---|---|---|---|---|---|
-| 24 | Tela "Hoje" pede para confirmar uma reserva provisória, mas não há botão de confirmar | BookingDetailPage:180-204, Home:153 | "Confirmar reserva" (primário), "Liberar horário" (sem pedir motivo) e "Vence às 10:55". A pendência leva direto à reserva | A | M | AGD-01 |
-| 25 | Não existe "Faltou" | BookingDetailPage, agenda.ts | Depois do horário, mostrar "Atendido" e "Faltou" no detalhe e no cartão da linha do dia | A | M | AGD-02 |
+| 24 ✓ | Tela "Hoje" pede para confirmar uma reserva provisória, mas não há botão de confirmar | BookingDetailPage:180-204, Home:153 | "Confirmar reserva" (primário), "Liberar horário" (sem pedir motivo) e "Vence às 10:55". A pendência leva direto à reserva | A | M | AGD-01 |
+| 25 ✓ | Não existe "Faltou" | BookingDetailPage, agenda.ts | Depois do horário, mostrar "Atendido" e "Faltou" no detalhe e no cartão da linha do dia | A | M | AGD-02 |
 | 26 | No celular, nenhum atendimento aparece sem rolar (o cartão de ocupação vem antes) | AgendaPage:41-46, 113 | Linha do dia logo abaixo da data e ocupação como uma linha compacta ("26% ocupado") | A | P | AGD-03 |
-| 27 | Cancelar sem "Desfazer" e sem próximo passo | BookingDetailPage:122-124, 207-250 | Botão `danger` "Sim, cancelar". Depois: "Desfazer", "Avisar no WhatsApp" e "Oferecer à lista de espera (1 pessoa)". Mostrar o motivo | A | M | AGD-04 |
+| 27 ✓ | Cancelar sem "Desfazer" e sem próximo passo | BookingDetailPage:122-124, 207-250 | Botão `danger` "Sim, cancelar". Depois: "Desfazer", "Avisar no WhatsApp" e "Oferecer à lista de espera (1 pessoa)". Mostrar o motivo | A | M | AGD-04 |
 | 28 | Horários: página de 3.549 px, sem copiar para outros dias e sem aviso de alteração não salva | HoursPage:120-165 | Um cartão-resumo por dia, botão "Usar o horário de segunda nos dias úteis", barra "Salvar" só quando algo mudou e aviso ao sair | M | M | AGD-08 |
 | 29 | Novo agendamento: o cliente é escolhido por último, num `<select>` sem busca | BookingFlowPage:157-277 | Ordem Cliente → Serviço → Horário, busca de cliente com "+ Novo" e "Sem cadastro", barra fixa "Confirmar · Corte · 13:00 · R$ 51" | M | G | AGD-10 |
 | 30 | Selo "Confirmado" repetido em todo cartão e rótulos diferentes entre telas | Home:39, AgendaPage:197-201 | Mostrar só as exceções (Provisória, Falta, Cancelado), com um único mapa de rótulos | M | P | AGD-11 |
@@ -74,9 +74,9 @@ Varredura de cinco especialistas, cada um numa área: Agenda; Clientes e Mensage
 
 | # | Oportunidade | Onde | Proposta | Imp. | Esf. | Origem |
 |---|---|---|---|---|---|---|
-| 35 | Lista de clientes sem ligar, WhatsApp nem ficha | CustomersPage:139-177, crm module.tsx:58-66 | Botões de 44 px para "Ligar" e "WhatsApp" no cartão, "Editar/Arquivar" no menu "⋯" e rota `/app/clientes/:id` com histórico | A | M | CLI-01 |
-| 36 | Na caixa de entrada, a configuração vem antes das conversas | InboxPage:167-201 | Com o número conectado, a conexão vira uma linha de status. Conversas primeiro. Sem conexão, estado vazio guiado | A | M | CLI-02 |
-| 37 | Conversa abre longe da lista e o contato não é tocável por inteiro | InboxPage:196-235 | Linha inteira leva a `/app/mensagens/:id`, campo de escrever fixo no rodapé e selo numérico de não lidas | A | M | CLI-03 |
+| 35 ✓ | Lista de clientes sem ligar, WhatsApp nem ficha | CustomersPage:139-177, crm module.tsx:58-66 | Botões de 44 px para "Ligar" e "WhatsApp" no cartão, "Editar/Arquivar" no menu "⋯" e rota `/app/clientes/:id` com histórico | A | M | CLI-01 |
+| 36 ✓ | Na caixa de entrada, a configuração vem antes das conversas | InboxPage:167-201 | Com o número conectado, a conexão vira uma linha de status. Conversas primeiro. Sem conexão, estado vazio guiado | A | M | CLI-02 |
+| 37 ✓ | Conversa abre longe da lista e o contato não é tocável por inteiro | InboxPage:196-235 | Linha inteira leva a `/app/mensagens/:id`, campo de escrever fixo no rodapé e selo numérico de não lidas | A | M | CLI-03 |
 | 38 | Compartilhar link de orçamento ou lembrete só copia, sem retorno, e marca "compartilhado" mesmo se a cópia falhar | QuotesPage:219-231, LifecyclePage:65 | Botão "Enviar pelo WhatsApp" (wa.me com texto pronto), "Compartilhar…", "Copiado ✓" e só marca depois de copiar | A | P | CLI-06 |
 | 39 | Promover "Mensagens" a aba principal, com selo de não lidas | navigation.ts:29-37 | Trocar ou juntar com "Assistente" na barra de abas | M | M | CLI-09 |
 | 40 | Busca sem resultado mostra "lista vazia", e a lista vazia pisca enquanto carrega | CustomersPage:44, 135-137, ServicesPage:144 | Três estados: carregando (esqueleto), vazio de verdade e busca vazia ("Ninguém com “zzz”" + "Cadastrar") | M | P | CLI-07 |
@@ -91,7 +91,7 @@ Varredura de cinco especialistas, cada um numa área: Agenda; Clientes e Mensage
 
 | # | Oportunidade | Onde | Proposta | Imp. | Esf. | Origem |
 |---|---|---|---|---|---|---|
-| 47 | Os mesmos números mudam de tela para tela na demonstração (Caixa R$ 260, Assistente R$ 160 na semana em que o Caixa tem R$ 60, faltas 6,8% e 15%) | FinancePage, ResultPage, GoalsPage, AgentPage, PaymentsPage | Uma base de exemplo única, teste e2e que compara os totais e período escrito ao lado de cada número | A | M | DIN-01 |
+| 47 ✓ | Os mesmos números mudam de tela para tela na demonstração (Caixa R$ 260, Assistente R$ 160 na semana em que o Caixa tem R$ 60, faltas 6,8% e 15%) | FinancePage, ResultPage, GoalsPage, AgentPage, PaymentsPage | Uma base de exemplo única, teste e2e que compara os totais e período escrito ao lado de cada número | A | M | DIN-01 |
 | 48 | O link de pagamento que a própria tela manda abrir dá "link inválido" | PaymentsPage:116-119, PayLinkPage:61 | Na demonstração, guardar a cobrança na sessão e manter o `#t=`. Mensagem que não culpa a cliente | A | P | DIN-02 |
 | 49 | O Caixa não diz quanto sobrou e mostra "A receber R$ 0,00" com R$ 100 sem cobrança logo abaixo | FinancePage:211-235 | Número grande "Sobrou no mês: R$ 245,00", alerta "2 sem cobrança · R$ 100 → Cobrar agora" e ressalvas em "Como esse número é feito" | A | P | DIN-03 |
 | 50 | Emitir nota e cancelar assinatura com um toque, sem revisão | FiscalPage:133, RecurrencePage:123, FinancePage:611 | Tela "Confira antes de emitir", confirmação para encerrar assinatura e estorno de despesa igual ao de recebimento | A | P | DIN-04 |
@@ -112,11 +112,11 @@ Os do topo vêm antes no funil do cliente final.
 
 | # | Oportunidade | Onde | Proposta | Imp. | Esf. | Origem |
 |---|---|---|---|---|---|---|
-| E1 | Link do perfil sem prévia no WhatsApp (sem Open Graph) | index.html, /p/:slug, /s/:slug | Servir `og:title`, `og:description` e `og:image` pelo servidor para essas rotas e deixar um padrão genérico no index | A | M | PUB-02 |
+| E1 ✓ | Link do perfil sem prévia no WhatsApp (sem Open Graph) | index.html, /p/:slug, /s/:slug | Servir `og:title`, `og:description` e `og:image` pelo servidor para essas rotas e deixar um padrão genérico no index | A | M | PUB-02 |
 | E2 | Faixa "Demonstração" ausente em /entrar, /criar-conta, /diretorio, /pagar, /avaliar e outras | AppShell:115, PublicPages:19 | Colocar `<DemoBanner />` uma vez no `RouteFrame` | A | P | PUB-03 |
 | E3 | Reserva diz que o código vai "pelo WhatsApp do profissional" | PublicProfileView:318-321 | "Vamos mandar um código de 6 dígitos para o seu WhatsApp. Seu número só vai para este profissional." | A | P | PUB-04 |
-| E4 | Reserva sem etapas e sem dia visível antes da hora | PublicProfileView:242-351 | Passos "Serviço · Dia e hora · Seus dados · Código", fileira de dias em chips e resumo fixo | A | M | PUB-05 |
-| E5 | Perfil sem preço, foto nem contato, e "Identidade não verificada" como primeiro selo | PublicProfileView:46-67, 264-267 | Preço opcional, só selos positivos, foto/logo e "Falar no WhatsApp" opcionais | A | M | PUB-06 |
+| E4 ✓ | Reserva sem etapas e sem dia visível antes da hora | PublicProfileView:242-351 | Passos "Serviço · Dia e hora · Seus dados · Código", fileira de dias em chips e resumo fixo | A | M | PUB-05 |
+| E5 ✓ | Perfil sem preço, foto nem contato, e "Identidade não verificada" como primeiro selo | PublicProfileView:46-67, 264-267 | Preço opcional, só selos positivos, foto/logo e "Falar no WhatsApp" opcionais | A | M | PUB-06 |
 | E6 | Depois de publicar o perfil, o dono não recebe o link para mandar | NetworkHome:147, 174-179 | Cartão "Seu perfil está no ar!" com o endereço, "Copiar", "Mandar no WhatsApp" e "Compartilhar" (reaproveitar o ShareLink) | A | P | PUB-07 |
 | E7 | Cadastro sem dizer para quem é e regra de senha só no erro. E-mail já usado mostra mensagem vaga | AuthPages:45-72, SignIn:23-41 | Subtítulo de valor, "Pelo menos 8 caracteres", botão "Mostrar senha" e texto neutro: "Não deu para criar a conta com esse e-mail. Se já tem conta, entre ou recupere a senha." | M | P | PUB-09 |
 | E8 | Aceite de termos sem link para os termos | CreateBusinessPage:101-107 | Links que abrem numa folha e a frase de saúde separada | M | P | PUB-10 |
