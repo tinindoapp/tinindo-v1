@@ -1,10 +1,8 @@
 /* Pagamentos (P14). Só tokens da marca; estado sempre por palavra. */
 .tn-pay { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-pay-muted { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-pay-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; min-width: 0; }
-.tn-pay-field { display: grid; gap: var(--tn-space-1); flex: 1 1 12rem; min-width: 0; font-size: var(--tn-text-support); }
-.tn-pay-field input, .tn-pay-field select { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; }
-.tn-pay-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
+.tn-pay-form > .tn-field { flex: 1 1 12rem; }
+.tn-pay-form > .tn-banner, .tn-pay-item .tn-confirm { flex: 1 1 100%; }
 .tn-pay-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
 .tn-pay-item { display: grid; gap: var(--tn-space-1); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0; overflow-wrap: anywhere; }
 .tn-pay-item h3 { margin: 0; }
