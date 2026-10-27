@@ -107,6 +107,8 @@ test.describe("UAT barbeiro", () => {
     await expect(page).toHaveURL(/\/p\/barbeiro-uat$/);
     await expectDemoLabel(page);
     await expect(page.getByRole("link", { name: "2 avaliações de clientes" })).toBeVisible();
+    // Reserva em etapas (auditoria E4): o serviço vem marcado; segue para o dia e a hora.
+    await page.getByRole("button", { name: "Escolher dia e hora" }).click();
     const slots = page.getByRole("list", { name: "Horários livres" });
     await slots.getByRole("button").first().click();
     await expect(page.getByRole("form", { name: "Pedir horário" })).toBeVisible();
@@ -121,6 +123,7 @@ test.describe("UAT barbeiro", () => {
     await page.getByLabel("Bairro ou região").fill("Centro");
     await page.getByRole("button", { name: "Publicar perfil" }).click();
     await page.getByRole("link", { name: "Abrir perfil público" }).click();
+    await page.getByRole("button", { name: "Escolher dia e hora" }).click();
     const first = page.getByRole("list", { name: "Horários livres" }).getByRole("button").first();
     const time = (await first.innerText()).trim();
     await first.click();

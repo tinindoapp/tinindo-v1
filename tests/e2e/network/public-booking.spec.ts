@@ -17,6 +17,7 @@ test("visitante reserva pelo link e o dono vê na Agenda", async ({ page }) => {
   await page.getByRole("link", { name: "Abrir perfil público" }).click();
   await expect(page).toHaveURL(/\/p\/barbearia-link$/);
 
+  await page.getByRole("button", { name: "Escolher dia e hora" }).click();
   const slots = page.getByRole("list", { name: "Horários livres" });
   const first = slots.getByRole("button").first();
   const time = (await first.innerText()).trim();
@@ -48,6 +49,7 @@ test("visitante reserva pelo link e o dono vê na Agenda", async ({ page }) => {
   await expect(page.getByRole("link", { name: "+5511977774343" })).toHaveAttribute("href", "https://wa.me/5511977774343");
 
   await go(page, "/p/barbearia-link");
+  await page.getByRole("button", { name: "Escolher dia e hora" }).click();
   await expect(page.getByRole("list", { name: "Horários livres" })).toBeVisible();
   await expect(page.getByRole("list", { name: "Horários livres" }).getByRole("button", { name: time, exact: true })).toHaveCount(0);
 });

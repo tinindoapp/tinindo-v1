@@ -73,6 +73,8 @@ test("cliente pelo perfil público: avaliações e caminho para avaliar; escolhe
   await page.getByRole("link", { name: "Abrir perfil público" }).click();
   await expect(page).toHaveURL(/\/p\/barbearia-jornada$/);
 
+  // Reserva em etapas (auditoria E4): o serviço vem marcado; segue para o dia e a hora.
+  await page.getByRole("button", { name: "Escolher dia e hora" }).click();
   await page.getByRole("list", { name: "Horários livres" }).getByRole("button").first().click();
   await expect(page.getByRole("form", { name: "Pedir horário" })).toBeVisible();
   await expect(page.getByText(/horário confirmado|reserva confirmada|reservado com sucesso/i)).toHaveCount(0);

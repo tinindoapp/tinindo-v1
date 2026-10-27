@@ -29,14 +29,15 @@ test("dono publica o perfil, vê a prévia e gera convite sem envio automático"
   await expect(page).toHaveURL(/\/app\/perfil\/previa$/);
   await expect(page.getByRole("heading", { name: "Barbearia Exemplo A" })).toBeVisible();
   await expect(page.getByRole("link", { name: "2 avaliações de clientes" })).toBeVisible();
+  await page.getByRole("button", { name: "Escolher dia e hora" }).click();
   const slots = page.getByRole("list", { name: "Horários livres" });
   const first = slots.getByRole("button").first();
   await expect(first).toBeVisible();
+  const box = await first.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   await first.click();
   // Escolher o horário só abre o pedido (nome, WhatsApp e código): nada é reservado ainda.
   await expect(page.getByRole("form", { name: "Pedir horário" })).toBeVisible();
-  const box = await first.boundingBox();
-  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   await noHorizontalScroll(page);
 
   await page.getByRole("link", { name: "Voltar ao perfil" }).click();
