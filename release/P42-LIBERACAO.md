@@ -19,7 +19,7 @@ Este arquivo diz **quem faz o quê e em que ordem**. As caixas de cada etapa con
 
 ## Ordem (cada passo só começa com o anterior verde)
 
-1. **Felipe · ambiente** (estimativa: 1h30)
+1. **Ambiente** (estimativa: 1h30). Quem tiver a conta roda `bash release/homolog-setup.sh <project-ref> <endereço do app>`: link, migrations, segredos gerados sem aparecer na tela, deploy com `--no-verify-jwt` (cada função confere o login; com o JWT do gateway as rotas públicas, webhooks e cron seriam recusados) e cron no Vault. Itens que o script não faz:
    - Criar o projeto Supabase de homologação (região São Paulo). Auth por e-mail com SMTP próprio, porque o SMTP padrão do Supabase limita envios e quebra o cadastro dos testadores.
    - `npx supabase link --project-ref <ref>` e depois `npx supabase db push`. As migrations rodam antes de tudo.
    - Segredos das funções (`npx supabase secrets set …`):
