@@ -38,8 +38,9 @@ echo "   ok; nenhum WHATSAPP_*, PSP_* ou FISCAL_PROVIDER_* (piloto só com simul
 echo "4/6 · deploy de todas as funções"
 # --no-verify-jwt: cada função confere o login sozinha (AUTH_REQUIRED/FORBIDDEN no envelope). Com o JWT do gateway
 # ligado, as rotas públicas (link, site, diretório), os webhooks e o cron com segredo seriam recusados antes do código.
-# --use-api: empacota no servidor do Supabase, sem Docker.
-$SB functions deploy --project-ref "$REF" --no-verify-jwt --use-api
+# --use-api: empacota no servidor do Supabase, sem Docker. --import-map: o mapa fica em supabase/functions/deno.json
+# (zod, supabase-js), um nível acima de cada função, e o empacotador remoto não o acha sozinho.
+$SB functions deploy --project-ref "$REF" --no-verify-jwt --use-api --import-map supabase/functions/deno.json
 
 echo "5/6 · cron a cada minuto (pg_cron + pg_net, segredos no Vault)"
 SQL=$(mktemp); chmod 600 "$SQL"; trap 'rm -f "$SQL"' EXIT
