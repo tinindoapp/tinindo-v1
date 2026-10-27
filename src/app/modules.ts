@@ -24,6 +24,7 @@ import { fiscalModule } from "../features/fiscal/module.tsx";
 import { discoveryModule } from "../features/discovery/module.tsx";
 import { reputationModule } from "../features/reputation/module.tsx";
 import { resourcesModule } from "../features/resources/module.tsx";
+import { materialsModule } from "../features/materials/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
@@ -48,5 +49,6 @@ export const MODULES: readonly ModuleDefinition[] = [
   discoveryModule,
   serviceOpsModule,
   resourcesModule,
+  materialsModule,
   identityModule,
 ];

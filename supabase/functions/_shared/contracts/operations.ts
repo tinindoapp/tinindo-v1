@@ -21,6 +21,7 @@ import * as growth from "./growth-advice.ts";
 import * as presence from "./presence.ts";
 import * as fiscal from "./fiscal.ts";
 import * as discovery from "./discovery.ts";
+import * as materials from "./materials.ts";
 import * as reputation from "./reputation.ts";
 import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
@@ -49,7 +50,8 @@ export type ModuleId =
   | "fiscal"
   | "discovery"
   | "reputation"
-  | "resources";
+  | "resources"
+  | "materials";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -702,6 +704,18 @@ export const OPERATIONS = {
   "resources.class_complete": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamClassCompleteInput, output: resources.TeamClassOutput },
   "resources.commission_reverse": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamCommissionReverseInput, output: resources.TeamCommissionEntryOutput },
   "resources.commissions": { module: "resources", owner: "P28", kind: "query", idempotent: false, input: resources.TeamCommissionsInput, output: resources.TeamCommissionsOutput },
+  "materials.list": { module: "materials", owner: "P30", kind: "query", idempotent: false, input: materials.MaterialListInput, output: materials.MaterialListOutput },
+  "materials.item_save": { module: "materials", owner: "P30", kind: "command", idempotent: true, input: materials.MaterialItemSaveInput, output: materials.MaterialItemOutput },
+  "materials.usage_save": { module: "materials", owner: "P30", kind: "command", idempotent: true, input: materials.MaterialUsageSaveInput, output: materials.MaterialUsageOutput },
+  "materials.purchase": { module: "materials", owner: "P30", kind: "command", idempotent: true, input: materials.MaterialPurchaseInput, output: materials.MaterialPurchaseOutput },
+  "materials.purchase_reverse": { module: "materials", owner: "P30", kind: "command", idempotent: true, input: materials.MaterialPurchaseReverseInput, output: materials.MaterialPurchaseOutput },
+  "materials.adjust": { module: "materials", owner: "P30", kind: "command", idempotent: true, input: materials.MaterialAdjustInput, output: materials.MaterialItemOutput },
+  "materials.consume": { module: "materials", owner: "P30", kind: "command", idempotent: true, input: materials.MaterialConsumeInput, output: materials.MaterialConsumptionOutput },
+  "materials.consume_reverse": { module: "materials", owner: "P30", kind: "command", idempotent: true, input: materials.MaterialConsumeReverseInput, output: materials.MaterialConsumptionOutput },
+  "materials.movements": { module: "materials", owner: "P30", kind: "query", idempotent: false, input: materials.MaterialMovementsInput, output: materials.MaterialMovementsOutput },
+  "materials.bookings": { module: "materials", owner: "P30", kind: "query", idempotent: false, input: materials.MaterialBookingsInput, output: materials.MaterialBookingsOutput },
+  "materials.margin": { module: "materials", owner: "P30", kind: "query", idempotent: false, input: materials.MaterialMarginInput, output: materials.MaterialMarginOutput },
+  "materials.quote_cost": { module: "materials", owner: "P30", kind: "query", idempotent: false, input: materials.MaterialQuoteCostInput, output: materials.MaterialQuoteCostOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
