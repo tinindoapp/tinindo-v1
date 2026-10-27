@@ -1,7 +1,7 @@
 // Link para compartilhar manualmente. Abrir o compartilhamento não é "entregue":
 // a Tinindo não sabe se a mensagem chegou e não envia nada sozinha.
 import { useEffect, useState } from "react";
-import { Button, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Field, StatusBanner, toast } from "../../components/ui/index.tsx";
 import type { ReferralLinkData } from "./api.ts";
 import { formatDateTime } from "./useNetworkApi.ts";
 
@@ -12,7 +12,6 @@ export function whatsappShareHref(text: string, url: string) {
 
 /** Campo com o link + Copiar, Mandar no WhatsApp (se houver texto) e Compartilhar (se o aparelho tiver). */
 export function ShareActions({ url, label, whatsappText }: { url: string; label: string; whatsappText?: string }) {
-  const [status, setStatus] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -26,17 +25,17 @@ export function ShareActions({ url, label, whatsappText }: { url: string; label:
       if (!navigator.clipboard) throw new Error("sem área de transferência");
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      setStatus("Link copiado. Cole na conversa com a pessoa.");
+      toast("Link copiado. Cole na conversa com a pessoa.");
     } catch {
       setCopied(false);
-      setStatus("Não foi possível copiar. Selecione o link e copie manualmente.");
+      toast({ tone: "warning", message: "Não foi possível copiar. Selecione o link e copie manualmente." });
     }
   }
 
   async function share() {
     try {
       await navigator.share(whatsappText ? { url, text: whatsappText } : { url });
-      setStatus("Compartilhamento aberto. A Tinindo não confirma se a mensagem foi entregue.");
+      toast({ tone: "info", message: "Compartilhamento aberto. A Tinindo não confirma se a mensagem foi entregue." });
     } catch {
       /* cancelado pela pessoa: nada a fazer */
     }
@@ -44,11 +43,8 @@ export function ShareActions({ url, label, whatsappText }: { url: string; label:
 
   return (
     <>
-      <label className="tn-field">
-        <span>{label}</span>
-        <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
-      </label>
-      <div className="tn-net-actions">
+      <Field label={label} readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
+      <div className="tn-actions">
         <Button variant="secondary" onClick={() => void copy()}>
           {copied ? "Copiado" : "Copiar link"}
         </Button>
@@ -59,7 +55,7 @@ export function ShareActions({ url, label, whatsappText }: { url: string; label:
             href={whatsappShareHref(whatsappText, url)}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => setStatus("WhatsApp aberto. Escolha a conversa e envie: a Tinindo não confirma se a mensagem foi entregue.")}
+            onClick={() => toast({ tone: "info", message: "WhatsApp aberto. Escolha a conversa e envie: a Tinindo não confirma se a mensagem foi entregue." })}
           >
             Mandar no WhatsApp
           </a>
@@ -70,7 +66,6 @@ export function ShareActions({ url, label, whatsappText }: { url: string; label:
           </Button>
         ) : null}
       </div>
-      {status ? <p role="status">{status}</p> : null}
     </>
   );
 }

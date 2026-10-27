@@ -89,7 +89,7 @@ test("orçamento: formulário explica o que falta e não grava", async ({ page }
   await form.getByLabel("Descrição").fill("Hidratação");
   await form.getByLabel("Valor (R$)").fill("12,345");
   await form.getByRole("button", { name: "Salvar rascunho" }).click();
-  await expect(form.getByText(/valor inválido/)).toBeVisible();
+  await expect(form.getByText(/Valor inválido/)).toBeVisible();
   await expect(page.getByRole("region", { name: "Seus orçamentos" })).toContainText("Nenhum orçamento ainda");
   await form.getByRole("button", { name: "Cancelar" }).click();
   await expect(form).toHaveCount(0);

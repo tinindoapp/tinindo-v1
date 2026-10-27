@@ -1,5 +1,5 @@
 // Peças visuais internas do módulo CRM (sem novos componentes globais; ADR-0005).
-import { type ReactNode, useId } from "react";
+import type { ReactNode } from "react";
 import { Outlet } from "react-router";
 import { StatusBanner } from "../../components/ui/index.tsx";
 import { useCrmApi } from "./api.ts";
@@ -13,52 +13,11 @@ export function CrmDemoNotice() {
   ) : null;
 }
 
-export function CrmTabs() {
+/** Moldura das telas do módulo (as sub-telas ficam no menu do app, não em abas próprias). */
+export function CrmOutlet() {
   return (
-    <div className="crm-stack">
+    <div className="tn-stack">
       <Outlet />
-    </div>
-  );
-}
-
-export function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  error,
-  disabled,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-  error?: string;
-  disabled?: boolean;
-}) {
-  const id = useId();
-  return (
-    <div className="tn-field">
-      <label htmlFor={id}>{label}</label>
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-error` : undefined}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      {error ? (
-        <span id={`${id}-error`} role="alert">
-          {error}
-        </span>
-      ) : null}
     </div>
   );
 }

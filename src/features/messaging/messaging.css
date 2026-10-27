@@ -1,10 +1,8 @@
-/* Canal (P12). Só tokens da marca; estado da mensagem sempre por palavra. */
-.tn-msg { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-msg-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+/* Canal (P12). Só tokens da marca; estado da mensagem sempre por palavra. Pilha, ações e texto de apoio vêm dos
+   utilitários do sistema (.tn-stack, .tn-actions, .tn-muted); campos são o <Field> padrão. */
 .tn-msg-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; min-width: 0; }
-.tn-msg-field { display: grid; gap: var(--tn-space-1); flex: 1 1 12rem; min-width: 0; font-size: var(--tn-font-size-sm); }
-.tn-msg-field input, .tn-msg-field select, .tn-msg-field textarea { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; font: inherit; }
-.tn-msg-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
+.tn-msg-form > .tn-field { flex: 1 1 12rem; }
+.tn-msg-form > :is(.tn-banner, p) { flex-basis: 100%; margin: 0; }
 .tn-msg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
 .tn-msg-contact { display: grid; gap: var(--tn-space-1); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0; overflow-wrap: anywhere; }
 .tn-msg-contact h3 { margin: 0; }

@@ -1,18 +1,15 @@
 /* Materiais (P30). Só tokens da marca; estado sempre por palavra. */
 .tn-mt { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-mt-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
 .tn-mt-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; min-width: 0; }
-.tn-mt-field { display: grid; gap: var(--tn-space-1); flex: 1 1 10rem; min-width: 0; font-size: var(--tn-font-size-sm); }
-.tn-mt-field input, .tn-mt-field select { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; font: inherit; }
+.tn-mt-form > .tn-field, .tn-mt-fieldset > .tn-field { flex: 1 1 10rem; }
 .tn-mt-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
 .tn-mt-fieldset { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--tn-space-1) var(--tn-space-4); min-width: 0; }
-.tn-mt-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: flex-end; }
 .tn-mt-slots { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
 .tn-mt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
 .tn-mt-item { display: grid; gap: var(--tn-space-1); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0; overflow-wrap: anywhere; }
 .tn-mt-item h3, .tn-mt-item p { margin: 0; }
 .tn-mt-row { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; min-width: 0; overflow-wrap: anywhere; }
-.tn-mt-kind { margin: var(--tn-space-3) 0 0; font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
+.tn-mt-kind { margin: var(--tn-space-3) 0 0; font-size: var(--tn-text-support); color: var(--tn-text-muted); }
 .tn-mt-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); }
 .tn-mt-head h2 { margin: 0; }
 .tn-mt-new, .tn-mt-rules { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); }

@@ -37,7 +37,7 @@ test("equipe: concluir lança comissão e cobrança; reserva composta prende pro
   await form.getByLabel("Cadeira: Cadeira 2").check();
   await form.getByRole("button", { name: "Ver horários livres" }).click();
   await expect(slots.getByRole("button", { name: "10:00", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Fechar" }).click();
+  await page.getByRole("button", { name: "Fechar", exact: true }).click();
 
   // Turma com uma vaga: a segunda inscrição é recusada.
   await page.getByRole("button", { name: "Nova turma" }).click();

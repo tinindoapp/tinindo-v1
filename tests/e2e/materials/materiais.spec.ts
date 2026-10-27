@@ -23,7 +23,8 @@ test("materiais: uso pela ficha sai uma vez, estorno devolve, margem real com co
   await expect(uses.getByRole("listitem").filter({ hasText: "Barba" })).toContainText("(o serviço não tem ficha)");
 
   // Estorno devolve exato.
-  await corte.getByRole("button", { name: "Estornar uso" }).click();
+  await corte.getByRole("button", { name: /Estornar o uso de materiais/ }).click();
+  await corte.getByRole("button", { name: "Sim, estornar" }).click();
   await expect(page.getByText("Uso estornado: os materiais voltaram ao estoque.")).toBeVisible();
   await expect(stock).toContainText("Shampoo · Consumível · 1.000 ml · R$ 50,00");
 

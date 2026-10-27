@@ -20,10 +20,7 @@ const SOURCES: Record<string, string> = Object.fromEntries(
 );
 
 /** Reservas que ainda existem em arquivos de outros pacotes (fora desta mudança). Remover daqui ao corrigir. */
-const PENDING_FALLBACKS = new Set([
-  "src/features/analytics/analytics.css: var(--tn-font-size-md, 1rem)",
-  "src/features/scheduling/scheduling.css: var(--tn-tabbar-h, 64px)",
-]);
+const PENDING_FALLBACKS = new Set<string>([]);
 
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 

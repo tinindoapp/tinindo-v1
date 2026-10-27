@@ -2,7 +2,7 @@
 // esta é a do app (link compartilhável e demonstração).
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import type { PublicSite, PublicSitePort } from "./port.ts";
 import { SitePreview } from "./SitePreview.tsx";
 
@@ -20,10 +20,7 @@ export function PublicSitePage({ port }: { port: PublicSitePort }) {
       {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Site de exemplo; nada foi publicado de verdade.</StatusBanner> : null}
       {!current ? <p role="status">Carregando…</p> : null}
       {current?.missing ? (
-        <Card aria-labelledby="site-missing">
-          <h1 id="site-missing">Site não encontrado</h1>
-          <p>O endereço pode estar errado ou o negócio tirou o site do ar.</p>
-        </Card>
+        <PageHeader id="site-missing" title="Site não encontrado" subtitle="O endereço pode estar errado ou o negócio tirou o site do ar." />
       ) : null}
       {current?.site ? (
         <>

@@ -3,6 +3,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FX } from "@contracts/fixtures.ts";
 import { SessionProvider } from "../../app/session.tsx";
+import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
 import { createDemoNetworkApi, createHttpNetworkApi, resetDemoNetwork } from "./api.ts";
 import { networkModule, networkPublicRoutes } from "./module.tsx";
@@ -15,6 +16,7 @@ function renderAt(path: string) {
   return render(
     <SessionProvider client={null}>
       <RouterProvider router={router} />
+      <Toaster />
     </SessionProvider>,
   );
 }
@@ -32,7 +34,10 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/");
   sessionStorage.clear();
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  dismissToast();
+});
 
 describe("perfil do dono (demonstração)", () => {
   it("onboarding progressivo: convite de colega só aparece depois do perfil no ar", async () => {
@@ -47,8 +52,15 @@ describe("perfil do dono (demonstração)", () => {
     renderAt("/app/perfil");
     const slug = await screen.findByLabelText("Endereço do perfil");
     fireEvent.change(slug, { target: { value: "a" } });
-    expect(screen.getByText(/Use de 3 a 50 letras/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Publicar perfil" })).toBeDisabled();
+    // Botão sempre ativo: ao enviar, cada erro aparece embaixo do seu campo e o foco vai para o primeiro.
+    const submit = screen.getByRole("button", { name: "Publicar perfil" });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    expect(await screen.findByText(/Use de 3 a 50 letras/)).toBeInTheDocument();
+    expect(screen.getByText("Informe o bairro ou a região.")).toBeInTheDocument();
+    await waitFor(() => expect(slug).toHaveFocus());
+    expect(slug).toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByText("Perfil publicado.")).not.toBeInTheDocument();
     fireEvent.change(slug, { target: { value: "Barbearia São João" } });
     expect(slug).toHaveValue("barbearia-sao-joao");
     fireEvent.change(screen.getByLabelText("Bairro ou região"), { target: { value: "Centro" } });
@@ -71,7 +83,7 @@ describe("perfil do dono (demonstração)", () => {
     fireEvent.click(within(card).getByRole("button", { name: "Copiar link" }));
     expect(await within(card).findByRole("button", { name: "Copiado" })).toBeInTheDocument();
     expect(writeText).toHaveBeenCalledWith(url);
-    expect(within(card).getByRole("status")).toHaveTextContent("Link copiado");
+    expect(await screen.findByText(/Link copiado/)).toBeInTheDocument();
     // "Ver como o cliente vê" continua no cartão do perfil.
     expect(screen.getByRole("link", { name: "Ver como o cliente vê" })).toBeInTheDocument();
   });
@@ -81,7 +93,7 @@ describe("perfil do dono (demonstração)", () => {
     await publishDemoProfile();
     const card = await screen.findByRole("region", { name: "Seu perfil está no ar!" });
     fireEvent.click(within(card).getByRole("button", { name: "Copiar link" }));
-    expect(await within(card).findByText(/Não foi possível copiar/)).toBeInTheDocument();
+    expect(await screen.findByText(/Não foi possível copiar/)).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Copiar link" })).toBeInTheDocument();
   });
 
@@ -126,8 +138,10 @@ describe("páginas públicas (demonstração)", () => {
     fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
     const phone = screen.getByLabelText("WhatsApp com DDD");
     fireEvent.change(phone, { target: { value: "1197" } });
-    expect(screen.getByText(/Use o número com DDD/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pedir este horário" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
+    expect(await screen.findByText(/Use o número com DDD/)).toBeInTheDocument();
+    await waitFor(() => expect(phone).toHaveFocus());
+    expect(screen.queryByRole("heading", { name: "Confirme o horário" })).not.toBeInTheDocument();
     fireEvent.change(phone, { target: { value: "(11) 97777-4343" } });
     // O código vai para o WhatsApp de quem pede, não do profissional.
     expect(screen.getByText(/código de 6 dígitos para o\s+seu WhatsApp/)).toBeInTheDocument();
@@ -167,6 +181,19 @@ describe("páginas públicas (demonstração)", () => {
     cleanup();
     renderAt("/p/barbearia-exemplo");
     expect(await screen.findByRole("heading", { name: "Perfil não encontrado" })).toBeInTheDocument();
+  });
+
+  it("Tirar do ar oferece Desfazer, que publica de novo no mesmo endereço", async () => {
+    await publishDemoProfile();
+    fireEvent.click(screen.getByRole("button", { name: "Tirar do ar" }));
+    await screen.findByText(/Perfil removido do ar/);
+    expect(await screen.findByRole("heading", { name: "Montar perfil" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    expect(await screen.findByText(/Perfil de volta no ar/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Perfil no ar" })).toBeInTheDocument();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    expect(await screen.findByRole("heading", { name: "Barbearia Exemplo A" })).toBeInTheDocument();
   });
 
   it("convite: token sai da URL, abrir não aceita, aceitar é ação explícita e de uso único", async () => {

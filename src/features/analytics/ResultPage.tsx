@@ -2,7 +2,7 @@
 // comparação com um ponto de partida guardado (baseline). Antes/depois não prova causa; insuficiente e indisponível não viram zero.
 import { type FormEvent, useEffect, useState } from "react";
 import type { AnalyticsBaseline, AnalyticsMetricsOutput, TimeRange } from "@contracts";
-import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { deltaText, localDayStart, metricMath, metricValue, PERIODS } from "./format.ts";
 import { type AnalyticsPort, newKey } from "./port.ts";
 
@@ -24,7 +24,10 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
   const [data, setData] = useState<AnalyticsMetricsOutput | null>(null);
   const [baselines, setBaselines] = useState<AnalyticsBaseline[]>([]);
   const [error, setError] = useState<unknown>(null);
-  const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  // Erro ao guardar fica no formulário; a confirmação sai num aviso curto (Toast).
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { formRef, errors, show } = useFormErrors<"label">();
   const [label, setLabel] = useState("Antes da Tinindo");
   const [key, setKey] = useState(newKey);
   const [nonce, setNonce] = useState(0);
@@ -53,15 +56,19 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
 
   async function create(e: FormEvent) {
     e.preventDefault();
-    if (!tz) return;
+    if (!show({ label: !label.trim() && "Dê um nome ao ponto de partida." }) || !tz) return;
+    setSaving(true);
+    setSaveError(null);
     try {
       const b = await port.createBaseline(label.trim(), period("28", tz), key);
       setKey(newKey());
       setBaselineId(b.id);
-      setNotice({ tone: "success", text: `Ponto de partida “${b.label}” guardado com os números dos últimos 28 dias. Escolha-o em “Comparar com”.` });
+      toast(`Ponto de partida “${b.label}” guardado com os números dos últimos 28 dias. Escolha-o em “Comparar com”.`);
       setNonce((n) => n + 1);
     } catch (err) {
-      setNotice({ tone: "danger", text: explain(err) });
+      setSaveError(explain(err));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -80,26 +87,21 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
     <div className="tn-an">
       <div className="tn-page-intro">
         <PageHeader id="an-title" title="Resultado" />
-        <p className="tn-an-muted">
+        <p className="tn-muted">
           Números do que foi registrado na Tinindo. Cada indicador mostra a conta e o que falta nos dados.
           <strong> Comparar antes e depois não prova que a mudança veio da Tinindo.</strong>
         </p>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Agenda sintética, só para demonstração.</StatusBanner> : null}
-        {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
         <div className="tn-an-controls">
-          <label className="tn-an-field">Período
-            <select value={periodId} onChange={(e) => setPeriodId(e.target.value as typeof periodId)}>
-              {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-          </label>
-          <label className="tn-an-field">Comparar com
-            <select value={baselineId} onChange={(e) => setBaselineId(e.target.value)}>
-              <option value="">Sem comparação</option>
-              {baselines.map((b) => <option key={b.id} value={b.id}>{b.label} ({fmtDay(b.period.starts_at, zone)}–{fmtDay(b.period.ends_at, zone)})</option>)}
-            </select>
-          </label>
+          <Field as="select" label="Período" value={periodId} onChange={(e) => setPeriodId(e.target.value as typeof periodId)}>
+            {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </Field>
+          <Field as="select" label="Comparar com" value={baselineId} onChange={(e) => setBaselineId(e.target.value)}>
+            <option value="">Sem comparação</option>
+            {baselines.map((b) => <option key={b.id} value={b.id}>{b.label} ({fmtDay(b.period.starts_at, zone)}–{fmtDay(b.period.ends_at, zone)})</option>)}
+          </Field>
         </div>
-        {data ? <p className="tn-an-muted">De {fmtDay(data.period.starts_at, zone)} a {fmtDay(data.period.ends_at, zone)} (fim não incluído) · atualizado agora.</p> : null}
+        {data ? <p className="tn-muted">De {fmtDay(data.period.starts_at, zone)} a {fmtDay(data.period.ends_at, zone)} (fim não incluído) · atualizado agora.</p> : null}
       </div>
 
       {data ? (
@@ -112,8 +114,8 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
                 <li key={m.key} className="tn-an-metric" data-status={m.status}>
                   <h3>{m.label}</h3>
                   <p className="tn-an-value tn-num">{metricValue(m)}</p>
-                  {metricMath(m) ? <p className="tn-an-muted">Conta: {metricMath(m)}</p> : null}
-                  {c ? <p className="tn-an-muted">Ponto de partida: {metricValue({ unit: m.unit, value: c.baseline_value, status: c.baseline_value === null ? "insufficient" : "ok" })} · diferença: {deltaText(m.unit, c.delta)}</p> : null}
+                  {metricMath(m) ? <p className="tn-muted">Conta: {metricMath(m)}</p> : null}
+                  {c ? <p className="tn-muted">Ponto de partida: {metricValue({ unit: m.unit, value: c.baseline_value, status: c.baseline_value === null ? "insufficient" : "ok" })} · diferença: {deltaText(m.unit, c.delta)}</p> : null}
                   <p className="tn-an-note">{m.note}</p>
                 </li>
               );
@@ -126,20 +128,19 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
       {data ? (
         <Card aria-labelledby="an-coverage-title">
           <h2 id="an-coverage-title">O que falta nos dados</h2>
-          {data.coverage.length === 0 ? <p className="tn-an-muted">Nenhuma lacuna conhecida neste período.</p> : (
+          {data.coverage.length === 0 ? <p className="tn-muted">Nenhuma lacuna conhecida neste período.</p> : (
             <ul className="tn-an-list">{data.coverage.map((c) => <li key={c.key}>{c.count !== null ? <strong>{c.count} · </strong> : null}{c.note}</li>)}</ul>
           )}
         </Card>
       ) : null}
 
       <Card aria-labelledby="an-baseline-title">
-        <form aria-labelledby="an-baseline-title" className="tn-an-controls" onSubmit={(e) => void create(e)}>
+        <form ref={formRef} aria-labelledby="an-baseline-title" className="tn-an-controls" onSubmit={(e) => void create(e)} noValidate>
           <h2 id="an-baseline-title">Guardar como ponto de partida</h2>
-          <p className="tn-an-muted">Guarda os números dos últimos 28 dias (até ontem) para comparar depois. Esses números ficam fixos: o que você lançar depois não muda o ponto de partida.</p>
-          <label className="tn-an-field">Nome
-            <input value={label} maxLength={80} onChange={(e) => setLabel(e.target.value)} />
-          </label>
-          <Button type="submit" disabled={!label.trim()}>Guardar ponto de partida</Button>
+          <p className="tn-muted">Guarda os números dos últimos 28 dias (até ontem) para comparar depois. Esses números ficam fixos: o que você lançar depois não muda o ponto de partida.</p>
+          <Field label="Nome" value={label} maxLength={80} error={errors.label} onChange={(e) => setLabel(e.target.value)} />
+          <Button type="submit" loading={saving}>Guardar ponto de partida</Button>
+          {saveError ? <StatusBanner tone="danger">{saveError}</StatusBanner> : null}
         </form>
       </Card>
     </div>

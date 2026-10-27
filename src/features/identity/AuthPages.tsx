@@ -2,34 +2,40 @@
 // nunca diz se um e-mail tem conta. Cadastro e recuperação são PÚBLICOS: o integrador liga as
 // rotas (db/proposals/P01/PROPOSTA_INTEGRADOR.md). Nova senha roda dentro de /app/conta.
 import { type FormEvent, useState } from "react";
-import { Link } from "react-router";
-import { Button, Card, Field, StatusBanner, Wordmark } from "../../components/ui/index.tsx";
+import { Link, useNavigate } from "react-router";
+import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors, Wordmark } from "../../components/ui/index.tsx";
 import { messageFor } from "./errors.ts";
 import { MIN_PASSWORD_LENGTH } from "./presets.ts";
 import { IdentityServicesProvider, useIdentityServices } from "./services.tsx";
 
-function passwordProblem(password: string, confirm: string): string | null {
-  if (password.length < MIN_PASSWORD_LENGTH) return `Use pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`;
-  if (password !== confirm) return "As senhas não são iguais.";
-  return null;
+/** Erros de senha por campo: o tamanho fica na senha; a diferença, na repetição. */
+function passwordErrors(password: string, confirm: string) {
+  return {
+    password: !password
+      ? "Crie uma senha."
+      : password.length < MIN_PASSWORD_LENGTH
+        ? `Use pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`
+        : null,
+    confirm: !confirm ? "Repita a senha." : password && confirm !== password ? "As senhas não são iguais." : null,
+  };
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailError = (email: string) => (!email ? "Informe seu e-mail." : EMAIL_RE.test(email) ? null : "Informe um e-mail válido.");
 
 export function SignUpPage() {
   const services = useIdentityServices();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<null | "confirm" | "signed_in">(null);
+  const { formRef, errors, show, clear } = useFormErrors<"email" | "password" | "confirm">();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
-    if (!EMAIL_RE.test(email)) return setError("Informe um e-mail válido.");
-    const problem = passwordProblem(password, String(form.get("confirm") ?? ""));
-    if (problem) return setError(problem);
+    if (!show({ email: emailError(email), ...passwordErrors(password, String(form.get("confirm") ?? "")) })) return;
     setPending(true);
     setError(null);
     try {
@@ -56,13 +62,23 @@ export function SignUpPage() {
             Conta criada. <Link to="/app/conta/novo-negocio">Criar meu negócio</Link>
           </StatusBanner>
         ) : (
-          <form className="tn-stack" onSubmit={onSubmit} noValidate>
-            <Field label="E-mail" name="email" type="email" autoComplete="email" required />
-            <Field label="Senha" name="password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required />
-            <Field label="Repita a senha" name="confirm" type="password" autoComplete="new-password" required />
+          <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate>
+            <Field label="E-mail" name="email" type="email" autoComplete="email" required error={errors.email} onChange={() => clear("email")} />
+            <Field
+              label="Senha"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={MIN_PASSWORD_LENGTH}
+              required
+              hint={`Pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`}
+              error={errors.password}
+              onChange={() => clear("password")}
+            />
+            <Field label="Repita a senha" name="confirm" type="password" autoComplete="new-password" required error={errors.confirm} onChange={() => clear("confirm")} />
             {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-            <Button type="submit" disabled={pending || !services.online}>
-              {pending ? "Criando…" : "Criar conta"}
+            <Button type="submit" loading={pending} loadingText="Criando…" disabled={!services.online}>
+              Criar conta
             </Button>
             {!services.online ? <StatusBanner tone="info">Demonstração sem servidor: cadastro desabilitado.</StatusBanner> : null}
             <Link to="/entrar">Já tenho conta</Link>
@@ -78,11 +94,12 @@ export function RecoverPasswordPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const { formRef, errors, show, clear } = useFormErrors<"email">();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const email = String(new FormData(e.currentTarget).get("email") ?? "").trim();
-    if (!EMAIL_RE.test(email)) return setError("Informe um e-mail válido.");
+    if (!show({ email: emailError(email) })) return;
     setPending(true);
     setError(null);
     try {
@@ -106,11 +123,11 @@ export function RecoverPasswordPage() {
             tempo.
           </StatusBanner>
         ) : (
-          <form className="tn-stack" onSubmit={onSubmit} noValidate>
-            <Field label="E-mail da conta" name="email" type="email" autoComplete="email" required />
+          <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate>
+            <Field label="E-mail da conta" name="email" type="email" autoComplete="email" required error={errors.email} onChange={() => clear("email")} />
             {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-            <Button type="submit" disabled={pending || !services.online}>
-              {pending ? "Enviando…" : "Enviar link"}
+            <Button type="submit" loading={pending} loadingText="Enviando…" disabled={!services.online}>
+              Enviar link
             </Button>
           </form>
         )}
@@ -124,19 +141,20 @@ export function NewPasswordPage() {
   const services = useIdentityServices();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const navigate = useNavigate();
+  const { formRef, errors, show, clear } = useFormErrors<"password" | "confirm">();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const password = String(form.get("password") ?? "");
-    const problem = passwordProblem(password, String(form.get("confirm") ?? ""));
-    if (problem) return setError(problem);
+    if (!show(passwordErrors(password, String(form.get("confirm") ?? "")))) return;
     setPending(true);
     setError(null);
     try {
       await services.updatePassword(password);
-      setDone(true);
+      toast("Senha alterada.");
+      navigate("/app/conta");
     } catch (err) {
       setError(messageFor(err, "auth"));
     } finally {
@@ -145,24 +163,32 @@ export function NewPasswordPage() {
   }
 
   return (
-    <Card aria-labelledby="new-password-title">
-      <p className="tn-caps">Conta</p>
-      <h1 id="new-password-title">Nova senha</h1>
-      {done ? (
-        <StatusBanner tone="success">
-          Senha alterada. <Link to="/app/conta">Voltar para a conta</Link>
-        </StatusBanner>
-      ) : (
-        <form className="tn-stack" onSubmit={onSubmit} noValidate>
-          <Field label="Nova senha" name="password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required />
-          <Field label="Repita a nova senha" name="confirm" type="password" autoComplete="new-password" required />
+    <div className="tn-stack">
+      <PageHeader id="new-password-title" eyebrow="Conta" title="Nova senha" />
+      <Card aria-labelledby="new-password-title">
+        <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate>
+          <Field
+            label="Nova senha"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            minLength={MIN_PASSWORD_LENGTH}
+            required
+            hint={`Pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`}
+            error={errors.password}
+            onChange={() => clear("password")}
+          />
+          <Field label="Repita a nova senha" name="confirm" type="password" autoComplete="new-password" required error={errors.confirm} onChange={() => clear("confirm")} />
           {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-          <Button type="submit" disabled={pending || !services.online}>
-            {pending ? "Salvando…" : "Salvar senha"}
-          </Button>
+          <div className="tn-actions">
+            <Button type="submit" loading={pending} loadingText="Salvando…" disabled={!services.online}>
+              Salvar senha
+            </Button>
+            <Link to="/app/conta">Voltar</Link>
+          </div>
         </form>
-      )}
-    </Card>
+      </Card>
+    </div>
   );
 }
 

@@ -5,7 +5,7 @@ import type { RouteObject } from "react-router";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { createDemoLinkPort, createDemoPort } from "./demoPort.ts";
 import type { QuoteLinkPort, SalesPort } from "./port.ts";
@@ -23,10 +23,10 @@ function SalesLayout() {
   }, [state.status, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="qt-no-tenant">
-        <h1 id="qt-no-tenant">Orçamentos</h1>
+      <div className="tn-stack">
+        <PageHeader id="qt-no-tenant" title="Orçamentos" />
         <StatusBanner tone="info">Selecione um negócio para ver os orçamentos.</StatusBanner>
-      </Card>
+      </div>
     );
   }
   return (

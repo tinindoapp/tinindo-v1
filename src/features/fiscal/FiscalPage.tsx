@@ -1,13 +1,24 @@
 // Notas fiscais (P16): NFS-e no caso elegível (MEI), com representação autorizada pelo dono e credencial no provedor.
 // Lista primeiro; "Nova nota" abre o formulário. Emitir não é receber: o recebimento continua no Caixa.
-import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { type ComponentProps, type FormEvent, useEffect, useState } from "react";
+import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
 import { type FiscalDocument, type FiscalFolder, type FiscalOverview, type FiscalPort, newKey } from "./port.ts";
 
-type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string } | null;
-type Run = (action: () => Promise<unknown>, ok: string) => Promise<void>;
+/**
+ * Roda uma ação, confirma num aviso curto (Toast) e atualiza a tela. Erro: vai para `onError` (formulário, perto dos
+ * campos) ou, sem ele, num aviso de erro. Devolve se deu certo.
+ */
+type Run = (action: () => Promise<unknown>, ok: string, onError?: (err: unknown) => void) => Promise<boolean>;
+
+/** Botão de ação de um toque: mostra o carregando enquanto a ação roda. */
+function ActButton({ onAct, ...props }: Omit<ComponentProps<typeof Button>, "onClick" | "loading"> & { onAct: () => Promise<unknown> }) {
+  const [busy, setBusy] = useState(false);
+  return <Button {...props} loading={busy} onClick={() => { setBusy(true); void onAct().finally(() => setBusy(false)); }} />;
+}
+
+const digits = (v: string) => v.replace(/\D/g, "");
 
 function ProfileForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPort; run: Run; onClose: () => void }) {
   const p = o.profile;
@@ -16,33 +27,46 @@ function ProfileForm({ o, port, run, onClose }: { o: FiscalOverview; port: Fisca
   const [regime, setRegime] = useState(p?.regime ?? "mei");
   const [ibge, setIbge] = useState(p?.municipality_ibge ?? "");
   const [service, setService] = useState(p?.service_code ?? "06.01");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { formRef, errors, show } = useFormErrors<"legal" | "cnpj" | "ibge">();
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const ok = show({
+      legal: !legal.trim() && "Informe a razão social.",
+      cnpj: digits(cnpj).length !== 14 && "Informe os 14 números do CNPJ.",
+      ibge: ibge.length !== 7 && "Informe os 7 números do código da cidade.",
+    });
+    if (!ok) return;
+    setBusy(true);
+    setError(null);
+    await run(async () => {
+      await port.saveProfile({ expected_version: p?.version ?? 0, legal_name: legal, cnpj, regime, municipality_ibge: ibge, service_code: service }, newKey());
+      onClose();
+    }, "Dados fiscais salvos.", (err) => {
+      const field = (err as { field?: string } | null)?.field;
+      // CNPJ recusado pela conferência dos dígitos: o erro vai para o campo.
+      if (field === "cnpj") show({ cnpj: explain(err) });
+      else setError(explain(err));
+    });
+    setBusy(false);
+  }
   return (
-    <form className="tn-fsc-form" aria-label="Dados fiscais" onSubmit={(e: FormEvent) => {
-      e.preventDefault();
-      void run(async () => {
-        await port.saveProfile({ expected_version: p?.version ?? 0, legal_name: legal, cnpj, regime, municipality_ibge: ibge, service_code: service }, newKey());
-        onClose();
-      }, "Dados fiscais salvos.");
-    }}>
-      <label className="tn-field"><span>Razão social</span><input value={legal} maxLength={150} onChange={(e) => setLegal(e.target.value)} /></label>
-      <label className="tn-field"><span>CNPJ</span><input value={cnpj} inputMode="numeric" onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" /></label>
-      <label className="tn-field"><span>Regime</span>
-        <select value={regime} onChange={(e) => setRegime(e.target.value as typeof regime)}>
-          {Object.entries(REGIME_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-      </label>
-      <div className="tn-field">
-        <label htmlFor="fsc-ibge">Código da sua cidade (IBGE)</label>
-        <input id="fsc-ibge" value={ibge} inputMode="numeric" maxLength={7} aria-describedby="fsc-ibge-help" onChange={(e) => setIbge(e.target.value.replace(/\D/g, ""))} placeholder="3550308" />
-        <small id="fsc-ibge-help" className="tn-fsc-muted">São 7 números que a prefeitura usa na nota. Exemplos: São Paulo 3550308, Rio de Janeiro 3304557, Belo Horizonte 3106200. Não sabe? Pesquise “código IBGE” e o nome da sua cidade, ou pergunte ao seu contador.</small>
-      </div>
-      <label className="tn-field"><span>Serviço (lista nacional)</span>
-        <select value={service} onChange={(e) => setService(e.target.value as typeof service)}>
-          {Object.entries(SERVICE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-      </label>
-      <div className="tn-fsc-actions">
-        <Button type="submit">Salvar dados fiscais</Button>
+    <form ref={formRef} className="tn-fsc-form" aria-label="Dados fiscais" onSubmit={(e) => void submit(e)} noValidate>
+      <Field label="Razão social" value={legal} maxLength={150} error={errors.legal} onChange={(e) => setLegal(e.target.value)} />
+      <Field label="CNPJ" value={cnpj} inputMode="numeric" error={errors.cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
+      <Field as="select" label="Regime" value={regime} onChange={(e) => setRegime(e.target.value as typeof regime)}>
+        {Object.entries(REGIME_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+      </Field>
+      <Field label="Código da sua cidade (IBGE)" id="fsc-ibge" value={ibge} inputMode="numeric" maxLength={7} error={errors.ibge}
+        onChange={(e) => setIbge(digits(e.target.value))} placeholder="3550308"
+        hint="São 7 números que a prefeitura usa na nota. Exemplos: São Paulo 3550308, Rio de Janeiro 3304557, Belo Horizonte 3106200. Não sabe? Pesquise “código IBGE” e o nome da sua cidade, ou pergunte ao seu contador." />
+      <Field as="select" label="Serviço (lista nacional)" value={service} onChange={(e) => setService(e.target.value as typeof service)}>
+        {Object.entries(SERVICE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+      </Field>
+      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+      <div className="tn-actions">
+        <Button type="submit" loading={busy}>Salvar dados fiscais</Button>
         {p ? <Button variant="ghost" onClick={onClose}>Fechar</Button> : null}
       </div>
     </form>
@@ -75,16 +99,24 @@ function Setup({ o, port, run }: { o: FiscalOverview; port: FiscalPort; run: Run
         {o.representation?.active && o.representation.current_terms ? (
           <div className="tn-fsc-row">
             <span>Autorizado até {formatDate(o.representation.valid_until)}.</span>
-            <Button variant="ghost" onClick={() => void run(() => port.revoke(newKey()), "Autorização revogada. Notas já emitidas continuam valendo.")}>Revogar</Button>
+            {/* Autorização é consentimento: voltar exige autorizar de novo nos termos, não um "Desfazer". */}
+            <ConfirmAction
+              trigger="Revogar"
+              triggerLabel="Revogar a autorização para emitir em seu nome"
+              title="Revogar a autorização?"
+              consequence="A Tinindo deixa de emitir notas em seu nome até você autorizar de novo. Notas já emitidas continuam valendo."
+              confirmLabel="Sim, revogar"
+              onConfirm={() => run(() => port.revoke(newKey()), "Autorização revogada. Notas já emitidas continuam valendo.")}
+            />
           </div>
-        ) : <Button variant="secondary" onClick={() => void run(() => port.grant(o.terms.hash, newKey()), "Autorização registrada por um ano.")}>Autorizo nestes termos</Button>}
+        ) : <ActButton variant="secondary" onAct={() => run(() => port.grant(o.terms.hash, newKey()), "Autorização registrada por um ano.")}>Autorizo nestes termos</ActButton>}
       </section>
       <section className="tn-fsc-step" aria-labelledby="fsc-step-cred">
         <h3 id="fsc-step-cred">3 · Credencial no provedor fiscal</h3>
-        <p className="tn-fsc-muted">Seu certificado digital (ou procuração) é cadastrado por você direto no provedor fiscal. A Tinindo nunca recebe o certificado nem a senha: só confere com o provedor se a credencial está válida.</p>
+        <p className="tn-muted">Seu certificado digital (ou procuração) é cadastrado por você direto no provedor fiscal. A Tinindo nunca recebe o certificado nem a senha: só confere com o provedor se a credencial está válida.</p>
         <div className="tn-fsc-row">
           <span>{o.credential ? `Credencial ${o.credential.status === "valid" ? "válida" : o.credential.status === "expired" ? "vencida" : "não encontrada"}${o.credential.valid_until ? ` até ${formatDate(o.credential.valid_until)}` : ""} · conferida em ${formatDate(o.credential.checked_at)}` : "Ainda não conferida."}</span>
-          <Button variant="secondary" disabled={!o.profile} onClick={() => void run(() => port.checkCredential(), "Credencial conferida no provedor.")}>Conferir credencial</Button>
+          <ActButton variant="secondary" disabled={!o.profile} onAct={() => run(() => port.checkCredential(), "Credencial conferida no provedor.")}>Conferir credencial</ActButton>
         </div>
       </section>
     </Card>
@@ -100,6 +132,7 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
   const [desc, setDesc] = useState(first?.description ?? "");
   const [amount, setAmount] = useState(first ? (first.amount_cents / 100).toFixed(2).replace(".", ",") : "");
   const [date, setDate] = useState(todayLocal());
+  const { formRef, errors, show } = useFormErrors<"taker" | "desc" | "amount">();
   const pick = (id: string) => {
     setRec(id);
     const x = o.receivables.find((y) => y.id === id);
@@ -115,6 +148,7 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
   // Mesma chave ao repetir o mesmo pedido; ao corrigir, pedido novo.
   const [key, setKey] = useState(newKey);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const env = o.eligibility.environment;
   if (reviewing) {
     return (
@@ -127,17 +161,19 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
           <div><dt>Data do serviço</dt><dd className="tn-num">{formatDate(`${date}T12:00:00Z`)}</dd></div>
           <div><dt>Ambiente</dt><dd>{ENV_LABEL[env]}</dd></div>
         </dl>
-        {env === "homologacao" ? <p className="tn-fsc-muted">Ambiente de teste: a nota sai sem valor fiscal.</p> : <p className="tn-fsc-muted">Nota de verdade: depois de emitida, só sai com pedido de cancelamento e motivo.</p>}
-        <div className="tn-fsc-actions">
-          <Button disabled={sending} onClick={() => {
+        {env === "homologacao" ? <p className="tn-muted">Ambiente de teste: a nota sai sem valor fiscal.</p> : <p className="tn-muted">Nota de verdade: depois de emitida, só sai com pedido de cancelamento e motivo.</p>}
+        {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+        <div className="tn-actions">
+          <Button loading={sending} onClick={() => {
             setSending(true);
+            setError(null);
             void run(async () => {
               const d = await port.emit({ receivable_id: rec || null, taker_name: taker, taker_document: doc.trim() || null, description: desc, amount_cents: cents, competence_date: date }, key);
               onClose();
               return d;
-            }, "Pedido enviado ao provedor. Emitir não registra recebimento: o Caixa continua igual.").finally(() => setSending(false));
+            }, "Pedido enviado ao provedor. Emitir não registra recebimento: o Caixa continua igual.", (err) => setError(explain(err))).finally(() => setSending(false));
           }}>Emitir nota</Button>
-          <Button variant="ghost" disabled={sending} onClick={() => { setKey(newKey()); setReviewing(false); }}>Corrigir</Button>
+          <Button variant="ghost" disabled={sending} onClick={() => { setKey(newKey()); setError(null); setReviewing(false); }}>Corrigir</Button>
         </div>
       </Card>
     );
@@ -145,24 +181,27 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
   return (
     <Card aria-labelledby="fsc-new-title">
       <h2 id="fsc-new-title">Nova nota</h2>
-      <form className="tn-fsc-form" aria-label="Nova nota" onSubmit={(e) => {
+      <form ref={formRef} className="tn-fsc-form" aria-label="Nova nota" noValidate onSubmit={(e) => {
         e.preventDefault();
-        setReviewing(true);
+        const ok = show({
+          taker: !taker.trim() && "Informe o nome do cliente.",
+          desc: desc.trim().length < 3 && "Descreva o serviço (pelo menos 3 letras).",
+          amount: !(cents > 0) && "Informe o valor.",
+        });
+        if (ok) setReviewing(true);
       }}>
-        <label className="tn-field"><span>Atendimento cobrado</span>
-          <select value={rec} onChange={(e) => pick(e.target.value)}>
-            {o.receivables.map((x) => <option key={x.id} value={x.id}>{x.description} · {x.customer_name ?? "cliente"} · {formatCents(x.amount_cents)}</option>)}
-            <option value="">Sem vínculo com cobrança</option>
-          </select>
-        </label>
-        <label className="tn-field"><span>Nome do cliente (tomador)</span><input value={taker} maxLength={150} onChange={(e) => setTaker(e.target.value)} /></label>
-        <label className="tn-field"><span>CPF ou CNPJ do cliente (opcional)</span><input value={doc} inputMode="numeric" onChange={(e) => setDoc(e.target.value)} /></label>
-        <label className="tn-field"><span>Descrição do serviço</span><input value={desc} maxLength={500} onChange={(e) => setDesc(e.target.value)} /></label>
-        <label className="tn-field"><span>Valor (R$)</span><input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} /></label>
-        <label className="tn-field"><span>Data do serviço</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+        <Field as="select" label="Atendimento cobrado" value={rec} onChange={(e) => pick(e.target.value)}>
+          {o.receivables.map((x) => <option key={x.id} value={x.id}>{x.description} · {x.customer_name ?? "cliente"} · {formatCents(x.amount_cents)}</option>)}
+          <option value="">Sem vínculo com cobrança</option>
+        </Field>
+        <Field label="Nome do cliente (tomador)" value={taker} maxLength={150} error={errors.taker} onChange={(e) => setTaker(e.target.value)} />
+        <Field label="CPF ou CNPJ do cliente (opcional)" value={doc} inputMode="numeric" onChange={(e) => setDoc(e.target.value)} />
+        <Field label="Descrição do serviço" value={desc} maxLength={500} error={errors.desc} onChange={(e) => setDesc(e.target.value)} />
+        <Field label="Valor (R$)" value={amount} inputMode="decimal" error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
+        <Field label="Data do serviço" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         {r && cents > r.amount_cents ? <StatusBanner tone="warning">O valor passa o que foi cobrado ({formatCents(r.amount_cents)}).</StatusBanner> : null}
-        <div className="tn-fsc-actions">
-          <Button type="submit" disabled={!taker.trim() || desc.trim().length < 3 || !(cents > 0)}>Revisar a nota</Button>
+        <div className="tn-actions">
+          <Button type="submit">Revisar a nota</Button>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
         </div>
       </form>
@@ -171,35 +210,44 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
 }
 
 function DocItem({ d, port, run }: { d: FiscalDocument; port: FiscalPort; run: Run }) {
-  const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState("");
+  const label = d.number ? `Nota ${d.number}` : "Nota em emissão";
   return (
     <li className="tn-fsc-doc">
       <div className="tn-fsc-row">
         <span>
-          <strong>{d.number ? `Nota ${d.number}` : "Nota em emissão"}</strong> · {d.taker_name} · <span className="tn-num">{formatCents(d.amount_cents)}</span>
-          <span className="tn-fsc-muted"> · {formatDate(`${d.competence_date}T12:00:00Z`)}{d.environment === "homologacao" ? " · homologação" : ""}</span>
+          <strong>{label}</strong> · {d.taker_name} · <span className="tn-num">{formatCents(d.amount_cents)}</span>
+          <span className="tn-muted"> · {formatDate(`${d.competence_date}T12:00:00Z`)}{d.environment === "homologacao" ? " · homologação" : ""}</span>
         </span>
         <span className="tn-fsc-chip" data-status={d.status}>{STATUS_LABEL[d.status]}</span>
       </div>
-      <p className="tn-fsc-muted">{d.description}{d.protocol ? ` · protocolo ${d.protocol}` : ""}{d.verification_code ? ` · verificação ${d.verification_code}` : ""}{d.reject_reason ? ` · ${d.reject_reason}` : ""}{d.cancel_reason ? ` · motivo: ${d.cancel_reason}` : ""}</p>
-      <div className="tn-fsc-actions">
+      <p className="tn-muted">{d.description}{d.protocol ? ` · protocolo ${d.protocol}` : ""}{d.verification_code ? ` · verificação ${d.verification_code}` : ""}{d.reject_reason ? ` · ${d.reject_reason}` : ""}{d.cancel_reason ? ` · motivo: ${d.cancel_reason}` : ""}</p>
+      <div className="tn-actions tn-fsc-links">
         {d.pdf_url ? <a href={d.pdf_url} target="_blank" rel="noreferrer">PDF</a> : null}
         {d.xml_url ? <a href={d.xml_url} target="_blank" rel="noreferrer">XML</a> : null}
-        {d.status === "authorized" && !cancelling ? <Button variant="ghost" onClick={() => setCancelling(true)}>Cancelar nota</Button> : null}
+        {d.status === "authorized" ? (
+          // Cancelar nota não volta atrás: confirma com a consequência e o motivo que vai ao provedor.
+          <ConfirmAction
+            trigger="Cancelar nota"
+            triggerLabel={`Cancelar ${label}`}
+            title={d.number ? `Cancelar a nota ${d.number}?` : "Cancelar a nota?"}
+            consequence={`O pedido vai ao provedor e a nota de ${d.taker_name} (${formatCents(d.amount_cents)}) perde o valor fiscal. Não dá para desfazer.`}
+            confirmLabel="Sim, pedir cancelamento"
+            canConfirm={reason.trim().length >= 15}
+            missingHint="Escreva o motivo do cancelamento com pelo menos 15 letras."
+            onConfirm={async () => {
+              let failed: unknown = null;
+              await run(() => port.cancel({ document_id: d.id, expected_version: d.version, reason }, newKey()), "Cancelamento pedido ao provedor.", (err) => {
+                failed = err;
+                toast({ tone: "danger", message: explain(err) });
+              });
+              if (failed) throw failed;
+            }}
+          >
+            <Field label="Motivo do cancelamento" hint="Pelo menos 15 letras; vai para o provedor." value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} />
+          </ConfirmAction>
+        ) : null}
       </div>
-      {cancelling ? (
-        <form className="tn-fsc-form" aria-label={`Cancelar nota ${d.number ?? ""}`} onSubmit={(e) => {
-          e.preventDefault();
-          void run(() => port.cancel({ document_id: d.id, expected_version: d.version, reason }, newKey()), "Cancelamento pedido ao provedor.");
-        }}>
-          <label className="tn-field"><span>Motivo do cancelamento</span><input value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} /></label>
-          <div className="tn-fsc-actions">
-            <Button type="submit" variant="secondary" disabled={reason.trim().length < 15}>Pedir cancelamento</Button>
-            <Button variant="ghost" onClick={() => setCancelling(false)}>Voltar</Button>
-          </div>
-        </form>
-      ) : null}
     </li>
   );
 }
@@ -219,10 +267,10 @@ function Folder({ port }: { port: FiscalPort }) {
   return (
     <Card aria-labelledby="fsc-folder-title">
       <h2 id="fsc-folder-title">Pasta do contador</h2>
-      <p className="tn-fsc-muted">Notas do mês por data do serviço, para enviar ao seu contador. Canceladas aparecem, mas não somam.</p>
+      <p className="tn-muted">Notas do mês por data do serviço, para enviar ao seu contador. Canceladas aparecem, mas não somam.</p>
       <div className="tn-fsc-inline">
-        <label className="tn-field"><span>Mês</span><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></label>
-        <Button variant="secondary" onClick={() => void port.folder(month).then((x) => { setF(x); setErr(null); }, (e: unknown) => setErr(explain(e)))}>Ver pasta</Button>
+        <Field label="Mês" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        <ActButton variant="secondary" onAct={() => port.folder(month).then((x) => { setF(x); setErr(null); }, (e: unknown) => setErr(explain(e)))}>Ver pasta</ActButton>
       </div>
       {err ? <StatusBanner tone="danger">{err}</StatusBanner> : null}
       {f ? (
@@ -237,7 +285,6 @@ function Folder({ port }: { port: FiscalPort }) {
 
 export function FiscalPage({ port }: { port: FiscalPort }) {
   const [o, setO] = useState<FiscalOverview | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
   const [composing, setComposing] = useState(false);
@@ -246,14 +293,18 @@ export function FiscalPage({ port }: { port: FiscalPort }) {
     port.overview().then((v) => { if (alive) { setO(v); setError(null); } }, (e: unknown) => alive && setError(e ?? new Error("erro")));
     return () => { alive = false; };
   }, [port, nonce]);
-  const run: Run = async (action, ok) => {
+  const run: Run = async (action, ok, onError) => {
+    let done = false;
     try {
       await action();
-      setNotice({ tone: "success", text: ok });
+      toast(ok);
+      done = true;
     } catch (e) {
-      setNotice({ tone: "danger", text: explain(e) });
+      if (onError) onError(e);
+      else toast({ tone: "danger", message: explain(e) });
     }
     setNonce((n) => n + 1);
+    return done;
   };
   const env = o?.eligibility.environment ?? "homologacao";
   return (
@@ -264,7 +315,6 @@ export function FiscalPage({ port }: { port: FiscalPort }) {
       {env === "homologacao" ? <StatusBanner tone="info"><strong>Homologação.</strong> As notas daqui são de teste e não têm valor fiscal.</StatusBanner> : null}
       {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Provedor fiscal simulado; nada é enviado à prefeitura.</StatusBanner> : null}
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
       {o ? (
         <>
           {composing && o.eligibility.eligible ? <EmitForm o={o} port={port} run={run} onClose={() => setComposing(false)} /> : null}
@@ -272,7 +322,7 @@ export function FiscalPage({ port }: { port: FiscalPort }) {
           {!o.eligibility.eligible ? <Setup key={`setup:${o.profile?.version ?? 0}:${o.representation?.id ?? ""}`} o={o} port={port} run={run} /> : null}
           <Card aria-labelledby="fsc-list-title">
             <h2 id="fsc-list-title">Notas</h2>
-            {o.documents.length === 0 ? <p className="tn-fsc-muted">Nenhuma nota ainda.{o.eligibility.eligible ? " Comece em “Nova nota”." : ""}</p> : null}
+            {o.documents.length === 0 ? <p className="tn-muted">Nenhuma nota ainda.{o.eligibility.eligible ? " Comece em “Nova nota”." : ""}</p> : null}
             <ul className="tn-fsc-list" aria-label="Notas emitidas">
               {o.documents.map((d) => <DocItem key={`${d.id}:${d.version}`} d={d} port={port} run={run} />)}
             </ul>

@@ -12,7 +12,10 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   await expect(form.getByText(/Público autorizado agora: 6 cliente\(s\)/)).toBeVisible();
   await form.getByRole("combobox", { name: "Segmento" }).selectOption("marketing_all");
   await expect(form.getByText(/Público autorizado agora: 8 cliente\(s\)/)).toBeVisible();
-  await expect(form.getByRole("button", { name: "Aprovar campanha" })).toBeDisabled();
+  // Botão sempre ativo: sem nome, explica embaixo do campo e leva o foco até ele.
+  await form.getByRole("button", { name: "Aprovar campanha" }).click();
+  await expect(form.getByText("Informe o nome da campanha.")).toBeVisible();
+  await expect(form.getByLabel("Nome")).toBeFocused();
   await form.getByLabel("Nome").fill("Volta pro corte");
   await form.getByLabel("Grupo de controle (%)").fill("50");
   await form.getByLabel("Teto de envios").fill("3");
@@ -29,7 +32,7 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   await page.getByRole("button", { name: "Nova campanha" }).click();
   await expect(page.getByRole("form", { name: "Nova campanha" }).getByText(/Público autorizado agora: 1 cliente\(s\)/)).toBeVisible();
 
-  await page.getByRole("button", { name: "Fechar" }).click();
+  await page.getByRole("button", { name: "Fechar", exact: true }).click();
   await list.getByRole("button", { name: "Ver participantes" }).click();
   const members = list.getByRole("list", { name: "Participantes de Volta pro corte" });
   await expect(members.getByRole("listitem")).toHaveCount(7);
@@ -53,7 +56,10 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   await form2.getByRole("button", { name: "Aprovar campanha" }).click();
   await expect(page.getByText(/“Só observação” aprovada: .* 0 no grupo de controle.*sem grupo de controle \(observação\)/)).toBeVisible();
   await expect(list).toContainText("Só observação: sem grupo de controle, o resultado não mede efeito da campanha.");
-  await list.getByRole("button", { name: "Cancelar campanha" }).click();
+  // Cancelar não volta atrás: confirma com a consequência.
+  await list.getByRole("button", { name: "Cancelar a campanha Só observação" }).click();
+  await expect(list.getByRole("group", { name: "Cancelar a campanha “Só observação”?" })).toContainText("não dá para retomar");
+  await list.getByRole("button", { name: "Sim, cancelar" }).click();
   await expect(page.getByText("Campanha cancelada: o que ainda não saiu parou")).toBeVisible();
   await expect(list).toContainText("Cancelada");
 

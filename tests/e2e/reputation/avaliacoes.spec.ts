@@ -12,7 +12,9 @@ test("avaliações: cliente avalia atendimento concluído sem o nome aparecer; d
   await page.goto("/avaliar");
   await expect(page.getByRole("heading", { name: "Avaliar atendimentos", level: 1 })).toBeVisible();
   const form = page.getByRole("form", { name: /Avaliar Corte em Barbearia Exemplo A/ });
-  await expect(form.getByRole("button", { name: "Publicar avaliação" })).toBeDisabled();
+  // Botão sempre ativo: sem nota, explica embaixo da nota e não publica.
+  await form.getByRole("button", { name: "Publicar avaliação" }).click();
+  await expect(form.getByText("Escolha uma nota de 1 a 5.")).toBeVisible();
   await form.getByRole("radio", { name: "5 – Excelente" }).check();
   await form.getByLabel("Comentário (opcional)").fill("Atendimento pontual, voltarei.");
   await form.getByRole("button", { name: "Publicar avaliação" }).click();

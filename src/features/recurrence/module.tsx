@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { createDemoPort } from "./demoPort.ts";
 import type { RecurrencePort } from "./port.ts";
@@ -21,10 +21,10 @@ function RecurrenceLayout() {
   }, [state.status, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="rc-no-tenant">
-        <h1 id="rc-no-tenant">Assinaturas</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="rc-no-tenant" title="Assinaturas" />
         <StatusBanner tone="info">Selecione um negócio para ver os planos.</StatusBanner>
-      </Card>
+      </div>
     );
   }
   return <RecurrencePage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;

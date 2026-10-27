@@ -1,26 +1,19 @@
-/* Preços (P05). Só tokens da marca. */
+/* Preços (P05). Só tokens da marca. Listas, ações, texto de apoio e grade dos formulários vêm dos utilitários. */
 .tn-pr { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-pr-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
 .tn-pr-section { display: grid; gap: var(--tn-space-3); min-width: 0; }
 .tn-pr-section h2 { margin: var(--tn-space-4) 0 0; }
-.tn-pr-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; min-width: 0; }
-.tn-pr-form .tn-field { flex: 1 1 10rem; min-width: 0; }
-.tn-pr-form .tn-field input, .tn-pr-form .tn-field select { width: 100%; min-width: 0; }
-.tn-pr-days { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); border: 0; padding: 0; margin: 0; width: 100%; min-width: 0; }
-.tn-pr-days legend { font-size: var(--tn-font-size-sm); margin-bottom: var(--tn-space-1); }
+.tn-pr-days { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); border: 0; padding: 0; margin: 0; min-width: 0; }
+.tn-pr-days legend { font-size: var(--tn-text-support); margin-bottom: var(--tn-space-1); }
+.tn-pr-days > .tn-field__error { flex-basis: 100%; }
 .tn-pr-check { display: inline-flex; align-items: center; gap: var(--tn-space-1); min-height: var(--tn-size-touch); padding-right: var(--tn-space-2); }
 .tn-pr-check input { width: 20px; height: 20px; }
 .tn-pr-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--tn-space-2) var(--tn-space-4); margin: var(--tn-space-3) 0 0; }
 .tn-pr-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.tn-pr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
-.tn-pr-item {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2);
-  padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0;
-}
+.tn-pr-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); }
 .tn-pr-item > div { min-width: 0; overflow-wrap: anywhere; }
-.tn-pr-item--stack { display: grid; }
+.tn-pr-item > .tn-confirm { flex: 1 1 100%; }
+.tn-pr-proposal { display: grid; gap: var(--tn-space-2); justify-items: start; }
 .tn-pr select, .tn-pr input { min-height: var(--tn-size-touch); max-width: 100%; }
 @media (max-width: 30rem) {
-  .tn-pr-form { display: grid; grid-template-columns: minmax(0, 1fr); }
   .tn-pr-dl { grid-template-columns: minmax(0, 1fr); }
 }

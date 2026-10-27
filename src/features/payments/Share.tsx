@@ -42,13 +42,13 @@ export function CodeDetails({ pix, url }: { pix?: string | null; url?: string | 
       <summary>Ver código</summary>
       {pix ? (
         <>
-          <p className="tn-pay-muted">Pix copia e cola:</p>
+          <p className="tn-muted">Pix copia e cola:</p>
           <code className="tn-pay-code" aria-label="Pix copia e cola">{pix}</code>
         </>
       ) : null}
       {url ? (
         <>
-          <p className="tn-pay-muted">Link de pagamento:</p>
+          <p className="tn-muted">Link de pagamento:</p>
           <code className="tn-pay-code" aria-label="Link de pagamento">{url}</code>
         </>
       ) : null}
@@ -60,14 +60,14 @@ export function CodeDetails({ pix, url }: { pix?: string | null; url?: string | 
 export function ShareCharge({ description, amountCents, pix, url, openLink }: { description: string; amountCents: number; pix: string | null; url: string; openLink: ReactNode }) {
   return (
     <div className="tn-pay-share" role="group" aria-label="Enviar a cobrança">
-      <div className="tn-pay-actions">
+      <div className="tn-actions">
         {pix ? <CopyButton text={pix} label="Copiar Pix" what="Pix" /> : null}
         <a className="tn-button" data-variant="secondary" href={whatsappUrl(pixMessage(description, amountCents, url))} target="_blank" rel="noreferrer">
           Enviar pelo WhatsApp
         </a>
         <CopyButton text={url} label="Copiar link" variant="secondary" what="Link" />
       </div>
-      <p className="tn-pay-muted">Abrir o WhatsApp não confirma que a cliente recebeu. O pagamento só aparece aqui quando o banco confirma.</p>
+      <p className="tn-muted">Abrir o WhatsApp não confirma que a cliente recebeu. O pagamento só aparece aqui quando o banco confirma.</p>
       {openLink}
       <CodeDetails pix={pix} url={url} />
     </div>

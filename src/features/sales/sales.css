@@ -1,16 +1,12 @@
-/* Orçamentos (P11). Só tokens da marca; estado nunca só por cor. */
-.tn-qt { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-qt-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
-.tn-qt-section { display: grid; gap: var(--tn-space-3); min-width: 0; }
+/* Orçamentos (P11). Só tokens da marca; estado nunca só por cor. Pilha, ações e apoio vêm de .tn-stack, .tn-actions e .tn-muted. */
 .tn-qt-grid { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; }
-.tn-qt-field { display: grid; gap: var(--tn-space-1); flex: 1 1 12rem; min-width: 0; font-size: var(--tn-font-size-sm); }
-.tn-qt-field--small { flex: 0 1 7rem; }
-.tn-qt-field input, .tn-qt-field select, .tn-qt-field textarea { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; font: inherit; }
+.tn-qt-grid > .tn-field, .tn-qt-item > .tn-field { flex: 1 1 12rem; }
+.tn-qt-grid > p { flex-basis: 100%; margin: 0; }
+.tn-qt-item > .tn-field.tn-qt-field--small { flex: 0 1 7rem; }
 .tn-qt-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
 .tn-qt-items { display: grid; gap: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3); min-width: 0; }
 .tn-qt-item { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; padding-bottom: var(--tn-space-3); border-bottom: 1px solid var(--tn-border); min-width: 0; }
 .tn-qt-total { margin: 0; }
-.tn-qt-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
 .tn-qt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
 .tn-qt-row {
   display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--tn-space-2);
@@ -28,6 +24,6 @@
 /* Compartilhar (WhatsApp, folha do sistema, copiar) com retorno visível; mesmo bloco nos dois módulos. */
 .tn-share { display: grid; gap: var(--tn-space-1); min-width: 0; }
 .tn-share__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
-.tn-share__status { margin: 0; min-height: 1.5em; font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
+.tn-share__status { margin: 0; min-height: 1.5em; font-size: var(--tn-text-support); color: var(--tn-text-muted); }
 .tn-share__status[data-ok="true"] { color: var(--tn-success-text); font-weight: var(--tn-font-weight-medium); }
 .tn-share__status[data-ok="false"] { color: var(--tn-danger-text); }

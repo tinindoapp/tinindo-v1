@@ -7,6 +7,32 @@
   /* A fonte empacotada se chama "Inter Variable" (eixo opsz cobre Inter Display). Mesma família do token. */
   --tn-font-sans: "Inter Variable", "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --tn-font-display: "Inter Variable", "Inter Display", "Inter", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+
+  /* Escala de texto por papel (auditoria de UX, item 10). Só estes tamanhos nas telas; nada de px/rem solto.
+     Os valores apontam para a escala da marca: o papel muda de tamanho num lugar só. */
+  --tn-text-title: var(--tn-font-size-2xl);   /* h1 da tela (32 px a partir de 900 px) */
+  --tn-text-section: var(--tn-font-size-xl);  /* h2: seção da tela */
+  --tn-text-group: var(--tn-font-size-lg);    /* h3: título de cartão ou grupo */
+  --tn-text-body: var(--tn-font-size-md);     /* texto corrido, campos e botões */
+  --tn-text-support: var(--tn-font-size-sm);  /* apoio: meta de linha, dica, nota */
+  --tn-text-label: var(--tn-font-size-xs);    /* rótulo em caixa-alta, selo (mínimo de 12 px) */
+  --tn-text-number: var(--tn-font-size-2xl);  /* número em destaque (indicador, valor) */
+  --tn-text-number-lg: var(--tn-font-size-3xl); /* número principal da tela ("Sobrou no mês") */
+
+  /* "Selecionado" (item 9): uma aparência só. Preenchido com a cor de ação, texto invertido e peso 600. */
+  --tn-selected-bg: var(--tn-action);
+  --tn-selected-text: var(--tn-text-on-action);
+  --tn-selected-border: var(--tn-selected-indicator);
+  --tn-selected-weight: var(--tn-font-weight-semibold);
+
+  /* Desabilitado (item 17): uma opacidade só para botão, botão de ícone e campo. */
+  --tn-opacity-disabled: 0.5;
+
+  /* Ação de perigo (só para confirmar o que não volta atrás): o vermelho de texto de cada tema como fundo. */
+  --tn-danger-action: var(--tn-danger-text);
+}
+@media (min-width: 900px) {
+  :root { --tn-text-title: var(--tn-font-size-3xl); --tn-text-section: var(--tn-font-size-2xl); }
 }
 
 *,
@@ -26,7 +52,7 @@ body {
   background: var(--tn-bg);
   color: var(--tn-text);
   font-family: var(--tn-font-sans);
-  font-size: var(--tn-font-size-md);
+  font-size: var(--tn-text-body);
   line-height: var(--tn-line-height-normal);
   font-optical-sizing: auto;
 }
@@ -39,9 +65,15 @@ h3 {
   letter-spacing: var(--tn-letter-spacing-display);
   margin: 0 0 var(--tn-space-3);
 }
-h1 { font-size: var(--tn-font-size-3xl); font-weight: var(--tn-font-weight-semibold); }
-h2 { font-size: var(--tn-font-size-2xl); font-weight: var(--tn-font-weight-semibold); }
-h3 { font-size: var(--tn-font-size-lg); font-weight: var(--tn-font-weight-semibold); }
+h1 { font-size: var(--tn-text-title); font-weight: var(--tn-font-weight-semibold); }
+h2 { font-size: var(--tn-text-section); font-weight: var(--tn-font-weight-semibold); }
+h3 { font-size: var(--tn-text-group); font-weight: var(--tn-font-weight-semibold); }
+/* Peso de destaque único (item 10): 700 só nos títulos grandes da marca, não no texto. */
+strong, b { font-weight: var(--tn-font-weight-semibold); }
+
+/* Controles herdam a fonte do texto num lugar só (item 13). Os módulos não repetem `font: inherit`, que zerava o
+   tabular-nums declarado antes. Os números tabulares vêm depois, para valer em botões e campos também. */
+button, input, select, textarea { font: inherit; letter-spacing: inherit; }
 
 p { margin: 0 0 var(--tn-space-3); }
 
@@ -52,14 +84,20 @@ a { color: var(--tn-link); }
   outline-offset: 2px;
 }
 
-.tn-num {
+.tn-num,
+time,
+input[type="time"],
+input[type="date"],
+input[type="number"],
+input[inputmode="decimal"],
+input[inputmode="numeric"] {
   font-variant-numeric: tabular-nums;
 }
 
 .tn-caps {
   text-transform: uppercase;
   letter-spacing: var(--tn-letter-spacing-caps);
-  font-size: var(--tn-font-size-xs);
+  font-size: var(--tn-text-label);
   font-weight: var(--tn-font-weight-medium);
   color: var(--tn-text-muted);
 }
