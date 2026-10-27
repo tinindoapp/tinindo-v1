@@ -107,6 +107,9 @@ export function OwnerReviewsPage({ port }: { port: OwnerReviewsPort }) {
   );
 }
 
+/** Nota de 1 a 5: o número aparece no botão; o leitor de tela ouve "1 – Ruim" … "5 – Excelente". */
+const RATING_WORDS = ["Ruim", "Regular", "Bom", "Muito bom", "Excelente"] as const;
+
 /** Página do cliente (/avaliar): atendimentos concluídos e vinculados, avaliáveis por 30 dias. */
 export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
   const { state } = useSession();
@@ -164,9 +167,18 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
                   <p><strong>{p.service_name}</strong> · {p.tenant_name} · <span className="tn-num">{DAY.format(new Date(p.ended_at))}</span></p>
                   <fieldset className="tn-rev-stars">
                     <legend>Nota</legend>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <label key={n}><input type="radio" name={`r-${p.booking_id}`} checked={rating[p.booking_id] === n} onChange={() => setRating({ ...rating, [p.booking_id]: n })} /> {n}</label>
-                    ))}
+                    <div className="tn-rev-stars__options">
+                      {RATING_WORDS.map((word, i) => (
+                        <label key={word} className="tn-rev-star">
+                          <input type="radio" name={`r-${p.booking_id}`} checked={rating[p.booking_id] === i + 1} onChange={() => setRating({ ...rating, [p.booking_id]: i + 1 })} />
+                          <span aria-hidden="true" className="tn-num">{i + 1}</span>
+                          <span className="tn-visually-hidden">{i + 1} – {word}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="tn-rev-muted tn-rev-stars__hint" aria-hidden="true">
+                      {rating[p.booking_id] ? `${rating[p.booking_id]} – ${RATING_WORDS[rating[p.booking_id]! - 1]}` : "1 = Ruim · 5 = Excelente"}
+                    </p>
                   </fieldset>
                   <label className="tn-field"><span>Comentário (opcional)</span><textarea value={text[p.booking_id] ?? ""} maxLength={600} onChange={(e) => setText({ ...text, [p.booking_id]: e.target.value })} /></label>
                   <div><Button type="submit" disabled={!rating[p.booking_id] || busy}>Publicar avaliação</Button></div>

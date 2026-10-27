@@ -13,7 +13,29 @@
 .tn-rev-reply { padding-left: var(--tn-space-3); border-left: 2px solid var(--tn-border-control); }
 .tn-rev-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
 .tn-rev-form { display: grid; gap: var(--tn-space-2); }
-.tn-rev-stars { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); }
-.tn-rev-stars label { display: inline-flex; align-items: center; gap: var(--tn-space-1); min-height: var(--tn-size-touch); }
+/* Nota de 1 a 5 (/avaliar): rádio nativo invisível, botão de 44 × 44 visível; foco e escolha sem depender só da cor. */
+.tn-rev-stars { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: var(--tn-space-2); }
+.tn-rev-stars legend { padding: 0; margin-bottom: var(--tn-space-2); font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); }
+.tn-rev-stars__options { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+.tn-rev-star {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--tn-size-touch);
+  height: var(--tn-size-touch);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-sm);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  font-weight: var(--tn-font-weight-medium);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* O rádio cobre o botão inteiro, transparente: toque, teclado e leitor de tela continuam nativos. */
+.tn-rev-star input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.tn-rev-star:hover { background: var(--tn-action-subtle); }
+.tn-rev-star:has(input:checked) { background: var(--tn-action); border-color: var(--tn-action); color: var(--tn-text-on-action); }
+.tn-rev-star:has(input:focus-visible) { outline: 2px solid var(--tn-text); outline-offset: 2px; }
+.tn-rev-stars__hint { margin: 0; }
 .tn-rev-page { max-width: 640px; margin: 0 auto; padding: var(--tn-space-6) var(--tn-space-4) var(--tn-space-8); display: grid; gap: var(--tn-space-3); }
 .tn-rev-page h1 { margin: 0; font-size: var(--tn-font-size-2xl); }

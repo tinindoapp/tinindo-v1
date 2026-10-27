@@ -6,7 +6,7 @@ import type { Profession, PublicProfileField as PublicProfileFieldSchema } from 
 import type { z } from "zod";
 import { Button, Card, Field, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import type { NetworkApi, OwnerProfile, ReferralLinkData, ReferralSummary } from "./api.ts";
-import { ShareLink } from "./ShareLink.tsx";
+import { ShareActions, ShareLink } from "./ShareLink.tsx";
 import { CATEGORY_LABEL, errorMessage, formatDateTime, newIdempotencyKey, useNetworkApi } from "./useNetworkApi.ts";
 import "./network.css";
 
@@ -77,8 +77,25 @@ export function NetworkHome() {
         <Onboarding published={published} bookingOn={bookingOn} invited={invited} />
       </div>
       {profile !== undefined ? <ProfileEditor api={api} profile={profile} onSaved={reload} /> : <p role="status">Carregando…</p>}
+      {published && profile ? <ProfileLive slug={profile.slug} bookingOn={bookingOn} demo={api.demo} /> : null}
       {published ? <InvitePeer api={api} referrals={referrals} onCreated={reload} /> : null}
     </div>
+  );
+}
+
+/** Depois de publicar: o endereço completo e os jeitos de mandar. A pessoa envia; a Tinindo não manda nada sozinha. */
+function ProfileLive({ slug, bookingOn, demo }: { slug: string; bookingOn: boolean; demo: boolean }) {
+  const url = `${window.location.origin}/p/${slug}`;
+  const text = bookingOn ? "Oi! Este é o meu perfil, com os horários livres para marcar:" : "Oi! Este é o meu perfil:";
+  return (
+    <Card aria-labelledby="no-ar-titulo">
+      <div className="tn-stack">
+        <h2 id="no-ar-titulo">Seu perfil está no ar!</h2>
+        <p>Mande o link para seus clientes ou coloque na bio do Instagram e no status do WhatsApp.</p>
+        {demo ? <p className="tn-net-muted tn-net-small">Demonstração: o link só funciona nesta aba.</p> : null}
+        <ShareActions url={url} label="Endereço do seu perfil" whatsappText={text} />
+      </div>
+    </Card>
   );
 }
 

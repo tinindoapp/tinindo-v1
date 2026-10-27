@@ -58,6 +58,33 @@ describe("perfil do dono (demonstração)", () => {
     expect(screen.getByRole("region", { name: /Primeiros passos/ })).toHaveTextContent("2 de 3");
   });
 
+  it("perfil no ar: cartão com o endereço completo, WhatsApp com texto pronto e Copiar com retorno", async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await publishDemoProfile();
+    const card = await screen.findByRole("region", { name: "Seu perfil está no ar!" });
+    const url = `${window.location.origin}/p/barbearia-exemplo`;
+    expect(within(card).getByLabelText("Endereço do seu perfil")).toHaveValue(url);
+    const wa = within(card).getByRole("link", { name: "Mandar no WhatsApp" });
+    expect(wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/\?text=/);
+    expect(decodeURIComponent(new URL(wa.getAttribute("href")!).search.slice(6))).toContain(url);
+    fireEvent.click(within(card).getByRole("button", { name: "Copiar link" }));
+    expect(await within(card).findByRole("button", { name: "Copiado" })).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith(url);
+    expect(within(card).getByRole("status")).toHaveTextContent("Link copiado");
+    // "Ver como o cliente vê" continua no cartão do perfil.
+    expect(screen.getByRole("link", { name: "Ver como o cliente vê" })).toBeInTheDocument();
+  });
+
+  it("perfil no ar: falha ao copiar avisa para copiar manualmente", async () => {
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(async () => { throw new Error("negado"); }) }, configurable: true });
+    await publishDemoProfile();
+    const card = await screen.findByRole("region", { name: "Seu perfil está no ar!" });
+    fireEvent.click(within(card).getByRole("button", { name: "Copiar link" }));
+    expect(await within(card).findByText(/Não foi possível copiar/)).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Copiar link" })).toBeInTheDocument();
+  });
+
   it("convite de colega gera link com token só no fragmento e sem o nome", async () => {
     await publishDemoProfile();
     fireEvent.change(await screen.findByLabelText("Nome do colega (só você vê)"), { target: { value: "Fulano Exemplo" } });
@@ -102,6 +129,9 @@ describe("páginas públicas (demonstração)", () => {
     expect(screen.getByText(/Use o número com DDD/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pedir este horário" })).toBeDisabled();
     fireEvent.change(phone, { target: { value: "(11) 97777-4343" } });
+    // O código vai para o WhatsApp de quem pede, não do profissional.
+    expect(screen.getByText(/código de 6 dígitos para o\s+seu WhatsApp/)).toBeInTheDocument();
+    expect(screen.queryByText(/WhatsApp do profissional/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
 
     expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();

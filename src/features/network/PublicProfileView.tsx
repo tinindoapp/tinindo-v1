@@ -197,7 +197,7 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
           {service?.name} · {formatDay(r.slot.starts_at)} às <span className="tn-num">{formatTime(r.slot.starts_at)}</span>
         </p>
         <StatusBanner tone="info">
-          Enviamos um código de 6 dígitos para o WhatsApp <span className="tn-num">{step.phone}</span>. O horário fica
+          Enviamos um código de 6 dígitos para o seu WhatsApp <span className="tn-num">{step.phone}</span>. O horário fica
           guardado até as <span className="tn-num">{formatTime(r.expires_at)}</span>; depois disso, volta a ficar livre.
         </StatusBanner>
         {r.demoCode ? (
@@ -316,8 +316,8 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
               }}
             >
               <p>
-                Horário das <span className="tn-num">{formatTime(chosen)}</span>. Para confirmar, mandamos um código pelo
-                WhatsApp do profissional. Seu contato vai só para este pedido.
+                Horário das <span className="tn-num">{formatTime(chosen)}</span>. Vamos mandar um código de 6 dígitos para o
+                seu WhatsApp para confirmar. Seu número só vai para este profissional.
               </p>
               <Field
                 label="Seu nome"
