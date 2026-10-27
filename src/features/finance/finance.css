@@ -36,5 +36,5 @@
 .tn-fin-alert { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); margin-top: var(--tn-space-3); padding: var(--tn-space-3); border: 1px solid var(--tn-border-control); border-left-width: 4px; border-radius: var(--tn-radius-md); }
 .tn-fin-alert a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); font-weight: var(--tn-font-weight-medium); }
 .tn-fin-section h2:focus { outline: none; }
-.tn-fin-section h2:focus-visible { outline: 2px solid var(--tn-focus, currentColor); outline-offset: 2px; }
+.tn-fin-section h2:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: 2px; }
 .tn-fin-confirm { display: grid; gap: var(--tn-space-2); width: 100%; }
