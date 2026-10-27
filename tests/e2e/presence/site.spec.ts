@@ -38,13 +38,21 @@ test("site e Google: rascunho, prévia só pública, publicar a prévia, página
   await expect(page.getByText("Registro encontrado: domínio verificado.")).toBeVisible();
   await expect(page.getByText(/minhabarbearia\.com\.br · verificado em/)).toBeVisible();
 
-  // Google: só registra com a declaração; revogar fica disponível.
+  // Google: só registra com a declaração (o botão avisa o que falta embaixo do campo); revogar fica disponível.
   const google = page.getByRole("form", { name: "Conceder acesso ao Google" });
   await google.getByLabel("Nome do perfil no Google").fill("Barbearia Exemplo A");
-  await expect(google.getByRole("button", { name: "Registrar acesso" })).toBeDisabled();
+  await google.getByRole("button", { name: "Registrar acesso" }).click();
+  await expect(google.getByText("Confirme que adicionou a Tinindo como gerente.")).toBeVisible();
+  await expect(google.getByLabel(/Adicionei a Tinindo como gerente/)).toBeFocused();
   await google.getByLabel(/Adicionei a Tinindo como gerente/).check();
   await google.getByRole("button", { name: "Registrar acesso" }).click();
   await expect(page.getByText(/Acesso concedido ao perfil “Barbearia Exemplo A” como gerente/)).toBeVisible();
+  // Revogar corta o acesso de terceiros: pede confirmação com a consequência antes de executar.
+  await page.getByRole("button", { name: "Revogar acesso" }).click();
+  await expect(page.getByText("Revogar o acesso da Tinindo?")).toBeVisible();
+  await expect(page.getByText(/para de agir no perfil “Barbearia Exemplo A”/)).toBeVisible();
+  await page.getByRole("button", { name: "Voltar" }).click();
+  await expect(page.getByText(/Acesso concedido ao perfil/)).toBeVisible();
 
   const deliveries = page.getByRole("list", { name: "Entregas" });
   await expect(deliveries).toContainText("Site publicado");
