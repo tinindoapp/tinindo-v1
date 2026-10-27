@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { CostPage } from "./CostPage.tsx";
 import { createDemoCostPort, createDemoPort } from "./demoPort.ts";
@@ -23,10 +23,10 @@ function ResultLayout() {
   }, [state.status, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="an-no-tenant">
-        <h1 id="an-no-tenant">Resultado</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="an-no-tenant" title="Resultado" />
         <StatusBanner tone="info">Selecione um negócio para ver os indicadores.</StatusBanner>
-      </Card>
+      </div>
     );
   }
   return <ResultPage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;

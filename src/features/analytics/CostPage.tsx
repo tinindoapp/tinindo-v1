@@ -1,7 +1,7 @@
 // Custo de atendimento por cliente (P18, operação Tinindo): minutos medidos × custo-hora informado. Premissa, não custo
 // contábil; valores contratados têm cobrança manual. O banco decide se quem consulta é operador.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { formatCents } from "./format.ts";
 import type { CostPort, CostToServe } from "./port.ts";
 
@@ -17,6 +17,7 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
   const [data, setData] = useState<CostToServe | null>(null);
   const [error, setError] = useState<{ code?: string } | null>(null);
   const [cents, setCents] = useState(6000);
+  const { formRef, errors, show } = useFormErrors<"hourly">();
 
   useEffect(() => {
     let alive = true;
@@ -31,21 +32,20 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
   function submit(e: FormEvent) {
     e.preventDefault();
     const c = parseCents(hourly);
-    if (c !== null) setCents(c);
+    if (!show({ hourly: c === null && "Informe o custo-hora em reais, por exemplo 60,00." }) || c === null) return;
+    setCents(c);
   }
 
   return (
     <div className="tn-an">
       <div className="tn-page-intro">
         <PageHeader id="cost-title" title="Custo por cliente" />
-        <p className="tn-an-muted">Últimos 30 dias. Custo estimado = minutos humanos medidos × custo-hora que você informar (premissa).</p>
+        <p className="tn-muted">Últimos 30 dias. Custo estimado = minutos humanos medidos × custo-hora que você informar (premissa).</p>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Demonstração sem servidor.</StatusBanner> : null}
         {error?.code === "FORBIDDEN" ? <StatusBanner tone="warning">Só a equipe Tinindo acessa esta tela.</StatusBanner> : null}
         {error && error.code !== "FORBIDDEN" ? <StatusBanner tone="danger">Não foi possível carregar agora.</StatusBanner> : null}
-        <form className="tn-an-controls" aria-label="Custo-hora" onSubmit={submit}>
-          <label className="tn-an-field">Custo-hora (R$)
-            <input inputMode="decimal" value={hourly} onChange={(e) => setHourly(e.target.value)} />
-          </label>
+        <form ref={formRef} className="tn-an-controls" aria-label="Custo-hora" onSubmit={submit} noValidate>
+          <Field label="Custo-hora (R$)" inputMode="decimal" value={hourly} error={errors.hourly} onChange={(e) => setHourly(e.target.value)} />
           <Button type="submit" variant="secondary">Recalcular</Button>
         </form>
       </div>
@@ -70,7 +70,7 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
               <tfoot><tr><th scope="row">Total</th><td className="tn-num">{data.totals.human_minutes}</td><td className="tn-num">{data.totals.reprocess_minutes}</td><td className="tn-num">{formatCents(data.totals.estimated_cost_cents)}</td><td /><td /></tr></tfoot>
             </table>
           </div>
-          <p className="tn-an-muted">{data.note}</p>
+          <p className="tn-muted">{data.note}</p>
         </Card>
       ) : null}
     </div>

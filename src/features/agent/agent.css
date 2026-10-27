@@ -1,9 +1,7 @@
 /* Assistente (P08). Só tokens da marca. Sem vidro em texto corrido (BRAND.md). */
 .tn-ag { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-ag-muted { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
-.tn-ag-form { display: grid; gap: var(--tn-space-2); min-width: 0; }
-.tn-ag-row { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); min-width: 0; }
-.tn-ag-row input { flex: 1 1 14rem; min-width: 0; min-height: var(--tn-size-touch); max-width: 100%; }
+.tn-ag-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--tn-space-2); min-width: 0; }
+.tn-ag-ask { flex: 1 1 14rem; }
 .tn-ag-examples { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); margin-top: var(--tn-space-3); }
 .tn-ag-chip {
   min-height: var(--tn-size-touch); padding: 0 var(--tn-space-3); border: 1px solid var(--tn-border);
@@ -32,7 +30,6 @@
 .tn-ag-proposal p { margin: 0; overflow-wrap: anywhere; }
 .tn-ag-meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--tn-space-1) var(--tn-space-3); margin: 0; }
 .tn-ag-meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.tn-ag-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
 @media (max-width: 30rem) {
   .tn-ag-meta { grid-template-columns: minmax(0, 1fr); }
 }

@@ -1,12 +1,12 @@
 /* Notas fiscais (P16). Só tokens; ação preta; laranja nunca em botão ou texto. */
 .tn-fsc { display: grid; gap: var(--tn-space-4); min-width: 0; }
 .tn-fsc > :is(.tn-page-header, .tn-help) { margin: 0; }
-.tn-fsc-muted { color: var(--tn-text-muted); font-size: var(--tn-text-support); margin: 0; }
+.tn-fsc .tn-muted { margin: 0; }
 .tn-fsc-form { display: grid; gap: var(--tn-space-3); min-width: 0; margin-top: var(--tn-space-2); }
 .tn-fsc-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--tn-space-3); }
 .tn-fsc-inline .tn-field { flex: 1 1 12rem; }
-.tn-fsc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
-.tn-fsc-actions a { min-height: var(--tn-size-touch); display: inline-flex; align-items: center; }
+.tn-fsc-links a { min-height: var(--tn-size-touch); display: inline-flex; align-items: center; }
+.tn-fsc-links > .tn-confirm { flex: 1 1 100%; }
 .tn-fsc-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); overflow-wrap: anywhere; }
 .tn-fsc-row > span { min-width: 0; flex: 1 1 16rem; }
 .tn-fsc-reasons { margin: var(--tn-space-2) 0; padding-left: var(--tn-space-5); display: grid; gap: var(--tn-space-1); }

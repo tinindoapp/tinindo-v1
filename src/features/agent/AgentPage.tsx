@@ -2,7 +2,7 @@
 // Cinco estados visíveis (BRAND.md): consultado, recomendação, pendente de aprovação, executado, falha.
 // Aprovar ≠ executar: a execução repete a checagem e pode recusar. Nada muda sem a aprovação do dono.
 import { createContext, type FormEvent, useContext, useRef, useState } from "react";
-import { Button, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { type AgentPort, type Answer, type Approval, newKey, type Proposal, type Receipt } from "./port.ts";
 
 const PortContext = createContext<AgentPort | null>(null);
@@ -86,7 +86,7 @@ function ProposalCard({ turn, proposal, onApprove, onExecute }: {
       {/* Identificador da proposta: só para o suporte conferir, fora do texto principal. */}
       <details className="tn-ag-support">
         <summary>Detalhes para o suporte</summary>
-        <p className="tn-ag-muted">Código da proposta: <code>{proposal.payload_hash.slice(0, 12)}</code> · versão {proposal.version}</p>
+        <p className="tn-muted">Código da proposta: <code>{proposal.payload_hash.slice(0, 12)}</code> · versão {proposal.version}</p>
       </details>
       {turn.actionError && <StatusBanner tone="danger">{turn.actionError}</StatusBanner>}
       {turn.receipt ? (
@@ -94,14 +94,14 @@ function ProposalCard({ turn, proposal, onApprove, onExecute }: {
           ? <StatusBanner tone="success"><strong>{STATE_LABEL.executed}.</strong> Feito às {time(turn.receipt.executed_at)}. Confira na tela correspondente.</StatusBanner>
           : <StatusBanner tone="danger"><strong>{STATE_LABEL.failed}.</strong> A agenda, a versão ou o preço mudou desde a proposta; nada foi alterado. Peça uma nova proposta.</StatusBanner>
       ) : !turn.approval ? (
-        <div className="tn-ag-actions">
-          <Button onClick={onApprove} disabled={turn.busy}>Aprovar</Button>
-          <span className="tn-ag-muted">Aprovar não executa: você confirma em seguida.</span>
+        <div className="tn-actions">
+          <Button onClick={onApprove} loading={turn.busy}>Aprovar</Button>
+          <span className="tn-muted">Aprovar não executa: você confirma em seguida.</span>
         </div>
       ) : (
-        <div className="tn-ag-actions">
-          <Button onClick={onExecute} disabled={turn.busy}>Executar agora</Button>
-          <span className="tn-ag-muted">Aprovado. A execução confere de novo agenda e preço.</span>
+        <div className="tn-actions">
+          <Button onClick={onExecute} loading={turn.busy}>Executar agora</Button>
+          <span className="tn-muted">Aprovado. A execução confere de novo agenda e preço.</span>
         </div>
       )}
     </section>
@@ -113,6 +113,7 @@ export function AgentPage() {
   const [text, setText] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
+  const { formRef, errors, show, clear } = useFormErrors<"question">();
   const keys = useRef(new Map<string, string>());
   const patch = (id: string, p: Partial<Turn>) => setTurns((ts) => ts.map((t) => (t.id === id ? { ...t, ...p } : t)));
   const keyFor = (k: string) => {
@@ -124,6 +125,7 @@ export function AgentPage() {
   async function ask(question: string) {
     const q = question.trim();
     if (!q || busy) return;
+    clear();
     const id = newKey();
     setTurns((ts) => [...ts, { id, question: q }]);
     setText("");
@@ -158,6 +160,7 @@ export function AgentPage() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (!show({ question: !text.trim() && "Escreva a pergunta." })) return;
     void ask(text);
   };
 
@@ -171,17 +174,14 @@ export function AgentPage() {
             propostas e execuções valem só nesta aba.
           </StatusBanner>
         )}
-        <p className="tn-ag-muted">
+        <p className="tn-muted">
           Consulto sua agenda e o que foi registrado no caixa, e preparo propostas. Nada muda sem a sua aprovação, e eu não envio mensagens
           nem movimento dinheiro.
         </p>
-        <form className="tn-ag-form" onSubmit={onSubmit}>
-          <label htmlFor="ag-input">Pergunte ao assistente</label>
-          <div className="tn-ag-row">
-            <input id="ag-input" type="text" value={text} maxLength={2000} autoComplete="off"
-              placeholder="Ex.: o que tenho amanhã?" onChange={(e) => setText(e.target.value)} />
-            <Button type="submit" disabled={busy || !text.trim()}>{busy ? "Consultando…" : "Perguntar"}</Button>
-          </div>
+        <form ref={formRef} className="tn-ag-row" onSubmit={onSubmit} noValidate>
+          <Field label="Pergunte ao assistente" id="ag-input" className="tn-ag-ask" type="text" value={text} maxLength={2000} autoComplete="off"
+            placeholder="Ex.: o que tenho amanhã?" error={errors.question} onChange={(e) => setText(e.target.value)} />
+          <Button type="submit" loading={busy} loadingText="Consultando…">Perguntar</Button>
         </form>
         <div className="tn-ag-examples" aria-label="Exemplos de perguntas">
           {EXAMPLES.map((q) => (
@@ -198,7 +198,7 @@ export function AgentPage() {
           return (
             <article key={t.id} className="tn-ag-turn">
               <p className="tn-ag-question"><span className="tn-visually-hidden">Você perguntou: </span>{t.question}</p>
-              {!t.answer && !t.error && <p className="tn-ag-muted">Consultando…</p>}
+              {!t.answer && !t.error && <p className="tn-muted">Consultando…</p>}
               {shown && <span className={`tn-ag-state tn-ag-state-${shown}`}>{STATE_LABEL[shown]}</span>}
               {t.error && <StatusBanner tone="danger">{t.error}</StatusBanner>}
               {t.answer && (
