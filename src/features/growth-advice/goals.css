@@ -1,0 +1,7 @@
+/* Metas: link de ação de cada sugestão com área de toque mínima (44 px). */
+.tn-ga-action-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tn-size-touch);
+  padding-inline: var(--tn-space-2);
+}

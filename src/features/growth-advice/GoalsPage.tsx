@@ -4,7 +4,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
-import { DECISION, DIRECTION, explain, formatDate, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS } from "./labels.ts";
+import { actionLabel, DECISION, DIRECTION, explain, formatDate, formatEvidence, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS, RULE_LABEL } from "./labels.ts";
 import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort, newKey } from "./port.ts";
 
 type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string } | null;
@@ -24,7 +24,7 @@ function GoalForm({ port, metrics, onDone }: { port: GrowthAdvicePort; metrics: 
       const g = await port.saveGoal({ metric_key: key, target: isCents(key) ? parseBRL(target) : Number(target.replace(",", ".")) / 100, note: note.trim() || null }, idem);
       setIdem(newKey());
       setNote("");
-      onDone({ tone: "success", text: `Meta de ${g.label ?? METRIC_LABEL[g.metric_key]} criada: ${formatTarget(g.unit, g.target)} (${DIRECTION[g.direction]}). O progresso é o indicador do mês, com denominador.` });
+      onDone({ tone: "success", text: `Meta de ${g.label ?? METRIC_LABEL[g.metric_key]} criada: ${formatTarget(g.unit, g.target)} (${DIRECTION[g.direction]}). O progresso é o número do mês, com a conta (quantos de quantos).` });
     } catch (err) {
       setIdem(newKey());
       onDone({ tone: "danger", text: explain(err) });
@@ -76,9 +76,14 @@ function Suggestions({ advice, port, onDone }: { advice: Advice; port: GrowthAdv
           <li key={s.rule_code} className="tn-ga-item">
             <h3>{s.title}</h3>
             <p>{s.text}</p>
-            <p className="tn-ga-muted">Evidência: {Object.entries(s.evidence).map(([k, v]) => `${k} = ${typeof v === "number" && v <= 1 && !["audience", "no_show_n", "completed", "quotes", "sellable_minutes"].includes(k) ? pct(v) : String(v)}`).join(" · ")}</p>
+            <p className="tn-ga-muted tn-ga-evidence">Evidência: {formatEvidence(s.evidence).map((ph, i) => (
+              <span key={i}>{i > 0 ? " · " : ""}{ph.map((c, j) => (c.num ? <span key={j} className="tn-num">{c.text}</span> : c.text))}</span>
+            ))}</p>
             <div className="tn-ga-actions">
-              <Link className="tn-ga-link" to={s.route}>Ir para a tela</Link>
+              {/* Sugestão desta mesma tela (apresentação do perfil) leva à seção de conteúdo; as outras abrem a tela da ação. */}
+              {s.route === "/app/metas"
+                ? <a className="tn-ga-link tn-ga-action-link" href="#ga-content-title">{actionLabel(s.rule_code, s.route)}</a>
+                : <Link className="tn-ga-link tn-ga-action-link" to={s.route}>{actionLabel(s.rule_code, s.route)}</Link>}
               <Button variant="secondary" onClick={() => void act(s.rule_code, "accepted")}>Vou fazer</Button>
               <Button variant="ghost" onClick={() => void act(s.rule_code, "dismissed")}>Agora não</Button>
             </div>
@@ -87,7 +92,7 @@ function Suggestions({ advice, port, onDone }: { advice: Advice; port: GrowthAdv
       </ul>
       {advice.decisions.length > 0 ? (
         <ul className="tn-ga-list" aria-label="Decisões">
-          {advice.decisions.map((d) => <li key={d.id}>{DECISION[d.decision]} em {formatDate(d.decided_at)}: {d.rule_code}{d.outcome ? ` · ${OUTCOME[d.outcome]}` : ` · acompanhamento em ${formatDate(d.follow_up_at)}`}</li>)}
+          {advice.decisions.map((d) => <li key={d.id}>{DECISION[d.decision]} em {formatDate(d.decided_at)}: {RULE_LABEL[d.rule_code] ?? "Sugestão"}{d.outcome ? ` · ${OUTCOME[d.outcome]}` : ` · acompanhamento em ${formatDate(d.follow_up_at)}`}</li>)}
         </ul>
       ) : null}
     </>
@@ -144,7 +149,7 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
         <PageHeader id="ga-title" title="Metas e conteúdo" />
         <Help><p>Metas sobre os indicadores do Resultado, sugestões por regras sobre os seus dados e textos aprovados para a sua profissão. Nada aqui promete resultado: o progresso é o indicador medido, e a variação depois de uma sugestão é observada, não causada.</p></Help>
         <StatusBanner tone="info"><strong>Sem inteligência artificial nas sugestões.</strong> Cada sugestão vem de uma regra fixa sobre um indicador com dado suficiente, e mostra a evidência. Você decide; a Tinindo nunca age sozinha.</StatusBanner>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é publicado de verdade. "Avançar 30 dias" roda o acompanhamento como o worker faria.</StatusBanner> : null}
+        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é publicado de verdade. "Avançar 30 dias" faz agora a medição que o sistema faria sozinho depois de 30 dias.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
         {port.followUp ? <div className="tn-ga-actions"><Button variant="secondary" onClick={() => void port.followUp!().then((r) => done({ tone: "info", text: `Acompanhamento (simulação): ${r.followed_up} decisão(ões) medida(s) de novo.` }))}>Avançar 30 dias (simulação)</Button></div> : null}

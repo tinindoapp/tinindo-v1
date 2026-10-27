@@ -36,3 +36,6 @@
 @media (max-width: 30rem) {
   .tn-ag-meta { grid-template-columns: minmax(0, 1fr); }
 }
+/* Código da proposta fica recolhido: só para o suporte. */
+.tn-ag-support summary { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); cursor: pointer; color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-ag-support code { overflow-wrap: anywhere; }

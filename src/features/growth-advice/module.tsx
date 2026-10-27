@@ -10,6 +10,7 @@ import type { GrowthAdvicePort } from "./port.ts";
 import { GoalsPage } from "./GoalsPage.tsx";
 import { createServerPort } from "./serverPort.ts";
 import "./growth-advice.css";
+import "./goals.css";
 
 function GoalsLayout() {
   const { state, tenantId, getAccessToken } = useSession();

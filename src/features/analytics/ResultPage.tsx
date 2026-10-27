@@ -1,5 +1,5 @@
 // Resultado (P18): indicadores do que foi registrado, com a conta (numerador/denominador), o que falta nos dados e a
-// comparação com uma baseline congelada. Antes/depois não prova causa; insuficiente e indisponível não viram zero.
+// comparação com um ponto de partida guardado (baseline). Antes/depois não prova causa; insuficiente e indisponível não viram zero.
 import { type FormEvent, useEffect, useState } from "react";
 import type { AnalyticsBaseline, AnalyticsMetricsOutput, TimeRange } from "@contracts";
 import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
@@ -8,11 +8,13 @@ import { type AnalyticsPort, newKey } from "./port.ts";
 
 function explain(err: unknown): string {
   const e = err as { code?: string; field?: string } | null;
-  if (e?.code === "VALIDATION_ERROR" && e.field === "period") return "A baseline precisa de um período já encerrado (até ontem).";
+  if (e?.code === "VALIDATION_ERROR" && e.field === "period") return "O ponto de partida precisa de um período já encerrado (até ontem).";
   if (e?.code === "FORBIDDEN") return "Só o dono do negócio vê os indicadores.";
   if (e?.code === "VALIDATION_ERROR") return "Confira os campos. Nada foi gravado.";
   return "Não foi possível carregar agora. Tentar de novo é seguro.";
 }
+// Indicadores de uso interno da Tinindo (operação assistida): não são do profissional, ficam fora desta tela.
+const INTERNAL_METRICS = new Set<string>(["human_minutes"]);
 const fmtDay = (v: string, tz: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit" }).format(new Date(v));
 
 export function ResultPage({ port }: { port: AnalyticsPort }) {
@@ -56,7 +58,7 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
       const b = await port.createBaseline(label.trim(), period("28", tz), key);
       setKey(newKey());
       setBaselineId(b.id);
-      setNotice({ tone: "success", text: `Baseline “${b.label}” congelada com os números dos últimos 28 dias.` });
+      setNotice({ tone: "success", text: `Ponto de partida “${b.label}” guardado com os números dos últimos 28 dias. Escolha-o em “Comparar com”.` });
       setNonce((n) => n + 1);
     } catch (err) {
       setNotice({ tone: "danger", text: explain(err) });
@@ -104,14 +106,14 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
         <Card aria-labelledby="an-metrics-title">
           <h2 id="an-metrics-title">Indicadores</h2>
           <ul className="tn-an-grid">
-            {data.metrics.map((m) => {
+            {data.metrics.filter((m) => !INTERNAL_METRICS.has(m.key)).map((m) => {
               const c = cmp(m.key);
               return (
                 <li key={m.key} className="tn-an-metric" data-status={m.status}>
                   <h3>{m.label}</h3>
                   <p className="tn-an-value tn-num">{metricValue(m)}</p>
                   {metricMath(m) ? <p className="tn-an-muted">Conta: {metricMath(m)}</p> : null}
-                  {c ? <p className="tn-an-muted">Baseline: {metricValue({ unit: m.unit, value: c.baseline_value, status: c.baseline_value === null ? "insufficient" : "ok" })} · diferença: {deltaText(m.unit, c.delta)}</p> : null}
+                  {c ? <p className="tn-an-muted">Ponto de partida: {metricValue({ unit: m.unit, value: c.baseline_value, status: c.baseline_value === null ? "insufficient" : "ok" })} · diferença: {deltaText(m.unit, c.delta)}</p> : null}
                   <p className="tn-an-note">{m.note}</p>
                 </li>
               );
@@ -132,12 +134,12 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
 
       <Card aria-labelledby="an-baseline-title">
         <form aria-labelledby="an-baseline-title" className="tn-an-controls" onSubmit={(e) => void create(e)}>
-          <h2 id="an-baseline-title">Congelar uma baseline</h2>
-          <p className="tn-an-muted">Guarda os números dos últimos 28 dias encerrados como ponto de partida. Lançamentos posteriores não mudam a baseline.</p>
+          <h2 id="an-baseline-title">Guardar como ponto de partida</h2>
+          <p className="tn-an-muted">Guarda os números dos últimos 28 dias (até ontem) para comparar depois. Esses números ficam fixos: o que você lançar depois não muda o ponto de partida.</p>
           <label className="tn-an-field">Nome
             <input value={label} maxLength={80} onChange={(e) => setLabel(e.target.value)} />
           </label>
-          <Button type="submit" disabled={!label.trim()}>Congelar baseline</Button>
+          <Button type="submit" disabled={!label.trim()}>Guardar ponto de partida</Button>
         </form>
       </Card>
     </div>
