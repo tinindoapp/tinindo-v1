@@ -12,7 +12,10 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await expect(page.getByRole("form", { name: "Nova assinatura" })).toHaveCount(0);
   await page.getByRole("button", { name: "Nova assinatura" }).click();
   const form = page.getByRole("form", { name: "Nova assinatura" });
-  await expect(form.getByRole("button", { name: "Registrar adesão" })).toBeDisabled();
+  // Botão sempre ativo: sem o aceite, explica embaixo da caixa e leva o foco até ela.
+  await form.getByRole("button", { name: "Registrar adesão" }).click();
+  await expect(form.getByText("Confirme que a cliente aceitou estes termos.")).toBeVisible();
+  await expect(form.getByLabel(/A cliente aceitou estes termos/)).toBeFocused();
   await form.getByLabel(/A cliente aceitou estes termos/).check();
   await form.getByRole("button", { name: "Registrar adesão" }).click();
   await expect(page.getByText(/Ana Beatriz \(exemplo\) assinou “Corte mensal”: 4 sessões por mês por R\$\s200,00/)).toBeVisible();
@@ -27,7 +30,7 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await form.getByRole("button", { name: "Registrar adesão" }).click();
   await expect(page.getByText("Esta cliente já assina este plano.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Fechar" }).click();
+  await page.getByRole("button", { name: "Fechar", exact: true }).click();
 
   // Novo plano pelo botão da seção.
   await page.getByRole("button", { name: "Novo plano" }).click();
@@ -52,12 +55,17 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await page.getByRole("button", { name: "Avançar o ciclo (simulação)" }).click();
   await expect(page.getByText("Renovação (simulação): 0 ciclo(s) aberto(s)")).toBeVisible();
 
-  // Cancelar no fim do ciclo, depois manter; cancelar agora preserva o saldo.
+  // Cancelar no fim do ciclo volta atrás: o aviso oferece Desfazer. Depois, "Manter assinatura" também desfaz.
   await subs.getByRole("button", { name: "Cancelar no fim do ciclo" }).click();
   await expect(page.getByText("não renova. Saldo e termos preservados.")).toBeVisible();
   await expect(subs).toContainText("Ativa, não renova no fim do ciclo");
-  await subs.getByRole("button", { name: "Manter assinatura" }).click();
+  await page.getByRole("status").getByRole("button", { name: "Desfazer" }).click();
   await expect(page.getByText("volta a renovar")).toBeVisible();
+  await expect(subs).not.toContainText("não renova no fim do ciclo");
+  await subs.getByRole("button", { name: "Cancelar no fim do ciclo" }).click();
+  await expect(subs).toContainText("Ativa, não renova no fim do ciclo");
+  await subs.getByRole("button", { name: "Manter assinatura" }).click();
+  await expect(page.getByText("Cancelamento desfeito: a assinatura volta a renovar.")).toBeVisible();
   // Cancelar agora pede confirmação e diz a consequência; "Voltar" não muda nada.
   await subs.getByRole("button", { name: "Cancelar agora" }).click();
   const confirm = subs.getByRole("group", { name: /Encerrar a assinatura de Ana Beatriz/ });
