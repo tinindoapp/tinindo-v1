@@ -1,7 +1,7 @@
 // Catálogo do prestador: duração, intervalos, preço base, piso e custos. Arquivar = inativo.
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { type ProviderService, ServiceSaveInput } from "@contracts";
-import { Button, Card, Field, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { useProfession } from "./CustomersPage.tsx";
 import { centsToInput, formatCents, parseBRL, parsePercentToBps } from "./format.ts";
@@ -60,7 +60,6 @@ export function ServicesPage() {
   const [items, setItems] = useState<ProviderService[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -77,15 +76,36 @@ export function ServicesPage() {
   }, [load]);
 
   const archiveKeys = useMemo(() => createKeyRing(), []);
+  async function setActive(s: ProviderService, active: boolean): Promise<ProviderService> {
+    const input = ServiceSaveInput.parse({ ...s, service_id: s.id, expected_version: s.version, active });
+    const out = await api.saveService(input, archiveKeys.keyFor(input));
+    archiveKeys.reset();
+    await load();
+    return out.service;
+  }
+
+  // Arquivar e reativar são o inverso um do outro: executa na hora e o aviso oferece "Desfazer".
   async function toggleActive(s: ProviderService) {
-    const input = ServiceSaveInput.parse({ ...s, service_id: s.id, expected_version: s.version, active: !s.active });
+    const archiving = s.active;
+    const done = (name: string, nowActive: boolean) => (nowActive ? `${name} voltou ao catálogo.` : `${name} foi arquivado.`);
     try {
-      await api.saveService(input, archiveKeys.keyFor(input));
-      archiveKeys.reset();
-      setNotice({ tone: "success", text: s.active ? `${s.name} foi arquivado.` : `${s.name} voltou ao catálogo.` });
-      await load();
+      const saved = await setActive(s, !archiving);
+      toast({
+        message: done(s.name, !archiving),
+        action: {
+          label: "Desfazer",
+          onAction: async () => {
+            try {
+              await setActive(saved, archiving);
+              toast(done(s.name, archiving));
+            } catch (e) {
+              toast({ tone: "danger", message: errorMessage(e) });
+            }
+          },
+        },
+      });
     } catch (e) {
-      setNotice({ tone: "danger", text: errorMessage(e) });
+      toast({ tone: "danger", message: errorMessage(e) });
     }
   }
 
@@ -93,7 +113,7 @@ export function ServicesPage() {
     setDraft({ ...EMPTY, name: t.name, duration: String(t.duration_min), before: String(t.buffer_before_min), after: String(t.buffer_after_min) });
 
   return (
-    <div className="crm-stack">
+    <div className="tn-stack">
       <PageHeader
         title="Serviços"
         id="crm-services-title"
@@ -104,7 +124,7 @@ export function ServicesPage() {
         }
       />
       <CrmDemoNotice />
-      <div className="crm-filters">
+      <div className="tn-stack" data-gap="sm">
         <div className="crm-toolbar">
           <label className="crm-check">
             <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
@@ -112,7 +132,7 @@ export function ServicesPage() {
           </label>
         </div>
         {profession ? (
-          <div className="crm-actions" aria-label="Modelos para começar">
+          <div className="tn-actions" role="group" aria-label="Modelos para começar">
             {config.templates.map((t) => (
               <Button key={t.name} variant="ghost" disabled={api.readOnly} onClick={() => applyTemplate(t)}>
                 Modelo: {t.name} ({t.duration_min} min)
@@ -122,7 +142,6 @@ export function ServicesPage() {
         ) : null}
       </div>
 
-      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
       {draft ? (
         <ServiceForm
           draft={draft}
@@ -130,7 +149,7 @@ export function ServicesPage() {
           onCancel={() => setDraft(null)}
           onSaved={async (text) => {
             setDraft(null);
-            setNotice({ tone: "success", text });
+            toast(text);
             await load();
           }}
         />
@@ -141,8 +160,8 @@ export function ServicesPage() {
           Lista de serviços
         </h2>
         {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
-        {!loadError && items.length === 0 ? <p className="crm-note">Nenhum serviço ainda. Comece por um modelo.</p> : null}
-        <ul className="crm-list">
+        {!loadError && items.length === 0 ? <p className="tn-muted">Nenhum serviço ainda. Comece por um modelo.</p> : null}
+        <ul className="tn-item-list">
           {items.map((s) => (
             <li key={s.id} className="crm-item">
               <div className="crm-item__main">
@@ -159,7 +178,7 @@ export function ServicesPage() {
                   {s.estimated_cost_cents === null ? " · custo não informado" : ` · custo ${formatCents(s.estimated_cost_cents)}`}
                 </div>
               </div>
-              <div className="crm-item__actions">
+              <div className="tn-actions crm-item__actions">
                 <Button variant="secondary" disabled={api.readOnly} aria-label={`Editar ${s.name}`} onClick={() => setDraft(fromService(s))}>
                   Editar
                 </Button>
@@ -193,7 +212,7 @@ function ServiceForm({
 }) {
   const api = useCrmApi();
   const [form, setForm] = useState(draft);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { formRef, errors, show } = useFormErrors();
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const keys = useMemo(() => createKeyRing(), []);
@@ -214,11 +233,13 @@ function ServiceForm({
       active: form.active,
     });
     if (!parsed.success) {
+      // Todos os erros de uma vez, cada um embaixo do seu campo; o foco vai para o primeiro.
       const raw = fieldErrors(parsed.error.issues);
-      setErrors(Object.fromEntries(Object.keys(raw).map((k) => [k, MESSAGES[k] ?? raw[k]!])));
+      show(Object.fromEntries(Object.keys(raw).map((k) => [k, MESSAGES[k] ?? raw[k]!])));
       return;
     }
-    setErrors({});
+    show({});
+    setServerError(null);
     setBusy(true);
     try {
       const out = await api.saveService(parsed.data, keys.keyFor(parsed.data));
@@ -233,16 +254,16 @@ function ServiceForm({
 
   return (
     <Card aria-labelledby="crm-service-form">
-      <form className="crm-form" onSubmit={submit} noValidate>
+      <form ref={formRef} className="tn-stack" onSubmit={submit} noValidate>
         <h2 id="crm-service-form">{form.id ? "Editar serviço" : "Novo serviço"}</h2>
-        <div className="crm-grid">
+        <div className="tn-form-grid">
           <Field label="Nome" value={form.name} onChange={set("name")} maxLength={120} required error={errors.name} />
           <Field label="Duração (min)" inputMode="numeric" value={form.duration} onChange={set("duration")} required error={errors.duration_min} />
           <Field label="Intervalo antes (min)" inputMode="numeric" value={form.before} onChange={set("before")} error={errors.buffer_before_min} />
           <Field label="Intervalo depois (min)" inputMode="numeric" value={form.after} onChange={set("after")} error={errors.buffer_after_min} />
         </div>
-        <p className="crm-note">{bufferHint}</p>
-        <div className="crm-grid">
+        <p className="tn-muted">{bufferHint}</p>
+        <div className="tn-form-grid">
           <Field label="Preço base (R$)" inputMode="decimal" value={form.base} onChange={set("base")} required error={errors.base_price_cents} />
           <Field label="Piso (R$)" inputMode="decimal" value={form.floor} onChange={set("floor")} required error={errors.min_price_cents} />
           <Field label="Custo estimado (R$)" inputMode="decimal" value={form.cost} onChange={set("cost")} error={errors.estimated_cost_cents} />
@@ -254,9 +275,9 @@ function ServiceForm({
           </StatusBanner>
         ) : null}
         {serverError ? <StatusBanner tone="danger">{serverError}</StatusBanner> : null}
-        <div className="crm-actions">
-          <Button type="submit" disabled={busy || api.readOnly}>
-            {busy ? "Salvando…" : "Salvar"}
+        <div className="tn-actions">
+          <Button type="submit" loading={busy} loadingText="Salvando…" disabled={api.readOnly}>
+            Salvar
           </Button>
           <Button variant="ghost" onClick={onCancel}>
             Cancelar

@@ -2,11 +2,11 @@
 // linha → relatório do servidor (criadas, puladas, rejeitadas). Nada é mesclado.
 import { type ChangeEvent, useMemo, useState } from "react";
 import type { ImportOutput, ImportPreviewOutput } from "@contracts";
-import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { CSV_MAX_BYTES, type PreviewRow, readCustomerCsv } from "./csv.ts";
 import { formatPhone, REJECT_LABEL } from "./format.ts";
-import { CrmDemoNotice, SelectField } from "./shared.tsx";
+import { CrmDemoNotice } from "./shared.tsx";
 
 type Matches = ImportPreviewOutput["rows"][number]["matches"];
 const REASON_LABEL = { phone: "telefone", email: "e-mail", name: "nome" } as const;
@@ -20,7 +20,8 @@ export function ImportPage() {
   const [decisions, setDecisions] = useState<Map<number, "skip" | "create">>(new Map());
   const [report, setReport] = useState<ImportOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"preview" | "import" | null>(null);
   const keys = useMemo(() => createKeyRing(), []);
 
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
@@ -32,6 +33,7 @@ export function ImportPage() {
     }
     const content = await file.text();
     setText(content);
+    setTextError(null);
     await preview(content);
   }
 
@@ -50,19 +52,34 @@ export function ImportPage() {
     setIgnored(parsed.ignoredColumns);
     const clean = parsed.rows.filter((r) => !r.problem);
     if (clean.length === 0) return;
-    setBusy(true);
+    setBusy("preview");
     try {
       const out = await api.importPreview(clean.map(({ line, name, phone, email }) => ({ line, name, phone, email })));
       setMatches(new Map(out.rows.filter((r) => r.matches.length > 0).map((r) => [r.line, r.matches])));
     } catch (err) {
       setError(`Não foi possível procurar duplicados: ${errorMessage(err)}`);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
+  }
+
+  /** Botão sempre ativo: sem conteúdo, explica embaixo do campo e leva o foco até ele. */
+  function askPreview() {
+    if (!text.trim()) {
+      setTextError("Cole o conteúdo da planilha ou escolha um arquivo CSV.");
+      document.getElementById("crm-import-text")?.focus();
+      return;
+    }
+    setTextError(null);
+    void preview(text);
   }
 
   async function commit() {
     if (!rows) return;
+    if (rows.every((r) => r.problem)) {
+      setError("Nenhuma linha pronta para importar. Corrija a planilha e veja a prévia de novo.");
+      return;
+    }
     // Todas as linhas vão ao servidor, inclusive as com problema: ele confirma e relata cada uma.
     const payload = rows.map((r) => ({
       line: r.line,
@@ -72,7 +89,7 @@ export function ImportPage() {
       declared_source: r.declared_source,
       on_duplicate: decisions.get(r.line) ?? ("skip" as const),
     }));
-    setBusy(true);
+    setBusy("import");
     setError(null);
     try {
       setReport(await api.importCustomers(payload, keys.keyFor(payload)));
@@ -80,7 +97,7 @@ export function ImportPage() {
     } catch (err) {
       setError(errorMessage(err));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
@@ -88,24 +105,38 @@ export function ImportPage() {
   const ready = rows ? rows.length - problems : 0;
 
   return (
-    <div className="crm-stack">
+    <div className="tn-stack">
       <div className="tn-page-intro">
         <PageHeader id="crm-import-title" title="Importar clientes de planilha" />
         <CrmDemoNotice />
-        <p className="crm-note">
+        <p>
           CSV com cabeçalho na primeira linha: <strong>nome</strong> (obrigatório), telefone, e-mail e origem. Até 500
           clientes por vez. Exporte do Excel ou do Google Planilhas como CSV.
         </p>
-        <div className="tn-field">
-          <label htmlFor="crm-import-file">Arquivo CSV</label>
-          <input id="crm-import-file" type="file" accept=".csv,text/csv" onChange={(e) => void onFile(e)} />
-        </div>
-        <div className="tn-field">
-          <label htmlFor="crm-import-text">Ou cole o conteúdo</label>
-          <textarea id="crm-import-text" className="crm-textarea" value={text} onChange={(e) => setText(e.target.value)} />
-        </div>
-        <div className="crm-actions">
-          <Button variant="secondary" disabled={!text.trim() || busy} onClick={() => void preview(text)}>
+      </div>
+      <div className="tn-stack">
+        <Field
+          id="crm-import-file"
+          className="crm-import-file"
+          label="Arquivo CSV"
+          type="file"
+          accept=".csv,text/csv"
+          onChange={(e) => void onFile(e)}
+        />
+        <Field
+          as="textarea"
+          id="crm-import-text"
+          className="crm-import-text"
+          label="Ou cole o conteúdo"
+          value={text}
+          error={textError}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (e.target.value.trim()) setTextError(null);
+          }}
+        />
+        <div className="tn-actions">
+          <Button variant="secondary" loading={busy === "preview"} disabled={busy === "import"} onClick={askPreview}>
             Ver prévia
           </Button>
         </div>
@@ -121,7 +152,7 @@ export function ImportPage() {
             {matches.size} parecida(s) com cadastros existentes.
             {ignored.length ? ` Colunas ignoradas: ${ignored.join(", ")}.` : ""}
           </StatusBanner>
-          <ul className="crm-list">
+          <ul className="tn-item-list">
             {rows.map((r) => {
               const m = matches.get(r.line);
               return (
@@ -142,25 +173,30 @@ export function ImportPage() {
                     ) : null}
                   </div>
                   {m && !r.problem ? (
-                    <div className="crm-item__actions">
-                      <SelectField
+                    <div className="tn-actions crm-item__actions">
+                      <Field
+                        as="select"
                         label={`Linha ${r.line}`}
                         value={decisions.get(r.line) ?? "skip"}
-                        onChange={(v) => setDecisions(new Map(decisions).set(r.line, v === "create" ? "create" : "skip"))}
-                        options={[
-                          { value: "skip", label: "Pular (já existe)" },
-                          { value: "create", label: "Criar mesmo assim" },
-                        ]}
-                      />
+                        onChange={(e) => setDecisions(new Map(decisions).set(r.line, e.target.value === "create" ? "create" : "skip"))}
+                      >
+                        <option value="skip">Pular (já existe)</option>
+                        <option value="create">Criar mesmo assim</option>
+                      </Field>
                     </div>
                   ) : null}
                 </li>
               );
             })}
           </ul>
-          <div className="crm-actions">
-            <Button disabled={busy || api.readOnly || ready === 0} onClick={() => void commit()}>
-              {busy ? "Importando…" : "Importar"}
+          <div className="tn-actions">
+            <Button
+              loading={busy === "import"}
+              loadingText="Importando…"
+              disabled={api.readOnly || busy === "preview"}
+              onClick={() => void commit()}
+            >
+              Importar
             </Button>
           </div>
         </Card>
@@ -176,7 +212,7 @@ export function ImportPage() {
           {report.rejected.length ? (
             <>
               <h3>Rejeitadas</h3>
-              <ul className="crm-list" aria-label="Linhas rejeitadas">
+              <ul className="tn-item-list" aria-label="Linhas rejeitadas">
                 {report.rejected.map((r) => (
                   <li key={r.line} className="crm-item">
                     <span className="crm-item__main">
@@ -190,7 +226,7 @@ export function ImportPage() {
           {report.skipped.length ? (
             <>
               <h3>Puladas</h3>
-              <ul className="crm-list" aria-label="Linhas puladas">
+              <ul className="tn-item-list" aria-label="Linhas puladas">
                 {report.skipped.map((r) => (
                   <li key={r.line} className="crm-item">
                     <span className="crm-item__main">

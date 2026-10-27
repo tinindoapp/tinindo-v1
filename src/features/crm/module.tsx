@@ -12,7 +12,7 @@ import { type CrmApi, CrmApiContext, createDemoCrmApi, createServerCrmApi } from
 import { CustomersPage } from "./CustomersPage.tsx";
 import { ImportPage } from "./ImportPage.tsx";
 import { ServicesPage } from "./ServicesPage.tsx";
-import { CrmTabs } from "./shared.tsx";
+import { CrmOutlet } from "./shared.tsx";
 
 function CrmLayout() {
   const session = useSession();
@@ -47,7 +47,7 @@ function CrmLayout() {
   }
   return (
     <CrmApiContext.Provider value={api}>
-      <CrmTabs />
+      <CrmOutlet />
     </CrmApiContext.Provider>
   );
 }
