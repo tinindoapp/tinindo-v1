@@ -1,9 +1,9 @@
 /* Relacionamento (P13). Só tokens da marca; estado sempre por palavra. */
 .tn-lc { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-lc-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-lc-muted { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-lc-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; min-width: 0; }
-.tn-lc-field { display: grid; gap: var(--tn-space-1); flex: 1 1 10rem; min-width: 0; font-size: var(--tn-font-size-sm); }
-.tn-lc-field input, .tn-lc-field select { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; font: inherit; }
+.tn-lc-field { display: grid; gap: var(--tn-space-1); flex: 1 1 10rem; min-width: 0; font-size: var(--tn-text-support); }
+.tn-lc-field input, .tn-lc-field select { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; }
 .tn-lc-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
 .tn-lc-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
 .tn-lc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
@@ -11,12 +11,12 @@
 .tn-lc-item h3 { margin: 0; }
 .tn-lc-body { display: block; padding: var(--tn-space-2); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-sm); overflow-wrap: anywhere; }
 .tn-lc-counts { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); margin: 0; padding: 0; list-style: none; }
-.tn-lc-counts li { padding: var(--tn-space-1) var(--tn-space-2); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-sm); font-size: var(--tn-font-size-sm); }
+.tn-lc-counts li { padding: var(--tn-space-1) var(--tn-space-2); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-sm); font-size: var(--tn-text-support); }
 @media (max-width: 30rem) { .tn-lc-form { display: grid; grid-template-columns: minmax(0, 1fr); } }
 
 /* Compartilhar (WhatsApp, folha do sistema, copiar) com retorno visível; mesmo bloco nos dois módulos. */
 .tn-share { display: grid; gap: var(--tn-space-1); min-width: 0; }
 .tn-share__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
-.tn-share__status { margin: 0; min-height: 1.5em; font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
+.tn-share__status { margin: 0; min-height: 1.5em; font-size: var(--tn-text-support); color: var(--tn-text-muted); }
 .tn-share__status[data-ok="true"] { color: var(--tn-success-text); font-weight: var(--tn-font-weight-medium); }
 .tn-share__status[data-ok="false"] { color: var(--tn-danger-text); }

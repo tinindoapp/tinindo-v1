@@ -1,24 +1,52 @@
 // Componentes visuais base (dono: integrador; propostas de novos componentes via PR pequeno). ADR-0024: linguagem de app
 // (cabeçalho de página, seções com título, listas agrupadas, indicadores) sobre os mesmos tokens da marca.
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import { useId } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { Link } from "react-router";
 import symbolColor from "@brand/assets/logo/tinindo-symbol-color.svg";
 import symbolNegative from "@brand/assets/logo/tinindo-symbol-negativo-cor.svg";
 import wordmarkColor from "@brand/assets/logo/tinindo-wordmark-color.svg";
 import wordmarkNegative from "@brand/assets/logo/tinindo-wordmark-negativo-cor.svg";
 import { Icon, type IconName } from "./icons.tsx";
+import { ToneIcon, TONE_LABEL, type Tone } from "./tone.tsx";
 import "./ui.css";
 
-type Variant = "primary" | "secondary" | "ghost";
+export { IconButton } from "./IconButton.tsx";
+export { ConfirmAction, dismissToast, toast, Toaster, type ToastInput } from "./feedback.tsx";
+export { Field, focusFirstInvalid, useFormErrors, type FieldProps } from "./form.tsx";
+export { ChipNav, ChoiceCard, Segmented } from "./selection.tsx";
+export { ToneIcon, type Tone } from "./tone.tsx";
 
+type Variant = "primary" | "secondary" | "ghost" | "danger";
+
+/**
+ * Botão padrão. `danger` só para confirmar uma ação que não volta atrás. `loading` (item 11 da auditoria): mostra o
+ * indicador, marca aria-busy e desliga o botão enquanto a ação roda; `loadingText` troca o texto ("Salvando…").
+ */
 export function Button({
   variant = "primary",
   type = "button",
   block,
+  loading,
+  loadingText,
+  disabled,
+  children,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; block?: boolean }) {
-  return <button type={type} className="tn-button" data-variant={variant} data-block={block || undefined} {...props} />;
+}: ComponentProps<"button"> & { variant?: Variant; block?: boolean; loading?: boolean; loadingText?: ReactNode }) {
+  return (
+    <button
+      type={type}
+      className="tn-button"
+      data-variant={variant}
+      data-block={block || undefined}
+      data-loading={loading || undefined}
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading ? <span className="tn-spinner" aria-hidden="true" /> : null}
+      {loading && loadingText ? loadingText : children}
+    </button>
+  );
 }
 
 /** Link com aparência de botão (navegação, nunca ação com efeito). */
@@ -126,43 +154,11 @@ export function Stats({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-export function Field({
-  label,
-  error,
-  ...input
-}: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
-  const id = useId();
-  const errorId = `${id}-error`;
-  return (
-    <div className="tn-field">
-      <label htmlFor={id}>{label}</label>
-      <input id={id} aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} {...input} />
-      {error ? (
-        <span id={errorId} role="alert">
-          {error}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-type Tone = "info" | "success" | "warning" | "danger";
-
-/** Estado nunca só por cor: ícone + rótulo textual. */
-const TONE_LABEL: Record<Tone, string> = {
-  info: "Informação",
-  success: "Concluído",
-  warning: "Atenção",
-  danger: "Erro",
-};
-
+/** Aviso dentro da tela (item 7 da auditoria): fundo por tom, barra de 4 px na cor do tom e ícone próprio de cada tom. */
 export function StatusBanner({ tone, children }: { tone: Tone; children: ReactNode }) {
   return (
     <div className="tn-banner" data-tone={tone} role={tone === "danger" ? "alert" : "status"}>
-      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-        <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <path d={tone === "success" ? "M5 8.2l2 2 4-4.4" : "M8 4.5v4.5M8 11v.5"} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
+      <ToneIcon tone={tone} size={18} />
       <div>
         <span className="tn-visually-hidden">{TONE_LABEL[tone]}: </span>
         {children}

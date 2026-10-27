@@ -1,11 +1,11 @@
 /* Plano e serviços (P15). Só tokens da marca; estado nunca só por cor. */
 .tn-svc { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-svc-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-svc-muted { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-svc-section { display: grid; gap: var(--tn-space-3); min-width: 0; }
 .tn-svc-grid { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; }
-.tn-svc-field { display: grid; gap: var(--tn-space-1); flex: 1 1 12rem; min-width: 0; font-size: var(--tn-font-size-sm); }
+.tn-svc-field { display: grid; gap: var(--tn-space-1); flex: 1 1 12rem; min-width: 0; font-size: var(--tn-text-support); }
 .tn-svc-field--small { flex: 0 1 7rem; }
-.tn-svc-field input, .tn-svc-field select, .tn-svc-field textarea { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; font: inherit; }
+.tn-svc-field input, .tn-svc-field select, .tn-svc-field textarea { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; }
 .tn-svc-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
 .tn-svc-items { display: grid; gap: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3); min-width: 0; }
 .tn-svc-item { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; padding-bottom: var(--tn-space-3); border-bottom: 1px solid var(--tn-border); min-width: 0; }

@@ -1,9 +1,9 @@
 /* Assinaturas (P20). Só tokens da marca; estado sempre por palavra. */
 .tn-rc { display: grid; gap: var(--tn-space-4); min-width: 0; }
-.tn-rc-muted { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-rc-muted { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-rc-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; min-width: 0; }
-.tn-rc-field { display: grid; gap: var(--tn-space-1); flex: 1 1 10rem; min-width: 0; font-size: var(--tn-font-size-sm); }
-.tn-rc-field input, .tn-rc-field select { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; font: inherit; }
+.tn-rc-field { display: grid; gap: var(--tn-space-1); flex: 1 1 10rem; min-width: 0; font-size: var(--tn-text-support); }
+.tn-rc-field input, .tn-rc-field select { min-height: var(--tn-size-touch); width: 100%; min-width: 0; max-width: 100%; }
 .tn-rc-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
 .tn-rc-actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
 .tn-rc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
