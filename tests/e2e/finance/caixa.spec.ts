@@ -48,7 +48,7 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   const payments = page.getByRole("region", { name: "Recebimentos no mês" });
   await payments.getByRole("listitem").filter({ hasText: "R$ 40,00" }).getByRole("button", { name: /Estornar/ }).click();
   await payments.getByLabel("Motivo do estorno").fill("Cliente pagou com Pix depois");
-  await payments.getByRole("button", { name: "Confirmar estorno" }).click();
+  await payments.getByRole("button", { name: "Sim, estornar" }).click();
   await expect(received(page)).toHaveText("R$ 260,00");
   await expect(payments.getByText(/Estorno de R\$\s?40,00/)).toBeVisible();
 
@@ -67,11 +67,11 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   // Estorno de despesa: mesmo padrão do recebimento (abre, explica, confirma).
   const expenses = page.getByRole("region", { name: "Despesas" });
   await expenses.getByRole("listitem").filter({ hasText: "R$ 20,00" }).getByRole("button", { name: /Estornar/ }).click();
-  const confirm = expenses.getByRole("form", { name: /Estornar despesa/ });
+  const confirm = expenses.getByRole("group", { name: /Estornar despesa/ });
   await expect(confirm).toContainText("Sai R$");
   await expect(spent(page)).toHaveText("R$ 35,00");
-  await confirm.getByRole("button", { name: "Confirmar estorno" }).click();
-  await expect(page.getByText("Despesa estornada.")).toBeVisible();
+  await confirm.getByRole("button", { name: "Sim, estornar" }).click();
+  await expect(page.getByRole("status").getByText(/Despesa estornada\./)).toBeVisible();
   await expect(spent(page)).toHaveText("R$ 15,00");
 
   const width = page.viewportSize()!.width;
