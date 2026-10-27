@@ -124,7 +124,7 @@ O `css-tokens.test.ts` ficou sem a lista de pendências: as duas reservas `var(-
 
 - **Erro sem asterisco.** O campo obrigatório não tem marca visual: o `required` nativo e o erro no envio bastam. O asterisco quebrava os rótulos que os testes leem.
 - **Erro sem `role="alert"`.** O erro do campo é lido pelo `aria-describedby` quando o foco chega nele. Com `role="alert"`, todos os erros seriam anunciados de uma vez.
-- **Toast por cima de botões.** No celular, o Toast fica 5 a 6 s acima da barra de abas e pode cobrir o botão logo acima dela. Ele tem botão de fechar e pausa ao toque. Foi escolhido por ficar sempre à vista, que era o problema medido na auditoria (aviso a −667 px).
+- **Toast que não bloqueia o toque.** No celular, o Toast fica 5 a 6 s acima da barra de abas e pode ficar por cima do botão logo acima dela. O corpo do aviso deixa o toque atravessar para o que está embaixo; só "Desfazer" e "Fechar aviso" recebem toque. O e2e `foundation/toast.spec.ts` confere isso. O problema apareceu no CI: o aviso cobria "Cobrar no Caixa".
 - **Aviso depois de mudar de tela.** No novo agendamento e no reagendar, o Toast sai depois que a tela do atendimento carrega. Voltar no histórico para essa entrada pode mostrar o aviso de novo.
 - **Segmented com 44 px.** A opção tem 44 px e o rádio fica por cima, então o toque e o `check()` do Playwright caem no rádio.
 
