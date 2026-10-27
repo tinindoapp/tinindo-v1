@@ -2,57 +2,60 @@
 // passo visível e por palavra; textos prontos para compartilhar quando não há canal; consentimento por finalidade;
 // reativação só como campanha com público visto e teto. O que a tela promete é o que o banco garante.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { type ShareHow, ShareActions } from "./share.tsx";
 import { explain, formatDate, formatDateTime, MESSAGE_STATUS, RULE_LABEL, SKIP_REASON, STEP_STATUS } from "./labels.ts";
 import { type Audience, type LifecycleCampaign, type LifecyclePort, type LifecycleSettings, type LifecycleStep, type LifecycleStepStatus, newKey, type StepsList } from "./port.ts";
 
-type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string } | null;
+/** Depois de uma ação: o sucesso sai no toast e a tela recarrega. */
+type Done = (message: string) => void;
 const HOURS = [1, 2, 3, 6, 12, 24, 48];
 
-function SettingsForm({ port, data, onDone }: { port: LifecyclePort; data: { settings: LifecycleSettings; sent_today: number }; onDone: (n: Notice) => void }) {
+function SettingsForm({ port, data, onDone }: { port: LifecyclePort; data: { settings: LifecycleSettings; sent_today: number }; onDone: Done }) {
   const [s, setS] = useState(data.settings);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   async function submit(e: FormEvent) {
     e.preventDefault();
+    setBusy(true);
+    setFailure(null);
     try {
       const { version: _v, ...patch } = s;
       await port.saveSettings(patch, data.settings.version, newKey());
-      onDone({ tone: "success", text: "Réguas salvas. Valem para os próximos agendamentos e passos; o que já saiu não muda." });
+      onDone("Réguas salvas. Valem para os próximos agendamentos e passos; o que já saiu não muda.");
     } catch (err) {
-      onDone({ tone: "danger", text: explain(err) });
+      setFailure(explain(err));
+    } finally {
+      setBusy(false);
     }
   }
   const toggleHour = (h: number) => setS((x) => ({ ...x, reminder_hours: x.reminder_hours.includes(h) ? x.reminder_hours.filter((y) => y !== h) : [...x.reminder_hours, h].sort((a, b) => b - a) }));
   return (
-    <form className="tn-lc-form" aria-label="Réguas" onSubmit={(e) => void submit(e)}>
+    <form className="tn-lc-form" aria-label="Réguas" onSubmit={(e) => void submit(e)} noValidate>
       <label className="tn-lc-check"><input type="checkbox" checked={s.enabled} onChange={(e) => setS({ ...s, enabled: e.target.checked })} /> Réguas ligadas</label>
       <label className="tn-lc-check"><input type="checkbox" checked={s.confirmation} onChange={(e) => setS({ ...s, confirmation: e.target.checked })} /> Confirmar ao agendar</label>
-      <fieldset className="tn-lc-field" style={{ border: 0, padding: 0, margin: 0 }}>
+      <fieldset className="tn-lc-hours">
         <legend>Lembretes antes do atendimento</legend>
-        <div className="tn-lc-actions">
+        <div className="tn-actions">
           {HOURS.map((h) => <label key={h} className="tn-lc-check"><input type="checkbox" checked={s.reminder_hours.includes(h)} onChange={() => toggleHour(h)} /> {h} h</label>)}
         </div>
       </fieldset>
-      <label className="tn-lc-field">Acompanhar orçamento sem decisão após (dias)
-        <input inputMode="numeric" value={s.quote_followup_days} onChange={(e) => setS({ ...s, quote_followup_days: Number(e.target.value) || 0 })} />
-      </label>
+      <Field label="Acompanhar orçamento sem decisão após (dias)" inputMode="numeric" value={s.quote_followup_days} onChange={(e) => setS({ ...s, quote_followup_days: Number(e.target.value) || 0 })} />
       <label className="tn-lc-check"><input type="checkbox" checked={s.receivable_reminder} onChange={(e) => setS({ ...s, receivable_reminder: e.target.checked })} /> Lembrar cobrança vencida</label>
-      <label className="tn-lc-field">Reativação: sem visita há (dias)
-        <input inputMode="numeric" value={s.reactivation_days} onChange={(e) => setS({ ...s, reactivation_days: Number(e.target.value) || 0 })} />
-      </label>
-      <label className="tn-lc-field">Teto de envios por dia
-        <input inputMode="numeric" value={s.daily_budget} onChange={(e) => setS({ ...s, daily_budget: Number(e.target.value) || 0 })} />
-      </label>
-      <p className="tn-lc-muted">Hoje já saíram {data.sent_today} pelo canal. Além do teto, o passo é adiado para o dia seguinte, nunca descartado.</p>
-      <Button type="submit">Salvar réguas</Button>
+      <Field label="Reativação: sem visita há (dias)" inputMode="numeric" value={s.reactivation_days} onChange={(e) => setS({ ...s, reactivation_days: Number(e.target.value) || 0 })} />
+      <Field label="Teto de envios por dia" inputMode="numeric" value={s.daily_budget} onChange={(e) => setS({ ...s, daily_budget: Number(e.target.value) || 0 })} />
+      <p className="tn-muted">Hoje já saíram {data.sent_today} pelo canal. Além do teto, o passo é adiado para o dia seguinte, nunca descartado.</p>
+      {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
+      <Button type="submit" loading={busy} loadingText="Salvando…">Salvar réguas</Button>
     </form>
   );
 }
 
 const SHARED_OK: Record<ShareHow, string> = { copy: "Texto copiado.", share: "Texto compartilhado.", whatsapp: "WhatsApp aberto com o texto." };
 
-function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timezone: string; port: LifecyclePort; onDone: (n: Notice) => void }) {
-  const act = (run: () => Promise<unknown>, ok: string) => run().then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
+function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timezone: string; port: LifecyclePort; onDone: Done }) {
+  const fail = (e: unknown) => toast({ tone: "danger", message: explain(e) });
+  const who = step.customer_name ?? "a cliente";
   return (
     <li className="tn-lc-item">
       <h3>{RULE_LABEL[step.rule]} · {step.customer_name ?? "cliente"}</h3>
@@ -69,14 +72,22 @@ function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timez
           message={step.body}
           copyText={step.body}
           copyLabel="Copiar e marcar como compartilhado"
-          onShared={(how) => void act(() => port.markShared(step.id, newKey()), `${SHARED_OK[how]} Passo marcado como compartilhado. Compartilhar não confirma entrega.`)}
+          onShared={(how) => void port.markShared(step.id, newKey()).then(() => onDone(`${SHARED_OK[how]} Passo marcado como compartilhado. Compartilhar não confirma entrega.`), fail)}
         />
       ) : null}
-      <div className="tn-lc-actions">
-        {step.status === "scheduled" || step.status === "deferred" || step.status === "manual" ? (
-          <Button variant="ghost" onClick={() => void act(() => port.cancelStep(step.id, newKey()), "Passo cancelado.")}>Cancelar</Button>
-        ) : null}
-      </div>
+      {/* Passo cancelado não volta para a fila (o port não reabre): confirma antes. */}
+      {step.status === "scheduled" || step.status === "deferred" || step.status === "manual" ? (
+        <div className="tn-actions">
+          <ConfirmAction
+            trigger="Cancelar"
+            triggerLabel={`Cancelar ${RULE_LABEL[step.rule]} · ${step.customer_name ?? "cliente"}`}
+            title="Cancelar este passo?"
+            consequence={<p>{RULE_LABEL[step.rule]} para {who} não sai, e o passo não volta para a fila.</p>}
+            confirmLabel="Sim, cancelar passo"
+            onConfirm={() => port.cancelStep(step.id, newKey()).then(() => onDone("Passo cancelado."), fail)}
+          />
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -88,7 +99,9 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
   const [audience, setAudience] = useState<Audience | null>(null);
   const [campaigns, setCampaigns] = useState<LifecycleCampaign[]>([]);
   const [maxSends, setMaxSends] = useState("20");
-  const [notice, setNotice] = useState<Notice>(null);
+  const [approveBusy, setApproveBusy] = useState(false);
+  const [approveFailure, setApproveFailure] = useState<string | null>(null);
+  const { formRef, errors, show } = useFormErrors<"maxSends">();
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
 
@@ -104,30 +117,38 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
     }, (e: unknown) => alive && setError(e ?? new Error("erro")));
     return () => { alive = false; };
   }, [port, filter, nonce]);
-  const done = (n: Notice) => {
-    setNotice(n);
-    setNonce((x) => x + 1);
+  const refresh = () => setNonce((x) => x + 1);
+  const done: Done = (message) => {
+    toast(message);
+    refresh();
   };
   async function approve(e: FormEvent) {
     e.preventDefault();
     if (!audience) return;
+    const n = Number(maxSends);
+    if (!show({ maxSends: !(Number.isInteger(n) && n >= 1) && "Informe um teto de pelo menos 1 envio." })) return;
+    setApproveBusy(true);
+    setApproveFailure(null);
     try {
-      const c = await port.approveCampaign(audience.audience_hash, Number(maxSends), newKey());
-      done({ tone: "success", text: `Campanha aprovada para ${c.audience_count} cliente(s), até ${c.max_sends} envio(s). Os passos saem dentro do teto diário.` });
+      const c = await port.approveCampaign(audience.audience_hash, n, newKey());
+      done(`Campanha aprovada para ${c.audience_count} cliente(s), até ${c.max_sends} envio(s). Os passos saem dentro do teto diário.`);
     } catch (err) {
-      done({ tone: "danger", text: explain(err) });
+      // Público mudou ou regra recusou: o motivo fica no formulário e a tela recarrega o público.
+      setApproveFailure(explain(err));
+      refresh();
+    } finally {
+      setApproveBusy(false);
     }
   }
 
   return (
-    <div className="tn-lc">
+    <div className="tn-stack">
       <div className="tn-page-intro">
         <PageHeader id="lc-title" title="Relacionamento" />
         <Help><p>Confirmação e lembretes do agendamento, acompanhamento de orçamento parado e lembrete de cobrança vencida, com cada passo visível. A régua para sozinha no aceite, cancelamento, pagamento ou quando a cliente pede SAIR. Sem canal conectado, o texto fica pronto para você compartilhar.</p></Help>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Agenda de exemplo; nada é enviado. Use "Rodar a régua" para ver os passos vencidos saírem.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-        {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-        {port.tick ? <div className="tn-lc-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => done({ tone: "info", text: `Régua (simulação): ${r.sent} enviado(s) ao canal, ${r.manual} para compartilhar, ${r.deferred} adiado(s), ${r.skipped} pulado(s).` }))}>Rodar a régua (simulação)</Button></div> : null}
+        {port.tick ? <div className="tn-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => { toast({ tone: "info", message: `Régua (simulação): ${r.sent} enviado(s) ao canal, ${r.manual} para compartilhar, ${r.deferred} adiado(s), ${r.skipped} pulado(s).` }); refresh(); }, (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Rodar a régua (simulação)</Button></div> : null}
       </div>
 
       <Card aria-labelledby="lc-steps-title">
@@ -137,13 +158,11 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
             {Object.entries(list.counts).sort().map(([k, n]) => <li key={k}>{STEP_STATUS[k as LifecycleStepStatus] ?? k}: {n}</li>)}
           </ul>
         ) : null}
-        <label className="tn-lc-field">Mostrar
-          <select value={filter} onChange={(e) => setFilter(e.target.value as LifecycleStepStatus | "")}>
-            <option value="">Todos</option>
-            {(Object.keys(STEP_STATUS) as LifecycleStepStatus[]).map((k) => <option key={k} value={k}>{STEP_STATUS[k]}</option>)}
-          </select>
-        </label>
-        {list && list.steps.length === 0 ? <p className="tn-lc-muted">Nenhum passo. Eles nascem dos agendamentos, orçamentos e cobranças.</p> : null}
+        <Field as="select" label="Mostrar" className="tn-lc-filter" value={filter} onChange={(e) => setFilter(e.target.value as LifecycleStepStatus | "")}>
+          <option value="">Todos</option>
+          {(Object.keys(STEP_STATUS) as LifecycleStepStatus[]).map((k) => <option key={k} value={k}>{STEP_STATUS[k]}</option>)}
+        </Field>
+        {list && list.steps.length === 0 ? <p className="tn-muted">Nenhum passo. Eles nascem dos agendamentos, orçamentos e cobranças.</p> : null}
         <ul className="tn-lc-list" aria-label="Passos">
           {list?.steps.map((s) => <StepItem key={s.id} step={s} timezone={timezone} port={port} onDone={done} />)}
         </ul>
@@ -156,26 +175,44 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
 
       <Card aria-labelledby="lc-react-title">
         <h2 id="lc-react-title">Reativação (campanha)</h2>
-        <p className="tn-lc-muted">Só clientes com consentimento de marketing registrado por você e sem visita há {audience?.reactivation_days ?? "…"} dias. Você vê o público e aprova um teto; mudou o público, a aprovação é recusada.</p>
+        <p className="tn-muted">Só clientes com consentimento de marketing registrado por você e sem visita há {audience?.reactivation_days ?? "…"} dias. Você vê o público e aprova um teto; mudou o público, a aprovação é recusada.</p>
         {audience ? (
           <>
             <ul className="tn-lc-list" aria-label="Público elegível">
-              {audience.customers.length === 0 ? <li className="tn-lc-muted">Ninguém elegível agora.</li> : null}
+              {audience.customers.length === 0 ? <li className="tn-muted">Ninguém elegível agora.</li> : null}
               {audience.customers.map((c) => (
                 <li key={c.customer_id} className="tn-lc-item">
                   <h3>{c.name}</h3>
-                  <p className="tn-lc-muted">{c.last_visit_at ? `Última visita ${formatDate(c.last_visit_at, timezone)}` : "Sem visita registrada"} · {c.has_channel ? "com canal" : "sem canal (texto para compartilhar)"}</p>
-                  <div className="tn-lc-actions">
-                    <Button variant="ghost" onClick={() => void port.setConsent(c.customer_id, "marketing", false, newKey()).then(() => done({ tone: "success", text: `${c.name} fora da reativação (consentimento revogado).` }), (e: unknown) => done({ tone: "danger", text: explain(e) }))}>Revogar consentimento</Button>
+                  <p className="tn-muted">{c.last_visit_at ? `Última visita ${formatDate(c.last_visit_at, timezone)}` : "Sem visita registrada"} · {c.has_channel ? "com canal" : "sem canal (texto para compartilhar)"}</p>
+                  {/* Revogar não tem desfazer automático: o consentimento só volta declarado de novo pela cliente. */}
+                  <div className="tn-actions">
+                    <ConfirmAction
+                      trigger="Revogar consentimento"
+                      triggerLabel={`Revogar consentimento de ${c.name}`}
+                      title={`Revogar o consentimento de ${c.name}?`}
+                      consequence={
+                        <p>
+                          {c.name} sai da reativação e os passos de marketing já agendados para ela são cancelados. Para voltar, só com um
+                          novo consentimento que ela der a você.
+                        </p>
+                      }
+                      confirmLabel="Sim, revogar"
+                      onConfirm={() =>
+                        port.setConsent(c.customer_id, "marketing", false, newKey()).then(
+                          () => done(`${c.name} fora da reativação (consentimento revogado).`),
+                          (e: unknown) => toast({ tone: "danger", message: explain(e) }),
+                        )
+                      }
+                    />
                   </div>
                 </li>
               ))}
             </ul>
-            <form className="tn-lc-form" aria-label="Aprovar campanha" onSubmit={(e) => void approve(e)}>
-              <label className="tn-lc-field">Teto de envios desta campanha
-                <input inputMode="numeric" value={maxSends} onChange={(e) => setMaxSends(e.target.value)} />
-              </label>
-              <Button type="submit" disabled={audience.customers.length === 0 || !(Number(maxSends) >= 1)}>Aprovar campanha para {audience.customers.length} cliente(s)</Button>
+            <form ref={formRef} className="tn-lc-form" aria-label="Aprovar campanha" onSubmit={(e) => void approve(e)} noValidate>
+              <Field label="Teto de envios desta campanha" inputMode="numeric" value={maxSends} error={errors.maxSends} onChange={(e) => setMaxSends(e.target.value)} />
+              {/* Sem público elegível não há o que aprovar (regra, não validação). */}
+              <Button type="submit" loading={approveBusy} loadingText="Aprovando…" disabled={audience.customers.length === 0}>Aprovar campanha para {audience.customers.length} cliente(s)</Button>
+              {approveFailure ? <StatusBanner tone="danger">{approveFailure}</StatusBanner> : null}
             </form>
           </>
         ) : null}
@@ -190,10 +227,10 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
 }
 
 /** Consentimento rápido para a demonstração e para o CRM futuro: registrado pelo dono, por finalidade. */
-export function ConsentButtons({ port, customerId, name, onDone }: { port: LifecyclePort; customerId: string; name: string; onDone: (n: Notice) => void }) {
+export function ConsentButtons({ port, customerId, name, onDone }: { port: LifecyclePort; customerId: string; name: string; onDone: Done }) {
   return (
-    <div className="tn-lc-actions">
-      <Button variant="secondary" onClick={() => void port.setConsent(customerId, "marketing", true, newKey()).then(() => onDone({ tone: "success", text: `Consentimento de marketing de ${name} registrado (declarado por você).` }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }))}>Registrar consentimento de marketing</Button>
+    <div className="tn-actions">
+      <Button variant="secondary" onClick={() => void port.setConsent(customerId, "marketing", true, newKey()).then(() => onDone(`Consentimento de marketing de ${name} registrado (declarado por você).`), (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Registrar consentimento de marketing</Button>
     </div>
   );
 }

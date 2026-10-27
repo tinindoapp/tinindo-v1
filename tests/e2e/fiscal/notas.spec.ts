@@ -56,11 +56,15 @@ test("notas fiscais: passo a passo até elegível, nota em homologação não é
   await expect(list).toContainText("homologação");
   await expect(list).not.toContainText("12345678909");
 
-  await list.getByRole("button", { name: "Cancelar nota" }).click();
-  const cancel = page.getByRole("form", { name: /Cancelar nota H000001/ });
-  await expect(cancel.getByRole("button", { name: "Pedir cancelamento" })).toBeDisabled();
+  // Cancelar nota não volta atrás: confirmação com a consequência e o motivo (mínimo de 15 letras).
+  await list.getByRole("button", { name: "Cancelar Nota H000001" }).click();
+  const cancel = list.getByRole("group", { name: /Cancelar a nota H000001\?/ });
+  await expect(cancel).toContainText("perde o valor fiscal");
+  await cancel.getByRole("button", { name: "Sim, pedir cancelamento" }).click();
+  await expect(cancel.getByText("Escreva o motivo do cancelamento com pelo menos 15 letras.")).toBeVisible();
+  await expect(list).toContainText("Autorizada");
   await cancel.getByLabel("Motivo do cancelamento").fill("Valor lançado errado no atendimento");
-  await cancel.getByRole("button", { name: "Pedir cancelamento" }).click();
+  await cancel.getByRole("button", { name: "Sim, pedir cancelamento" }).click();
   await expect(list).toContainText("Cancelada");
 
   // Mês padrão = mês corrente, o mesmo da data do serviço preenchida.

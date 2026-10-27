@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { createDemoPort } from "./demoPort.ts";
 import type { ReferralsPort } from "./port.ts";
@@ -20,10 +20,10 @@ function ReferralsLayout() {
   }, [state.status, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="ref-no-tenant">
-        <h1 id="ref-no-tenant">Indicações</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="ref-no-tenant" title="Indicações" />
         <StatusBanner tone="info">Selecione um negócio para ver as indicações.</StatusBanner>
-      </Card>
+      </div>
     );
   }
   return <ReferralsPage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;

@@ -48,7 +48,7 @@ test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → receb
   await softGo(page, "/avaliar");
   const form = page.getByRole("form", { name: /Avaliar Corte em Barbearia Exemplo A, 20\/10/ });
   await expect(form).toBeVisible();
-  await expect(form.getByRole("button", { name: "Publicar avaliação" })).toBeDisabled();
+  await expect(form.getByRole("button", { name: "Publicar avaliação" })).toBeEnabled();
   await form.getByRole("radio", { name: "5 – Excelente" }).check();
   await form.getByRole("button", { name: "Publicar avaliação" }).dblclick();
   await expect(page.getByText("Obrigado! Sua avaliação foi publicada sem o seu nome.")).toBeVisible();

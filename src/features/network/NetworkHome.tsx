@@ -4,7 +4,7 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { Profession, PublicProfileField as PublicProfileFieldSchema } from "@contracts";
 import type { z } from "zod";
-import { Button, Card, Field, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import type { NetworkApi, OwnerProfile, ReferralLinkData, ReferralSummary } from "./api.ts";
 import { ShareActions, ShareLink } from "./ShareLink.tsx";
 import { CATEGORY_LABEL, errorMessage, formatDateTime, newIdempotencyKey, useNetworkApi } from "./useNetworkApi.ts";
@@ -92,7 +92,7 @@ function ProfileLive({ slug, bookingOn, demo }: { slug: string; bookingOn: boole
       <div className="tn-stack">
         <h2 id="no-ar-titulo">Seu perfil está no ar!</h2>
         <p>Mande o link para seus clientes ou coloque na bio do Instagram e no status do WhatsApp.</p>
-        {demo ? <p className="tn-net-muted tn-net-small">Demonstração: o link só funciona nesta aba.</p> : null}
+        {demo ? <p className="tn-muted">Demonstração: o link só funciona nesta aba.</p> : null}
         <ShareActions url={url} label="Endereço do seu perfil" whatsappText={text} />
       </div>
     </Card>
@@ -110,7 +110,7 @@ function Onboarding({ published, bookingOn, invited }: { published: boolean; boo
   return (
     <section aria-labelledby="passos-titulo" className="tn-net-steps">
       <h2 id="passos-titulo">
-        Primeiros passos <span className="tn-num tn-net-muted">· {doneCount} de {steps.length}</span>
+        Primeiros passos <span className="tn-num tn-muted">· {doneCount} de {steps.length}</span>
       </h2>
       <ol>
         {steps.map((s) => (
@@ -129,6 +129,8 @@ function Onboarding({ published, bookingOn, invited }: { published: boolean; boo
   );
 }
 
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/;
+
 function slugify(text: string) {
   return text
     .normalize("NFD")
@@ -146,42 +148,63 @@ function ProfileEditor({ api, profile, onSaved }: { api: NetworkApi; profile: Ow
   const [fields, setFields] = useState<PublicProfileField[]>(
     profile?.public_fields.filter((f) => f !== "area" && f !== "category") ?? ["display_name", "booking_link"],
   );
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [busy, setBusy] = useState<"publish" | "unpublish" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { formRef, errors, show, clear } = useFormErrors<"slug" | "area">();
   // Mesma chave enquanto o formulário não muda: um retry não publica duas vezes.
   const [idemKey, setIdemKey] = useState(newIdempotencyKey);
 
   const touch = () => setIdemKey(newIdempotencyKey());
-  const slugValid = /^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/.test(slug);
 
   async function publish(e: FormEvent) {
     e.preventDefault();
-    if (!slugValid || !area.trim()) return;
-    setBusy(true);
-    setMessage(null);
+    const ok = show({
+      slug: !slug ? "Informe o endereço do perfil." : SLUG_RE.test(slug) ? null : "Use de 3 a 50 letras minúsculas, números ou hífen.",
+      area: area.trim() ? null : "Informe o bairro ou a região.",
+    });
+    if (!ok) return;
+    setBusy("publish");
+    setError(null);
     try {
       await api.publishProfile({ slug, category, area: area.trim(), public_fields: ["area", ...fields] }, idemKey);
-      setMessage({ tone: "success", text: "Perfil publicado." });
+      toast("Perfil publicado.");
       touch();
       await onSaved();
     } catch (err) {
-      setMessage({ tone: "danger", text: errorMessage(err) });
+      setError(errorMessage(err));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
+  // Tirar do ar volta atrás com a mesma publicação (mesmo endereço, categoria, região e campos): executa e oferece Desfazer.
   async function unpublish() {
-    setBusy(true);
-    setMessage(null);
+    if (!profile) return;
+    const before = { slug: profile.slug, category: profile.category, area: profile.area, public_fields: profile.public_fields };
+    setBusy("unpublish");
+    setError(null);
     try {
       await api.unpublishProfile(newIdempotencyKey());
-      setMessage({ tone: "success", text: "Perfil removido do ar. Ninguém mais o encontra pelo link." });
       await onSaved();
+      toast({
+        message: "Perfil removido do ar. Ninguém mais o encontra pelo link.",
+        action: {
+          label: "Desfazer",
+          onAction: async () => {
+            try {
+              await api.publishProfile(before, newIdempotencyKey());
+              await onSaved();
+              toast("Perfil de volta no ar, no mesmo endereço.");
+            } catch (err) {
+              toast({ tone: "danger", message: errorMessage(err) });
+            }
+          },
+        },
+      });
     } catch (err) {
-      setMessage({ tone: "danger", text: errorMessage(err) });
+      setError(errorMessage(err));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
@@ -194,44 +217,46 @@ function ProfileEditor({ api, profile, onSaved }: { api: NetworkApi; profile: Ow
           <Link to="previa">Ver como o cliente vê</Link> · <Link to={`/p/${profile.slug}`}>Abrir perfil público</Link>
         </p>
       ) : null}
-      <form className="tn-stack" onSubmit={publish}>
+      <form className="tn-stack" onSubmit={publish} ref={formRef} noValidate>
         <Field
           label="Endereço do perfil"
           value={slug}
           onChange={(e) => {
             setSlug(slugify(e.target.value));
+            clear("slug");
             touch();
           }}
           placeholder="ex.: barbearia-do-centro"
-          error={slug && !slugValid ? "Use de 3 a 50 letras minúsculas, números ou hífen." : undefined}
+          hint="Letras minúsculas, números e hífen."
+          error={errors.slug}
           required
         />
-        <div className="tn-field">
-          <label htmlFor="categoria">Categoria</label>
-          <select
-            id="categoria"
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value as Profession);
-              touch();
-            }}
-          >
-            {(Object.keys(CATEGORY_LABEL) as Profession[]).map((p) => (
-              <option key={p} value={p}>
-                {CATEGORY_LABEL[p]}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field
+          as="select"
+          label="Categoria"
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value as Profession);
+            touch();
+          }}
+        >
+          {(Object.keys(CATEGORY_LABEL) as Profession[]).map((p) => (
+            <option key={p} value={p}>
+              {CATEGORY_LABEL[p]}
+            </option>
+          ))}
+        </Field>
         <Field
           label="Bairro ou região"
           value={area}
           maxLength={80}
           onChange={(e) => {
             setArea(e.target.value);
+            clear("area");
             touch();
           }}
           placeholder="ex.: Centro, Campinas"
+          error={errors.area}
           required
         />
         <fieldset className="tn-net-fieldset">
@@ -249,17 +274,17 @@ function ProfileEditor({ api, profile, onSaved }: { api: NetworkApi; profile: Ow
               {label}
             </label>
           ))}
-          <p className="tn-net-muted tn-net-small">
+          <p className="tn-muted">
             Categoria e região sempre aparecem no perfil publicado. Não use endereço residencial nem telefone pessoal.
           </p>
         </fieldset>
-        {message ? <StatusBanner tone={message.tone}>{message.text}</StatusBanner> : null}
-        <div className="tn-net-actions">
-          <Button type="submit" disabled={busy || !slugValid || !area.trim()}>
+        {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+        <div className="tn-actions">
+          <Button type="submit" loading={busy === "publish"} disabled={busy === "unpublish"}>
             {profile?.published_at ? "Atualizar perfil" : "Publicar perfil"}
           </Button>
           {profile?.published_at ? (
-            <Button variant="secondary" onClick={() => void unpublish()} disabled={busy}>
+            <Button variant="secondary" onClick={() => void unpublish()} loading={busy === "unpublish"} disabled={busy === "publish"}>
               Tirar do ar
             </Button>
           ) : null}
@@ -283,10 +308,11 @@ function InvitePeer({ api, referrals, onCreated }: { api: NetworkApi; referrals:
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [idemKey, setIdemKey] = useState(newIdempotencyKey);
+  const { formRef, errors, show, clear } = useFormErrors<"name">();
 
   async function create(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!show({ name: name.trim() ? null : "Informe o nome do colega." })) return;
     setBusy(true);
     setError(null);
     try {
@@ -313,31 +339,30 @@ function InvitePeer({ api, referrals, onCreated }: { api: NetworkApi; referrals:
         Gere um link pessoal e envie você mesmo. A Tinindo não manda mensagem para ninguém. O convite não é avaliação e
         não muda a posição de nenhum perfil.
       </p>
-      <form className="tn-stack" onSubmit={create}>
+      <form className="tn-stack" onSubmit={create} ref={formRef} noValidate>
         <Field
           label="Nome do colega (só você vê)"
           value={name}
           maxLength={120}
           onChange={(e) => {
             setName(e.target.value);
+            clear("name");
             setIdemKey(newIdempotencyKey());
           }}
+          error={errors.name}
           required
         />
-        <div className="tn-field">
-          <label htmlFor="categoria-colega">Categoria (opcional)</label>
-          <select id="categoria-colega" value={category} onChange={(e) => setCategory(e.target.value as Profession | "")}>
-            <option value="">Não informar</option>
-            {(Object.keys(CATEGORY_LABEL) as Profession[]).map((p) => (
-              <option key={p} value={p}>
-                {CATEGORY_LABEL[p]}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field as="select" label="Categoria (opcional)" value={category} onChange={(e) => setCategory(e.target.value as Profession | "")}>
+          <option value="">Não informar</option>
+          {(Object.keys(CATEGORY_LABEL) as Profession[]).map((p) => (
+            <option key={p} value={p}>
+              {CATEGORY_LABEL[p]}
+            </option>
+          ))}
+        </Field>
         {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-        <div className="tn-net-actions">
-          <Button type="submit" disabled={busy || !name.trim()}>
+        <div className="tn-actions">
+          <Button type="submit" loading={busy}>
             Gerar link de convite
           </Button>
         </div>
@@ -350,7 +375,7 @@ function InvitePeer({ api, referrals, onCreated }: { api: NetworkApi; referrals:
             {peers.map((r) => (
               <li key={r.referral_id}>
                 <span>{r.invitee_name}</span>
-                <span className="tn-net-muted">{STATE_LABEL[r.state]}</span>
+                <span className="tn-muted">{STATE_LABEL[r.state]}</span>
               </li>
             ))}
           </ul>

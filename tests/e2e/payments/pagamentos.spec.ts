@@ -63,7 +63,7 @@ test("pagamentos: cobrança Pix pelo provedor simulado, cliente paga pelo link, 
   await share.getByRole("link", { name: "Abrir o link como a cliente" }).click();
   await expect(page).toHaveURL(/\/pagar$/);
   await expect(page.getByRole("heading", { name: /Pagar Barbearia do Léo/ })).toBeVisible();
-  await expect(page.getByText("R$ 60,00")).toBeVisible();
+  await expect(page.getByText("R$ 60,00", { exact: true })).toBeVisible();
   await expect(page.getByText("Nenhum dinheiro é movimentado")).toBeVisible();
   await page.getByRole("group", { name: "Simular o pagamento" }).getByRole("button", { name: "Pagar (simulação)" }).click();
   await expect(page.getByText("Pagamento simulado confirmado pelo banco.")).toBeVisible();
@@ -74,9 +74,13 @@ test("pagamentos: cobrança Pix pelo provedor simulado, cliente paga pelo link, 
   await soft(page, "/app/pagamentos");
   await expect(list).toContainText("Pago (confirmado pelo banco)");
   await expect(form.getByLabel("Quem está devendo")).not.toContainText("Corte · Ana Beatriz");
-  const refund = list.getByRole("form", { name: /Estornar Corte/ });
+  // Estorno mexe em dinheiro: pede confirmação com o valor e o motivo.
+  await list.getByRole("button", { name: /Estornar tudo de Corte/ }).click();
+  const refund = list.getByRole("group", { name: /Estornar R\$\s60,00 de Corte/ });
+  await refund.getByRole("button", { name: "Sim, estornar" }).click();
+  await expect(refund.getByText("Escreva o motivo do estorno.")).toBeVisible();
   await refund.getByLabel("Motivo do estorno").fill("Cliente desistiu");
-  await refund.getByRole("button", { name: "Estornar tudo" }).click();
+  await refund.getByRole("button", { name: "Sim, estornar" }).click();
   await expect(page.getByText(/Estorno de R\$\s60,00 confirmado pelo banco/)).toBeVisible();
   await expect(list).toContainText("Estornado");
   await expect(form.getByLabel("Quem está devendo")).toContainText("Corte · Ana Beatriz");

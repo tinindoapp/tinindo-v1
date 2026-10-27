@@ -2,7 +2,7 @@
 // A Tinindo não envia mensagens: o dono compartilha o link, e compartilhar não confirma entrega.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { TimeRange, WaitlistEntry, WaitlistOffer } from "@contracts";
-import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { endOfLocalDay, formatDateTime, formatSlot, localDate, WEEKDAYS, windowsText } from "./format.ts";
 import { newKey, type WaitlistBase, type WaitlistPort } from "./port.ts";
 
@@ -38,7 +38,6 @@ export function WaitlistPage() {
   const [base, setBase] = useState<WaitlistBase | null>(null);
   const [data, setData] = useState<Awaited<ReturnType<WaitlistPort["list"]>> | null>(null);
   const [nonce, setNonce] = useState(0);
-  const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const [fresh, setFresh] = useState<{ offerId: string; token: string } | null>(null);
   const [error, setError] = useState<unknown>(null);
 
@@ -63,19 +62,20 @@ export function WaitlistPage() {
     try {
       const o = await port.prepareOffer(entry, slot, newKey());
       if (o.token) setFresh({ offerId: o.id, token: o.token });
-      setNotice({ tone: "success", text: `Oferta preparada para ${customer(entry.customer_id)}. O horário fica segurado até ${formatDateTime(o.expires_at, tz)}.` });
+      toast(`Oferta preparada para ${customer(entry.customer_id)}. O horário fica segurado até ${formatDateTime(o.expires_at, tz)}.`);
     } catch (err) {
-      setNotice({ tone: "danger", text: explain(err) });
+      toast({ tone: "danger", message: explain(err) });
     } finally {
       reload();
     }
   }
+  /** Ação de um toque numa linha: o retorno (sucesso ou erro) sai no aviso curto. */
   async function run(action: () => Promise<void>, ok: string) {
     try {
       await action();
-      setNotice({ tone: "success", text: ok });
+      toast(ok);
     } catch (err) {
-      setNotice({ tone: "danger", text: explain(err) });
+      toast({ tone: "danger", message: explain(err) });
     } finally {
       reload();
     }
@@ -94,7 +94,6 @@ export function WaitlistPage() {
           as mudanças valem só nesta aba.
         </StatusBanner>
       ) : null}
-      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {fresh ? <ShareCard token={fresh.token} onShared={() => run(() => port.markShared(fresh.offerId, newKey()), "Compartilhamento registrado. A entrega não é confirmada pela Tinindo.")} onClose={() => setFresh(null)} /> : null}
       {!base || !data ? (
@@ -104,9 +103,9 @@ export function WaitlistPage() {
           <section aria-labelledby="wl-slots-title" className="tn-wl-section">
             <h2 id="wl-slots-title">Vagas para oferecer</h2>
             {bySlot.size === 0 ? (
-              <p className="tn-wl-muted">Nenhuma vaga liberada que sirva a alguém da lista. Quando um atendimento for cancelado, ela aparece aqui.</p>
+              <p className="tn-muted">Nenhuma vaga liberada que sirva a alguém da lista. Quando um atendimento for cancelado, ela aparece aqui.</p>
             ) : (
-              <ul className="tn-wl-list">
+              <ul className="tn-item-list">
                 {[...bySlot.entries()].map(([start, list]) => {
                   const first = list[0]!;
                   const entry = entryOf(first.entry_id);
@@ -114,7 +113,7 @@ export function WaitlistPage() {
                     <li key={start} className="tn-wl-item">
                       <div>
                         <strong>{formatSlot(first.slot, tz)}</strong>
-                        <div className="tn-wl-muted">
+                        <div className="tn-muted">
                           Próximo da fila: {entry ? `${customer(entry.customer_id)} · ${service(entry.service_id)}` : "—"}
                           {list.length > 1 ? ` · depois: ${list.length - 1}` : ""}
                         </div>
@@ -134,9 +133,9 @@ export function WaitlistPage() {
           <section aria-labelledby="wl-offers-title" className="tn-wl-section">
             <h2 id="wl-offers-title">Ofertas</h2>
             {data.offers.length === 0 ? (
-              <p className="tn-wl-muted">Nenhuma oferta feita.</p>
+              <p className="tn-muted">Nenhuma oferta feita.</p>
             ) : (
-              <ul className="tn-wl-list">
+              <ul className="tn-item-list">
                 {data.offers.map((o) => {
                   const e = entryOf(o.entry_id);
                   return (
@@ -144,15 +143,21 @@ export function WaitlistPage() {
                       <div>
                         <strong>{OFFER_STATUS[o.status]}</strong>
                         {e ? ` · ${customer(e.customer_id)}` : ""}
-                        <div className="tn-wl-muted">
+                        <div className="tn-muted">
                           {o.status === "offered" ? `Vale até ${formatDateTime(o.expires_at, tz)} · ` : ""}
                           {o.delivery_state ? DELIVERY[o.delivery_state] ?? "" : ""}
                         </div>
                       </div>
                       {o.status === "offered" ? (
-                        <Button variant="ghost" onClick={() => void run(() => port.cancelOffer(o.id, newKey()), "Oferta retirada. O horário voltou a ficar livre.")}>
-                          Retirar oferta
-                        </Button>
+                        // Retirar invalida o link que o cliente já pode ter recebido: não volta atrás, então confirma antes.
+                        <ConfirmAction
+                          trigger="Retirar oferta"
+                          triggerLabel={`Retirar oferta${e ? ` de ${customer(e.customer_id)}` : ""}`}
+                          title="Retirar oferta?"
+                          consequence={`O link${e ? ` de ${customer(e.customer_id)}` : ""} para de funcionar e o horário volta a ficar livre.`}
+                          confirmLabel="Sim, retirar"
+                          onConfirm={() => run(() => port.cancelOffer(o.id, newKey()), "Oferta retirada. O horário voltou a ficar livre.")}
+                        />
                       ) : null}
                     </li>
                   );
@@ -164,25 +169,31 @@ export function WaitlistPage() {
           <section aria-labelledby="wl-entries-title" className="tn-wl-section">
             <h2 id="wl-entries-title">Na lista</h2>
             {data.entries.length === 0 ? (
-              <p className="tn-wl-muted">Ninguém na lista.</p>
+              <p className="tn-muted">Ninguém na lista.</p>
             ) : (
-              <ul className="tn-wl-list">
+              <ul className="tn-item-list">
                 {data.entries.map((e) => (
                   <li key={e.id} className="tn-wl-item">
                     <div>
                       <strong>{customer(e.customer_id)}</strong> · {service(e.service_id)}
-                      <div className="tn-wl-muted">{windowsText(e.acceptable_windows)} · até {formatDateTime(e.valid_until, tz)}</div>
+                      <div className="tn-muted">{windowsText(e.acceptable_windows)} · até {formatDateTime(e.valid_until, tz)}</div>
                     </div>
-                    <Button variant="ghost" onClick={() => void run(() => port.withdraw(e, newKey()), "Cliente saiu da lista.")}>
-                      Tirar da lista<span className="tn-visually-hidden"> {customer(e.customer_id)}</span>
-                    </Button>
+                    {/* Voltar exige novo cadastro com consentimento (e a vez na fila se perde): confirma antes. */}
+                    <ConfirmAction
+                      trigger="Tirar da lista"
+                      triggerLabel={`Tirar da lista ${customer(e.customer_id)}`}
+                      title={`Tirar ${customer(e.customer_id)} da lista?`}
+                      consequence={`${customer(e.customer_id)} deixa de receber vagas de ${service(e.service_id)} e perde a vez na fila. Para voltar, é preciso adicionar de novo.`}
+                      confirmLabel="Sim, tirar"
+                      onConfirm={() => run(() => port.withdraw(e, newKey()), "Cliente saiu da lista.")}
+                    />
                   </li>
                 ))}
               </ul>
             )}
           </section>
 
-          <JoinForm base={base} onDone={(text) => { setNotice({ tone: "success", text }); reload(); }} onError={(err) => setNotice({ tone: "danger", text: explain(err) })} />
+          <JoinForm base={base} onDone={(text) => { toast(text); reload(); }} />
         </>
       )}
     </section>
@@ -195,12 +206,12 @@ function ShareCard({ token, onShared, onClose }: { token: string; onShared: () =
   return (
     <Card aria-labelledby="wl-share-title">
       <h2 id="wl-share-title">Link da oferta</h2>
-      <p className="tn-wl-muted">
+      <p className="tn-muted">
         O link aparece só agora. A Tinindo não envia mensagens: copie ou abra o WhatsApp e envie você mesmo. Compartilhar não confirma que o
         cliente recebeu.
       </p>
       <p className="tn-wl-link"><code>{link}</code></p>
-      <div className="tn-wl-actions">
+      <div className="tn-actions">
         <Button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => undefined); onShared(); }}>Copiar link</Button>
         <a className="tn-button" data-variant="secondary" href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer noopener" onClick={onShared}>
           Abrir no WhatsApp
@@ -211,7 +222,7 @@ function ShareCard({ token, onShared, onClose }: { token: string; onShared: () =
   );
 }
 
-function JoinForm({ base, onDone, onError }: { base: WaitlistBase; onDone: (t: string) => void; onError: (e: unknown) => void }) {
+function JoinForm({ base, onDone }: { base: WaitlistBase; onDone: (t: string) => void }) {
   const port = usePort();
   const today = localDate(port.now(), base.timezone);
   const [customer, setCustomer] = useState("");
@@ -221,16 +232,21 @@ function JoinForm({ base, onDone, onError }: { base: WaitlistBase; onDone: (t: s
   const [to, setTo] = useState("19:00");
   const [until, setUntil] = useState(() => new Date(Date.parse(`${today}T12:00:00Z`) + 30 * 86_400_000).toISOString().slice(0, 10));
   const [consent, setConsent] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const { formRef, errors, show } = useFormErrors<"customer" | "days" | "to" | "until" | "consent">();
+  const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!customer) return setProblem("Escolha o cliente.");
-    if (days.length === 0) return setProblem("Escolha pelo menos um dia.");
-    if (!from || !to || to <= from) return setProblem("O fim da faixa deve ser depois do início.");
-    if (!consent) return setProblem("Só entra na lista quem autorizou receber aviso de vaga.");
-    setProblem(null);
+    setFailure(null);
+    const ok = show({
+      customer: !customer ? "Escolha o cliente." : null,
+      days: days.length === 0 ? "Escolha pelo menos um dia." : null,
+      to: !from || !to || to <= from ? "O fim da faixa deve ser depois do início." : null,
+      until: !until || until < today ? "Escolha uma data a partir de hoje." : null,
+      consent: !consent ? "Só entra na lista quem autorizou receber aviso de vaga." : null,
+    });
+    if (!ok) return;
     setPending(true);
     try {
       await port.join({ customer_id: customer, service_id: service, valid_until: endOfLocalDay(until, base.timezone),
@@ -239,7 +255,7 @@ function JoinForm({ base, onDone, onError }: { base: WaitlistBase; onDone: (t: s
       setDays([]);
       setConsent(false);
     } catch (err) {
-      onError(err);
+      setFailure(explain(err));
     } finally {
       setPending(false);
     }
@@ -248,38 +264,40 @@ function JoinForm({ base, onDone, onError }: { base: WaitlistBase; onDone: (t: s
   return (
     <section aria-labelledby="wl-join-title" className="tn-wl-section">
       <h2 id="wl-join-title">Adicionar à lista</h2>
-      <form className="tn-wl-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Adicionar à lista">
-        <div className="tn-field">
-          <label htmlFor="wl-customer">Cliente</label>
-          <select id="wl-customer" value={customer} onChange={(e) => setCustomer(e.target.value)}>
-            <option value="">Escolha…</option>
-            {base.customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-        <div className="tn-field">
-          <label htmlFor="wl-service">Serviço</label>
-          <select id="wl-service" value={service} onChange={(e) => setService(e.target.value)}>
-            {base.services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-        <fieldset className="tn-wl-days">
+      <form ref={formRef} className="tn-form-grid" onSubmit={(e) => void submit(e)} noValidate aria-label="Adicionar à lista">
+        <Field as="select" label="Cliente" id="wl-customer" value={customer} error={errors.customer} onChange={(e) => setCustomer(e.target.value)}>
+          <option value="">Escolha…</option>
+          {base.customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Field>
+        <Field as="select" label="Serviço" id="wl-service" value={service} onChange={(e) => setService(e.target.value)}>
+          {base.services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </Field>
+        <fieldset className="tn-wl-days" data-span="full" aria-describedby={errors.days ? "wl-days-error" : undefined}>
           <legend>Dias que servem</legend>
-          {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+          {[1, 2, 3, 4, 5, 6, 0].map((d, i) => (
             <label key={d} className="tn-wl-check">
-              <input type="checkbox" checked={days.includes(d)} onChange={(e) => setDays(e.target.checked ? [...days, d] : days.filter((x) => x !== d))} />
+              <input type="checkbox" checked={days.includes(d)} aria-invalid={errors.days && i === 0 ? true : undefined}
+                onChange={(e) => setDays(e.target.checked ? [...days, d] : days.filter((x) => x !== d))} />
               {WEEKDAYS[d]}
             </label>
           ))}
+          {errors.days ? <span id="wl-days-error" className="tn-field__error">{errors.days}</span> : null}
         </fieldset>
-        <div className="tn-field"><label htmlFor="wl-from">A partir de</label><input id="wl-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-        <div className="tn-field"><label htmlFor="wl-to">Até as</label><input id="wl-to" type="time" step={900} value={to} onChange={(e) => setTo(e.target.value)} /></div>
-        <div className="tn-field"><label htmlFor="wl-until">Fica na lista até</label><input id="wl-until" type="date" min={today} value={until} onChange={(e) => setUntil(e.target.value)} /></div>
-        <label className="tn-wl-check tn-wl-consent">
-          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          O cliente autorizou receber aviso de vaga por mensagem que eu mesmo vou enviar.
-        </label>
-        {problem ? <StatusBanner tone="danger">{problem}</StatusBanner> : null}
-        <Button type="submit" disabled={pending}>Adicionar</Button>
+        <Field label="A partir de" id="wl-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} />
+        <Field label="Até as" id="wl-to" type="time" step={900} value={to} error={errors.to} onChange={(e) => setTo(e.target.value)} />
+        <Field label="Fica na lista até" id="wl-until" type="date" min={today} value={until} error={errors.until} onChange={(e) => setUntil(e.target.value)} />
+        <div className="tn-wl-consent" data-span="full">
+          <label className="tn-wl-check">
+            <input type="checkbox" checked={consent} aria-invalid={errors.consent ? true : undefined}
+              aria-describedby={errors.consent ? "wl-consent-error" : undefined} onChange={(e) => setConsent(e.target.checked)} />
+            O cliente autorizou receber aviso de vaga por mensagem que eu mesmo vou enviar.
+          </label>
+          {errors.consent ? <span id="wl-consent-error" className="tn-field__error">{errors.consent}</span> : null}
+        </div>
+        {failure ? <div data-span="full"><StatusBanner tone="danger">{failure}</StatusBanner></div> : null}
+        <div className="tn-actions" data-span="full">
+          <Button type="submit" loading={pending}>Adicionar</Button>
+        </div>
       </form>
     </section>
   );

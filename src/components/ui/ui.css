@@ -1,5 +1,6 @@
 /* Componentes base. Ação principal = preta (--tn-action). Laranja não é botão nem estado. */
 .tn-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -8,7 +9,6 @@
   padding: 0 var(--tn-space-5);
   border-radius: var(--tn-radius-pill);
   border: 1px solid transparent;
-  font: inherit;
   font-weight: var(--tn-font-weight-medium);
   text-decoration: none;
   cursor: pointer;
@@ -17,13 +17,59 @@
 }
 .tn-button:active:not(:disabled) { transform: scale(.98); }
 .tn-button[data-variant="primary"] { background: var(--tn-action); color: var(--tn-text-on-action); }
-.tn-button[data-variant="primary"]:hover:not(:disabled) { background: var(--tn-action-hover); }
 .tn-button[data-variant="secondary"] { background: var(--tn-surface); color: var(--tn-text); border-color: var(--tn-border-control); }
-.tn-button[data-variant="secondary"]:hover:not(:disabled) { background: var(--tn-action-subtle); }
 .tn-button[data-variant="ghost"] { background: transparent; color: var(--tn-text); }
-.tn-button[data-variant="ghost"]:hover:not(:disabled) { background: var(--tn-action-subtle); }
+/* Perigo: só no botão que confirma o que não volta atrás ("Sim, cancelar"). Vermelho com texto e ícone, nunca só cor. */
+.tn-button[data-variant="danger"] { background: var(--tn-danger-action); color: var(--tn-text-on-action); }
 .tn-button[data-block] { width: 100%; }
-.tn-button:disabled { opacity: .55; cursor: not-allowed; }
+.tn-button:disabled { opacity: var(--tn-opacity-disabled); cursor: not-allowed; }
+/* Ocupado (item 11): continua legível (sem a opacidade de desabilitado) e mostra o indicador girando. */
+.tn-button[data-loading] { opacity: 1; cursor: progress; }
+.tn-spinner {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: tn-spin .7s linear infinite;
+}
+@keyframes tn-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tn-spinner { animation-duration: 2s; } }
+
+/* Hover só onde existe ponteiro que paira (item 14): no toque o realce não "gruda" depois de tocar. */
+@media (hover: hover) {
+  .tn-button[data-variant="primary"]:hover:not(:disabled) { background: var(--tn-action-hover); }
+  .tn-button[data-variant="secondary"]:hover:not(:disabled),
+  .tn-button[data-variant="ghost"]:hover:not(:disabled) { background: var(--tn-action-subtle); }
+  .tn-button[data-variant="danger"]:hover:not(:disabled) { background: color-mix(in srgb, var(--tn-danger-action) 88%, var(--tn-text)); }
+}
+
+/* Botão só de ícone (item 17): 44 × 44 px; "sm" (40 px) só dentro de avisos. */
+.tn-icon-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--tn-size-touch);
+  height: var(--tn-size-touch);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--tn-radius-pill);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tn-icon-button[data-size="sm"] { width: 40px; height: 40px; }
+.tn-icon-button[data-variant="secondary"] { background: var(--tn-surface); border-color: var(--tn-border-control); color: var(--tn-text); }
+.tn-icon-button:disabled { opacity: var(--tn-opacity-disabled); cursor: not-allowed; }
+@media (hover: hover) { .tn-icon-button:hover:not(:disabled) { background: var(--tn-action-subtle); } }
+
+/* Retorno ao toque (item 14): linhas, cartões-link, abas e botões de ícone escurecem de leve enquanto pressionados. */
+:is(a.tn-list__row, a.tn-stat, .tn-icon-button, .tn-subnav a, .tn-chipnav a, .tn-tabbar a, .tn-nav__link, .tn-choice, .tn-segmented__option):active {
+  background: var(--tn-action-subtle);
+}
 
 .tn-card {
   background: var(--tn-surface);
@@ -35,12 +81,25 @@
 @media (min-width: 900px) { .tn-card { padding: var(--tn-space-6); } }
 
 /* min-width/width: campos nativos não podem alargar o cartão em 320 px (WCAG 1.4.10). */
-.tn-field { display: grid; gap: var(--tn-space-1); min-width: 0; }
-.tn-field label { font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); }
+.tn-field { display: grid; gap: var(--tn-space-1); min-width: 0; align-content: start; }
+.tn-field label { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
 .tn-field input:not([type="checkbox"], [type="radio"]),
 .tn-field select,
 .tn-field textarea { width: 100%; min-width: 0; max-width: 100%; }
-.tn-field [role="alert"] { color: var(--tn-danger-text); font-size: var(--tn-font-size-sm); }
+.tn-field__hint { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+/* Erro embaixo do campo (item 12): texto + traço vermelho na borda do campo, nunca só a cor. */
+.tn-field__error {
+  display: flex;
+  gap: var(--tn-space-1);
+  align-items: flex-start;
+  margin: 0;
+  color: var(--tn-danger-text);
+  font-size: var(--tn-text-support);
+  font-weight: var(--tn-font-weight-medium);
+}
+.tn-field__error::before { content: "×"; flex: none; font-weight: var(--tn-font-weight-semibold); }
+.tn-field[data-invalid] :is(input, select, textarea) { border-color: var(--tn-danger-text); box-shadow: inset 4px 0 0 var(--tn-danger-text); }
+:is(input, select, textarea):disabled { opacity: var(--tn-opacity-disabled); cursor: not-allowed; }
 
 /* Campos de todas as telas do app e das páginas públicas (perfil, diretório, avaliar, site, pagar) com a mesma linguagem
    (especificidade zero: o módulo ainda pode ajustar). */
@@ -52,7 +111,6 @@
   border-radius: var(--tn-radius-sm);
   background: var(--tn-surface);
   color: var(--tn-text);
-  font: inherit;
 }
 /* iPhone: o Safari amplia a tela ao tocar num campo com letra menor que 16 px. Em tela de toque, todo campo tem 16 px ou
    mais. O !important vence os módulos que herdam o 14 px do rótulo com `font: inherit` (mensagens, caixa, pagamentos…). */
@@ -64,20 +122,187 @@
 :where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; accent-color: var(--tn-action); }
 :where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(fieldset) { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3) var(--tn-space-4); }
 
+/* Avisos (item 7): fundo misturado com a cor do tom (no tema escuro deixa de ser igual ao cartão), barra de 4 px na
+   cor do tom e ícone próprio de cada tom. O texto acessível do tom ("Atenção:") vem antes do conteúdo. */
 .tn-banner {
+  --tn-tone: var(--tn-info-text);
   display: flex;
   gap: var(--tn-space-2);
   align-items: flex-start;
   padding: var(--tn-space-3) var(--tn-space-4);
   border-radius: var(--tn-radius-md);
-  font-size: var(--tn-font-size-sm);
+  border-left: 4px solid var(--tn-tone);
+  background: color-mix(in srgb, var(--tn-tone) 12%, var(--tn-surface));
+  color: var(--tn-text);
+  font-size: var(--tn-text-support);
 }
-.tn-banner[data-tone="info"] { background: var(--tn-info-bg); color: var(--tn-info-text); }
-.tn-banner[data-tone="success"] { background: var(--tn-success-bg); color: var(--tn-success-text); }
-.tn-banner[data-tone="warning"] { background: var(--tn-warning-bg); color: var(--tn-warning-text); }
-.tn-banner[data-tone="danger"] { background: var(--tn-danger-bg); color: var(--tn-danger-text); }
-.tn-banner strong { font-weight: var(--tn-font-weight-semibold); }
-.tn-banner svg { flex: none; margin-top: 2px; }
+.tn-banner[data-tone="info"] { --tn-tone: var(--tn-info-text); }
+.tn-banner[data-tone="success"] { --tn-tone: var(--tn-success-text); }
+.tn-banner[data-tone="warning"] { --tn-tone: var(--tn-warning-text); }
+.tn-banner[data-tone="danger"] { --tn-tone: var(--tn-danger-text); }
+.tn-banner .tn-tone-icon { flex: none; margin-top: 1px; color: var(--tn-tone); }
+.tn-banner > div { min-width: 0; }
+
+/* Toast (item 5): fixo acima da barra de abas (e da área segura do iPhone), sempre à vista, um por vez. */
+.tn-toaster {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-3));
+  z-index: 45;
+  display: flex;
+  justify-content: center;
+  padding: 0 max(var(--tn-space-4), env(safe-area-inset-right)) 0 max(var(--tn-space-4), env(safe-area-inset-left));
+  pointer-events: none;
+}
+.tn-toast {
+  --tn-tone: var(--tn-success-text);
+  display: flex;
+  align-items: center;
+  gap: var(--tn-space-3);
+  width: min(100%, 520px);
+  min-height: 56px;
+  padding: var(--tn-space-2) var(--tn-space-2) var(--tn-space-2) var(--tn-space-4);
+  border-radius: var(--tn-radius-md);
+  border: 1px solid var(--tn-border);
+  border-left: 4px solid var(--tn-tone);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  box-shadow: var(--tn-shadow-lg);
+  font-size: var(--tn-text-support);
+  pointer-events: auto;
+  animation: tn-toast-in var(--tn-motion-base) var(--tn-motion-ease);
+}
+.tn-toast[data-tone="info"] { --tn-tone: var(--tn-info-text); }
+.tn-toast[data-tone="warning"] { --tn-tone: var(--tn-warning-text); }
+.tn-toast[data-tone="danger"] { --tn-tone: var(--tn-danger-text); }
+.tn-toast .tn-tone-icon { flex: none; color: var(--tn-tone); }
+.tn-toast__text { flex: 1; min-width: 0; padding: var(--tn-space-2) 0; overflow-wrap: anywhere; }
+.tn-toast__action {
+  flex: none;
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-3);
+  border: 0;
+  border-radius: var(--tn-radius-pill);
+  background: transparent;
+  color: var(--tn-text);
+  font-weight: var(--tn-font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+@media (hover: hover) { .tn-toast__action:hover { background: var(--tn-action-subtle); } }
+@keyframes tn-toast-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Confirmação no lugar do botão (item 6): pergunta, consequência e o botão de perigo. */
+.tn-confirm {
+  display: grid;
+  gap: var(--tn-space-2);
+  padding: var(--tn-space-3) var(--tn-space-4);
+  border: 1px solid var(--tn-border);
+  border-left: 4px solid var(--tn-danger-text);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface);
+  min-width: 0;
+}
+.tn-confirm__title { margin: 0; font-weight: var(--tn-font-weight-semibold); }
+.tn-confirm__title:focus { outline: none; }
+.tn-confirm__title:focus-visible { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
+.tn-confirm__body { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-confirm__body > * { margin: 0; }
+
+/* Selecionado (item 9). Segmented: trilho com opções; a marcada fica preenchida. */
+.tn-segmented { border: 0 !important; padding: 0 !important; margin: 0; min-width: 0; }
+.tn-segmented__legend { padding: 0; margin-bottom: var(--tn-space-1); font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
+.tn-segmented__track {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--tn-space-1);
+  padding: var(--tn-space-1);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-surface);
+  max-width: 100%;
+}
+.tn-segmented__option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-4);
+  border-radius: var(--tn-radius-pill);
+  font-size: var(--tn-text-support);
+  font-weight: var(--tn-font-weight-medium);
+  cursor: pointer;
+}
+/* O rádio cobre a opção inteira (44 px) e fica por cima: o toque e o clique caem nele. */
+.tn-segmented__option input { position: absolute; z-index: 1; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.tn-segmented__option:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
+.tn-segmented__option[data-selected] { background: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
+
+/* ChipNav: o mesmo desenho das sub-abas do shell. */
+.tn-chipnav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+.tn-chipnav a,
+.tn-subnav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-4);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  font-size: var(--tn-text-support);
+  font-weight: var(--tn-font-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tn-chipnav a[aria-current="page"],
+.tn-subnav a[aria-current="page"] { background: var(--tn-selected-bg); border-color: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
+
+/* ChoiceCard: opção grande; marcada = borda de 2 px no indicador, fundo sutil, peso 600 e ✓. */
+.tn-choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--tn-space-3);
+  min-height: var(--tn-size-touch);
+  padding: var(--tn-space-3) var(--tn-space-4);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface);
+  cursor: pointer;
+}
+.tn-choice input { position: absolute; z-index: 1; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.tn-choice:has(input[aria-invalid="true"]) { border-color: var(--tn-danger-text); }
+.tn-choice:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
+.tn-choice__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.tn-choice__title { font-weight: var(--tn-font-weight-medium); }
+.tn-choice__desc { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-choice__check { flex: none; visibility: hidden; }
+.tn-choice[data-selected] { border: 2px solid var(--tn-selected-border); padding: calc(var(--tn-space-3) - 1px) calc(var(--tn-space-4) - 1px); background: var(--tn-action-subtle); }
+.tn-choice[data-selected] .tn-choice__title { font-weight: var(--tn-selected-weight); }
+.tn-choice[data-selected] .tn-choice__check { visibility: visible; }
+.tn-choice[data-disabled] { opacity: var(--tn-opacity-disabled); cursor: not-allowed; }
+
+/* Utilitários de layout (item 8): o que cada módulo repetia com prefixo próprio. Os módulos usam estes. */
+.tn-muted { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-stack { display: grid; gap: var(--tn-space-4); min-width: 0; }
+.tn-stack > * { min-width: 0; }
+.tn-stack[data-gap="sm"] { gap: var(--tn-space-2); }
+.tn-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
+.tn-form-grid { display: grid; gap: var(--tn-space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+.tn-form-grid > .tn-field[data-span="full"], .tn-form-grid > [data-span="full"] { grid-column: 1 / -1; }
+.tn-item-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
+.tn-item-list > li {
+  padding: var(--tn-space-3);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 /* ------------------------------------------------------------------ linguagem de app */
 .tn-page-header {
@@ -102,8 +327,8 @@
   gap: var(--tn-space-3);
   margin-bottom: var(--tn-space-2);
 }
-.tn-section__head h2 { margin: 0; font-size: var(--tn-font-size-lg); }
-.tn-section__head a { font-size: var(--tn-font-size-sm); font-weight: var(--tn-font-weight-medium); min-height: var(--tn-size-touch); display: inline-flex; align-items: center; }
+.tn-section__head h2 { margin: 0; font-size: var(--tn-text-group); }
+.tn-section__head a { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); min-height: var(--tn-size-touch); display: inline-flex; align-items: center; }
 
 .tn-list {
   list-style: none;
@@ -124,7 +349,7 @@
   color: var(--tn-text);
   text-decoration: none;
 }
-a.tn-list__row:hover { background: var(--tn-action-subtle); }
+@media (hover: hover) { a.tn-list__row:hover { background: var(--tn-action-subtle); } }
 .tn-list__icon {
   display: inline-flex;
   align-items: center;
@@ -137,8 +362,8 @@ a.tn-list__row:hover { background: var(--tn-action-subtle); }
 }
 .tn-list__text { display: grid; gap: 2px; min-width: 0; flex: 1; }
 .tn-list__title { font-weight: var(--tn-font-weight-medium); overflow-wrap: anywhere; }
-.tn-list__meta { font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); overflow-wrap: anywhere; }
-.tn-list__trailing { flex: none; font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); font-variant-numeric: tabular-nums; text-align: right; }
+.tn-list__meta { font-size: var(--tn-text-support); color: var(--tn-text-muted); overflow-wrap: anywhere; }
+.tn-list__trailing { flex: none; font-size: var(--tn-text-support); color: var(--tn-text-muted); font-variant-numeric: tabular-nums; text-align: right; }
 .tn-list__chevron { color: var(--tn-text-muted); }
 
 .tn-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--tn-space-3); }
@@ -154,24 +379,18 @@ a.tn-list__row:hover { background: var(--tn-action-subtle); }
   color: var(--tn-text);
   text-decoration: none;
 }
-a.tn-stat:hover { background: var(--tn-action-subtle); }
-.tn-stat__label { font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
-.tn-stat__value { font-family: var(--tn-font-display); font-size: var(--tn-font-size-2xl); font-weight: var(--tn-font-weight-semibold); letter-spacing: var(--tn-letter-spacing-display); }
-.tn-stat__hint { font-size: var(--tn-font-size-xs); color: var(--tn-text-muted); }
+@media (hover: hover) { a.tn-stat:hover { background: var(--tn-action-subtle); } }
+.tn-stat__label { font-size: var(--tn-text-support); color: var(--tn-text-muted); }
+.tn-stat__value { font-family: var(--tn-font-display); font-size: var(--tn-text-number); font-weight: var(--tn-font-weight-semibold); letter-spacing: var(--tn-letter-spacing-display); }
+.tn-stat__hint { font-size: var(--tn-text-label); color: var(--tn-text-muted); }
 
-/* Títulos de tela compactos no celular, maiores no desktop. */
-:where(.tn-main__inner) h1 { font-size: var(--tn-font-size-2xl); }
-:where(.tn-main__inner) h2 { font-size: var(--tn-font-size-xl); }
-@media (min-width: 900px) {
-  :where(.tn-main__inner) h1 { font-size: var(--tn-font-size-3xl); }
-  :where(.tn-main__inner) h2 { font-size: var(--tn-font-size-2xl); }
-}
+/* Títulos de tela: tamanhos por papel em global.css (--tn-text-title/section/group), compactos no celular. */
 
 /* Abertura de tela: cabeçalho padrão seguido de ajuda, avisos e ações rápidas, sem caixa. */
 .tn-page-intro { display: grid; gap: var(--tn-space-2); min-width: 0; }
 .tn-page-intro > * { margin-top: 0; margin-bottom: 0; }
 .tn-page-intro > :is(div, button):not(.tn-banner) { justify-self: start; }
-.tn-page-intro > p:not([class*="banner"]) { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-page-intro > p:not([class*="banner"]) { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 /* Em telas cuja raiz já espaça os blocos (grid com gap), o cabeçalho e a ajuda não somam margem. */
 :is(.tn-qt, .tn-rc, .tn-cp) > :is(.tn-page-header, .tn-help) { margin: 0; }
 
@@ -179,10 +398,10 @@ a.tn-stat:hover { background: var(--tn-action-subtle); }
 .tn-main__inner .tn-card:has(> h1) { display: grid; gap: var(--tn-space-2); background: transparent; border: 0; box-shadow: none; padding: 0; }
 .tn-main__inner .tn-card:has(> h1) > * { margin-top: 0; margin-bottom: 0; }
 .tn-main__inner .tn-card:has(> h1) > :is(div, button):not(.tn-banner) { justify-self: start; }
-.tn-main__inner .tn-card:has(> h1) > p:not([class*="banner"]) { color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-main__inner .tn-card:has(> h1) > p:not([class*="banner"]) { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 /* Títulos dentro de cartões no tamanho de seção. */
-.tn-main__inner .tn-card h2 { font-size: var(--tn-font-size-lg); }
-.tn-main__inner .tn-card h3 { font-size: var(--tn-font-size-md); }
+.tn-main__inner .tn-card h2 { font-size: var(--tn-text-group); }
+.tn-main__inner .tn-card h3 { font-size: var(--tn-text-body); }
 /* Avisos empilhados respiram. */
 .tn-banner + .tn-banner { margin-top: var(--tn-space-2); }
 
@@ -195,13 +414,13 @@ a.tn-stat:hover { background: var(--tn-action-subtle); }
   padding: 0 var(--tn-space-3) 0 var(--tn-space-2);
   border-radius: var(--tn-radius-pill);
   color: var(--tn-text-muted);
-  font-size: var(--tn-font-size-sm);
+  font-size: var(--tn-text-support);
   font-weight: var(--tn-font-weight-medium);
   cursor: pointer;
   list-style: none;
 }
 .tn-help summary::-webkit-details-marker { display: none; }
-.tn-help summary:hover { background: var(--tn-action-subtle); color: var(--tn-text); }
+@media (hover: hover) { .tn-help summary:hover { background: var(--tn-action-subtle); color: var(--tn-text); } }
 .tn-help[open] summary { color: var(--tn-text); }
-.tn-help__body { padding: var(--tn-space-2) var(--tn-space-4) var(--tn-space-1); border-left: 2px solid var(--tn-border); color: var(--tn-text-muted); font-size: var(--tn-font-size-sm); }
+.tn-help__body { padding: var(--tn-space-2) var(--tn-space-4) var(--tn-space-1); border-left: 2px solid var(--tn-border); color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-help__body p { margin: 0 0 var(--tn-space-2); }

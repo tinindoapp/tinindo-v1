@@ -4,6 +4,7 @@
 // agenda) não move o foco, para não tirar a pessoa do controle que acabou de usar.
 import { useEffect, useRef } from "react";
 import { Outlet, useLocation } from "react-router";
+import { Toaster } from "../components/ui/feedback.tsx";
 import { DemoBanner } from "./DemoBanner.tsx";
 
 export const APP_TITLE = "Tinindo";
@@ -58,13 +59,15 @@ export function RouteFocus() {
   return null;
 }
 
-/** Raiz do roteador: faixa "Demonstração" (uma vez, em todas as rotas), efeitos globais de navegação e a rota atual. */
+/** Raiz do roteador: faixa "Demonstração" (uma vez, em todas as rotas), efeitos globais de navegação, a rota atual e a
+ *  região dos avisos curtos (Toast), que fica acima da barra de abas em qualquer tela. */
 export function RouteFrame() {
   return (
     <>
       <DemoBanner />
       <RouteFocus />
       <Outlet />
+      <Toaster />
     </>
   );
 }

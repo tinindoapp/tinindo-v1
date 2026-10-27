@@ -27,7 +27,7 @@
   overflow: hidden;
   background: var(--tn-warning-bg);
   color: var(--tn-warning-text);
-  font-size: var(--tn-font-size-xs);
+  font-size: var(--tn-text-label);
   line-height: 1;
   white-space: nowrap;
 }
@@ -93,7 +93,7 @@
 .tn-appbar__tenant { flex: 1; min-width: 0; display: flex; align-items: center; }
 .tn-tenant__name {
   font-weight: var(--tn-font-weight-semibold);
-  font-size: var(--tn-font-size-md);
+  font-size: var(--tn-text-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -105,7 +105,6 @@
   border-radius: var(--tn-radius-pill);
   background: var(--tn-surface);
   color: var(--tn-text);
-  font: inherit;
   font-weight: var(--tn-font-weight-semibold);
   padding: 0 var(--tn-space-3);
 }
@@ -119,28 +118,15 @@
   border-radius: var(--tn-radius-pill);
   background: var(--tn-surface);
   color: var(--tn-text);
-  font: inherit;
-  font-size: var(--tn-font-size-sm);
+  font-size: var(--tn-text-support);
   font-weight: var(--tn-font-weight-medium);
   cursor: pointer;
 }
-.tn-appbar__action:hover { background: var(--tn-action-subtle); }
+@media (hover: hover) { .tn-appbar__action:hover { background: var(--tn-action-subtle); } }
 /* Tela de um grupo do menu (Crescer, Negócio): o botão Menu indica onde você está. */
 .tn-appbar__action[data-active] { background: var(--tn-action-subtle); border-color: var(--tn-action-subtle); font-weight: var(--tn-font-weight-semibold); }
 
-.tn-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--tn-size-touch);
-  height: var(--tn-size-touch);
-  border: 0;
-  border-radius: var(--tn-radius-pill);
-  background: transparent;
-  color: var(--tn-text);
-  cursor: pointer;
-}
-.tn-icon-button:hover { background: var(--tn-action-subtle); }
+/* .tn-icon-button vive em components/ui (IconButton, item 17 da auditoria). */
 
 /* ------------------------------------------------------------------ conteúdo */
 .tn-main { min-width: 0; padding-bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-8)); }
@@ -178,21 +164,7 @@
   mask-image: linear-gradient(to right, transparent, #000 var(--tn-subnav-fade), #000 calc(100% - var(--tn-subnav-fade)), transparent);
 }
 .tn-subnav ul::-webkit-scrollbar { display: none; }
-.tn-subnav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tn-size-touch);
-  padding: 0 var(--tn-space-4);
-  border: 1px solid var(--tn-border);
-  border-radius: var(--tn-radius-pill);
-  background: var(--tn-surface);
-  color: var(--tn-text);
-  font-size: var(--tn-font-size-sm);
-  font-weight: var(--tn-font-weight-medium);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.tn-subnav a[aria-current="page"] { background: var(--tn-action); border-color: var(--tn-action); color: var(--tn-text-on-action); }
+/* O chip (.tn-subnav a) tem o mesmo desenho do ChipNav, em components/ui/ui.css (item 9). */
 
 .tn-empty { padding: var(--tn-space-8) 0; }
 
@@ -216,7 +188,7 @@
   gap: 2px;
   min-height: var(--tn-tabbar-h);
   color: var(--tn-text-muted);
-  font-size: var(--tn-font-size-xs);
+  font-size: var(--tn-text-label);
   font-weight: var(--tn-font-weight-medium);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
@@ -240,7 +212,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--tn-space-2) var(--tn-space-2) var(--tn-space-2) var(--tn-space-4);
-  font-size: var(--tn-font-size-lg);
+  font-size: var(--tn-text-group);
 }
 .tn-nav__group { margin-top: var(--tn-space-4); }
 .tn-nav__group:has(> .tn-nav__list:only-child) { margin-top: var(--tn-space-2); }
@@ -249,7 +221,7 @@
   padding: 0 var(--tn-space-3);
   text-transform: uppercase;
   letter-spacing: var(--tn-letter-spacing-caps);
-  font-size: var(--tn-font-size-xs);
+  font-size: var(--tn-text-label);
   font-weight: var(--tn-font-weight-semibold);
   color: var(--tn-text-muted);
 }
@@ -266,13 +238,12 @@
   border-radius: var(--tn-radius-md);
   background: transparent;
   color: var(--tn-text);
-  font: inherit;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 }
 .tn-nav__link .tn-icon { color: var(--tn-text-muted); }
-.tn-nav__link:hover { background: var(--tn-action-subtle); }
+@media (hover: hover) { .tn-nav__link:hover { background: var(--tn-action-subtle); } }
 .tn-nav__link[aria-current="page"] { background: var(--tn-action-subtle); font-weight: var(--tn-font-weight-semibold); }
 .tn-nav__link[aria-current="page"] .tn-icon { color: var(--tn-text); }
 /* Item ativo: o fundo sutil sozinho dá 1,17:1; o traço em --tn-selected-indicator (>= 3:1 contra o fundo e contra

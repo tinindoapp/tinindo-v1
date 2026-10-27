@@ -1,8 +1,8 @@
 // Avaliações (P24): painel do dono (responder, denunciar), página do cliente para avaliar atendimentos concluídos e lista
 // pública do perfil. Selos separados: identidade verificada, atendimentos verificados, competência certificada (ainda não).
-import { useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { type CustomerReviewsPort, newKey, type OwnerReviewsPort, type PublicReviewsPort, type ReviewOwnerList, type ReviewPending, type ReviewPublicList } from "./port.ts";
 
@@ -35,37 +35,63 @@ export function Badges({ s }: { s: ReviewPublicList["summary"] }) {
 function ReviewView({ r }: { r: ReviewPublicList["reviews"][number] }) {
   return (
     <>
-      <p className="tn-rev-head"><span aria-label={`${r.rating} de 5`}>{stars(r.rating)}</span> <span className="tn-rev-muted">· {r.service_name} · {monthLabel(r.service_month)} · cliente com atendimento verificado</span></p>
+      <p className="tn-rev-head"><span aria-label={`${r.rating} de 5`}>{stars(r.rating)}</span> <span className="tn-muted">· {r.service_name} · {monthLabel(r.service_month)} · cliente com atendimento verificado</span></p>
       {r.body ? <p className="tn-rev-body">{r.body}</p> : null}
       {r.reply ? <p className="tn-rev-reply"><strong>Resposta do profissional:</strong> {r.reply.body}</p> : null}
     </>
   );
 }
 
-function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number]; port: OwnerReviewsPort; onDone: (t: string, ok: boolean) => void }) {
+function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number]; port: OwnerReviewsPort; onDone: (message: string) => void }) {
   const [text, setText] = useState(r.reply?.body ?? "");
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const { formRef, errors, show } = useFormErrors<"text">();
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!show({ text: text.trim().length < 2 && "Escreva a resposta (pelo menos 2 caracteres)." })) return;
+    setBusy(true);
+    setFailure(null);
+    try {
+      await port.reply(r.id, r.version, text, newKey());
+      onDone("Resposta publicada.");
+    } catch (err) {
+      setFailure(explain(err));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <li className="tn-rev-item">
       <ReviewView r={r} />
       {r.status === "hidden" ? <StatusBanner tone="warning">Oculta pela moderação: {r.hidden_reason}</StatusBanner> : null}
-      {r.open_reports ? <p className="tn-rev-muted">Denúncia em análise pela moderação.</p> : null}
-      <div className="tn-rev-actions">
+      {r.open_reports ? <p className="tn-muted">Denúncia em análise pela moderação.</p> : null}
+      <div className="tn-actions">
         {!open ? <Button variant="secondary" onClick={() => setOpen(true)}>{r.reply ? "Editar resposta" : "Responder"}</Button> : null}
+        {/* Denúncia não tem como ser retirada no port: confirma antes, dizendo o que acontece. */}
         {r.status === "published" && !r.open_reports ? (
-          <Button variant="ghost" onClick={() => void port.report(r.id, "offensive", newKey()).then(() => onDone("Denúncia enviada. A avaliação continua visível até a moderação decidir.", true), (e: unknown) => onDone(explain(e), false))}>
-            Denunciar
-          </Button>
+          <ConfirmAction
+            trigger="Denunciar"
+            triggerLabel={`Denunciar a avaliação de ${r.rating} estrela(s) sobre ${r.service_name}`}
+            title="Denunciar esta avaliação?"
+            consequence={<p>A moderação analisa e decide se oculta. Até lá ela continua visível, e a denúncia não pode ser retirada.</p>}
+            confirmLabel="Sim, denunciar"
+            onConfirm={() =>
+              port.report(r.id, "offensive", newKey()).then(
+                () => onDone("Denúncia enviada. A avaliação continua visível até a moderação decidir."),
+                (e: unknown) => toast({ tone: "danger", message: explain(e) }),
+              )
+            }
+          />
         ) : null}
       </div>
       {open ? (
-        <form className="tn-rev-form" aria-label="Responder avaliação" onSubmit={(e) => {
-          e.preventDefault();
-          void port.reply(r.id, r.version, text, newKey()).then(() => onDone("Resposta publicada.", true), (err: unknown) => onDone(explain(err), false));
-        }}>
-          <label className="tn-field"><span>Sua resposta (pública)</span><textarea value={text} maxLength={600} onChange={(e) => setText(e.target.value)} /></label>
-          <div className="tn-rev-actions">
-            <Button type="submit" disabled={text.trim().length < 2}>Publicar resposta</Button>
+        <form ref={formRef} className="tn-stack" data-gap="sm" aria-label="Responder avaliação" onSubmit={(e) => void submit(e)} noValidate>
+          <Field as="textarea" label="Sua resposta (pública)" value={text} maxLength={600} error={errors.text} onChange={(e) => setText(e.target.value)} />
+          {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
+          <div className="tn-actions">
+            <Button type="submit" loading={busy} loadingText="Publicando…">Publicar resposta</Button>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
           </div>
         </form>
@@ -76,29 +102,29 @@ function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number];
 
 export function OwnerReviewsPage({ port }: { port: OwnerReviewsPort }) {
   const [data, setData] = useState<ReviewOwnerList | null>(null);
-  const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
   useEffect(() => {
     let alive = true;
-    port.list().then((d) => alive && setData(d), (e: unknown) => alive && setNotice({ tone: "danger", text: explain(e) }));
+    port.list().then((d) => { if (alive) { setData(d); setLoadError(null); } }, (e: unknown) => alive && setLoadError(explain(e)));
     return () => { alive = false; };
   }, [port, nonce]);
-  const done = (text: string, ok: boolean) => {
-    setNotice({ tone: ok ? "success" : "danger", text });
+  const done = (message: string) => {
+    toast(message);
     setNonce((n) => n + 1);
   };
   return (
-    <div className="tn-rev">
+    <div className="tn-stack tn-rev">
       <PageHeader id="rev-title" title="Avaliações" subtitle="Só clientes com atendimento concluído e vínculo verificado avaliam. Você responde; ninguém apaga." />
       <Help><p>Cada avaliação vem de um atendimento concluído de um cliente que entrou na Tinindo com o código do seu negócio, em até 30 dias. Você pode responder publicamente e denunciar o que for ofensivo ou trouxer dados pessoais; quem decide é a moderação. Não há como pagar por avaliação, e a média só aparece a partir de 3.</p></Help>
       {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Avaliações de exemplo.</StatusBanner> : null}
-      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
+      {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
       {data ? (
         <>
           <Card aria-labelledby="rev-badges-title"><h2 id="rev-badges-title">Selos do seu perfil</h2><Badges s={data.summary} /></Card>
           <Card aria-labelledby="rev-list-title">
             <h2 id="rev-list-title">Recebidas</h2>
-            {data.reviews.length === 0 ? <p className="tn-rev-muted">Nenhuma avaliação ainda.</p> : null}
+            {data.reviews.length === 0 ? <p className="tn-muted">Nenhuma avaliação ainda.</p> : null}
             <ul className="tn-rev-list" aria-label="Avaliações recebidas">{data.reviews.map((r) => <OwnerItem key={`${r.id}:${r.version}:${r.open_reports}`} r={r} port={port} onDone={done} />)}</ul>
           </Card>
         </>
@@ -110,18 +136,89 @@ export function OwnerReviewsPage({ port }: { port: OwnerReviewsPort }) {
 /** Nota de 1 a 5: o número aparece no botão; o leitor de tela ouve "1 – Ruim" … "5 – Excelente". */
 const RATING_WORDS = ["Ruim", "Regular", "Bom", "Muito bom", "Excelente"] as const;
 
+type PendingRow = ReviewPending["pending"][number];
+
+function PendingItem({ p, port, target, lock, onDone }: {
+  p: PendingRow;
+  port: CustomerReviewsPort;
+  target: string | null;
+  /** Uma publicação por vez na página: o clique duplo não manda a segunda (voltaria "já avaliado" por cima do sucesso). */
+  lock: { take: () => boolean; release: () => void };
+  onDone: () => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [ratingError, setRatingError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const label = `Avaliar ${p.service_name} em ${p.tenant_name}, ${DAY.format(new Date(p.ended_at))}`;
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!rating) {
+      // Botão sempre ativo: sem nota, explica embaixo da nota e leva o foco até a primeira opção.
+      setRatingError("Escolha uma nota de 1 a 5.");
+      formRef.current?.querySelector<HTMLInputElement>("input[type=radio]")?.focus();
+      return;
+    }
+    if (!lock.take()) return;
+    setBusy(true);
+    setFailure(null);
+    try {
+      await port.submit(p.booking_id, rating, text.trim() || null, newKey());
+      toast("Obrigado! Sua avaliação foi publicada sem o seu nome.");
+      onDone();
+    } catch (err) {
+      setFailure(explain(err));
+    } finally {
+      lock.release();
+      setBusy(false);
+    }
+  }
+  return (
+    <li id={`avaliar-${p.booking_id}`} className="tn-rev-item" data-target={p.booking_id === target ? "true" : undefined}>
+      <form ref={formRef} aria-label={label} className="tn-stack" data-gap="sm" onSubmit={(e) => void submit(e)} noValidate>
+        <p><strong>{p.service_name}</strong> · {p.tenant_name} · <span className="tn-num">{DAY.format(new Date(p.ended_at))}</span></p>
+        <div className="tn-field tn-rev-rating" data-invalid={ratingError ? true : undefined}>
+          <Segmented
+            label="Nota"
+            name={`r-${p.booking_id}`}
+            value={rating ? String(rating) : ""}
+            onChange={(v) => { setRating(Number(v)); setRatingError(null); }}
+            options={RATING_WORDS.map((word, i) => ({
+              value: String(i + 1),
+              label: (
+                <>
+                  <span aria-hidden="true" className="tn-num">{i + 1}</span>
+                  <span className="tn-visually-hidden">{i + 1} – {word}</span>
+                </>
+              ),
+            }))}
+          />
+          <span className="tn-field__hint" aria-hidden="true">{rating ? `${rating} – ${RATING_WORDS[rating - 1]}` : "1 = Ruim · 5 = Excelente"}</span>
+          {ratingError ? <span className="tn-field__error" role="alert">{ratingError}</span> : null}
+        </div>
+        <Field as="textarea" label="Comentário (opcional)" value={text} maxLength={600} onChange={(e) => setText(e.target.value)} />
+        {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
+        <div><Button type="submit" loading={busy} loadingText="Publicando…">Publicar avaliação</Button></div>
+      </form>
+    </li>
+  );
+}
+
 /** Página do cliente (/avaliar): atendimentos concluídos e vinculados, avaliáveis por 30 dias. */
 export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
   const { state } = useSession();
   const [data, setData] = useState<ReviewPending | null>(null);
-  const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
-  const [rating, setRating] = useState<Record<string, number>>({});
-  const [text, setText] = useState<Record<string, string>>({});
-  // Uma publicação por vez: o clique duplo não manda a segunda (que voltaria "já avaliado" por cima do sucesso).
   const sending = useRef(false);
-  const [busy, setBusy] = useState(false);
+  const lock = useMemo(() => ({
+    take: () => (sending.current ? false : (sending.current = true)),
+    release: () => { sending.current = false; },
+  }), []);
   const signedOut = state.status === "signed_out";
+  const reload = () => setNonce((n) => n + 1);
   // Vindo de "Minhas reservas" (?atendimento=id): leva ao formulário daquele atendimento.
   const target = useSearchParams()[0].get("atendimento");
   const targetPending = target ? data?.pending.some((p) => p.booking_id === target) : undefined;
@@ -134,7 +231,7 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
   useEffect(() => {
     if (signedOut) return;
     let alive = true;
-    port.pending().then((d) => alive && setData(d), (e: unknown) => alive && setNotice({ tone: "danger", text: explain(e) }));
+    port.pending().then((d) => { if (alive) { setData(d); setLoadError(null); } }, (e: unknown) => alive && setLoadError(explain(e)));
     return () => { alive = false; };
   }, [port, nonce, signedOut]);
   return (
@@ -143,48 +240,16 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
       {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Você vê como a Cliente Exemplo Ana: aparecem os exemplos e os atendimentos dela concluídos na Agenda desta aba. Nada é publicado fora da aba.</StatusBanner> : null}
       {signedOut ? <p><Link to="/entrar">Entre na sua conta</Link> para avaliar os atendimentos que você fez.</p> : null}
       {!signedOut ? <p><Link to="/app/conta/reservas">Minhas reservas</Link></p> : null}
-      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-      {data && target && targetPending === false && !notice ? (
+      {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
+      {data && target && targetPending === false && !loadError ? (
         <StatusBanner tone="info">Esse atendimento não está mais para avaliar: já foi avaliado ou passou o prazo de {data.rules.window_days} dias.</StatusBanner>
       ) : null}
       {data ? (
         <>
-          <p className="tn-rev-muted">Aparecem só atendimentos concluídos nos negócios em que você tem vínculo, até {data.rules.window_days} dias depois. Seu nome não aparece na avaliação.</p>
+          <p className="tn-muted">Aparecem só atendimentos concluídos nos negócios em que você tem vínculo, até {data.rules.window_days} dias depois. Seu nome não aparece na avaliação.</p>
           {data.pending.length === 0 ? <p>Nada para avaliar agora.</p> : null}
           <ul className="tn-rev-list" aria-label="Para avaliar">
-            {data.pending.map((p) => (
-              <li key={p.booking_id} id={`avaliar-${p.booking_id}`} className="tn-rev-item" data-target={p.booking_id === target ? "true" : undefined}>
-                <form aria-label={`Avaliar ${p.service_name} em ${p.tenant_name}, ${DAY.format(new Date(p.ended_at))}`} className="tn-rev-form" onSubmit={(e) => {
-                  e.preventDefault();
-                  if (sending.current) return;
-                  sending.current = true;
-                  setBusy(true);
-                  void port.submit(p.booking_id, rating[p.booking_id] ?? 0, text[p.booking_id]?.trim() || null, newKey())
-                    .then(() => { setNotice({ tone: "success", text: "Obrigado! Sua avaliação foi publicada sem o seu nome." }); setNonce((n) => n + 1); },
-                      (err: unknown) => setNotice({ tone: "danger", text: explain(err) }))
-                    .finally(() => { sending.current = false; setBusy(false); });
-                }}>
-                  <p><strong>{p.service_name}</strong> · {p.tenant_name} · <span className="tn-num">{DAY.format(new Date(p.ended_at))}</span></p>
-                  <fieldset className="tn-rev-stars">
-                    <legend>Nota</legend>
-                    <div className="tn-rev-stars__options">
-                      {RATING_WORDS.map((word, i) => (
-                        <label key={word} className="tn-rev-star">
-                          <input type="radio" name={`r-${p.booking_id}`} checked={rating[p.booking_id] === i + 1} onChange={() => setRating({ ...rating, [p.booking_id]: i + 1 })} />
-                          <span aria-hidden="true" className="tn-num">{i + 1}</span>
-                          <span className="tn-visually-hidden">{i + 1} – {word}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="tn-rev-muted tn-rev-stars__hint" aria-hidden="true">
-                      {rating[p.booking_id] ? `${rating[p.booking_id]} – ${RATING_WORDS[rating[p.booking_id]! - 1]}` : "1 = Ruim · 5 = Excelente"}
-                    </p>
-                  </fieldset>
-                  <label className="tn-field"><span>Comentário (opcional)</span><textarea value={text[p.booking_id] ?? ""} maxLength={600} onChange={(e) => setText({ ...text, [p.booking_id]: e.target.value })} /></label>
-                  <div><Button type="submit" disabled={!rating[p.booking_id] || busy}>Publicar avaliação</Button></div>
-                </form>
-              </li>
-            ))}
+            {data.pending.map((p) => <PendingItem key={p.booking_id} p={p} port={port} target={target} lock={lock} onDone={reload} />)}
           </ul>
           {data.mine.length ? (
             <section aria-labelledby="rev-mine">
@@ -193,8 +258,23 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
                 {data.mine.map((r) => (
                   <li key={r.id} className="tn-rev-item">
                     <ReviewView r={r} />
-                    <p className="tn-rev-muted">{r.tenant_name} · {r.status === "published" ? "publicada" : r.status === "hidden" ? "oculta pela moderação" : "retirada por você"}</p>
-                    {r.status === "published" ? <Button variant="ghost" onClick={() => void port.withdraw(r.id, newKey()).then(() => setNonce((n) => n + 1))}>Retirar avaliação</Button> : null}
+                    <p className="tn-muted">{r.tenant_name} · {r.status === "published" ? "publicada" : r.status === "hidden" ? "oculta pela moderação" : "retirada por você"}</p>
+                    {/* Retirar é definitivo no servidor (o atendimento não volta a ser avaliável): confirma antes. */}
+                    {r.status === "published" ? (
+                      <ConfirmAction
+                        trigger="Retirar avaliação"
+                        triggerLabel={`Retirar avaliação de ${r.service_name} em ${r.tenant_name}`}
+                        title="Retirar sua avaliação?"
+                        consequence={<p>Ela sai do perfil de {r.tenant_name} e este atendimento não pode ser avaliado de novo.</p>}
+                        confirmLabel="Sim, retirar"
+                        onConfirm={() =>
+                          port.withdraw(r.id, newKey()).then(
+                            () => { toast("Avaliação retirada."); reload(); },
+                            (e: unknown) => toast({ tone: "danger", message: explain(e) }),
+                          )
+                        }
+                      />
+                    ) : null}
                   </li>
                 ))}
               </ul>

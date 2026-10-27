@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { createDemoPort } from "./demoPort.ts";
 import type { CampaignsPort } from "./port.ts";
@@ -20,10 +20,10 @@ function CampaignsLayout() {
   }, [state.status, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="cp-no-tenant">
-        <h1 id="cp-no-tenant">Campanhas</h1>
-        <StatusBanner tone="info">Selecione um negócio para ver as indicações.</StatusBanner>
-      </Card>
+      <div className="tn-page-intro">
+        <PageHeader id="cp-no-tenant" title="Campanhas" />
+        <StatusBanner tone="info">Selecione um negócio para ver as campanhas.</StatusBanner>
+      </div>
     );
   }
   return <CampaignsPage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;

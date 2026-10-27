@@ -1,7 +1,7 @@
 // Indicações (P21): o dono vê os convites de colega (gerados no Perfil, P09), a adesão de cada um medida pelo backend
 // e os benefícios. O benefício é crédito de franquia do assistente no mês; nunca avaliação, nota ou posição.
 import { useEffect, useState } from "react";
-import { Button, Card, Help, LinkButton, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, LinkButton, PageHeader, StatusBanner, toast } from "../../components/ui/index.tsx";
 import { activationLabel, explain, formatDate, formatMonth, STATE } from "./labels.ts";
 import type { ReferralDashboard, ReferralReward, ReferralsPort } from "./port.ts";
 
@@ -9,7 +9,7 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
   const [data, setData] = useState<ReferralDashboard | null>(null);
   const [rewards, setRewards] = useState<ReferralReward[] | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [simulating, setSimulating] = useState(false);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
@@ -23,6 +23,18 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
     return () => { alive = false; };
   }, [port, nonce]);
   const rules = data?.rules;
+  async function simulate() {
+    setSimulating(true);
+    try {
+      const r = await port.simulateActivity!();
+      toast({ tone: "info", message: `Avaliação (simulação): ${r.rewarded} benefício(s) concedido(s).` });
+    } catch (e) {
+      toast({ tone: "danger", message: explain(e) });
+    } finally {
+      setSimulating(false);
+      setNonce((x) => x + 1);
+    }
+  }
 
   return (
     <div className="tn-ref">
@@ -31,7 +43,7 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
         <Help><p>
           O convite sai do seu Perfil: o link é pessoal e quem envia é você. Quando o negócio indicado passa a usar a Tinindo de verdade, você ganha crédito de perguntas do assistente no mês.
         </p></Help>
-        <div className="tn-ref-actions">
+        <div className="tn-actions">
           <LinkButton to="/app/perfil" variant="secondary">Convidar pelo Perfil</LinkButton>
         </div>
         <StatusBanner tone="info">
@@ -41,7 +53,6 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
         </StatusBanner>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é concedido de verdade.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-        {notice ? <StatusBanner tone="success">{notice}</StatusBanner> : null}
         {data ? (
           <dl className="tn-ref-summary" aria-label="Resumo">
             <div><dt>Convites</dt><dd>{data.summary.invites}</dd></div>
@@ -51,21 +62,21 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
           </dl>
         ) : null}
         {port.simulateActivity ? (
-          <div className="tn-ref-actions">
-            <Button variant="secondary" onClick={() => void port.simulateActivity!().then((r) => { setNotice(`Avaliação (simulação): ${r.rewarded} benefício(s) concedido(s).`); setNonce((x) => x + 1); })}>Simular uso real do indicado</Button>
+          <div className="tn-actions">
+            <Button variant="secondary" loading={simulating} onClick={() => void simulate()}>Simular uso real do indicado</Button>
           </div>
         ) : null}
       </div>
 
       <Card aria-labelledby="ref-invites-title">
         <h2 id="ref-invites-title">Convites de colega</h2>
-        {data && data.invites.length === 0 ? <p className="tn-ref-muted">Nenhum convite ainda. Gere um link no Perfil.</p> : null}
+        {data && data.invites.length === 0 ? <p className="tn-muted">Nenhum convite ainda. Gere um link no Perfil.</p> : null}
         <ul className="tn-ref-list" aria-label="Convites">
           {data?.invites.map((i) => (
             <li key={i.referral_id} className="tn-ref-item">
               <h3>{i.invitee_name}</h3>
               <p><strong>{STATE[i.state]}</strong> · gerado em {formatDate(i.created_at)}{i.claimed_at ? ` · aceito em ${formatDate(i.claimed_at)}` : ` · vale até ${formatDate(i.expires_at)}`}</p>
-              <p className="tn-ref-muted">{activationLabel(i)}{i.reward ? ` · ${i.reward.amount} perguntas em ${formatMonth(i.reward.period_start)}` : ""}</p>
+              <p className="tn-muted">{activationLabel(i)}{i.reward ? ` · ${i.reward.amount} perguntas em ${formatMonth(i.reward.period_start)}` : ""}</p>
             </li>
           ))}
         </ul>
@@ -73,7 +84,7 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
 
       <Card aria-labelledby="ref-rewards-title">
         <h2 id="ref-rewards-title">Benefícios</h2>
-        {rewards && rewards.length === 0 ? <p className="tn-ref-muted">Nenhum benefício ainda.</p> : null}
+        {rewards && rewards.length === 0 ? <p className="tn-muted">Nenhum benefício ainda.</p> : null}
         <ul className="tn-ref-list" aria-label="Benefícios">
           {rewards?.map((r) => <li key={r.id}>{r.amount} perguntas do assistente em {formatMonth(r.period_start)} · por {r.invitee_name ?? "colega"} · {formatDate(r.created_at)}</li>)}
         </ul>

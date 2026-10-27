@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { completedVisits } from "../../lib/demo/journey.ts";
 import { createDemoPort } from "./demoPort.ts";
@@ -36,10 +36,10 @@ function FinanceLayout() {
 
   if (!port) {
     return (
-      <Card aria-labelledby="fin-no-tenant">
-        <h1 id="fin-no-tenant">Caixa</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="fin-no-tenant" title="Caixa" />
         <StatusBanner tone="info">Selecione um negócio para ver o caixa.</StatusBanner>
-      </Card>
+      </div>
     );
   }
   return (

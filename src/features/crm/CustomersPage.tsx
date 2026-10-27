@@ -6,11 +6,11 @@ import {
   CrmCustomerUpsertInput,
   DeclaredSource,
 } from "@contracts";
-import { Button, Card, Field, LinkButton, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
-import { CrmDemoNotice, fieldErrors, SelectField, Tag } from "./shared.tsx";
+import { CrmDemoNotice, fieldErrors, Tag } from "./shared.tsx";
 
 type Draft = { id?: string; version?: number; name: string; phone: string; email: string; source: string };
 const EMPTY: Draft = { name: "", phone: "", email: "", source: "" };
@@ -45,7 +45,6 @@ export function CustomersPage() {
   const [next, setNext] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [notice, setNotice] = useState<{ tone: "success" | "warning" | "danger"; text: string } | null>(null);
 
   const load = useCallback(
     async (cursor?: string) => {
@@ -67,20 +66,44 @@ export function CustomersPage() {
   }, [load]);
 
   const archiveKeys = useMemo(() => createKeyRing(), []);
+  async function setArchived(c: CrmCustomer, archived: boolean): Promise<CrmCustomer> {
+    const input = { customer_id: c.id, expected_version: c.version, archived };
+    const out = await api.archiveCustomer(input, archiveKeys.keyFor(input));
+    archiveKeys.reset();
+    await load();
+    return out.customer;
+  }
+
+  // Arquivar volta atrás (desarquivar): executa na hora e o aviso oferece "Desfazer".
   async function toggleArchive(c: CrmCustomer) {
-    const input = { customer_id: c.id, expected_version: c.version, archived: !c.archived_at };
+    const archiving = !c.archived_at;
     try {
-      await api.archiveCustomer(input, archiveKeys.keyFor(input));
-      archiveKeys.reset();
-      setNotice({ tone: "success", text: c.archived_at ? `${c.name} voltou para a lista.` : `${c.name} foi arquivado.` });
-      await load();
+      const saved = await setArchived(c, archiving);
+      if (!archiving) {
+        toast(`${c.name} voltou para a lista.`);
+        return;
+      }
+      toast({
+        message: `${c.name} foi arquivado.`,
+        action: {
+          label: "Desfazer",
+          onAction: async () => {
+            try {
+              await setArchived(saved, false);
+              toast(`${c.name} voltou para a lista.`);
+            } catch (e) {
+              toast({ tone: "danger", message: errorMessage(e) });
+            }
+          },
+        },
+      });
     } catch (e) {
-      setNotice({ tone: "danger", text: errorMessage(e) });
+      toast({ tone: "danger", message: errorMessage(e) });
     }
   }
 
   return (
-    <div className="crm-stack">
+    <div className="tn-stack">
       <PageHeader
         title={capitalize(noun.many)}
         id="crm-customers-title"
@@ -96,7 +119,7 @@ export function CustomersPage() {
         }
       />
       <CrmDemoNotice />
-      <div className="crm-filters">
+      <div className="tn-stack" data-gap="sm">
         <div className="crm-toolbar">
           <Field
             label="Buscar por nome, e-mail ou telefone"
@@ -112,8 +135,6 @@ export function CustomersPage() {
         </div>
       </div>
 
-      {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-
       {draft ? (
         <CustomerForm
           draft={draft}
@@ -121,7 +142,7 @@ export function CustomersPage() {
           onCancel={() => setDraft(null)}
           onSaved={async (text, tone) => {
             setDraft(null);
-            setNotice({ tone, text });
+            toast({ message: text, tone });
             await load();
           }}
         />
@@ -133,9 +154,9 @@ export function CustomersPage() {
         </h2>
         {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
         {!loadError && items.length === 0 ? (
-          <p className="crm-note">Nenhum {noun.one} encontrado. Cadastre o primeiro ou importe uma planilha.</p>
+          <p className="tn-muted">Nenhum {noun.one} encontrado. Cadastre o primeiro ou importe uma planilha.</p>
         ) : null}
-        <ul className="crm-list">
+        <ul className="tn-item-list">
           {items.map((c) => (
             <li key={c.id} className="crm-item">
               <div className="crm-item__main">
@@ -147,7 +168,7 @@ export function CustomersPage() {
                     .join(" · ") || "Sem contato cadastrado"}
                 </div>
               </div>
-              <div className="crm-item__actions">
+              <div className="tn-actions crm-item__actions">
                 <Button
                   variant="secondary"
                   disabled={api.readOnly}
@@ -200,7 +221,7 @@ function CustomerForm({
 }) {
   const api = useCrmApi();
   const [form, setForm] = useState(draft);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { formRef, errors, show } = useFormErrors<"name" | "phone" | "email">();
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const keys = useMemo(() => createKeyRing(), []);
@@ -208,27 +229,23 @@ function CustomerForm({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    // Valida tudo de uma vez: cada erro embaixo do seu campo e o foco no primeiro.
     const phone = normalizePhoneBR(form.phone);
-    if ("error" in phone) {
-      setErrors({ phone: "Telefone inválido. Use DDD + número, ex.: (11) 98765-4321." });
-      return;
-    }
     const parsed = CrmCustomerUpsertInput.safeParse({
       ...(form.id ? { customer_id: form.id, expected_version: form.version } : {}),
       name: form.name,
-      phone: phone.value,
+      phone: "error" in phone ? null : phone.value,
       email: form.email.trim() ? form.email.trim().toLowerCase() : null,
       declared_source: form.source || null,
     });
-    if (!parsed.success) {
-      const raw = fieldErrors(parsed.error.issues);
-      setErrors({
-        ...(raw.name ? { name: "Informe o nome (até 120 caracteres)." } : {}),
-        ...(raw.email ? { email: "E-mail inválido." } : {}),
-      });
-      return;
-    }
-    setErrors({});
+    const raw = parsed.success ? {} : fieldErrors(parsed.error.issues);
+    const ok = show({
+      name: raw.name && (form.name.trim() ? "O nome pode ter até 120 caracteres." : "Informe o nome."),
+      phone: "error" in phone && "Telefone inválido. Use DDD + número, ex.: (11) 98765-4321.",
+      email: raw.email && "E-mail inválido. Confira o endereço, ex.: ana@exemplo.com.",
+    });
+    if (!ok || !parsed.success) return;
+    setServerError(null);
     setBusy(true);
     try {
       const out = await api.upsertCustomer(parsed.data, keys.keyFor(parsed.data));
@@ -248,24 +265,25 @@ function CustomerForm({
 
   return (
     <Card aria-labelledby="crm-customer-form">
-      <form className="crm-form" onSubmit={submit} noValidate>
+      <form ref={formRef} className="tn-stack" onSubmit={submit} noValidate>
         <h2 id="crm-customer-form">{form.id ? `Editar ${noun}` : `Novo ${noun}`}</h2>
-        <div className="crm-grid">
+        <div className="tn-form-grid">
           <Field label="Nome" value={form.name} onChange={set("name")} maxLength={120} required error={errors.name} />
           <Field label="Telefone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} error={errors.phone} />
           <Field label="E-mail" type="email" value={form.email} onChange={set("email")} error={errors.email} />
-          <SelectField
-            label="Como chegou até você"
-            value={form.source}
-            onChange={(v) => setForm({ ...form, source: v })}
-            options={SOURCE_OPTIONS}
-          />
+          <Field as="select" label="Como chegou até você" value={form.source} onChange={set("source")}>
+            {SOURCE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Field>
         </div>
-        <p className="crm-note">A origem é o que você declara. O telefone não liga cadastros de outros negócios.</p>
+        <p className="tn-muted">A origem é o que você declara. O telefone não liga cadastros de outros negócios.</p>
         {serverError ? <StatusBanner tone="danger">{serverError}</StatusBanner> : null}
-        <div className="crm-actions">
-          <Button type="submit" disabled={busy || api.readOnly}>
-            {busy ? "Salvando…" : "Salvar"}
+        <div className="tn-actions">
+          <Button type="submit" loading={busy} loadingText="Salvando…" disabled={api.readOnly}>
+            Salvar
           </Button>
           <Button variant="ghost" onClick={onCancel}>
             Cancelar

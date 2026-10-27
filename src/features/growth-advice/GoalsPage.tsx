@@ -1,13 +1,21 @@
 // Metas e conteúdo (P22): metas por indicador do Resultado (progresso = o indicador, com denominador), sugestões por
 // regras sobre dado existente (sem LLM) com decisão registrada e acompanhamento observacional, e conteúdo aprovado
 // por profissão publicado só pelo escopo autorizado do Perfil (P09). O que a tela promete é o que o banco garante.
-import { type FormEvent, useEffect, useState } from "react";
+import { type ComponentProps, type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { actionLabel, DECISION, DIRECTION, explain, formatDate, formatEvidence, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS, RULE_LABEL } from "./labels.ts";
 import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort, newKey } from "./port.ts";
 
-type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string } | null;
+/** Retorno de uma ação: aviso curto (Toast), sempre à vista; `null` só atualiza a tela. */
+type Notice = ToastInput | string | null;
+
+/** Botão de ação de um toque: mostra o carregando enquanto a ação roda. */
+function ActButton({ onAct, ...props }: Omit<ComponentProps<typeof Button>, "onClick" | "loading"> & { onAct: () => Promise<unknown> }) {
+  const [busy, setBusy] = useState(false);
+  return <Button {...props} loading={busy} onClick={() => { setBusy(true); void onAct().finally(() => setBusy(false)); }} />;
+}
+const failed = (e: unknown): Notice => ({ tone: "danger", message: explain(e) });
 const KEYS = Object.keys(METRIC_LABEL) as GoalMetricKey[];
 const isCents = (k: GoalMetricKey) => k === "received" || k === "expenses";
 const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
@@ -17,36 +25,40 @@ function GoalForm({ port, metrics, onDone }: { port: GrowthAdvicePort; metrics: 
   const [target, setTarget] = useState("10");
   const [note, setNote] = useState("");
   const [idem, setIdem] = useState(newKey);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { formRef, errors, show } = useFormErrors<"target">();
   const m = metrics.find((x) => x.key === key);
   async function submit(e: FormEvent) {
     e.preventDefault();
+    const value = isCents(key) ? parseBRL(target) : Number(target.replace(",", ".")) / 100;
+    if (!show({ target: !(Number.isFinite(value) && value > 0) && (isCents(key) ? "Informe a meta em reais." : "Informe a meta em %.") })) return;
+    setBusy(true);
+    setError(null);
     try {
-      const g = await port.saveGoal({ metric_key: key, target: isCents(key) ? parseBRL(target) : Number(target.replace(",", ".")) / 100, note: note.trim() || null }, idem);
+      const g = await port.saveGoal({ metric_key: key, target: value, note: note.trim() || null }, idem);
       setIdem(newKey());
       setNote("");
-      onDone({ tone: "success", text: `Meta de ${g.label ?? METRIC_LABEL[g.metric_key]} criada: ${formatTarget(g.unit, g.target)} (${DIRECTION[g.direction]}). O progresso é o número do mês, com a conta (quantos de quantos).` });
+      onDone(`Meta de ${g.label ?? METRIC_LABEL[g.metric_key]} criada: ${formatTarget(g.unit, g.target)} (${DIRECTION[g.direction]}). O progresso é o número do mês, com a conta (quantos de quantos).`);
     } catch (err) {
       setIdem(newKey());
-      onDone({ tone: "danger", text: explain(err) });
+      setError(explain(err));
+    } finally {
+      setBusy(false);
     }
   }
   return (
-    <form className="tn-ga-form" aria-label="Nova meta" onSubmit={(e) => void submit(e)}>
-      <label className="tn-ga-field">Indicador
-        <select value={key} onChange={(e) => setKey(e.target.value as GoalMetricKey)}>
-          {KEYS.map((k) => <option key={k} value={k}>{METRIC_LABEL[k]}</option>)}
-        </select>
-      </label>
-      <label className="tn-ga-field">{isCents(key) ? "Meta (R$ no mês)" : "Meta (%)"}
-        <input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} />
-      </label>
-      <label className="tn-ga-field">Nota (opcional)
-        <input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
-      </label>
-      <p className="tn-ga-muted">
+    <form ref={formRef} className="tn-ga-form" aria-label="Nova meta" onSubmit={(e) => void submit(e)} noValidate>
+      <Field as="select" label="Indicador" value={key} onChange={(e) => setKey(e.target.value as GoalMetricKey)}>
+        {KEYS.map((k) => <option key={k} value={k}>{METRIC_LABEL[k]}</option>)}
+      </Field>
+      <Field label={isCents(key) ? "Meta (R$ no mês)" : "Meta (%)"} inputMode="decimal" value={target} error={errors.target} onChange={(e) => setTarget(e.target.value)} />
+      <Field label="Nota (opcional)" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
+      <p className="tn-muted tn-ga-now">
         {m ? (m.status === "ok" ? `Agora: ${m.unit === "cents" ? formatTarget("cents", m.value ?? 0) : pct(m.value)}${m.denominator !== null ? ` (${m.numerator} de ${m.denominator})` : ""}.` : `Agora: ${PROGRESS_STATUS[m.status]}.`) : ""}
       </p>
-      <Button type="submit" disabled={!target.trim()}>Criar meta</Button>
+      <Button type="submit" loading={busy}>Criar meta</Button>
+      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
     </form>
   );
 }
@@ -58,34 +70,46 @@ function GoalItem({ g, port, onDone }: { g: Goal; port: GrowthAdvicePort; onDone
     <li className="tn-ga-item">
       <h3>{g.label ?? METRIC_LABEL[g.metric_key]} · meta {formatTarget(g.unit, g.target)}</h3>
       <p><strong>{g.status === "active" ? (p.achieved ? "Atingida" : "Em andamento") : "Arquivada"}</strong> · {DIRECTION[g.direction]} · mês {g.period_start.slice(5, 7)}/{g.period_start.slice(0, 4)}{g.note ? ` · ${g.note}` : ""}</p>
-      <p className="tn-ga-muted">Agora: {current}{p.denominator !== null && p.status === "ok" ? ` (${p.numerator} de ${p.denominator})` : ""}{p.attainment !== null ? ` · ${Math.round(p.attainment * 100)}% do caminho` : ""}</p>
+      <p className="tn-muted">Agora: {current}{p.denominator !== null && p.status === "ok" ? ` (${p.numerator} de ${p.denominator})` : ""}{p.attainment !== null ? ` · ${Math.round(p.attainment * 100)}% do caminho` : ""}</p>
       {p.attainment !== null ? <progress className="tn-ga-progress" max={1} value={p.attainment} aria-label={`Progresso de ${g.label ?? g.metric_key}`} /> : null}
-      {g.status === "active" ? <div className="tn-ga-actions"><Button variant="ghost" onClick={() => void port.archiveGoal(g, newKey()).then(() => onDone({ tone: "info", text: "Meta arquivada." }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }))}>Arquivar</Button></div> : null}
+      {g.status === "active" ? (
+        <div className="tn-actions">
+          {/* Não há desarquivar: confirma antes. */}
+          <ConfirmAction
+            trigger="Arquivar"
+            triggerLabel={`Arquivar a meta de ${g.label ?? METRIC_LABEL[g.metric_key]}`}
+            title={`Arquivar a meta de ${g.label ?? METRIC_LABEL[g.metric_key]}?`}
+            consequence="Ela sai do acompanhamento do mês e não volta. Para acompanhar de novo, crie outra meta."
+            confirmLabel="Sim, arquivar"
+            onConfirm={() => port.archiveGoal(g, newKey()).then(() => onDone("Meta arquivada."), (e: unknown) => onDone(failed(e)))}
+          />
+        </div>
+      ) : null}
     </li>
   );
 }
 
 function Suggestions({ advice, port, onDone }: { advice: Advice; port: GrowthAdvicePort; onDone: (n: Notice) => void }) {
   const act = (rule: string, decision: "accepted" | "dismissed") =>
-    port.decide(rule, decision, newKey()).then(() => onDone({ tone: "success", text: decision === "accepted" ? "Sugestão aceita. Em 30 dias medimos o indicador de novo e mostramos a variação observada (não é prova de efeito)." : "Sugestão dispensada neste mês." }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
+    port.decide(rule, decision, newKey()).then(() => onDone(decision === "accepted" ? "Sugestão aceita. Em 30 dias medimos o indicador de novo e mostramos a variação observada (não é prova de efeito)." : "Sugestão dispensada neste mês."), (e: unknown) => onDone(failed(e)));
   return (
     <>
-      {advice.suggestions.length === 0 ? <p className="tn-ga-muted">Nenhuma sugestão agora: as regras só falam quando há dado suficiente.</p> : null}
+      {advice.suggestions.length === 0 ? <p className="tn-muted">Nenhuma sugestão agora: as regras só falam quando há dado suficiente.</p> : null}
       <ul className="tn-ga-list" aria-label="Sugestões">
         {advice.suggestions.map((s) => (
           <li key={s.rule_code} className="tn-ga-item">
             <h3>{s.title}</h3>
             <p>{s.text}</p>
-            <p className="tn-ga-muted tn-ga-evidence">Evidência: {formatEvidence(s.evidence).map((ph, i) => (
+            <p className="tn-muted tn-ga-evidence">Evidência: {formatEvidence(s.evidence).map((ph, i) => (
               <span key={i}>{i > 0 ? " · " : ""}{ph.map((c, j) => (c.num ? <span key={j} className="tn-num">{c.text}</span> : c.text))}</span>
             ))}</p>
-            <div className="tn-ga-actions">
+            <div className="tn-actions">
               {/* Sugestão desta mesma tela (apresentação do perfil) leva à seção de conteúdo; as outras abrem a tela da ação. */}
               {s.route === "/app/metas"
                 ? <a className="tn-ga-link tn-ga-action-link" href="#ga-content-title">{actionLabel(s.rule_code, s.route)}</a>
                 : <Link className="tn-ga-link tn-ga-action-link" to={s.route}>{actionLabel(s.rule_code, s.route)}</Link>}
-              <Button variant="secondary" onClick={() => void act(s.rule_code, "accepted")}>Vou fazer</Button>
-              <Button variant="ghost" onClick={() => void act(s.rule_code, "dismissed")}>Agora não</Button>
+              <ActButton variant="secondary" onAct={() => act(s.rule_code, "accepted")}>Vou fazer</ActButton>
+              <ActButton variant="ghost" onAct={() => act(s.rule_code, "dismissed")}>Agora não</ActButton>
             </div>
           </li>
         ))}
@@ -101,19 +125,29 @@ function Suggestions({ advice, port, onDone }: { advice: Advice; port: GrowthAdv
 
 function ContentSection({ content, port, onDone }: { content: Content; port: GrowthAdvicePort; onDone: (n: Notice) => void }) {
   const canPublish = content.scope.profile_published && content.scope.bio_field;
+  const publish = (code: string, title: string) =>
+    port.publish(code, newKey()).then(() => onDone(`“${title}” publicada como apresentação do perfil.`), (e: unknown) => onDone(failed(e)));
+  // Remover volta atrás publicando o mesmo texto de novo: executa na hora e oferece Desfazer.
+  const unpublish = (p: NonNullable<Content["published"]>) => {
+    const title = content.templates.find((t) => t.code === p.template_code)?.title ?? "Apresentação";
+    return port.unpublish(p.version, newKey()).then(
+      () => onDone({ message: "Apresentação removida do perfil.", action: { label: "Desfazer", onAction: () => publish(p.template_code, title) } }),
+      (e: unknown) => onDone(failed(e)),
+    );
+  };
   return (
     <>
-      <p className="tn-ga-muted">Textos aprovados pela Tinindo para a sua profissão, preenchidos com os dados que você já tornou públicos. A apresentação vai para o perfil público só se ele estiver publicado com o campo “apresentação” escolhido (<Link to="/app/perfil">Perfil</Link>). Posts são para você copiar e postar onde quiser.</p>
+      <p className="tn-muted">Textos aprovados pela Tinindo para a sua profissão, preenchidos com os dados que você já tornou públicos. A apresentação vai para o perfil público só se ele estiver publicado com o campo “apresentação” escolhido (<Link to="/app/perfil">Perfil</Link>). Posts são para você copiar e postar onde quiser.</p>
       {!canPublish ? <StatusBanner tone="warning">Publicação bloqueada: {content.scope.profile_published ? "o campo “apresentação” não está entre os campos públicos escolhidos." : "o perfil público não está publicado."}</StatusBanner> : null}
       {content.published ? (
-        <p><strong>Publicado no perfil:</strong> {content.published.body} <Button variant="ghost" onClick={() => void port.unpublish(content.published!.version, newKey()).then(() => onDone({ tone: "info", text: "Apresentação removida do perfil." }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }))}>Remover</Button></p>
-      ) : <p className="tn-ga-muted">Nenhuma apresentação publicada.</p>}
+        <p><strong>Publicado no perfil:</strong> {content.published.body} <ActButton variant="ghost" aria-label="Remover a apresentação do perfil" onAct={() => unpublish(content.published!)}>Remover</ActButton></p>
+      ) : <p className="tn-muted">Nenhuma apresentação publicada.</p>}
       <ul className="tn-ga-list" aria-label="Conteúdo aprovado">
         {content.templates.map((t) => (
           <li key={t.code} className="tn-ga-item">
-            <h3>{t.title} <span className="tn-ga-muted">({t.kind === "bio" ? "apresentação" : "post"} · aprovado por {t.approved_by})</span></h3>
+            <h3>{t.title} <span className="tn-muted">({t.kind === "bio" ? "apresentação" : "post"} · aprovado por {t.approved_by})</span></h3>
             <p>{t.preview}</p>
-            {t.kind === "bio" ? <div className="tn-ga-actions"><Button variant="secondary" disabled={!canPublish || content.published?.template_code === t.code} onClick={() => void port.publish(t.code, newKey()).then(() => onDone({ tone: "success", text: `“${t.title}” publicada como apresentação do perfil.` }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }))}>{content.published?.template_code === t.code ? "Publicada" : "Publicar no perfil"}</Button></div> : null}
+            {t.kind === "bio" ? <div className="tn-actions"><ActButton variant="secondary" disabled={!canPublish || content.published?.template_code === t.code} onAct={() => publish(t.code, t.title)}>{content.published?.template_code === t.code ? "Publicada" : "Publicar no perfil"}</ActButton></div> : null}
           </li>
         ))}
       </ul>
@@ -125,7 +159,7 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
   const [goals, setGoals] = useState<GoalList | null>(null);
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [content, setContent] = useState<Content | null>(null);
-  const [notice, setNotice] = useState<Notice>(null);
+  const [following, setFollowing] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
   useEffect(() => {
@@ -140,9 +174,20 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
     return () => { alive = false; };
   }, [port, nonce]);
   const done = (n: Notice) => {
-    setNotice(n);
+    if (n) toast(n);
     setNonce((x) => x + 1);
   };
+  async function followUp() {
+    setFollowing(true);
+    try {
+      const r = await port.followUp!();
+      done({ tone: "info", message: `Acompanhamento (simulação): ${r.followed_up} decisão(ões) medida(s) de novo.` });
+    } catch (e) {
+      done(failed(e));
+    } finally {
+      setFollowing(false);
+    }
+  }
   return (
     <div className="tn-ga">
       <div className="tn-page-intro">
@@ -151,13 +196,12 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
         <StatusBanner tone="info"><strong>Sem inteligência artificial nas sugestões.</strong> Cada sugestão vem de uma regra fixa sobre um indicador com dado suficiente, e mostra a evidência. Você decide; a Tinindo nunca age sozinha.</StatusBanner>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é publicado de verdade. "Avançar 30 dias" faz agora a medição que o sistema faria sozinho depois de 30 dias.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-        {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
-        {port.followUp ? <div className="tn-ga-actions"><Button variant="secondary" onClick={() => void port.followUp!().then((r) => done({ tone: "info", text: `Acompanhamento (simulação): ${r.followed_up} decisão(ões) medida(s) de novo.` }))}>Avançar 30 dias (simulação)</Button></div> : null}
+        {port.followUp ? <div className="tn-actions"><Button variant="secondary" loading={following} onClick={() => void followUp()}>Avançar 30 dias (simulação)</Button></div> : null}
       </div>
       <Card aria-labelledby="ga-goals-title">
         <h2 id="ga-goals-title">Metas do mês</h2>
         {goals ? <GoalForm key={`new:${nonce}`} port={port} metrics={goals.metrics} onDone={done} /> : null}
-        {goals && goals.goals.length === 0 ? <p className="tn-ga-muted">Nenhuma meta ainda.</p> : null}
+        {goals && goals.goals.length === 0 ? <p className="tn-muted">Nenhuma meta ainda.</p> : null}
         <ul className="tn-ga-list" aria-label="Metas">
           {goals?.goals.map((g) => <GoalItem key={g.id} g={g} port={port} onDone={done} />)}
         </ul>

@@ -19,6 +19,7 @@ import { createGrowthAdviceHandler } from "../../supabase/functions/growth-advic
 import { createPresenceHandler } from "../../supabase/functions/presence/handler.ts";
 import { createDiscoveryHandler } from "../../supabase/functions/discovery/handler.ts";
 import { createReputationHandler } from "../../supabase/functions/reputation/handler.ts";
+import { createResourcesHandler } from "../../supabase/functions/resources/handler.ts";
 import { createFiscalHandler, SYNC_SECRET_HEADER as FISCAL_SYNC_HEADER } from "../../supabase/functions/fiscal/handler.ts";
 import { createSimulatedFiscalProvider, type FiscalProviderPort } from "../../supabase/functions/_shared/domain/fiscal/providers.ts";
 import { createMessagingHandler, DISPATCH_SECRET_HEADER } from "../../supabase/functions/messaging/handler.ts";
@@ -150,6 +151,7 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
     publicAppUrl: PUBLIC_APP_URL, cnameTarget: null, resolveTxt: async (name) => DNS.get(name) ?? [] }),
   discovery: createDiscoveryHandler({ ...deps, rpc: userRpc, anonRpc: (fn, args) => rpc(null, fn, args), publicAppUrl: PUBLIC_APP_URL }),
   reputation: createReputationHandler({ ...deps, rpc: userRpc, anonRpc: (fn, args) => rpc(null, fn, args) }),
+  resources: createResourcesHandler({ ...deps, rpc: userRpc }),
   fiscal: createFiscalHandler({ ...deps, rpc: userRpc, serviceRpc: (fn, args) => rpc("worker", fn, args), syncSecret: FISCAL_SYNC_SECRET, providers: FISCAL }),
   messaging: createMessagingHandler({ ...deps, rpc: userRpc, dispatchSecret: DISPATCH_SECRET, simulatedSecret: SIM_SECRET, verifyToken: null,
     serviceRpc: (fn, args) => rpc("worker", fn, args),

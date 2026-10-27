@@ -1,10 +1,10 @@
 // Novo agendamento e reagendamento: serviço → dia/horário → cliente → valor → revisão e confirmação.
 // A cotação não segura o horário; só a confirmação reserva. Conflitos (409) são explicados e
 // os horários livres são recarregados sem perder o que já foi escolhido.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import type { Booking, ProviderService, Quote, TimeRange } from "@contracts";
-import { Button } from "../../components/ui/index.tsx";
+import { Button, ChoiceCard, Field, focusFirstInvalid, IconButton, PageHeader } from "../../components/ui/index.tsx";
 import { newIdempotencyKey } from "./port.ts";
 import { canReschedule, formatCents, formatMinutes, formatRange, serviceName } from "./agenda.ts";
 import { isErrorLike } from "./errors.ts";
@@ -19,7 +19,7 @@ export function NewBookingPage() {
       <Link to=".." relative="path" className="tn-sched-back">
         ‹ Voltar para a agenda
       </Link>
-      <h1 id="flow-title">Novo agendamento</h1>
+      <PageHeader id="flow-title" title="Novo agendamento" />
       <DemoNotice kind={port.kind} />
       <BookingFlow mode="create" />
     </section>
@@ -35,7 +35,7 @@ export function ReschedulePage() {
       <Link to=".." relative="path" className="tn-sched-back">
         ‹ Voltar para o atendimento
       </Link>
-      <h1 id="flow-title">Reagendar atendimento</h1>
+      <PageHeader id="flow-title" title="Reagendar atendimento" />
       <DemoNotice kind={port.kind} />
       {booking.error ? (
         <ErrorPanel error={booking.error} operation="load" onRetry={booking.reload} />
@@ -76,6 +76,12 @@ function BookingFlow(props: FlowProps) {
   const [attempt, setAttempt] = useState<{ sig: string; key: string } | null>(null);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<unknown>(null);
+  // Validação no envio: o foco vai para o primeiro campo com erro (item 15 da auditoria).
+  const flowRef = useRef<HTMLDivElement>(null);
+  const [focusTick, setFocusTick] = useState(0);
+  useEffect(() => {
+    if (focusTick) focusFirstInvalid(flowRef.current);
+  }, [focusTick]);
 
   const service = services.find((s) => s.id === serviceId);
   const resourceId = original?.resource_id ?? ctx.resourceId;
@@ -104,6 +110,7 @@ function BookingFlow(props: FlowProps) {
     if (!slot || !service || !resourceId) return;
     if (props.mode === "create" && !customerId) {
       setCustomerError("Escolha o cliente.");
+      setFocusTick((t) => t + 1);
       return;
     }
     const payload =
@@ -122,6 +129,7 @@ function BookingFlow(props: FlowProps) {
           ? await port.create(payload as Parameters<typeof port.create>[0], key)
           : await port.reschedule(payload as Parameters<typeof port.reschedule>[0], key);
       const target = props.mode === "create" ? `../atendimento/${result.id}` : "..";
+      // O aviso (Toast) sai na tela do atendimento, depois da troca de tela.
       navigate(target, { relative: "path", state: { done: props.mode === "create" ? "criado" : "reagendado" } });
     } catch (err) {
       setFailure(err);
@@ -143,7 +151,7 @@ function BookingFlow(props: FlowProps) {
   const op = props.mode === "create" ? "create" : "reschedule";
 
   return (
-    <div className="tn-sched-flow">
+    <div className="tn-sched-flow" ref={flowRef}>
       {failure ? (
         <ErrorPanel error={failure} operation={op} onRetry={quote.data !== undefined ? () => void confirm(quote.data ?? null) : undefined} />
       ) : null}
@@ -158,10 +166,18 @@ function BookingFlow(props: FlowProps) {
           <legend>Serviço</legend>
           <div className="tn-sched-options">
             {services.map((s) => (
-              <ServiceOption key={s.id} service={s} checked={s.id === serviceId} onChange={() => {
-                setServiceId(s.id);
-                setPicked(null);
-              }} />
+              <ChoiceCard
+                key={s.id}
+                name="flow-service"
+                value={s.id}
+                checked={s.id === serviceId}
+                onChange={() => {
+                  setServiceId(s.id);
+                  setPicked(null);
+                }}
+                title={s.name}
+                description={<span className="tn-num">{formatMinutes(s.duration_min)} · a partir de {formatCents(s.base_price_cents)}</span>}
+              />
             ))}
           </div>
         </fieldset>
@@ -170,18 +186,11 @@ function BookingFlow(props: FlowProps) {
       <fieldset className="tn-sched-fieldset">
         <legend>{props.mode === "create" ? "Dia e horário" : "Novo dia e horário"}</legend>
         <div className="tn-sched-dateline">
-          <button type="button" className="tn-sched-iconbtn" aria-label="Dia anterior" disabled={date <= today} onClick={() => changeDate(addDays(date, -1))}>
-            ‹
-          </button>
-          <div className="tn-field">
-            <label htmlFor="flow-date">Dia</label>
-            <input id="flow-date" type="date" value={date} min={today} onChange={(e) => isCivilDate(e.target.value) && changeDate(e.target.value)} />
-          </div>
-          <button type="button" className="tn-sched-iconbtn" aria-label="Próximo dia" onClick={() => changeDate(addDays(date, 1))}>
-            ›
-          </button>
+          <IconButton icon="voltar" variant="secondary" label="Dia anterior" disabled={date <= today} onClick={() => changeDate(addDays(date, -1))} />
+          <Field label="Dia" id="flow-date" type="date" value={date} min={today} onChange={(e) => isCivilDate(e.target.value) && changeDate(e.target.value)} />
+          <IconButton icon="seta" variant="secondary" label="Próximo dia" onClick={() => changeDate(addDays(date, 1))} />
         </div>
-        <p className="tn-sched-muted">{formatDayLong(date)}</p>
+        <p className="tn-muted">{formatDayLong(date)}</p>
         {slots.error ? (
           <ErrorPanel error={slots.error} operation="load" onRetry={slots.reload} />
         ) : !slots.data ? (
@@ -206,31 +215,24 @@ function BookingFlow(props: FlowProps) {
       </fieldset>
 
       {props.mode === "create" ? (
-        <div className="tn-field">
-          <label htmlFor="flow-customer">Cliente</label>
-          <select
-            id="flow-customer"
-            value={customerId}
-            aria-invalid={customerError ? true : undefined}
-            aria-describedby={customerError ? "flow-customer-error" : undefined}
-            onChange={(e) => {
-              setCustomerId(e.target.value);
-              setCustomerError(undefined);
-            }}
-          >
-            <option value="">Escolha…</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          {customerError ? (
-            <span id="flow-customer-error" role="alert">
-              {customerError}
-            </span>
-          ) : null}
-        </div>
+        <Field
+          as="select"
+          label="Cliente"
+          id="flow-customer"
+          value={customerId}
+          error={customerError}
+          onChange={(e) => {
+            setCustomerId(e.target.value);
+            setCustomerError(undefined);
+          }}
+        >
+          <option value="">Escolha…</option>
+          {customers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </Field>
       ) : null}
 
       {slot && service ? (
@@ -268,14 +270,14 @@ function BookingFlow(props: FlowProps) {
                   )}
                 </dd>
               </dl>
-              <p className="tn-sched-muted">
+              <p className="tn-muted">
                 {quote.data ? `Valor válido até ${localParts(quote.data.expires_at, tz).time}. ` : ""}
                 Ver o valor não segura o horário: ele só fica reservado quando você confirmar.
               </p>
               <PolicyNote demo={port.kind === "fixture"} />
-              <div className="tn-sched-actions">
-                <Button onClick={() => void confirm(quote.data ?? null)} disabled={pending} aria-busy={pending || undefined}>
-                  {pending ? "Confirmando…" : props.mode === "create" ? "Confirmar agendamento" : "Confirmar reagendamento"}
+              <div className="tn-actions">
+                <Button onClick={() => void confirm(quote.data ?? null)} loading={pending} loadingText="Confirmando…">
+                  {props.mode === "create" ? "Confirmar agendamento" : "Confirmar reagendamento"}
                 </Button>
               </div>
             </>
@@ -283,20 +285,6 @@ function BookingFlow(props: FlowProps) {
         </section>
       ) : null}
     </div>
-  );
-}
-
-function ServiceOption({ service, checked, onChange }: { service: ProviderService; checked: boolean; onChange: () => void }) {
-  return (
-    <label className="tn-sched-option">
-      <input type="radio" name="flow-service" checked={checked} onChange={onChange} />
-      <span>
-        <span className="tn-sched-item__title">{service.name}</span>
-        <span className="tn-sched-muted tn-num">
-          {formatMinutes(service.duration_min)} · a partir de {formatCents(service.base_price_cents)}
-        </span>
-      </span>
-    </label>
   );
 }
 
@@ -311,14 +299,14 @@ function BasePriceLine({ service, previous, reschedule }: { service: ProviderSer
   if (reschedule && previous !== null) {
     return (
       <span>
-        <strong>{formatCents(previous)}</strong> <span className="tn-sched-muted">Preço combinado mantido.</span>
+        <strong>{formatCents(previous)}</strong> <span className="tn-muted">Preço combinado mantido.</span>
       </span>
     );
   }
   return (
     <span>
       <strong>{formatCents(service.base_price_cents)}</strong>{" "}
-      <span className="tn-sched-muted">Preço base do serviço. Regras de preço por horário ainda não estão ligadas.</span>
+      <span className="tn-muted">Preço base do serviço. Regras de preço por horário ainda não estão ligadas.</span>
     </span>
   );
 }
@@ -329,12 +317,12 @@ function PriceLine({ quote, previous }: { quote: Quote; previous: number | null 
     <span className="tn-sched-price">
       <strong>{formatCents(quote.final_price_cents)}</strong>
       {discounted ? (
-        <span className="tn-sched-muted">
+        <span className="tn-muted">
           {" "}
           (de <s>{formatCents(quote.base_price_cents)}</s>)
         </span>
       ) : null}
-      <span className="tn-sched-muted">
+      <span className="tn-muted">
         {" · "}
         {REASON_TEXT[quote.reason_code]}
         {quote.rule_version ? ` (regra v${quote.rule_version})` : ""}

@@ -17,7 +17,10 @@ test("serviço assistido: escopo aceito, acesso concedido pelo dono, minutos com
   await expect(plan).toContainText(/R\$\s79,00\/mês/);
 
   const request = page.getByRole("form", { name: "Pedir Implantação assistida (exemplo)" });
-  await expect(request.getByRole("button", { name: "Pedir este serviço" })).toBeDisabled();
+  // Botão sempre ativo: sem aceitar o escopo, avisa embaixo da caixa e não pede.
+  await request.getByRole("button", { name: "Pedir este serviço" }).click();
+  await expect(request.getByText("Marque que leu e aceita o escopo para pedir.")).toBeVisible();
+  await expect(request.getByLabel(/Li e aceito este escopo/)).toBeFocused();
   await request.getByLabel(/Li e aceito este escopo/).check();
   await request.getByRole("button", { name: "Pedir este serviço" }).click();
   await expect(page.getByText(/Pedido de “Implantação assistida \(exemplo\)” registrado/)).toBeVisible();

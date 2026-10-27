@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router";
-import { BrandSymbol, Wordmark } from "../components/ui/index.tsx";
+import { BrandSymbol, IconButton, Wordmark } from "../components/ui/index.tsx";
 import { Icon, IconSprite } from "../components/ui/icons.tsx";
 import { MODULES } from "./modules.ts";
 import { activeTo, buildNavigation, HOME, isItemActive, type NavSection, sectionFor } from "./navigation.ts";
@@ -174,9 +174,7 @@ export function AppShell() {
       <nav id="tn-menu" className="tn-nav" aria-label="Principal" data-open={menuOpen || undefined}>
         <div className="tn-nav__head">
           <strong>Menu</strong>
-          <button ref={closeButton} type="button" className="tn-icon-button" aria-label="Fechar menu" onClick={closeMenu}>
-            <Icon name="fechar" size={22} />
-          </button>
+          <IconButton ref={closeButton} icon="fechar" label="Fechar menu" onClick={closeMenu} />
         </div>
         <ul className="tn-nav__list">
           <li>

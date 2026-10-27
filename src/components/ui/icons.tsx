@@ -41,6 +41,7 @@ const APP: Record<string, ReactNode> = {
   lista: <path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" />,
   fechar: <path d="M6 6l12 12M18 6 6 18" />,
   seta: <path d="m9 6 6 6-6 6" />,
+  voltar: <path d="m15 6-6 6 6 6" />,
   mais: <path d="M12 5v14M5 12h14" />,
   preco: (
     <>
@@ -117,6 +118,13 @@ const APP: Record<string, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="8.5" />
       <path d="M3.5 12h17M12 3.5c2.3 2.4 3.5 5.2 3.5 8.5s-1.2 6.1-3.5 8.5c-2.3-2.4-3.5-5.2-3.5-8.5S9.7 5.9 12 3.5Z" />
+    </>
+  ),
+  equipe: (
+    <>
+      <circle cx="9" cy="8.5" r="3" />
+      <path d="M3.5 19c.6-3 2.7-4.8 5.5-4.8s4.9 1.8 5.5 4.8" />
+      <path d="M15.5 5.8a3 3 0 0 1 0 5.4M17.5 14.6c1.6.7 2.6 2.2 3 4.4" />
     </>
   ),
   sair: (

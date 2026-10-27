@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { ContextResponse } from "@contracts";
 import { tenantA } from "@contracts/fixtures.ts";
 import { createApiClient } from "../../lib/api/client.ts";
@@ -32,10 +32,10 @@ function LifecycleLayout() {
   }, [demo, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="lc-no-tenant">
-        <h1 id="lc-no-tenant">Relacionamento</h1>
+      <div className="tn-stack">
+        <PageHeader id="lc-no-tenant" title="Relacionamento" />
         <StatusBanner tone="info">Selecione um negócio para ver as réguas.</StatusBanner>
-      </Card>
+      </div>
     );
   }
   return <LifecyclePage key={`${port.kind}:${tenantId ?? ""}`} port={port} timezone={timezone} />;
