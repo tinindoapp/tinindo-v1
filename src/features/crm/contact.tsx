@@ -1,6 +1,7 @@
 // Peças do cartão e da ficha do cliente: ligar, WhatsApp e o menu "⋯" das ações de cadastro (auditoria de UX, item 35).
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { telHref, whatsappHref } from "./format.ts";
+import { IconButton } from "../../components/ui/index.tsx";
 
 /** "Ligar" (tel:) e "WhatsApp" (wa.me). Sem telefone cadastrado, nenhum dos dois aparece. */
 export function ContactButtons({ name, phone }: { name: string; phone: string | null }) {
@@ -104,27 +105,16 @@ export function ActionsMenu({ label, actions, hint }: { label: string; actions: 
 
   return (
     <div className="crm-menu" ref={wrap}>
-      <button
+      <IconButton
         ref={button}
-        type="button"
-        className="tn-icon-button"
-        data-size="md"
-        data-variant="ghost"
-        aria-label={label}
-        title={label}
+        icon="opcoes"
+        label={label}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => (open ? close(false) : openWith("first"))}
         onKeyDown={onButtonKey}
-      >
-        {/* Três pontos na grade de 24 px do sistema de ícones (o sprite ainda não tem "mais opções"). */}
-        <svg className="tn-icon" width={22} height={22} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
-          <circle cx="5" cy="12" r="1.75" />
-          <circle cx="12" cy="12" r="1.75" />
-          <circle cx="19" cy="12" r="1.75" />
-        </svg>
-      </button>
+      />
       {open ? (
         <div ref={menu} id={menuId} role="menu" aria-label={label} aria-describedby={hint ? hintId : undefined} className="crm-menu__list" onKeyDown={onMenuKey}>
           {actions.map((a) => (

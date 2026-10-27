@@ -5,8 +5,8 @@ test("o aviso aparece acima da barra de abas e o botão embaixo dele continua to
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto("/app/agenda");
   await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
-  await page.getByRole("button", { name: "Concluir atendimento" }).click();
-  await page.getByRole("button", { name: "Confirmar conclusão" }).click();
+  await page.getByRole("button", { name: "Atendido", exact: true }).click();
+  await page.getByRole("button", { name: "Sim, foi atendido" }).click();
   const toast = page.locator(".tn-toast");
   await expect(toast).toContainText("Atendimento concluído.");
   const box = (await toast.boundingBox())!;

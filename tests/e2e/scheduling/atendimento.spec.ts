@@ -104,6 +104,7 @@ test("cancelar pedido do link público: Avisar no WhatsApp abre com o texto pron
   await page.getByLabel("Bairro ou região").fill("Centro");
   await page.getByRole("button", { name: "Publicar perfil" }).click();
   await page.getByRole("link", { name: "Abrir perfil público" }).click();
+  await page.getByRole("button", { name: "Escolher dia e hora" }).click();
   const first = page.getByRole("list", { name: "Horários livres" }).getByRole("button").first();
   const time = (await first.innerText()).trim();
   await first.click();
