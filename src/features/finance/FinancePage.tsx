@@ -1,20 +1,23 @@
 // Caixa registrado (P07): o que entrou, o que saiu e o que falta receber, com período e cobertura.
 // Separações que a tela nunca mistura: atendimento concluído ≠ cobrado ≠ recebido; crédito de pacote ≠ caixa.
-import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type FormEvent, type MouseEvent, type ReactNode, useContext, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { ExpenseCategory, PackageDetail, PaymentRecord, Receivable, TimeRange, UnchargedBooking } from "@contracts";
-import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import {
+  capitalizeFirst,
   centsToInput,
   endOfLocalDay,
   formatCents,
   formatDate,
   formatMonth,
+  leftover,
   localDate,
   monthPeriod,
   noonOfLocalDay,
   parseBRL,
   shiftMonth,
+  unchargedTotal,
 } from "./money.ts";
 import { type FinanceBase, type FinancePort, newKey } from "./port.ts";
 
@@ -169,7 +172,7 @@ export function FinancePage() {
       <Shell demo={port.kind === "demo"}>
         <div className="tn-fin-period" role="group" aria-label="Período">
           <button type="button" onClick={() => go(shiftMonth(month, -1))} aria-label="Mês anterior">‹</button>
-          <strong className="tn-fin-period__label">{formatMonth(month)}</strong>
+          <strong className="tn-fin-period__label">{capitalizeFirst(formatMonth(month))}</strong>
           <button type="button" onClick={() => go(shiftMonth(month, 1))} aria-label="Próximo mês" disabled={month >= currentMonth}>›</button>
         </div>
         {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
@@ -179,7 +182,7 @@ export function FinancePage() {
           <p role="status">Carregando o mês…</p>
         ) : (
           <>
-            <Summary s={current.value.summary} month={month} />
+            <Summary s={current.value.summary} month={month} uncharged={current.value.uncharged} />
             <Uncharged list={current.value.uncharged} packages={current.value.packages} />
             <Receivables list={current.value.ledger.receivables.filter((r) => r.status === "open" || r.status === "partially_paid")} />
             <Payments list={current.value.ledger.payments} />
@@ -208,11 +211,25 @@ function Shell({ demo, children }: { demo: boolean; children: ReactNode }) {
   );
 }
 
-function Summary({ s, month }: { s: MonthData["summary"]; month: string }) {
+function Summary({ s, month, uncharged }: { s: MonthData["summary"]; month: string; uncharged: UnchargedBooking[] }) {
   const { base } = usePage();
+  const left = leftover(s.received_cents, s.spent_cents);
+  const pendingCents = unchargedTotal(uncharged);
+  const n = uncharged.length;
+  const toPending = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const h = document.getElementById("fin-unch-title");
+    h?.scrollIntoView({ block: "start" });
+    h?.focus();
+  };
   return (
     <Card aria-labelledby="fin-sum-title">
       <h2 id="fin-sum-title">Caixa registrado em {formatMonth(month)}</h2>
+      <p className="tn-fin-left">
+        <span className="tn-fin-left__label">{left.label}</span>
+        <strong className="tn-fin-left__value tn-num" data-testid="fin-left">{formatCents(Math.abs(left.cents))}</strong>
+        <span className="tn-fin-muted">Entrou menos o que saiu. Não é lucro nem saldo do banco.</span>
+      </p>
       <dl className="tn-fin-sum">
         <div>
           <dt>Recebido</dt>
@@ -227,10 +244,19 @@ function Summary({ s, month }: { s: MonthData["summary"]; month: string }) {
           <dd className="tn-num">{formatCents(s.receivable_open_cents)}</dd>
         </div>
       </dl>
-      <p className="tn-fin-muted">
-        {s.coverage_note} Baseado em {s.records_count} {s.records_count === 1 ? "registro" : "registros"}; atualizado em{" "}
-        {formatDate(s.as_of, base.timezone)}. Atendimento agendado ou concluído não conta como recebido.
-      </p>
+      {n > 0 ? (
+        <p className="tn-fin-alert">
+          <strong>{n} {n === 1 ? "atendimento sem cobrança" : "atendimentos sem cobrança"} · <span className="tn-num">{formatCents(pendingCents)}</span></strong>
+          <a href="#fin-unch-title" onClick={toPending}>Cobrar agora →</a>
+        </p>
+      ) : null}
+      <Help label="Como esse número é feito">
+        <p>
+          {s.coverage_note} Baseado em {s.records_count} {s.records_count === 1 ? "registro" : "registros"}; atualizado em{" "}
+          {formatDate(s.as_of, base.timezone)}. Atendimento agendado ou concluído não conta como recebido. “A receber” só soma
+          cobranças já criadas; atendimentos sem cobrança ficam fora até você cobrar.
+        </p>
+      </Help>
     </Card>
   );
 }
@@ -251,7 +277,7 @@ function Uncharged({ list, packages }: { list: UnchargedBooking[]; packages: Pac
   const ctx = usePage();
   return (
     <section aria-labelledby="fin-unch-title" className="tn-fin-section">
-      <h2 id="fin-unch-title">Atendimentos concluídos sem cobrança</h2>
+      <h2 id="fin-unch-title" tabIndex={-1}>Atendimentos concluídos sem cobrança</h2>
       {list.length === 0 ? (
         <p className="tn-fin-muted">Nenhum atendimento concluído pendente neste mês.</p>
       ) : (
@@ -449,7 +475,10 @@ function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
   );
 }
 
-function ReverseButton({ label, onReverse }: { label: string; onReverse: (reason: string) => Promise<void> }) {
+/** Estorno em dois passos: abre, explica a consequência, pede motivo (quando o contrato guarda) e confirma. */
+function ReverseButton({ label, consequence, withReason = true, onReverse }: {
+  label: string; consequence: string; withReason?: boolean; onReverse: (reason: string) => Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
@@ -460,22 +489,27 @@ function ReverseButton({ label, onReverse }: { label: string; onReverse: (reason
       </Button>
     );
   }
+  const ready = !withReason || !!reason.trim();
   return (
     <form
-      className="tn-fin-form"
+      className="tn-fin-form tn-fin-confirm"
+      aria-label={`Estornar ${label}`}
       onSubmit={(e) => {
         e.preventDefault();
-        if (!reason.trim()) return;
+        if (!ready) return;
         setPending(true);
         void onReverse(reason.trim()).finally(() => setPending(false));
       }}
     >
-      <div className="tn-field">
-        <label htmlFor={`rv-${label}`}>Motivo do estorno</label>
-        <input id={`rv-${label}`} maxLength={280} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </div>
+      <p className="tn-fin-muted">{consequence}</p>
+      {withReason ? (
+        <div className="tn-field">
+          <label htmlFor={`rv-${label}`}>Motivo do estorno</label>
+          <input id={`rv-${label}`} maxLength={280} value={reason} onChange={(e) => setReason(e.target.value)} />
+        </div>
+      ) : null}
       <div className="tn-fin-actions">
-        <Button type="submit" disabled={pending || !reason.trim()}>Confirmar estorno</Button>
+        <Button type="submit" disabled={pending || !ready}>Confirmar estorno</Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>Fechar</Button>
       </div>
     </form>
@@ -512,7 +546,10 @@ function Payments({ list }: { list: PaymentRecord[] }) {
                   {p.reversed ? " · estornado" : ""}
                 </span>
               </div>
-              {!p.reversal_of && !p.reversed ? <ReverseButton label={`recebimento ${p.id.slice(-4)}`} onReverse={reverse(p)} /> : null}
+              {!p.reversal_of && !p.reversed ? (
+                <ReverseButton label={`recebimento ${p.id.slice(-4)}`} onReverse={reverse(p)}
+                  consequence={`Sai ${formatCents(p.amount_cents)} do recebido no mês. O registro original continua no histórico.`} />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -555,7 +592,7 @@ function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["
     }
   }
 
-  const reverse = (id: string) => async () => {
+  const reverse = (id: string) => async (_reason: string) => {
     try {
       await port.reverseExpense({ expense_id: id }, newKey());
       ctx.notify("success", "Despesa estornada. O registro original continua no histórico.");
@@ -608,9 +645,9 @@ function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["
                 </span>
               </div>
               {!x.reversal_of && !x.reversed ? (
-                <Button variant="ghost" onClick={() => void reverse(x.id)()}>
-                  Estornar<span className="tn-visually-hidden"> despesa {formatCents(x.amount_cents)}</span>
-                </Button>
+                // O contrato do estorno de despesa não guarda motivo: confirma sem pedir um texto que seria descartado.
+                <ReverseButton label={`despesa ${formatCents(x.amount_cents)}`} withReason={false} onReverse={reverse(x.id)}
+                  consequence={`Sai ${formatCents(x.amount_cents)} do gasto no mês. O registro original continua no histórico.`} />
               ) : null}
             </li>
           ))}
@@ -741,7 +778,7 @@ function Packages({ list }: { list: PackageDetail[] }) {
                         {e.reason === "consume" ? "Sessão usada (−1)" : "Crédito devolvido (+1)"} · {formatDate(e.created_at, ctx.base.timezone)}
                         {e.reversed ? " · estornado" : ""}
                       </span>
-                      {e.reason === "consume" && !e.reversed ? <ReverseButton label={`sessão ${e.id.slice(-4)}`} onReverse={reverse(e.id)} /> : null}
+                      {e.reason === "consume" && !e.reversed ? <ReverseButton label={`sessão ${e.id.slice(-4)}`} onReverse={reverse(e.id)} consequence="A sessão volta ao saldo do pacote. O registro original continua no histórico." /> : null}
                     </li>
                   ))}
                 </ul>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { endOfLocalDay, formatCents, monthPeriod, noonOfLocalDay, parseBRL, shiftMonth, startOfLocalDay } from "./money.ts";
+import { capitalizeFirst, endOfLocalDay, formatCents, formatMonth, leftover, monthPeriod, noonOfLocalDay, parseBRL, shiftMonth, startOfLocalDay, unchargedTotal } from "./money.ts";
 
 describe("dinheiro e datas do caixa", () => {
   it("lê reais em centavos inteiros, sem float", () => {
@@ -28,5 +28,19 @@ describe("dinheiro e datas do caixa", () => {
     });
     expect(shiftMonth("2026-01", -1)).toBe("2025-12");
     expect(shiftMonth("2026-12", 1)).toBe("2027-01");
+  });
+
+  it("sobrou no mês = recebido − gasto; negativo vira 'Faltou'", () => {
+    expect(leftover(26000, 1500)).toEqual({ cents: 24500, label: "Sobrou no mês" });
+    expect(leftover(0, 0)).toEqual({ cents: 0, label: "Sobrou no mês" });
+    expect(leftover(1000, 3000)).toEqual({ cents: -2000, label: "Faltou no mês" });
+    expect(unchargedTotal([{ agreed_price_cents: 6000 }, { agreed_price_cents: 4000 }, { agreed_price_cents: null }])).toBe(10000);
+    expect(unchargedTotal([])).toBe(0);
+  });
+
+  it("mês com só a primeira letra maiúscula", () => {
+    expect(formatMonth("2026-10")).toBe("outubro de 2026");
+    expect(capitalizeFirst(formatMonth("2026-10"))).toBe("Outubro de 2026");
+    expect(capitalizeFirst("")).toBe("");
   });
 });

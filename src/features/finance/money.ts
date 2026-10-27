@@ -79,3 +79,19 @@ export function formatMonth(month: string): string {
   const [y, m] = month.split("-").map(Number) as [number, number];
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15)));
 }
+
+/** "outubro de 2026" → "Outubro de 2026": só a primeira letra (o "de" continua minúsculo). */
+export function capitalizeFirst(text: string): string {
+  return text ? text.charAt(0).toLocaleUpperCase("pt-BR") + text.slice(1) : text;
+}
+
+/** O que sobrou no mês = recebido − gasto (registrados). Pode ser negativo; não é lucro nem saldo do banco. */
+export function leftover(receivedCents: number, spentCents: number): { cents: number; label: string } {
+  const cents = receivedCents - spentCents;
+  return { cents, label: cents < 0 ? "Faltou no mês" : "Sobrou no mês" };
+}
+
+/** Soma dos atendimentos concluídos sem cobrança (os sem preço combinado não somam). */
+export function unchargedTotal(list: { agreed_price_cents: number | null }[]): number {
+  return list.reduce((sum, b) => sum + (b.agreed_price_cents ?? 0), 0);
+}
