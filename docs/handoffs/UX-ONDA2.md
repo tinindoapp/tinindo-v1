@@ -104,6 +104,8 @@ O `css-tokens.test.ts` ficou sem a lista de pendências: as duas reservas `var(-
 | Diretório | Sair (desmarcar e salvar) | Desfazer |
 | Conta | Desvincular | Confirmar |
 | Google e Plano e serviços | Revogar acesso; cancelar pedido | Confirmar |
+| Equipe (P28, chegou na `main` durante o bloco) | Remover comissão por serviço, liberar vaga de turma | Desfazer (grava o mesmo percentual; inscreve a mesma cliente) |
+| Equipe | Cancelar reserva, cancelar turma, estornar comissão | Confirmar |
 | Agenda | Cancelar atendimento | Botão final `danger` e Toast. O fluxo é refeito no item 27 (bloco 2) |
 
 ### Decisões
