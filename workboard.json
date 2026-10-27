@@ -642,11 +642,11 @@
         "docs/handoffs/",
         "docs/qa/"
       ],
-      "status": "pending",
-      "owner": null,
-      "session": null,
-      "branch": null,
-      "lease_until": null,
+      "status": "in_progress",
+      "owner": "gafpromos-alt",
+      "session": "gabriel-p42-ux",
+      "branch": "task/p42/gabriel-p42-ux",
+      "lease_until": "2026-10-27T13:49:17.733260Z",
       "pr": null,
       "block_reason": null
     },
@@ -680,7 +680,7 @@
       "merge_sha": "483b87f612459995117de3d5b69d7f1d9edaf8cb"
     }
   },
-  "updated_at": "2026-10-26T22:48:10.544019Z",
+  "updated_at": "2026-10-27T11:49:17.733260Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1357,6 +1357,16 @@
       "actor": "fffalleiros",
       "session": null,
       "pr": 42,
+      "reason": null
+    },
+    {
+      "id": "8f7a3a15-e5cc-49be-8eb8-7264433a713e",
+      "at": "2026-10-27T11:49:17.733260Z",
+      "action": "claim",
+      "task": "P42",
+      "actor": "gafpromos-alt",
+      "session": "gabriel-p42-ux",
+      "pr": null,
       "reason": null
     }
   ]
