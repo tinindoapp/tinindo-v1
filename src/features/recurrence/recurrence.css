@@ -13,3 +13,5 @@
 .tn-rc-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); }
 .tn-rc-head h2 { margin: 0; }
 .tn-rc-new { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); }
+.tn-rc-confirm { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3); border: 1px solid var(--tn-border-control); border-left-width: 4px; border-radius: var(--tn-radius-md); }
+.tn-rc-confirm p { margin: 0; }

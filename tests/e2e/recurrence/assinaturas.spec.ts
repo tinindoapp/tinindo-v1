@@ -58,7 +58,16 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await expect(subs).toContainText("Ativa, não renova no fim do ciclo");
   await subs.getByRole("button", { name: "Manter assinatura" }).click();
   await expect(page.getByText("volta a renovar")).toBeVisible();
+  // Cancelar agora pede confirmação e diz a consequência; "Voltar" não muda nada.
   await subs.getByRole("button", { name: "Cancelar agora" }).click();
+  const confirm = subs.getByRole("group", { name: /Encerrar a assinatura de Ana Beatriz/ });
+  await expect(confirm).toContainText("deixa de assinar hoje");
+  await expect(confirm).toContainText("continua no Caixa");
+  await confirm.getByRole("button", { name: "Voltar" }).click();
+  await expect(subs).toContainText("Ativa");
+  await expect(subs).not.toContainText("Cancelada");
+  await subs.getByRole("button", { name: "Cancelar agora" }).click();
+  await subs.getByRole("button", { name: "Sim, encerrar agora" }).click();
   await expect(page.getByText("As sessões do ciclo atual continuam válidas")).toBeVisible();
   await expect(subs).toContainText("Cancelada");
   await expect(subs).toContainText("4 de 4 sessões restantes");
