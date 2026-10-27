@@ -214,6 +214,18 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `resources.class_complete` | class_id, versão, vagas presentes, key | Presentes geram recebível; ausentes viram falta; comissão uma vez |
 | `resources.commission_reverse` | entry_id, key | Estorno da comissão, uma vez |
 | `resources.commissions` | período | Comissão por profissional (lançada, estornada, líquida) e lançamentos |
+| `materials.list` | — | Itens com saldo, valor e custo médio; fichas de uso por serviço |
+| `materials.item_save` | item (novo ou id + versão), nome, tipo, unidade, ativo, mínimo, key | Unidade fixa depois do primeiro movimento; saldo só muda pelo razão |
+| `materials.usage_save` | serviço, item, quantidade (null remove), key | Ficha de uso do serviço |
+| `materials.purchase` | fornecedor, data, linhas (item, quantidade, total), despesa no Caixa, key | Entrada no estoque com custo médio; despesa (P07) na mesma transação |
+| `materials.purchase_reverse` | purchase_id, versão, key | Saída pelo custo médio e estorno da despesa, uma vez |
+| `materials.adjust` | item, versão, quantidade contada, motivo, key | Ajuste de inventário pelo custo médio |
+| `materials.consume` | booking_id, linhas (null = ficha), key | Uso num atendimento concluído; tudo ou nada; um consumo ativo por atendimento |
+| `materials.consume_reverse` | consumption_id, versão, key | Devolve ao estoque pelo valor de saída, uma vez |
+| `materials.movements` | item (opcional), período | Razão e compras |
+| `materials.bookings` | período | Atendimentos concluídos com o consumo registrado |
+| `materials.margin` | período | Receita, custo de materiais e margem real por serviço, com cobertura |
+| `materials.quote_cost` | quote_id | Custo estimado de materiais e margem da versão atual do orçamento (P11) |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 
