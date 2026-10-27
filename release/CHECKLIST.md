@@ -1,5 +1,7 @@
 # Checklist de liberação (P10)
 
+Plano de execução do piloto (quem faz o quê, em que ordem): `P42-LIBERACAO.md`.
+
 Fluxo (docs/09): PR revisado → `main` → homologação → smoke → aprovação do responsável → release/tag → produção. Uma pessoa publica por vez. Nada aqui é automático: cada linha é marcada por quem executou, com evidência.
 
 ## 1 · Antes de abrir a janela
@@ -12,9 +14,12 @@ Fluxo (docs/09): PR revisado → `main` → homologação → smoke → aprovaç
 
 ## 2 · Homologação
 
-- [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` das 25 funções; cron do `jobs` (worker + réguas do P13 + renovação do P20 + indicações do P21 + fechamento de campanhas do P19 + acompanhamento de sugestões do P22), do `channel.dispatch`, do `payment.sync` e do `fiscal.sync` ativos (1 min).
+- [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` de todas as funções de `supabase/functions` (24 em 27/10); cron do `jobs` (`X-Tinindo-Jobs-Secret`) (worker + réguas do P13 + renovação do P20 + indicações do P21 + fechamento de campanhas do P19 + acompanhamento de sugestões do P22), do `channel.dispatch` (`X-Tinindo-Dispatch-Secret`), do `payment.sync` e do `fiscal.sync` (`X-Tinindo-Sync-Secret`) ativos (1 min).
 - [ ] Smoke manual com a conta técnica sintética: entrar → agenda → novo agendamento → caixa → orçamento pelo link → pergunta ao assistente. Nenhum dado real.
-- [ ] `tests/e2e/qa` com `VITE_SUPABASE_URL` apontando para homologação (os roteiros UAT com servidor; hoje só a demonstração roda no CI).
+- [ ] `tests/e2e-staging` (desktop, iPhone WebKit, Android) passando contra a homologação; relatório anexado (ver o README da pasta).
+- [ ] iPhone real conforme `docs/qa/IPHONE-SAFARI.md`.
+- [ ] Ensaio de reversão e restore conforme `ENSAIO-ROLLBACK.md`, com tempos.
+- [ ] Três testes com pessoas conforme `docs/qa/UAT-PILOTO.md`.
 - [ ] P16: nenhum negócio com `production_enabled` sem caso homologado e decisão por escrito do dono do projeto (provedor fiscal contratado, termos revisados por contador).
 - [ ] P23: rota pública `GET /functions/v1/discovery/page` (páginas por cidade e profissão) e moderação do diretório definida (quem suspende e como o dono contesta) antes de abrir ao público.
 - [ ] P24: fila de moderação de denúncias com responsável e prazo, e processo de verificação de identidade (quem verifica, por qual meio) definidos antes de abrir avaliações ao público.
@@ -24,7 +29,7 @@ Fluxo (docs/09): PR revisado → `main` → homologação → smoke → aprovaç
 ## 3 · Aprovação
 
 - [ ] Responsável do release aprovou por escrito (nome, data, SHA).
-- [ ] Limitações conhecidas comunicadas aos testadores (ver handoffs: sem reserva pelo link público, sem área da cliente, cobrança da Tinindo manual, lembretes ausentes).
+- [ ] Limitações conhecidas comunicadas aos testadores (ver handoffs: reserva pelo link confirma por código que, sem WhatsApp ligado, sai só no canal simulado; a cliente vê as reservas em "Minhas reservas" mas não remarca nem cancela; cobrança da Tinindo manual).
 
 ## 4 · Produção
 
