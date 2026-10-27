@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { MyCustomerLink, Onboarding } from "@contracts";
-import { Button, Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { Card, ConfirmAction, PageHeader, StatusBanner, toast } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";
 import { OnboardingForm } from "./OnboardingForm.tsx";
@@ -24,20 +24,23 @@ type Load<T> = { kind: "loading" } | { kind: "ready"; value: T } | { kind: "erro
 
 export function AccountPage() {
   const session = useSession();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const memberships =
     session.state.status === "signed_in" || session.state.status === "offline_demo" ? session.state.memberships : [];
   const active = memberships.find((m) => m.tenant_id === session.tenantId) ?? null;
+  const justCreated = params.get("novo") === "1" && active ? active.tenant_name : null;
+
+  // Negócio recém-criado: confirmação em toast (uma vez) e o parâmetro sai da URL.
+  useEffect(() => {
+    if (!justCreated) return;
+    toast({ message: <>Negócio criado. Você é dono(a) de <strong>{justCreated}</strong>.</> });
+    setParams({}, { replace: true });
+  }, [justCreated, setParams]);
 
   return (
     <div className="tn-stack">
       <div className="tn-page-intro">
         <PageHeader id="account-title" title="Sua conta" eyebrow="Conta" />
-        {params.get("novo") === "1" && active ? (
-          <StatusBanner tone="success">
-            Negócio criado. Você é dono(a) de <strong>{active.tenant_name}</strong>.
-          </StatusBanner>
-        ) : null}
         {active ? (
           <p>
             Negócio ativo: <strong>{active.tenant_name}</strong>, como {ROLE_LABEL[active.role]}. O servidor confere este
@@ -46,7 +49,7 @@ export function AccountPage() {
         ) : (
           <p>Você ainda não tem um negócio na Tinindo.</p>
         )}
-        <div className="tn-id-actions">
+        <div className="tn-actions">
           <Link to="novo-negocio">{active ? "Criar outro negócio" : "Criar meu negócio"}</Link>
         </div>
       </div>
@@ -57,7 +60,7 @@ export function AccountPage() {
 
       <Card aria-labelledby="security-title">
         <h2 id="security-title">Segurança</h2>
-        <div className="tn-id-actions">
+        <div className="tn-actions">
           <Link to="nova-senha">Trocar senha</Link>
         </div>
       </Card>
@@ -112,7 +115,6 @@ function BusinessOnboarding({ tenantId }: { tenantId: string }) {
 function MyLinks() {
   const services = useIdentityServices();
   const [state, setState] = useState<Load<MyCustomerLink[]>>({ kind: "loading" });
-  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
@@ -123,17 +125,17 @@ function MyLinks() {
   }, [services]);
   useEffect(reload, [reload]);
 
+  // Desvincular não tem volta pelo app (só com um código novo do profissional): pede confirmação.
   async function revoke(link: MyCustomerLink) {
-    setBusy(link.link_id);
     setError(null);
     try {
       // Chave por vínculo+versão: clicar de novo repete com segurança.
       await services.revokeLink(link.tenant_id, link.link_id, link.version, `revoke-${link.link_id}-v${link.version}`);
+      toast(`Vínculo com ${link.tenant_name} desfeito.`);
       reload();
     } catch (e) {
       setError(messageFor(e, "link"));
-    } finally {
-      setBusy(null);
+      throw e;
     }
   }
 
@@ -149,15 +151,21 @@ function MyLinks() {
           {state.value.map((link) => (
             <li key={link.link_id}>
               <span>{link.tenant_name}</span>
-              <Button variant="secondary" disabled={busy !== null} onClick={() => void revoke(link)}>
-                {busy === link.link_id ? "Desvinculando…" : "Desvincular"}
-              </Button>
+              <ConfirmAction
+                trigger="Desvincular"
+                triggerVariant="secondary"
+                triggerLabel={`Desvincular de ${link.tenant_name}`}
+                title={`Desvincular de ${link.tenant_name}?`}
+                consequence={`${link.tenant_name} deixa de ligar o cadastro dele à sua conta. Para ligar de novo, você vai precisar de um código novo do profissional.`}
+                confirmLabel="Sim, desvincular"
+                onConfirm={() => revoke(link)}
+              />
             </li>
           ))}
         </ul>
       ) : null}
       {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-      <div className="tn-id-actions">
+      <div className="tn-actions">
         <Link to="reservas">Minhas reservas</Link>
         <Link to="vincular">Tenho um código de vínculo</Link>
       </div>

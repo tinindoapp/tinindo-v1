@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from "react";
 import type { Profession } from "@contracts";
 import type { Onboarding, OnboardingGoal } from "@contracts";
-import { Button, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, ChoiceCard, Field, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { messageFor } from "./errors.ts";
 import { useIdempotencyKey } from "./idempotency.ts";
 import {
@@ -32,15 +32,12 @@ export function OnboardingForm({ tenantId, profession, onboarding, onSaved }: Pr
   const [fee, setFee] = useState<number | null>(onboarding.late_cancellation_fee_bps);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const { formRef, errors, show, clear } = useFormErrors<"goal">();
   const done = onboarding.completed_at !== null;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!goal) {
-      setError("Escolha o objetivo principal.");
-      return;
-    }
+    if (!show({ goal: goal ? null : "Escolha o objetivo principal." }) || !goal) return;
     const input = {
       expected_version: onboarding.version,
       goal,
@@ -50,11 +47,10 @@ export function OnboardingForm({ tenantId, profession, onboarding, onSaved }: Pr
     };
     setPending(true);
     setError(null);
-    setSaved(false);
     try {
       const next = await services.saveOnboarding(tenantId, input, idem.keyFor({ tenantId, input }));
       idem.reset();
-      setSaved(true);
+      toast("Salvo.");
       onSaved(next);
     } catch (err) {
       setError(messageFor(err, "onboarding"));
@@ -67,49 +63,69 @@ export function OnboardingForm({ tenantId, profession, onboarding, onSaved }: Pr
   const noticeOptions = NOTICE_OPTIONS.includes(notice) ? NOTICE_OPTIONS : [...NOTICE_OPTIONS, notice];
 
   return (
-    <form className="tn-stack" onSubmit={onSubmit} noValidate aria-labelledby="onboarding-title">
+    <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate aria-labelledby="onboarding-title">
       <h2 id="onboarding-title">{done ? "Objetivo e política de cancelamento" : "Dois passos para começar"}</h2>
 
-      <fieldset className="tn-id-choices">
+      {/* Sem campo único para marcar como inválido: o grupo recebe o foco quando falta escolher. */}
+      <fieldset
+        className="tn-id-choices"
+        tabIndex={-1}
+        aria-invalid={errors.goal ? true : undefined}
+        aria-describedby={errors.goal ? "goal-error" : undefined}
+      >
         <legend>O que você mais quer resolver agora?</legend>
-        {preset.goalOrder.map((g) => (
-          <label key={g} className="tn-id-choice">
-            <input type="radio" name="goal" value={g} checked={goal === g} onChange={() => setGoal(g)} />
-            <span>{goalLabel(g, preset)}</span>
-          </label>
-        ))}
+        <div className="tn-id-choices__group">
+          {preset.goalOrder.map((g) => (
+            <ChoiceCard
+              key={g}
+              name="goal"
+              value={g}
+              checked={goal === g}
+              onChange={() => {
+                setGoal(g);
+                clear("goal");
+              }}
+              title={goalLabel(g, preset)}
+            />
+          ))}
+        </div>
+        {errors.goal ? (
+          <span id="goal-error" className="tn-field__error">
+            {errors.goal}
+          </span>
+        ) : null}
       </fieldset>
 
-      <div className="tn-field">
-        <label htmlFor="notice-hours">Até quando {preset.clientNoun.one} pode cancelar sem multa?</label>
-        <select id="notice-hours" value={notice} onChange={(e) => setNotice(Number(e.target.value))}>
-          {noticeOptions.map((h) => (
-            <option key={h} value={h}>
-              {noticeLabel(h)}
-              {h === preset.suggestedNoticeHours ? " (comum para " + preset.label.toLowerCase() + ")" : ""}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Field
+        as="select"
+        label={`Até quando ${preset.clientNoun.one} pode cancelar sem multa?`}
+        value={notice}
+        onChange={(e) => setNotice(Number(e.target.value))}
+      >
+        {noticeOptions.map((h) => (
+          <option key={h} value={h}>
+            {noticeLabel(h)}
+            {h === preset.suggestedNoticeHours ? " (comum para " + preset.label.toLowerCase() + ")" : ""}
+          </option>
+        ))}
+      </Field>
 
-      <div className="tn-field">
-        <label htmlFor="late-fee">Se cancelar depois disso</label>
-        <select
-          id="late-fee"
-          value={fee === null ? "" : String(fee)}
-          onChange={(e) => setFee(e.target.value === "" ? null : Number(e.target.value))}
-        >
-          {feeOptions.map((bps) => (
-            <option key={bps ?? "none"} value={bps === null ? "" : String(bps)}>
-              {lateFeeLabel(bps)}
-            </option>
-          ))}
-        </select>
-        <span className="tn-id-hint">A Tinindo não cobra ninguém sozinha: a multa fica registrada para você combinar.</span>
-      </div>
+      <Field
+        as="select"
+        label="Se cancelar depois disso"
+        value={fee === null ? "" : String(fee)}
+        onChange={(e) => setFee(e.target.value === "" ? null : Number(e.target.value))}
+        hint="A Tinindo não cobra ninguém sozinha: a multa fica registrada para você combinar."
+      >
+        {feeOptions.map((bps) => (
+          <option key={bps ?? "none"} value={bps === null ? "" : String(bps)}>
+            {lateFeeLabel(bps)}
+          </option>
+        ))}
+      </Field>
 
       {preset.serviceExamples.length > 0 ? (
-        <p className="tn-id-hint">
+        <p className="tn-muted">
           Próximo passo: cadastrar serviços, por exemplo{" "}
           {preset.serviceExamples.map((s) => `${s.name} (${s.duration_min} min)`).join(" e ")}. O preço é você quem
           define.
@@ -117,10 +133,9 @@ export function OnboardingForm({ tenantId, profession, onboarding, onSaved }: Pr
       ) : null}
 
       {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-      {saved ? <StatusBanner tone="success">Salvo.</StatusBanner> : null}
-      <div className="tn-id-actions">
-        <Button type="submit" disabled={pending || !services.online}>
-          {pending ? "Salvando…" : done ? "Salvar alterações" : "Concluir"}
+      <div className="tn-actions">
+        <Button type="submit" loading={pending} loadingText="Salvando…" disabled={!services.online}>
+          {done ? "Salvar alterações" : "Concluir"}
         </Button>
       </div>
     </form>

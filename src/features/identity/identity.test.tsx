@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Profession } from "@contracts";
 import { FX, tenantA } from "@contracts/fixtures.ts";
 import { OnboardingGoal, type Onboarding } from "@contracts";
 import { SessionProvider } from "../../app/session.tsx";
+import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
 import { AccountPage } from "./AccountPage.tsx";
 import { RecoverPasswordPage } from "./AuthPages.tsx";
@@ -64,10 +65,13 @@ function renderPage(element: ReactNode, services: IdentityServices, path = "/app
   render(
     <SessionProvider client={null}>
       <RouterProvider router={router} />
+      <Toaster />
     </SessionProvider>,
   );
   return router;
 }
+
+afterEach(() => dismissToast());
 
 const CODE = "Q2hhdmUtZGUtdGVzdGUtc2ludGV0aWNhLTAwMDAwMDA";
 
@@ -106,6 +110,19 @@ describe("criar negócio", () => {
     expect(services.createBusiness).not.toHaveBeenCalled();
   });
 
+  it("botão sempre ativo: ao enviar vazio, mostra cada erro embaixo do campo e foca o primeiro", async () => {
+    const services = fakeServices();
+    renderPage(<CreateBusinessPage />, services, "/app/conta/novo-negocio");
+    const submit = await screen.findByRole("button", { name: "Criar negócio" });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    expect(await screen.findByText("Informe o nome do negócio.")).toBeInTheDocument();
+    expect(screen.getByText("Escolha a profissão.")).toBeInTheDocument();
+    expect(screen.getByText(/aceite os termos/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Nome do negócio")).toHaveFocus());
+    expect(services.createBusiness).not.toHaveBeenCalled();
+  });
+
   it("falha de rede → mesma chave no retry; sucesso → seleciona o negócio e recarrega a sessão", async () => {
     const createBusiness = vi
       .fn()
@@ -126,7 +143,6 @@ describe("criar negócio", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Criar negócio" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/app/conta"));
-    expect(router.state.location.search).toBe("?novo=1");
 
     const [first, second] = createBusiness.mock.calls;
     expect(first?.[0]).toEqual({
@@ -172,6 +188,7 @@ describe("onboarding do negócio ativo", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Concluir" }));
     expect(await screen.findByText("Escolha o objetivo principal.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("group", { name: /O que você mais quer resolver/ })).toHaveFocus());
     expect(saveOnboarding).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByLabelText("Ocupar horários vagos da agenda"));
@@ -185,6 +202,7 @@ describe("onboarding do negócio ativo", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Concluir" }));
     expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    expect(screen.getByText("Salvo.").closest(".tn-toaster")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Salvar alterações" })).toBeInTheDocument();
   });
 });
@@ -201,10 +219,19 @@ describe("cliente em vários profissionais", () => {
     if (!section) throw new Error("seção ausente");
     expect(await within(section).findByText("Personal Exemplo B")).toBeInTheDocument();
     expect(within(section).getAllByRole("listitem")).toHaveLength(2);
-    fireEvent.click(within(section).getAllByRole("button", { name: "Desvincular" })[1]!);
+    fireEvent.click(within(section).getByRole("button", { name: "Desvincular de Personal Exemplo B" }));
+    // Não volta atrás pelo app: pede confirmação com a consequência e não executa antes do "Sim".
+    expect(within(section).getByText("Desvincular de Personal Exemplo B?")).toBeInTheDocument();
+    expect(within(section).getByText(/código novo do profissional/)).toBeInTheDocument();
+    expect(services.revokeLink).not.toHaveBeenCalled();
+    fireEvent.click(within(section).getByRole("button", { name: "Voltar" }));
+    expect(services.revokeLink).not.toHaveBeenCalled();
+    fireEvent.click(within(section).getByRole("button", { name: "Desvincular de Personal Exemplo B" }));
+    fireEvent.click(within(section).getByRole("button", { name: "Sim, desvincular" }));
     await waitFor(() =>
       expect(services.revokeLink).toHaveBeenCalledWith(FX.tenants.B, links[1]!.link_id, 1, `revoke-${links[1]!.link_id}-v1`),
     );
+    expect(await screen.findByText("Vínculo com Personal Exemplo B desfeito.")).toBeInTheDocument();
   });
 
   it("minhas reservas: próximas e anteriores, fuso do negócio, avaliar só concluída no prazo, sem ações de alterar", async () => {
