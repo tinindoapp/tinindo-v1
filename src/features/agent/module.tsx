@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { AgentPage, AgentPortProvider } from "./AgentPage.tsx";
 import { createDemoPort } from "./demoPort.ts";
@@ -21,10 +21,10 @@ function AgentLayout() {
   }, [state.status, tenantId, getAccessToken]);
   if (!port) {
     return (
-      <Card aria-labelledby="ag-no-tenant">
-        <h1 id="ag-no-tenant">Assistente</h1>
+      <div className="tn-page-intro">
+        <PageHeader id="ag-no-tenant" title="Assistente" />
         <StatusBanner tone="info">Selecione um negócio para usar o assistente.</StatusBanner>
-      </Card>
+      </div>
     );
   }
   return (
