@@ -57,7 +57,10 @@ Este arquivo diz **quem faz o quê e em que ordem**. As caixas de cada etapa con
 - Auth: Site URL e Redirect URL provisórios no preview do PR #46; trocar quando o Worker de homologação existir (e rodar o script de novo com o endereço final, para `ALLOWED_ORIGINS`).
 - **Confirmação de e-mail desligada só na homologação** (decisão do Gabriel para o piloto de 28/10): sem SMTP próprio, o e-mail padrão do Supabase só chega para a equipe. Consequência: "Esqueci minha senha" não envia e-mail. Religar junto com o SMTP (Resend com domínio da Tinindo) antes de abrir para mais gente.
 - Domínio: `tinindoapp.com.br`, registrado no Registro.br em nome do Gabriel, com DNS na Cloudflare (o site institucional já responde). O e-mail entra pelo Email Routing da Cloudflare (MX e SPF), e o DMARC está em `p=reject`. Sugestão: homologação em `homolog.tinindoapp.com.br` (Custom Domain do Worker) e SMTP do Auth pelo Resend em `mail.tinindoapp.com.br`. Para isso, acrescentar o DKIM do Resend e o SPF do subdomínio; não mexer no MX da raiz.
-- Falta: Worker de homologação na Cloudflare (conta do Felipe) com `VITE_APP_ENV=staging`, `VITE_SUPABASE_URL` e a chave publishable.
+- Frontend de homologação no ar em https://homolog.tinindoapp.com.br: Worker `tinindo-homolog` (`wrangler.homolog.jsonc`, conta do Gabriel), com CORS e Auth apontados para ele. O Gabriel entrou pelo Mac e pelo iPhone.
+- Conta técnica `teste@tinindoapp.com.br`, dona da "Barbearia Homologação": Corte e Barba, expediente de segunda a sábado das 9h às 19h, canal simulado verificado e perfil `/p/barbearia-homologacao` com o link de horários. A senha fica só no `tests/e2e-staging/.env.staging` local, fora do git.
+- e2e de homologação: 34 de 35 passaram (desktop e Android). O login no Android estourou o tempo uma vez e passou nas 3 repetições. O perfil iPhone (WebKit) não rodou no Mac.
+- Falta: checklist completo no iPhone real, as 3 UATs de 28/10 e o ensaio de rollback.
 
 ## O que este PR não faz
 
