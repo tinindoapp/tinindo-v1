@@ -8,7 +8,7 @@ Anotar: modelo do iPhone, versão do iOS e SHA de `/version.json`. Para cada lin
 
 | # | O que fazer | O que esperar |
 |---|---|---|
-| 1 | Abrir o endereço da homologação | Tela "Entrar" sem a faixa "Demonstração" (a homologação usa servidor de verdade); nada cortado no entalhe nem na barra inferior |
+| 1 | Abrir o endereço da homologação | Tela "Entrar"; depois de entrar, faixa "Demonstração · homologação" no topo; nada cortado no entalhe nem na barra inferior |
 | 2 | Entrar com a conta técnica | O teclado não cobre o botão Entrar; o e-mail não vem com a primeira letra maiúscula; o Safari oferece salvar a senha |
 | 3 | Abrir Menu → Agenda → Hoje → Clientes | Sem rolagem para os lados; o menu abre e fecha com um toque |
 | 4 | Criar um agendamento para amanhã | Os horários cabem na tela; ao tocar num campo, a tela não fica ampliada (fonte menor que 16 px dá zoom no iOS) |
