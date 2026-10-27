@@ -44,7 +44,7 @@ describe("Caixa: validação no envio, confirmação e aviso", () => {
     // Sem motivo, o botão explica e não estorna.
     await act(async () => { fireEvent.click(within(confirm).getByRole("button", { name: "Sim, estornar" })); });
     expect(reverse).not.toHaveBeenCalled();
-    expect(confirm).toHaveTextContent("Preencha o que falta acima para confirmar.");
+    expect(confirm).toHaveTextContent("Escreva o motivo do estorno.");
     fireEvent.change(within(confirm).getByLabelText("Motivo do estorno"), { target: { value: "Pago em dobro" } });
     await act(async () => { fireEvent.click(within(confirm).getByRole("button", { name: "Sim, estornar" })); });
     expect(reverse).toHaveBeenCalledWith(expect.objectContaining({ reason: "Pago em dobro" }), expect.any(String));

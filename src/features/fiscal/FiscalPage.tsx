@@ -234,6 +234,7 @@ function DocItem({ d, port, run }: { d: FiscalDocument; port: FiscalPort; run: R
             consequence={`O pedido vai ao provedor e a nota de ${d.taker_name} (${formatCents(d.amount_cents)}) perde o valor fiscal. Não dá para desfazer.`}
             confirmLabel="Sim, pedir cancelamento"
             canConfirm={reason.trim().length >= 15}
+            missingHint="Escreva o motivo do cancelamento com pelo menos 15 letras."
             onConfirm={async () => {
               let failed: unknown = null;
               await run(() => port.cancel({ document_id: d.id, expected_version: d.version, reason }, newKey()), "Cancelamento pedido ao provedor.", (err) => {

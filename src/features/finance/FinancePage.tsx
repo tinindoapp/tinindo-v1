@@ -171,7 +171,7 @@ export function FinancePage() {
       <Shell demo={port.kind === "demo"}>
         <div className="tn-fin-period" role="group" aria-label="Período">
           {/* Não há ícone de seta para a esquerda: a mesma seta, espelhada. */}
-          <IconButton icon="seta" label="Mês anterior" variant="secondary" style={{ transform: "scaleX(-1)" }} onClick={() => go(shiftMonth(month, -1))} />
+          <IconButton icon="voltar" label="Mês anterior" variant="secondary" onClick={() => go(shiftMonth(month, -1))} />
           <strong className="tn-fin-period__label">{capitalizeFirst(formatMonth(month))}</strong>
           <IconButton icon="seta" label="Próximo mês" variant="secondary" onClick={() => go(shiftMonth(month, 1))} disabled={month >= currentMonth} />
         </div>
@@ -484,6 +484,7 @@ function ReverseButton({ label, consequence, withReason = true, onReverse }: {
       consequence={consequence}
       confirmLabel="Sim, estornar"
       canConfirm={!withReason || !!reason.trim()}
+      missingHint="Escreva o motivo do estorno."
       onConfirm={() => onReverse(reason.trim())}
     >
       {withReason ? <Field label="Motivo do estorno" maxLength={280} value={reason} onChange={(e) => setReason(e.target.value)} /> : null}

@@ -106,6 +106,7 @@ export function ConfirmAction({
   disabled,
   children,
   canConfirm = true,
+  missingHint = "Preencha o que falta acima para confirmar.",
 }: {
   /** Texto do botão que abre a confirmação. */
   trigger: ReactNode;
@@ -122,6 +123,8 @@ export function ConfirmAction({
   children?: ReactNode;
   /** Falso enquanto um campo obrigatório da confirmação estiver vazio (o botão explica no envio, não some). */
   canConfirm?: boolean;
+  /** O que falta, quando `canConfirm` é falso ("Escreva o motivo com pelo menos 15 letras."). */
+  missingHint?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -167,7 +170,7 @@ export function ConfirmAction({
           loading={busy}
           onClick={async () => {
             if (!canConfirm) {
-              setHint("Preencha o que falta acima para confirmar.");
+              setHint(missingHint);
               return;
             }
             setBusy(true);

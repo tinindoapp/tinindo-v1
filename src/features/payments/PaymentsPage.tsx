@@ -90,6 +90,7 @@ function RefundForm({ port, charge, onDone }: { port: PaymentsPort; charge: Paym
       consequence="O banco devolve o valor inteiro à cliente e o recebimento sai do caixa. Não dá para desfazer."
       confirmLabel="Sim, estornar"
       canConfirm={!!reason.trim()}
+      missingHint="Escreva o motivo do estorno."
       onConfirm={confirm}
     >
       <Field label="Motivo do estorno" maxLength={280} value={reason} onChange={(e) => setReason(e.target.value)} />
