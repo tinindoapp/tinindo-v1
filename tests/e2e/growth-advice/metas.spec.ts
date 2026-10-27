@@ -29,11 +29,25 @@ test("metas e conteúdo: progresso com denominador, uma meta por indicador, suge
   const suggestions = page.getByRole("list", { name: "Sugestões" });
   await expect(suggestions.getByRole("listitem")).toHaveCount(5);
   await expect(suggestions).toContainText("Faltas acima de 15% e lembretes abaixo de 80%");
-  await expect(suggestions).toContainText("Evidência: no_show = 15% · no_show_n = 40 · reminders = 50%");
-  await expect(suggestions.getByRole("link", { name: "Ir para a tela" }).first()).toHaveAttribute("href", "/app/relacionamento");
+  await expect(suggestions).toContainText("Evidência: Faltas: 15% (6 de 40 atendimentos) · Lembrete enviado: 50%");
+  await expect(suggestions).toContainText("Agenda ocupada: 40% de 120 h · 6 clientes que aceitam mensagem");
+  await expect(suggestions).toContainText("Atendimentos com cobrança: 82% de 34");
+  await expect(suggestions.locator(".tn-ga-evidence .tn-num").first()).toHaveText("15%");
+  // Sem nome cru de campo na tela.
+  const body = await page.locator("main").innerText();
+  for (const raw of ["no_show", "sellable_minutes", "charge_coverage", "no_show_n", "worker", " = "]) expect(body).not.toContain(raw);
+  // Links de ação: texto específico e área de toque de 44 px.
+  await expect(suggestions.getByRole("link", { name: "Ir para a tela" })).toHaveCount(0);
+  await expect(suggestions.getByRole("link", { name: "Abrir lembretes" })).toHaveAttribute("href", "/app/relacionamento");
+  await expect(suggestions.getByRole("link", { name: "Montar campanha" })).toHaveAttribute("href", "/app/campanhas");
+  for (const link of await suggestions.getByRole("link").all()) {
+    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  }
   await suggestions.getByRole("listitem").filter({ hasText: "Faltas acima de 15%" }).getByRole("button", { name: "Vou fazer" }).click();
   await expect(page.getByText(/Sugestão aceita\. Em 30 dias medimos o indicador de novo/)).toBeVisible();
   await expect(page.getByRole("list", { name: "Decisões" })).toContainText("Aceita em");
+  await expect(page.getByRole("list", { name: "Decisões" })).toContainText("Lembretes para reduzir faltas");
+  await expect(page.getByRole("list", { name: "Decisões" })).not.toContainText("no_show_reminders");
   await page.getByRole("button", { name: "Avançar 30 dias (simulação)" }).click();
   await expect(page.getByText("Acompanhamento (simulação): 1 decisão(ões) medida(s) de novo.")).toBeVisible();
   await expect(page.getByRole("list", { name: "Decisões" })).toContainText("melhorou 30 dias depois (variação observada, não efeito)");
