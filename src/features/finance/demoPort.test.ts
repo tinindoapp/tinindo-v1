@@ -1,18 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { FX } from "@contracts/fixtures.ts";
 import { createDemoPort } from "./demoPort.ts";
+import { DEMO_OPEN_RECEIVABLES, demoCounts, demoUncharged } from "../../lib/demo/dataset.ts";
 import { monthPeriod } from "./money.ts";
 
 const period = monthPeriod("2026-10", "America/Sao_Paulo");
+/** O Caixa lê a base de exemplo única: recebido e gasto do mês até agora e os valores em aberto. */
+const BASE = demoCounts(period);
+const OPEN = DEMO_OPEN_RECEIVABLES.reduce((s, r) => s + r.amount_cents, 0);
 const K = (n: number) => `chave-caixa-${String(n).padStart(10, "0")}`;
 
 describe("emulação do caixa (mesmas regras do banco)", () => {
   it("resumo separa recebido, gasto e a receber, com cobertura", async () => {
     const port = createDemoPort();
     const s = await port.summary(period, "America/Sao_Paulo");
-    expect(s).toMatchObject({ received_cents: 26000, spent_cents: 1500, receivable_open_cents: 0, records_count: 3 });
+    expect(s).toMatchObject({ received_cents: BASE.received, spent_cents: BASE.spent, receivable_open_cents: OPEN });
     expect(s.coverage_note).toMatch(/Não é lucro/);
-    expect(await port.uncharged(period)).toHaveLength(2);
+    // Concluídos sem cobrança: os mesmos que o Resultado conta como "sem cobrança registrada".
+    expect((await port.uncharged(period)).map((b) => b.booking_id).sort()).toEqual(
+      demoUncharged().filter((v) => v.starts_at >= period.starts_at).map((v) => v.id).sort());
+    expect(BASE.done - BASE.charged).toBe(demoUncharged().filter((v) => v.starts_at >= period.starts_at).length);
   });
 
   it("cobrar e receber: parcial, excesso negado, quitado e estorno único", async () => {
@@ -29,8 +36,8 @@ describe("emulação do caixa (mesmas regras do banco)", () => {
     await port.reversePayment({ payment_id: p1.id, reason: "Devolvido" }, K(6));
     await expect(port.reversePayment({ payment_id: p1.id, reason: "De novo" }, K(7))).rejects.toMatchObject({ code: "POLICY_REJECTED" });
     const s = await port.summary(period, "America/Sao_Paulo");
-    expect(s.received_cents).toBe(26000 + 3500);
-    expect(s.receivable_open_cents).toBe(2500);
+    expect(s.received_cents).toBe(BASE.received + 3500);
+    expect(s.receivable_open_cents).toBe(OPEN + 2500);
   });
 
   it("crédito de pacote: debita uma vez por evento, não gera caixa e bloqueia cobrança do mesmo atendimento", async () => {
@@ -52,7 +59,7 @@ describe("emulação do caixa (mesmas regras do banco)", () => {
     const port = createDemoPort();
     await port.sellPackage({ customer_id: FX.customers.guestInA, service_id: FX.services.barbaA, credits: 10, total_price_cents: 30000 }, K(1));
     await port.sellPackage({ customer_id: FX.customers.guestInA, service_id: FX.services.barbaA, credits: 10, total_price_cents: 30000 }, K(1));
-    expect((await port.summary(period, "America/Sao_Paulo")).receivable_open_cents).toBe(30000);
+    expect((await port.summary(period, "America/Sao_Paulo")).receivable_open_cents).toBe(OPEN + 30000);
     expect((await port.packages()).filter((p) => p.purchased_credits === 10)).toHaveLength(1);
   });
 });

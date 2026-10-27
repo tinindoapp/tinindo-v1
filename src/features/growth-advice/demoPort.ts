@@ -6,6 +6,7 @@ import { type AdviceListOutput, type ContentListOutput, DEFAULT_MESSAGES, ERROR_
 import { FIXED_NOW, tenantA } from "@contracts/fixtures.ts";
 import type { z } from "zod";
 import { ApiError } from "../../lib/api/client.ts";
+import { demoMetrics, demoMonthToDate } from "../../lib/demo/dataset.ts";
 import { METRIC_LABEL } from "./labels.ts";
 import type { Advice, Content, GoalList, GrowthAdvicePort } from "./port.ts";
 
@@ -36,19 +37,8 @@ const once = async <T>(key: string, run: () => T): Promise<T> => {
   s.idem.set(key, clone(v));
   return clone(v);
 };
-/** Indicadores sintéticos do mês (mesma agenda de exemplo do Resultado): dado existente para quase tudo. */
-const METRICS: GoalList["metrics"] = [
-  { key: "occupancy", label: "Ocupação", unit: "ratio", numerator: 2880, denominator: 7200, value: 0.4, status: "ok", note: "Minutos reservados sobre o expediente vendável." },
-  { key: "no_show", label: "Faltas", unit: "ratio", numerator: 6, denominator: 40, value: 0.15, status: "ok", note: "Faltas sobre atendimentos com desfecho." },
-  { key: "cancellation", label: "Cancelamentos", unit: "ratio", numerator: 3, denominator: 43, value: 0.0698, status: "ok", note: "Cancelados sobre concluídos, faltas e cancelados." },
-  { key: "waitlist_acceptance", label: "Ofertas de vaga aceitas", unit: "ratio", numerator: 0, denominator: 0, value: null, status: "insufficient", note: "Ofertas aceitas sobre ofertas preparadas." },
-  { key: "quote_acceptance", label: "Orçamentos aceitos", unit: "ratio", numerator: 7, denominator: 10, value: 0.7, status: "ok", note: "Aceitos sobre orçamentos com link gerado." },
-  { key: "received", label: "Recebimentos registrados", unit: "cents", numerator: 170000, denominator: null, value: 170000, status: "ok", note: "Soma do lançado como recebido." },
-  { key: "expenses", label: "Despesas registradas", unit: "cents", numerator: 12000, denominator: null, value: 12000, status: "ok", note: "Soma das despesas lançadas." },
-  { key: "charge_coverage", label: "Atendimentos com cobrança registrada", unit: "ratio", numerator: 28, denominator: 34, value: 0.8235, status: "ok", note: "Concluídos com cobrança lançada." },
-  { key: "human_minutes", label: "Minutos da equipe Tinindo", unit: "minutes", numerator: 0, denominator: null, value: 0, status: "ok", note: "Minutos humanos em serviços assistidos." },
-  { key: "reminders", label: "Lembretes enviados", unit: "ratio", numerator: 20, denominator: 40, value: 0.5, status: "ok", note: "Atendimentos com lembrete enviado ou compartilhado." },
-];
+/** Indicadores do mês até ontem, da base de exemplo única (dataset.ts): os mesmos do Resultado em "Este mês". */
+const METRICS: GoalList["metrics"] = demoMetrics(demoMonthToDate()).metrics;
 const metric = (key: string) => METRICS.find((m) => m.key === key)!;
 const DOWN = new Set(["no_show", "cancellation", "expenses"]);
 function withProgress(g: Goal): Goal {
