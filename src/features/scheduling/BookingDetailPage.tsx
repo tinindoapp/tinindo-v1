@@ -1,6 +1,6 @@
 // Atendimento: detalhe, cancelar (com motivo e política) e concluir. Reagendar abre o fluxo.
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useParams } from "react-router";
 import type { Booking } from "@contracts";
 import { Button, PageHeader, toast } from "../../components/ui/index.tsx";
 import { newIdempotencyKey, type PublicBookingContact } from "./port.ts";
@@ -8,6 +8,11 @@ import { canCancel, canComplete, canReschedule, formatCents, formatRange, servic
 import { formatDayLong, localParts } from "./time.ts";
 import { DemoNotice, ErrorPanel, PolicyNote, StatusBadge, TimezoneNote } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
+
+const DONE_MESSAGE: Record<string, string> = {
+  criado: "Agendamento confirmado.",
+  reagendado: "Atendimento reagendado.",
+};
 
 const SOURCE_LABEL: Record<Booking["source"], string> = {
   owner: "Criado por você",
@@ -23,6 +28,16 @@ export function BookingDetailPage() {
   const port = usePort();
   const { ctx } = useBase();
   const state = useAsync(`booking:${bookingId}`, () => port.getBooking(bookingId));
+  // Confirmação de quem chegou do fluxo de novo/reagendar: Toast quando o atendimento aparece, uma vez por navegação.
+  const location = useLocation();
+  const done = (location.state as { done?: string } | null)?.done;
+  const loaded = state.data !== undefined;
+  const toasted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!loaded || !done || !DONE_MESSAGE[done] || toasted.current === location.key) return;
+    toasted.current = location.key;
+    toast(DONE_MESSAGE[done]);
+  }, [loaded, done, location.key]);
   // Fica fora do detalhe: o detalhe é remontado a cada versão nova do atendimento.
   const [failure, setFailure] = useState<Failure | null>(null);
 

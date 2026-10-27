@@ -6,7 +6,7 @@
 .tn-sched-tz { font-size: var(--tn-text-label); color: var(--tn-text-muted); margin: 0; }
 .tn-sched-back { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
 
-.tn-sched-toolbar { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: center; }
+.tn-sched-toolbar { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
 .tn-sched-new { text-decoration: none; margin-left: auto; }
 /* Celular: botão flutuante acima da barra de abas (o conteúdo ganha folga embaixo para não ficar coberto). */
 @media (max-width: 899.98px) {
@@ -24,7 +24,9 @@
 }
 
 /* Navegação de datas: ‹ Hoje ›. A seta "anterior" é a mesma seta do sistema, espelhada. */
-.tn-sched-datenav { display: inline-flex; align-items: center; gap: var(--tn-space-2); }
+/* Compacta para caber na mesma linha do Dia/Semana em 375 px (a lista do dia aparece sem rolar). */
+.tn-sched-datenav { display: inline-flex; align-items: center; gap: var(--tn-space-1); }
+.tn-sched-datenav .tn-button { padding: 0 var(--tn-space-4); }
 .tn-sched .tn-icon-button[data-dir="prev"] .tn-icon { transform: scaleX(-1); }
 
 .tn-sched-daytitle { font-size: var(--tn-text-section); margin: 0; }

@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import type { Booking, ProviderService, Quote, TimeRange } from "@contracts";
-import { Button, ChoiceCard, Field, focusFirstInvalid, IconButton, PageHeader, toast } from "../../components/ui/index.tsx";
+import { Button, ChoiceCard, Field, focusFirstInvalid, IconButton, PageHeader } from "../../components/ui/index.tsx";
 import { newIdempotencyKey } from "./port.ts";
 import { canReschedule, formatCents, formatMinutes, formatRange, serviceName } from "./agenda.ts";
 import { isErrorLike } from "./errors.ts";
@@ -129,8 +129,8 @@ function BookingFlow(props: FlowProps) {
           ? await port.create(payload as Parameters<typeof port.create>[0], key)
           : await port.reschedule(payload as Parameters<typeof port.reschedule>[0], key);
       const target = props.mode === "create" ? `../atendimento/${result.id}` : "..";
-      toast(props.mode === "create" ? "Agendamento confirmado." : "Atendimento reagendado.");
-      navigate(target, { relative: "path" });
+      // O aviso (Toast) sai na tela do atendimento, depois da troca de tela.
+      navigate(target, { relative: "path", state: { done: props.mode === "create" ? "criado" : "reagendado" } });
     } catch (err) {
       setFailure(err);
       const code = isErrorLike(err) ? err.code : null;

@@ -22,7 +22,9 @@ test("hoje: horários no fuso do negócio, ocupação e dados de exemplo identif
   await expect(page.getByText(/Confirmados: .* de 9 h vendáveis/)).toBeVisible();
   await noHorizontalScroll(page);
 
-  await page.getByRole("radio", { name: "Semana" }).check();
+  // Segmented: a pessoa toca no rótulo (a pílula); o rádio nativo fica por baixo.
+  await page.getByRole("group", { name: "Visualização" }).locator("label").filter({ hasText: "Semana" }).click();
+  await expect(page.getByRole("radio", { name: "Semana" })).toBeChecked();
   await expect(page.getByRole("heading", { name: /Semana de/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /qui\., 22\/10/ })).toContainText("1 atendimento");
   await noHorizontalScroll(page);

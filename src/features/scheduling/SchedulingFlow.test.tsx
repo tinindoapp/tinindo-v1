@@ -108,7 +108,7 @@ describe("agenda (demonstração sobre fixtures)", () => {
 describe("horários (demonstração)", () => {
   it("bloqueio sem motivo: erro embaixo do campo e foco nele", async () => {
     renderAt("/app/agenda/horarios");
-    const form = await screen.findByRole("form", { name: "Novo bloqueio" });
+    const form = await screen.findByRole("form", { name: "Novo bloqueio" }, SLOW);
     fireEvent.click(within(form).getByRole("button", { name: "Bloquear" }));
     expect(await within(form).findByText("Diga o motivo do bloqueio (só você vê).")).toBeInTheDocument();
     expect(within(form).getByLabelText("Motivo")).toHaveFocus();
@@ -128,7 +128,7 @@ describe("horários (demonstração)", () => {
 
   it("expediente com fim antes do início: erro embaixo da faixa e foco no campo", async () => {
     renderAt("/app/agenda/horarios");
-    const monday = await screen.findByRole("group", { name: "Segunda" });
+    const monday = await screen.findByRole("group", { name: "Segunda" }, SLOW);
     const end = within(monday).getAllByLabelText("Fim")[0]!;
     fireEvent.change(end, { target: { value: "08:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar expediente" }));
