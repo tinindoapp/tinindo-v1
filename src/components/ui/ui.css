@@ -42,8 +42,9 @@
 .tn-field textarea { width: 100%; min-width: 0; max-width: 100%; }
 .tn-field [role="alert"] { color: var(--tn-danger-text); font-size: var(--tn-font-size-sm); }
 
-/* Campos de todas as telas do app com a mesma linguagem (especificidade zero: o módulo ainda pode ajustar). */
-:where(.tn-app, .tn-auth) :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
+/* Campos de todas as telas do app e das páginas públicas (perfil, diretório, avaliar, site, pagar) com a mesma linguagem
+   (especificidade zero: o módulo ainda pode ajustar). */
+:where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
   min-height: var(--tn-size-touch);
   max-width: 100%;
   padding: 0 var(--tn-space-3);
@@ -58,10 +59,10 @@
 @media (pointer: coarse) {
   input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea { font-size: max(16px, 1em) !important; }
 }
-:where(.tn-app, .tn-auth) :where(textarea) { padding: var(--tn-space-2) var(--tn-space-3); min-height: 96px; }
-:where(.tn-app, .tn-auth) :where(input, select, textarea):focus-visible { border-color: var(--tn-text); }
-:where(.tn-app, .tn-auth) :where(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; accent-color: var(--tn-action); }
-:where(.tn-app, .tn-auth) :where(fieldset) { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3) var(--tn-space-4); }
+:where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(textarea) { padding: var(--tn-space-2) var(--tn-space-3); min-height: 96px; }
+:where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(input, select, textarea):focus-visible { border-color: var(--tn-text); }
+:where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; accent-color: var(--tn-action); }
+:where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(fieldset) { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3) var(--tn-space-4); }
 
 .tn-banner {
   display: flex;

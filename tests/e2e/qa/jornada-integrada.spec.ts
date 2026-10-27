@@ -49,7 +49,7 @@ test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → receb
   const form = page.getByRole("form", { name: /Avaliar Corte em Barbearia Exemplo A, 20\/10/ });
   await expect(form).toBeVisible();
   await expect(form.getByRole("button", { name: "Publicar avaliação" })).toBeDisabled();
-  await form.getByLabel("5").check();
+  await form.getByRole("radio", { name: "5 – Excelente" }).check();
   await form.getByRole("button", { name: "Publicar avaliação" }).dblclick();
   await expect(page.getByText("Obrigado! Sua avaliação foi publicada sem o seu nome.")).toBeVisible();
   await expect(page.getByRole("form", { name: /, 20\/10/ })).toHaveCount(0);
@@ -181,5 +181,5 @@ test("minhas reservas: a cliente vê o que o dono agenda e conclui na mesma aba,
   await expect(forms).toHaveCount(2);
   await expect(page.getByRole("form", { name: /, 19\/10/ })).toBeVisible();
   const chosen = page.getByRole("form", { name: /Avaliar Corte em Barbearia Exemplo A, 20\/10/ });
-  await expect(chosen.getByLabel("1", { exact: true })).toBeFocused();
+  await expect(chosen.getByRole("radio", { name: "1 – Ruim" })).toBeFocused();
 });
