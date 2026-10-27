@@ -33,7 +33,7 @@ export function QuoteLinkPage({ port }: { port: QuoteLinkPort }) {
   const [result, setResult] = useState<QuoteDecision | null>(null);
   const [message, setMessage] = useState<{ tone: "danger" | "warning"; text: string } | null>(null);
   const [keys, setKeys] = useState(() => ({ accept: newKey(), decline: newKey() }));
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<"accept" | "decline" | null>(null);
 
   const [nonce, setNonce] = useState(0);
 
@@ -50,7 +50,7 @@ export function QuoteLinkPage({ port }: { port: QuoteLinkPort }) {
 
   async function act(kind: "accept" | "decline") {
     if (!token || !view) return;
-    setPending(true);
+    setPending(kind);
     setMessage(null);
     try {
       setResult(kind === "accept" ? await port.accept(token, view, keys.accept) : await port.decline(token, view, keys.decline));
@@ -70,7 +70,7 @@ export function QuoteLinkPage({ port }: { port: QuoteLinkPort }) {
         setMessage({ tone: "danger", text: "Não foi possível concluir agora. Tentar de novo é seguro." });
       }
     } finally {
-      setPending(false);
+      setPending(null);
     }
   }
 
@@ -98,17 +98,17 @@ export function QuoteLinkPage({ port }: { port: QuoteLinkPort }) {
               <tfoot><tr><th scope="row" colSpan={2}>Total</th><td className="tn-num"><strong>{formatCents(view.total_cents)}</strong></td></tr></tfoot>
             </table>
             {view.slot ? <p>Horário proposto{view.slot_service_name ? ` (${view.slot_service_name})` : ""}: {formatSlot(view.slot, view.timezone)}</p> : null}
-            {view.notes ? <p className="tn-qt-muted">Observações: {view.notes}</p> : null}
-            <p className="tn-qt-muted">Versão {view.version_no} · código {view.snapshot_hash.slice(0, 8)} · vale até {formatDateTime(view.valid_until, view.timezone)}</p>
+            {view.notes ? <p className="tn-muted">Observações: {view.notes}</p> : null}
+            <p className="tn-muted">Versão {view.version_no} · código {view.snapshot_hash.slice(0, 8)} · vale até {formatDateTime(view.valid_until, view.timezone)}</p>
           </>
         ) : null}
         {message ? <StatusBanner tone={message.tone}>{message.text}</StatusBanner> : null}
         {view && state === "ready" && !decided && view.status === "sent" ? (
           <>
-            <p className="tn-qt-muted">Abrir esta página não aceita nada. Aceitar não é pagar: o pagamento é combinado com o profissional.</p>
-            <div className="tn-qt-actions">
-              <Button disabled={pending} onClick={() => void act("accept")}>Aceitar orçamento</Button>
-              <Button variant="secondary" disabled={pending} onClick={() => void act("decline")}>Recusar</Button>
+            <p className="tn-muted">Abrir esta página não aceita nada. Aceitar não é pagar: o pagamento é combinado com o profissional.</p>
+            <div className="tn-actions">
+              <Button loading={pending === "accept"} loadingText="Aceitando…" disabled={pending === "decline"} onClick={() => void act("accept")}>Aceitar orçamento</Button>
+              <Button variant="secondary" loading={pending === "decline"} loadingText="Recusando…" disabled={pending === "accept"} onClick={() => void act("decline")}>Recusar</Button>
             </div>
           </>
         ) : null}
