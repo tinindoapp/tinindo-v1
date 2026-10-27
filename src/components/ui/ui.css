@@ -170,13 +170,16 @@
   color: var(--tn-text);
   box-shadow: var(--tn-shadow-lg);
   font-size: var(--tn-text-support);
-  pointer-events: auto;
+  /* O aviso não bloqueia a tela: o toque no texto atravessa para o que está embaixo (ex.: "Cobrar no Caixa" logo
+     acima da barra de abas). Só "Desfazer" e "Fechar" recebem toque. */
+  pointer-events: none;
   animation: tn-toast-in var(--tn-motion-base) var(--tn-motion-ease);
 }
 .tn-toast[data-tone="info"] { --tn-tone: var(--tn-info-text); }
 .tn-toast[data-tone="warning"] { --tn-tone: var(--tn-warning-text); }
 .tn-toast[data-tone="danger"] { --tn-tone: var(--tn-danger-text); }
 .tn-toast .tn-tone-icon { flex: none; color: var(--tn-tone); }
+.tn-toast button { pointer-events: auto; }
 .tn-toast__text { flex: 1; min-width: 0; padding: var(--tn-space-2) 0; overflow-wrap: anywhere; }
 .tn-toast__action {
   flex: none;
