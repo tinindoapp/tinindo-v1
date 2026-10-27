@@ -51,6 +51,13 @@ Este arquivo diz **quem faz o quê e em que ordem**. As caixas de cada etapa con
 2. **Domínio da homologação**: endereço `*.workers.dev` ou subdomínio próprio. O valor entra em `ALLOWED_ORIGINS` e `PUBLIC_APP_URL`.
 3. **Quem são as 3 pessoas** e se o dado delas fica na homologação depois do teste (sugestão: apagar ao fim do piloto, com aviso no convite).
 
+## Estado em 27/10/2026
+
+- Supabase de homologação: projeto `tinindo-homolog` (ref `kitdsdyydgutnbiwjblw`, São Paulo), org "Tinindo" do Gabriel, plano grátis. `homolog-setup.sh` rodou: migrations, segredos, 24 funções e 4 jobs do cron ok (`net._http_response` 200).
+- Auth: Site URL e Redirect URL provisórios no preview do PR #46; trocar quando o Worker de homologação existir (e rodar o script de novo com o endereço final, para `ALLOWED_ORIGINS`).
+- **Confirmação de e-mail desligada só na homologação** (decisão do Gabriel para o piloto de 28/10): sem SMTP próprio, o e-mail padrão do Supabase só chega para a equipe. Consequência: "Esqueci minha senha" não envia e-mail. Religar junto com o SMTP (Resend com domínio da Tinindo) antes de abrir para mais gente.
+- Falta: Worker de homologação na Cloudflare (conta do Felipe) com `VITE_APP_ENV=staging`, `VITE_SUPABASE_URL` e a chave publishable.
+
 ## O que este PR não faz
 
 Não cria conta, não guarda segredo, não publica nada e não marca o P42 como feito. Só prepara roteiro, teste e checklist.
