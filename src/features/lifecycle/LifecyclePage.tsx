@@ -3,6 +3,7 @@
 // reativação só como campanha com público visto e teto. O que a tela promete é o que o banco garante.
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { type ShareHow, ShareActions } from "./share.tsx";
 import { explain, formatDate, formatDateTime, MESSAGE_STATUS, RULE_LABEL, SKIP_REASON, STEP_STATUS } from "./labels.ts";
 import { type Audience, type LifecycleCampaign, type LifecyclePort, type LifecycleSettings, type LifecycleStep, type LifecycleStepStatus, newKey, type StepsList } from "./port.ts";
 
@@ -48,6 +49,8 @@ function SettingsForm({ port, data, onDone }: { port: LifecyclePort; data: { set
   );
 }
 
+const SHARED_OK: Record<ShareHow, string> = { copy: "Texto copiado.", share: "Texto compartilhado.", whatsapp: "WhatsApp aberto com o texto." };
+
 function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timezone: string; port: LifecyclePort; onDone: (n: Notice) => void }) {
   const act = (run: () => Promise<unknown>, ok: string) => run().then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
   return (
@@ -60,10 +63,16 @@ function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timez
         {" · "}{step.status === "scheduled" || step.status === "deferred" ? `sai em ${formatDateTime(step.due_at, timezone)}` : `previsto ${formatDateTime(step.due_at, timezone)}`}
       </p>
       {step.status === "manual" || step.status === "shared" ? <span className="tn-lc-body">{step.body}</span> : null}
+      {step.status === "manual" ? (
+        // Só marca como compartilhado depois que a cópia/compartilhamento deu certo (ou ao abrir o WhatsApp).
+        <ShareActions
+          message={step.body}
+          copyText={step.body}
+          copyLabel="Copiar e marcar como compartilhado"
+          onShared={(how) => void act(() => port.markShared(step.id, newKey()), `${SHARED_OK[how]} Passo marcado como compartilhado. Compartilhar não confirma entrega.`)}
+        />
+      ) : null}
       <div className="tn-lc-actions">
-        {step.status === "manual" ? (
-          <Button onClick={() => { void navigator.clipboard?.writeText(step.body).catch(() => undefined); void act(() => port.markShared(step.id, newKey()), "Texto copiado e passo marcado como compartilhado. Compartilhar não confirma entrega."); }}>Copiar e marcar como compartilhado</Button>
-        ) : null}
         {step.status === "scheduled" || step.status === "deferred" || step.status === "manual" ? (
           <Button variant="ghost" onClick={() => void act(() => port.cancelStep(step.id, newKey()), "Passo cancelado.")}>Cancelar</Button>
         ) : null}

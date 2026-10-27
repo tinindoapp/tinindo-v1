@@ -24,3 +24,10 @@
 @media (max-width: 30rem) {
   .tn-qt-item, .tn-qt-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Compartilhar (WhatsApp, folha do sistema, copiar) com retorno visível; mesmo bloco nos dois módulos. */
+.tn-share { display: grid; gap: var(--tn-space-1); min-width: 0; }
+.tn-share__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
+.tn-share__status { margin: 0; min-height: 1.5em; font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
+.tn-share__status[data-ok="true"] { color: var(--tn-success-text); font-weight: var(--tn-font-weight-medium); }
+.tn-share__status[data-ok="false"] { color: var(--tn-danger-text); }
