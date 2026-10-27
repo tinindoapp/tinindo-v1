@@ -186,7 +186,7 @@ function BookingFlow(props: FlowProps) {
       <fieldset className="tn-sched-fieldset">
         <legend>{props.mode === "create" ? "Dia e horário" : "Novo dia e horário"}</legend>
         <div className="tn-sched-dateline">
-          <IconButton icon="seta" data-dir="prev" variant="secondary" label="Dia anterior" disabled={date <= today} onClick={() => changeDate(addDays(date, -1))} />
+          <IconButton icon="voltar" variant="secondary" label="Dia anterior" disabled={date <= today} onClick={() => changeDate(addDays(date, -1))} />
           <Field label="Dia" id="flow-date" type="date" value={date} min={today} onChange={(e) => isCivilDate(e.target.value) && changeDate(e.target.value)} />
           <IconButton icon="seta" variant="secondary" label="Próximo dia" onClick={() => changeDate(addDays(date, 1))} />
         </div>

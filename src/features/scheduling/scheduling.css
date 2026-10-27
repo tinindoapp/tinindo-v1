@@ -27,7 +27,6 @@
 /* Compacta para caber na mesma linha do Dia/Semana em 375 px (a lista do dia aparece sem rolar). */
 .tn-sched-datenav { display: inline-flex; align-items: center; gap: var(--tn-space-1); }
 .tn-sched-datenav .tn-button { padding: 0 var(--tn-space-4); }
-.tn-sched .tn-icon-button[data-dir="prev"] .tn-icon { transform: scaleX(-1); }
 
 .tn-sched-daytitle { font-size: var(--tn-text-section); margin: 0; }
 .tn-sched-daytitle::first-letter { text-transform: uppercase; }

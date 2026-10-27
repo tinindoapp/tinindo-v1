@@ -53,7 +53,7 @@ export function AgendaPage() {
           onChange={(v) => go({ visao: v })}
         />
         <div className="tn-sched-datenav" role="group" aria-label="Navegar nas datas">
-          <IconButton icon="seta" data-dir="prev" variant="secondary" label={view === "semana" ? "Semana anterior" : "Dia anterior"}
+          <IconButton icon="voltar" variant="secondary" label={view === "semana" ? "Semana anterior" : "Dia anterior"}
             onClick={() => go({ data: addDays(date, -step) })} />
           <Button variant="secondary" onClick={() => go({ data: today })} aria-current={date === today ? "date" : undefined}>
             Hoje

@@ -9,6 +9,7 @@ export function IconButton({
   size = "md",
   variant = "ghost",
   type = "button",
+  className,
   ...rest
 }: Omit<ComponentProps<"button">, "children" | "aria-label"> & {
   icon: IconName;
@@ -18,7 +19,7 @@ export function IconButton({
   variant?: "ghost" | "secondary";
 }) {
   return (
-    <button type={type} className="tn-icon-button" data-size={size} data-variant={variant} aria-label={label} title={label} {...rest}>
+    <button type={type} className={className ? `tn-icon-button ${className}` : "tn-icon-button"} data-size={size} data-variant={variant} aria-label={label} title={label} {...rest}>
       <Icon name={icon} size={size === "sm" ? 18 : 22} />
     </button>
   );
