@@ -35,6 +35,15 @@ test("orçamento: rascunho, link, nova versão, aceite da versão vista com hor�
   await expect(share).toContainText("A Tinindo não envia mensagens");
   const link = (await share.locator("code").textContent()) ?? "";
   expect(link).toMatch(/\/orcamento#t=[A-Za-z0-9_-]{43}$/);
+  // Enviar pelo WhatsApp: wa.me com mensagem pronta que leva o link (sem telefone na base: wa.me/?text=).
+  const wa = share.getByRole("link", { name: "Enviar pelo WhatsApp" });
+  const waHref = (await wa.getAttribute("href")) ?? "";
+  expect(waHref).toMatch(/^https:\/\/wa\.me\/(\d+)?\?text=/);
+  expect(new URL(waHref).searchParams.get("text")).toContain(link);
+  // Copiar dá retorno visível (clipboard simulado no navegador de teste).
+  await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true }));
+  await share.getByRole("button", { name: "Copiar link" }).click();
+  await expect(share.getByRole("status")).toHaveText("Copiado ✓");
   await expect(list).toContainText("Enviado, aguardando o cliente");
 
   // Nova versão depois de enviado: barba por R$35.

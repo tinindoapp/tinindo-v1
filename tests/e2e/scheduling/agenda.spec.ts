@@ -15,7 +15,11 @@ test("hoje: horários no fuso do negócio, ocupação e dados de exemplo identif
   const timeline = page.getByRole("list", { name: /Linha do tempo/ });
   await expect(timeline.getByRole("listitem").first()).toContainText("09:00–09:30");
   await expect(page.getByText("Horários no fuso do negócio: America/Sao Paulo (UTC−03:00)")).toBeVisible();
-  await expect(page.getByText(/confirmados de 9 h vendáveis/)).toBeVisible();
+  await expect(page.getByText(/\d+% ocupado/)).toBeVisible();
+  // Detalhes recolhidos: aparecem ao abrir "Ver números do dia".
+  await expect(page.getByText(/confirmados?: .* de 9 h vendáveis/i)).toBeHidden();
+  await page.getByText("Ver números do dia").click();
+  await expect(page.getByText(/Confirmados: .* de 9 h vendáveis/)).toBeVisible();
   await noHorizontalScroll(page);
 
   await page.getByRole("button", { name: "Semana" }).click();
@@ -79,4 +83,24 @@ test("ações principais têm alvo de toque de pelo menos 44px", async ({ page }
   }
   const link = await page.getByRole("link", { name: "Novo agendamento" }).boundingBox();
   expect(link?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
+test("celular: o primeiro atendimento do dia aparece sem rolar e o botão flutuante não o cobre", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/app/agenda");
+  const first = page.getByRole("list", { name: /Linha do tempo/ }).getByRole("listitem").first();
+  await expect(first).toBeVisible();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  const box = (await first.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(812);
+  const fab = await page.getByRole("link", { name: "Novo agendamento" }).boundingBox();
+  if (fab && (await page.getByRole("link", { name: "Novo agendamento" }).evaluate((el) => getComputedStyle(el).position)) === "fixed") {
+    const overlaps = box.y < fab.y + fab.height && fab.y < box.y + box.height && box.x < fab.x + fab.width && fab.x < box.x + box.width;
+    expect(overlaps).toBe(false);
+  }
+  // No fim da página, o último item fica acima do botão flutuante (folga embaixo).
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const note = await page.getByText(/Horários no fuso do negócio/).boundingBox();
+  if (fab && note) expect(note.y + note.height).toBeLessThanOrEqual(fab.y);
 });

@@ -59,7 +59,6 @@
 .tn-sched-day,
 .tn-sched-week { display: grid; gap: var(--tn-space-4); min-width: 0; }
 
-.tn-sched-occupancy,
 .tn-sched-review,
 .tn-sched-confirm,
 .tn-sched-detail {
@@ -71,11 +70,24 @@
   gap: var(--tn-space-3);
   min-width: 0;
 }
-.tn-sched-occupancy h3,
 .tn-sched-confirm h3 { margin: 0; font-size: var(--tn-font-size-md); }
-.tn-sched-occ-figure { margin: 0; }
-.tn-sched-occ-figure strong { font-size: var(--tn-font-size-2xl); font-family: var(--tn-font-display); }
-.tn-sched-meter { width: 100%; height: 10px; }
+/* Ocupação compacta: uma linha com barra fina; o resto fica em "Ver números". */
+.tn-sched-occline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-1) var(--tn-space-3); margin: 0; min-width: 0; font-size: var(--tn-font-size-sm); }
+.tn-sched-occline__figure { margin: 0; }
+.tn-sched-occline__figure strong { font-weight: var(--tn-font-weight-semibold); }
+.tn-sched-occline .tn-sched-meter { flex: 1 1 6rem; min-width: 4rem; }
+.tn-sched-occline__more { flex: 0 0 auto; }
+.tn-sched-occline__more[open] { flex-basis: 100%; }
+.tn-sched-occline__more summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tn-size-touch);
+  color: var(--tn-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.tn-sched-meter { width: 100%; height: 6px; }
 .tn-sched-occ-details {
   list-style: none;
   margin: 0;

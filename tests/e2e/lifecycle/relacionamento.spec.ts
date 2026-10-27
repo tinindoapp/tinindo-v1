@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("relacionamento: fila com estado por palavra, compartilhar texto, réguas com teto, reativação só com público aprovado", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true }));
   await page.goto("/app/relacionamento");
   await expect(page.getByRole("heading", { name: "Relacionamento", level: 1 })).toBeVisible();
   await expect(page.getByText("nada é enviado")).toBeVisible();
@@ -34,4 +35,17 @@ test("relacionamento: fila com estado por palavra, compartilhar texto, réguas c
 
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+});
+
+test("relacionamento: se a cópia falha, o passo não é marcado como compartilhado", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.reject(new Error("negado")) }, configurable: true }));
+  await page.goto("/app/relacionamento");
+  const queue = page.getByRole("region", { name: "Fila de mensagens" });
+  const carlos = queue.getByRole("list", { name: "Passos" }).getByRole("listitem").filter({ hasText: "Confirmação do agendamento · Carlos (exemplo)" });
+  await carlos.getByRole("button", { name: "Copiar e marcar como compartilhado" }).click();
+  await expect(carlos.getByRole("status")).toHaveText("Não deu para copiar. Toque e segure no link para copiar.");
+  await expect(carlos).toContainText("Para você compartilhar");
+  await expect(carlos.getByRole("button", { name: "Copiar e marcar como compartilhado" })).toBeVisible();
+  const wa = carlos.getByRole("link", { name: "Enviar pelo WhatsApp" });
+  expect(await wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/\?text=/);
 });

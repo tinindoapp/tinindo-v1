@@ -4,6 +4,7 @@ import { createContext, type FormEvent, type ReactNode, useContext, useEffect, u
 import type { SalesQuote } from "@contracts";
 import { Button, Card, Help, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
+import { ShareActions } from "./share.tsx";
 import { newKey, type QuoteDetail, type QuoteDraft, type SalesBase, type SalesPort } from "./port.ts";
 import {
   centsToInput,
@@ -41,6 +42,14 @@ function FieldBox({ label, className, children }: { label: string; className?: s
 export function quoteLink(token: string): string {
   return `${window.location.origin}/orcamento#t=${token}`;
 }
+
+/** Mensagem curta e pronta para o cliente; o dono pode mudar antes de mandar. */
+export function quoteMessage(title: string | null, link: string): string {
+  return `Olá! Segue o orçamento${title ? ` "${title}"` : ""}. Para ver e aceitar, abra: ${link}`;
+}
+
+/** O telefone vem quando a base de clientes trouxer (hoje só id e nome). */
+const phoneOf = (c: { id: string; phone?: string | null }) => c.phone ?? null;
 
 interface ItemRow { key: string; service_id: string; description: string; quantity: string; price: string }
 interface FormState {
@@ -196,6 +205,8 @@ export function QuotesPage() {
     );
   }
 
+  const freshQuote = fresh ? quotes?.find((q) => q.id === fresh.quoteId) ?? null : null;
+  const freshCustomer = freshQuote ? base?.customers.find((c) => c.id === freshQuote.customer_id) ?? null : null;
   const draftTotal = form ? quoteTotal(form.items.map((i) => ({ quantity: Number(i.quantity) || 0, unit_price_cents: parseBRL(i.price) ?? 0 }))) : 0;
   const slotServices = form ? [...new Set(form.items.map((i) => i.service_id).filter(Boolean))] : [];
 
@@ -220,10 +231,15 @@ export function QuotesPage() {
         <Card aria-labelledby="qt-link-title">
           <div className="tn-qt-section">
             <h2 id="qt-link-title">Link do orçamento</h2>
-            <p className="tn-qt-muted">A Tinindo não envia mensagens. Copie o link e mande ao cliente. Gerar outro link invalida este.</p>
+            <p className="tn-qt-muted">A Tinindo não envia mensagens. Mande o link ao cliente pelo WhatsApp ou copie. Gerar outro link invalida este.</p>
             <code className="tn-qt-code">{quoteLink(fresh.token)}</code>
+            <ShareActions
+              message={quoteMessage(freshQuote?.current.title ?? null, quoteLink(fresh.token))}
+              copyText={quoteLink(fresh.token)}
+              copyLabel="Copiar link"
+              phone={freshCustomer ? phoneOf(freshCustomer) : null}
+            />
             <div className="tn-qt-actions">
-              <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(quoteLink(fresh.token)).catch(() => undefined)}>Copiar link</Button>
               <Button variant="ghost" onClick={() => setFresh(null)}>Fechar</Button>
             </div>
           </div>
