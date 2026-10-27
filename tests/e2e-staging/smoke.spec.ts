@@ -44,7 +44,12 @@ test.describe("homologação · build publicado", () => {
     expect(scripts.length).toBeGreaterThan(0);
     for (const url of scripts) {
       const body = await (await request.get(url)).text();
-      expect(body, url).not.toMatch(/sb_secret_|service_role/);
+      // O app traz os prefixos como texto na própria trava (env.ts e supabase-js); o que não pode haver é chave inteira:
+      // sb_secret_ seguido do valor, ou um JWT legado cujo payload diz service_role.
+      expect(body, url).not.toMatch(/sb_secret_[A-Za-z0-9_-]{16,}/);
+      for (const jwt of body.match(/eyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g) ?? []) {
+        expect(Buffer.from(jwt.split(".")[1], "base64url").toString(), url).not.toContain("service_role");
+      }
     }
   });
 

@@ -1,0 +1,15 @@
+// P42 · frontend da homologação (release/P42-LIBERACAO.md). Worker separado do tinindo-v1, na conta do Gabriel,
+// que é onde está a zona tinindoapp.com.br. Publicar com o build de staging (VITE_* do Supabase de homologação):
+//   VITE_APP_ENV=staging VITE_SUPABASE_URL=... VITE_SUPABASE_PUBLISHABLE_KEY=... npm run build
+//   npx wrangler deploy -c wrangler.homolog.jsonc
+{
+  "name": "tinindo-homolog",
+  "account_id": "f939b6ba7116b6bb6c087e1f9be9363e",
+  "compatibility_date": "2026-10-12",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [{ "pattern": "homolog.tinindoapp.com.br", "custom_domain": true }],
+  "workers_dev": false
+}
