@@ -2,7 +2,7 @@
 // contrato v1 e de que a tela precisa: nomes de clientes, expediente, bloqueio, uma regra de
 // horário e a política de cancelamento. Some quando o P03/P02/P05 publicarem as leituras reais.
 import { FX, bookingsA } from "@contracts/fixtures.ts";
-import type { Booking } from "@contracts";
+import type { Booking, WaitlistEntry } from "@contracts";
 
 export const DEMO_CUSTOMERS = [
   { id: FX.customers.abInA, name: "Cliente Exemplo Ana" },
@@ -65,3 +65,15 @@ export const DEMO_EXTRA_BOOKINGS: Booking[] = [
 export function demoBookings(): Booking[] {
   return [...bookingsA, ...DEMO_EXTRA_BOOKINGS].map((b) => ({ ...b }));
 }
+
+/**
+ * Lista de espera de exemplo: a mesma entrada da tela Lista de espera da demonstração (src/features/waitlist/demoPort.ts).
+ * Ana espera um Corte às quartas, das 09:00 às 19:00. Quem entrar na lista por aquela tela não aparece aqui.
+ */
+export const DEMO_WAITLIST: WaitlistEntry[] = [
+  {
+    id: "71000000-0000-4000-8000-000000000001", tenant_id: FX.tenants.A, customer_id: FX.customers.abInA, service_id: FX.services.corteA,
+    status: "active", joined_at: "2026-10-18T13:00:00Z", valid_until: "2026-11-19T12:00:00Z",
+    acceptable_windows: [{ weekday: 3, local_start: "09:00", local_end: "19:00" }], version: 1,
+  },
+];

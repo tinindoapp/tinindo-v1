@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { bookingsA, services } from "@contracts/fixtures.ts";
 import type { Booking } from "@contracts";
-import { canComplete, dayTimeline, type DayPlan, formatCents, occupancy } from "./agenda.ts";
+import { canComplete, cancelNoticeText, dayTimeline, type DayPlan, formatCents, occupancy, STATUS_LABEL, waitlistMatches, whatsAppDigits } from "./agenda.ts";
+import type { WaitlistEntry } from "@contracts";
 import { explainError } from "./errors.ts";
 
 const plan: DayPlan = {
@@ -81,3 +82,35 @@ describe("explicação de erros", () => {
     expect(explainError({ notConnected: true, what: "A lista", dependsOn: "P03" }, "load").title).toMatch(/não conectado/);
   });
 });
+
+describe("depois do cancelamento", () => {
+  const entry = (over: Partial<WaitlistEntry>): WaitlistEntry => ({
+    id: "71000000-0000-4000-8000-000000000001", tenant_id: bookingsA[0]!.tenant_id, customer_id: bookingsA[0]!.customer_id!,
+    service_id: bookingsA[0]!.service_id, status: "active", joined_at: "2026-10-18T13:00:00Z", valid_until: "2026-11-18T13:00:00Z",
+    acceptable_windows: [{ weekday: 3, local_start: "09:00", local_end: "19:00" }], version: 1, ...over,
+  });
+  const tz = "America/Sao_Paulo";
+
+  it("lista de espera: conta quem aceita o início do horário (dia da semana, faixa, validade, ativo)", () => {
+    const wed11 = "2026-10-21T11:00:00-03:00";
+    expect(waitlistMatches([entry({})], wed11, tz)).toBe(1);
+    expect(waitlistMatches([entry({})], "2026-10-20T11:00:00-03:00", tz)).toBe(0); // terça
+    expect(waitlistMatches([entry({})], "2026-10-21T19:00:00-03:00", tz)).toBe(0); // fim da faixa é aberto
+    expect(waitlistMatches([entry({ status: "offered" })], wed11, tz)).toBe(0);
+    expect(waitlistMatches([entry({ valid_until: "2026-10-21T10:00:00-03:00" })], wed11, tz)).toBe(0);
+    expect(waitlistMatches([entry({}), entry({ id: "71000000-0000-4000-8000-000000000002" })], wed11, tz)).toBe(2);
+  });
+
+  it("aviso no WhatsApp: texto pronto sem o motivo e só com telefone válido", () => {
+    const text = cancelNoticeText({ name: "Ana", service: "Corte", day: "quarta-feira, 21 de outubro", time: "11:00", business: "Barbearia Exemplo A" });
+    expect(text).toBe("Olá, Ana! Seu horário de Corte em quarta-feira, 21 de outubro, às 11:00, na Barbearia Exemplo A, foi cancelado. Se quiser marcar outro horário, é só responder esta mensagem.");
+    expect(whatsAppDigits("+5511977774343")).toBe("5511977774343");
+    expect(whatsAppDigits(null)).toBeNull();
+    expect(whatsAppDigits("+55")).toBeNull();
+  });
+
+  it("estado de falta se chama Faltou", () => {
+    expect(STATUS_LABEL.no_show).toBe("Faltou");
+  });
+});
+

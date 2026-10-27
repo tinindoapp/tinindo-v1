@@ -148,13 +148,17 @@ test.describe("UAT barbeiro", () => {
     await page.getByRole("button", { name: "Cancelar atendimento" }).click();
     await expect(page.getByText("Nenhuma mensagem é enviada automaticamente ao cliente.", { exact: false })).toBeVisible();
     // Motivo é obrigatório.
-    await page.getByRole("button", { name: "Confirmar cancelamento" }).click();
-    await expect(page.getByRole("alert")).toHaveText("Informe o motivo do cancelamento.");
+    await page.getByRole("button", { name: "Sim, cancelar" }).click();
+    await expect(page.getByText("Informe o motivo do cancelamento.")).toBeVisible();
     await page.getByLabel("Motivo").fill("Cliente avisou que não vem");
-    await page.getByRole("button", { name: "Confirmar cancelamento" }).click();
+    await page.getByRole("button", { name: "Sim, cancelar" }).click();
     await expect(page.getByText("Atendimento cancelado. O horário voltou a ficar livre.")).toBeVisible();
     await expect(page.getByText("Cancelado", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancelar atendimento" })).toHaveCount(0);
+    // Próximo passo: a lista de espera tem quem aceite quarta às 11:00 e leva à tela que sugere a pessoa.
+    await page.getByRole("link", { name: "Oferecer à lista de espera (1 pessoa)" }).click();
+    await expect(page.getByRole("heading", { name: "Lista de espera", level: 1 })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Vagas para oferecer" }).getByRole("button", { name: /Preparar oferta/ })).toBeVisible();
   });
 
   test("7 · lista de espera oferece a vaga cancelada e recupera o horário", async ({ page }) => {
@@ -169,11 +173,11 @@ test.describe("UAT barbeiro", () => {
   test("8 · conclui o atendimento das 09:00 sem registrar pagamento", async ({ page }) => {
     await page.goto("/app/agenda");
     await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
-    await page.getByRole("button", { name: "Concluir atendimento" }).click();
+    await page.getByRole("button", { name: "Atendido", exact: true }).click();
     await expect(page.getByText("Isso registra que o atendimento aconteceu. Não registra pagamento.")).toBeVisible();
-    await page.getByRole("button", { name: "Confirmar conclusão" }).click();
+    await page.getByRole("button", { name: "Sim, foi atendido" }).click();
     await expect(page.getByText(/Atendimento concluído\. O pagamento não foi registrado/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Concluir atendimento" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Atendido", exact: true })).toHaveCount(0);
   });
 
   test("9a · Caixa não finge recebimento: concluído fica sem cobrança até registrar", async ({ page }) => {

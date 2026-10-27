@@ -1,7 +1,7 @@
 // Regras de apresentação da agenda: ocupação, linha do tempo do dia e textos de estado.
 // Capacidade e conflito são decididos pelo servidor (P03); aqui só se descreve o que ele devolveu.
-import type { Booking, BookingStatus, ProviderService, TimeRange } from "@contracts";
-import { formatTime, minutesBetween, toDate } from "./time.ts";
+import type { Booking, BookingStatus, ProviderService, TimeRange, WaitlistEntry } from "@contracts";
+import { formatTime, localParts, minutesBetween, toDate } from "./time.ts";
 
 /** Expediente de um dia (contrato `schedule.day_plans` do P03; id/versão do bloqueio vêm do servidor). */
 export interface DayPlan {
@@ -19,7 +19,7 @@ export const STATUS_LABEL: Record<BookingStatus, string> = {
   completed: "Concluído",
   expired: "Reserva vencida",
   cancelled: "Cancelado",
-  no_show: "Falta",
+  no_show: "Faltou",
 };
 
 export type StatusTone = "success" | "warning" | "info" | "danger" | "neutral";
@@ -45,6 +45,37 @@ export function canCancel(b: Booking): boolean {
 /** Só depois do início do atendimento. Concluir não registra pagamento. */
 export function canComplete(b: Booking, now: Date): boolean {
   return b.status === "confirmed" && toDate(b.starts_at).getTime() <= now.getTime();
+}
+/** "Faltou" segue a mesma janela de "Atendido": confirmado e já começou (o servidor confere de novo). */
+export function canMarkNoShow(b: Booking, now: Date): boolean {
+  return canComplete(b, now);
+}
+/** Reserva provisória: o dono confirma ou libera. Se o prazo já passou, o servidor recusa e a tela explica. */
+export function canConfirmHold(b: Booking): boolean {
+  return b.status === "held";
+}
+
+/** Motivos fixos mandados ao servidor quando a tela não pede motivo (o contrato exige um). */
+export const FIXED_REASON = {
+  releaseHold: "Reserva provisória liberada pelo dono",
+  noShow: "Cliente não compareceu",
+  noShowRevert: "Falta desfeita pelo dono",
+} as const;
+
+/**
+ * Quantas pessoas da lista de espera aceitam um horário que começa em `startsAt`. Mesma conta do servidor ao criar
+ * candidatos (app.wl_candidates_for): entrada ativa, válida depois do início e com faixa semanal que cobre o início.
+ * Não confere se o serviço de cada pessoa cabe no buraco: isso fica para a tela da lista de espera.
+ */
+export function waitlistMatches(entries: WaitlistEntry[], startsAt: string, timeZone: string): number {
+  const start = Date.parse(startsAt);
+  const local = localParts(startsAt, timeZone);
+  return entries.filter(
+    (e) =>
+      e.status === "active" &&
+      Date.parse(e.valid_until) > start &&
+      (e.acceptable_windows ?? []).some((w) => w.weekday === local.weekday && local.time >= w.local_start && local.time < w.local_end),
+  ).length;
 }
 
 function overlapMinutes(a: TimeRange, b: TimeRange): number {
@@ -185,4 +216,19 @@ export function formatCents(cents: number): string {
 
 export function serviceName(services: ProviderService[], id: string): string {
   return services.find((s) => s.id === id)?.name ?? "Serviço";
+}
+
+/** Só os dígitos do E.164, como o wa.me pede. null quando não há telefone com que abrir a conversa. */
+export function whatsAppDigits(phone: string | null | undefined): string | null {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  return digits.length >= 10 ? digits : null;
+}
+
+/**
+ * Texto pronto para o dono avisar o cliente do cancelamento. Não leva o motivo (pode ser anotação interna).
+ * Quem envia é o dono, pelo próprio WhatsApp: a Tinindo não manda mensagem.
+ */
+export function cancelNoticeText(p: { name: string | null; service: string; day: string; time: string; business: string }): string {
+  const hello = p.name ? `Olá, ${p.name}!` : "Olá!";
+  return `${hello} Seu horário de ${p.service} em ${p.day}, às ${p.time}, na ${p.business}, foi cancelado. Se quiser marcar outro horário, é só responder esta mensagem.`;
 }

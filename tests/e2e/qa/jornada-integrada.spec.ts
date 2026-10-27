@@ -18,8 +18,8 @@ const received = (page: Page) => page.locator(".tn-fin-sum div").filter({ has: p
 test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → recebido à mão → saldo → avaliação", async ({ page }) => {
   await page.goto("/app/agenda");
   await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
-  await page.getByRole("button", { name: "Concluir atendimento" }).click();
-  await page.getByRole("button", { name: "Confirmar conclusão" }).dblclick();
+  await page.getByRole("button", { name: "Atendido", exact: true }).click();
+  await page.getByRole("button", { name: "Sim, foi atendido" }).dblclick();
   await expect(page.getByText(/Atendimento concluído\. O pagamento não foi registrado/)).toBeVisible();
   await noHorizontalScroll(page);
 
@@ -60,7 +60,7 @@ test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → receb
 test("atendimento futuro não conclui e não aparece no Caixa", async ({ page }) => {
   await page.goto("/app/agenda");
   await page.getByRole("link", { name: /15:00–15:30 Corte/ }).click();
-  await expect(page.getByRole("button", { name: "Concluir atendimento" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Atendido", exact: true })).toHaveCount(0);
   await softGo(page, "/app/caixa");
   await expect(page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }).getByRole("listitem")).toHaveCount(2);
 });
@@ -126,9 +126,9 @@ test.describe("regressões da auditoria", () => {
   test("concluir: voltar no painel não conclui", async ({ page }) => {
     await page.goto("/app/agenda");
     await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
-    await page.getByRole("button", { name: "Concluir atendimento" }).click();
+    await page.getByRole("button", { name: "Atendido", exact: true }).click();
     await page.getByRole("button", { name: "Voltar", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Concluir atendimento" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Atendido", exact: true })).toBeVisible();
     await softGo(page, "/app/caixa");
     await expect(page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }).getByRole("listitem")).toHaveCount(2);
   });
@@ -168,8 +168,8 @@ test("minhas reservas: a cliente vê o que o dono agenda e conclui na mesma aba,
   // O dono conclui o atendimento das 09:00: para a cliente ele vira "Concluída" e avaliável.
   await softGo(page, "/app/agenda");
   await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
-  await page.getByRole("button", { name: "Concluir atendimento" }).click();
-  await page.getByRole("button", { name: "Confirmar conclusão" }).click();
+  await page.getByRole("button", { name: "Atendido", exact: true }).click();
+  await page.getByRole("button", { name: "Sim, foi atendido" }).click();
   await expect(page.getByText(/Atendimento concluído/)).toBeVisible();
   await softGo(page, "/app/conta/reservas");
   await expect(next.getByRole("listitem")).toHaveCount(3);

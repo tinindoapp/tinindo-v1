@@ -14,6 +14,7 @@ import {
   ScheduleDayPlansOutput,
   ScheduleSettings,
   ServiceListOutput,
+  WaitlistListOutput,
 } from "@contracts";
 import type { z } from "zod";
 import { ApiError, type createApiClient } from "../../lib/api/client.ts";
@@ -57,7 +58,7 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
         const { data }: { data: z.infer<typeof CustomerListOutput> } = await call(
           `/crm/${CRM_ROUTES.listCustomers}?${qs}`, CustomerListOutput, { tenantId },
         );
-        out.push(...data.items.map((c) => ({ id: c.id, name: c.name })));
+        out.push(...data.items.map((c) => ({ id: c.id, name: c.name, phone: c.phone })));
         cursor = data.next_cursor;
         if (!cursor) break;
       }
@@ -115,6 +116,18 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
     async complete(input, key) {
       const { data } = await call(scheduling("booking.complete"), BookingOutput, post(input, key));
       return data.booking;
+    },
+    async confirm(input, key) {
+      const { data } = await call(scheduling("booking.confirm"), BookingOutput, post(input, key));
+      return data.booking;
+    },
+    async noShow(input, key) {
+      const { data } = await call(scheduling("booking.no_show"), BookingOutput, post(input, key));
+      return data.booking;
+    },
+    async waitlistEntries() {
+      const { data } = await call("/waitlist/waitlist.list", WaitlistListOutput, post({}));
+      return data.entries;
     },
     settings,
     async saveRules(input, key) {

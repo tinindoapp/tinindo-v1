@@ -127,4 +127,41 @@ describe("emulação do motor de agenda (fixtures)", () => {
     await port.removeBlock({ block_id: block.id!, expected_version: block.version! }, "chave-teste-0000000003");
     expect(await free()).toContain("17:00");
   });
+
+  it("confirmar reserva provisória: held → confirmed com preço base congelado; prazo vencido recusa e vira expired", async () => {
+    const port = createFixturePort();
+    const held = (await port.listBookings(window)).find((b) => b.status === "held")!;
+    expect(held.hold_expires_at).toBe("2026-10-20T09:10:00-03:00");
+    const out = await port.confirm({ booking_id: held.id, expected_version: held.version }, K1);
+    expect(out).toMatchObject({ status: "confirmed", hold_expires_at: null, agreed_price_cents: 6000, version: held.version + 1 });
+    // Repetir com a mesma chave devolve o mesmo resultado; confirmar de novo com outra chave é recusado.
+    expect((await port.confirm({ booking_id: held.id, expected_version: held.version }, K1)).version).toBe(out.version);
+    await expect(port.confirm({ booking_id: held.id, expected_version: out.version }, K2)).rejects.toMatchObject({ code: "POLICY_REJECTED" });
+  });
+
+  it("link público confirma pela mesma regra do dono: preço base congelado", async () => {
+    const port = createFixturePort();
+    const hold = await port.publicHold({ service_id: FX.services.corteA, starts_at: "2026-10-20T16:30:00-03:00" });
+    expect(hold).toMatchObject({ status: "held", agreed_price_cents: null, source: "public_link" });
+    expect(await port.publicConfirm(hold.id)).toMatchObject({ status: "confirmed", agreed_price_cents: 6000, hold_expires_at: null });
+    await expect(port.publicConfirm(hold.id)).rejects.toMatchObject({ code: "POLICY_REJECTED", field: "expires_at" });
+  });
+
+  it("falta: só depois do início; motivo obrigatório; desfazer volta a confirmado e ocupar o horário", async () => {
+    const port = createFixturePort();
+    const [first] = await port.listBookings(window);
+    await expect(port.noShow({ booking_id: first!.id, expected_version: 1, reason: "" }, K1)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    const marked = await port.noShow({ booking_id: first!.id, expected_version: 1, reason: "Cliente não compareceu" }, K2);
+    expect(marked).toMatchObject({ status: "no_show", version: 2 });
+    const back = await port.noShow({ booking_id: first!.id, expected_version: 2, reason: "Falta desfeita", revert: true }, "chave-teste-0000000003");
+    expect(back).toMatchObject({ status: "confirmed", version: 3 });
+    const future = (await port.listBookings(window)).find((b) => b.starts_at.startsWith("2026-10-20T15:00"))!;
+    await expect(port.noShow({ booking_id: future.id, expected_version: future.version, reason: "x" }, "chave-teste-0000000004"))
+      .rejects.toMatchObject({ code: "POLICY_REJECTED", field: "starts_at" });
+  });
+
+  it("lista de espera de exemplo: a mesma entrada da tela Lista de espera", async () => {
+    const [entry] = await createFixturePort().waitlistEntries();
+    expect(entry).toMatchObject({ customer_id: FX.customers.abInA, status: "active", acceptable_windows: [{ weekday: 3 }] });
+  });
 });
