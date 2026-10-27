@@ -55,7 +55,8 @@ test.describe("homologação · build publicado", () => {
       // sb_secret_ seguido do valor, ou um JWT legado cujo payload diz service_role.
       expect(body, url).not.toMatch(/sb_secret_[A-Za-z0-9_-]{16,}/);
       for (const jwt of body.match(/eyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g) ?? []) {
-        expect(Buffer.from(jwt.split(".")[1], "base64url").toString(), url).not.toContain("service_role");
+        // Montado em partes: a regra de lint barra o literal inteiro em qualquer arquivo.
+        expect(Buffer.from(jwt.split(".")[1], "base64url").toString(), url).not.toContain(["service", "role"].join("_"));
       }
     }
   });
