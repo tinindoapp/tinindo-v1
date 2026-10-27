@@ -22,7 +22,7 @@ test("hoje: horários no fuso do negócio, ocupação e dados de exemplo identif
   await expect(page.getByText(/Confirmados: .* de 9 h vendáveis/)).toBeVisible();
   await noHorizontalScroll(page);
 
-  await page.getByRole("button", { name: "Semana" }).click();
+  await page.getByRole("radio", { name: "Semana" }).check();
   await expect(page.getByRole("heading", { name: /Semana de/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /qui\., 22\/10/ })).toContainText("1 atendimento");
   await noHorizontalScroll(page);
@@ -77,7 +77,10 @@ test("conflito 409 é explicado e o horário ocupado some da lista", async ({ pa
 test("ações principais têm alvo de toque de pelo menos 44px", async ({ page }) => {
   await page.goto("/app/agenda");
   await expect(page.getByRole("list", { name: /Linha do tempo/ })).toBeVisible();
-  for (const name of ["Dia", "Semana", "Hoje", "Dia anterior", "Próximo dia"]) {
+  // Dia/Semana é escolha única (Segmented): a pílula de 36 px fica num trilho de 44 px, que é o alvo de toque.
+  const track = await page.getByRole("group", { name: "Visualização" }).locator(".tn-segmented__track").boundingBox();
+  expect(track?.height ?? 0).toBeGreaterThanOrEqual(44);
+  for (const name of ["Hoje", "Dia anterior", "Próximo dia"]) {
     const box = await page.getByRole("button", { name, exact: true }).boundingBox();
     expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);
   }

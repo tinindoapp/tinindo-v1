@@ -1,8 +1,8 @@
 // Atendimento: detalhe, cancelar (com motivo e política) e concluir. Reagendar abre o fluxo.
 import { useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import type { Booking } from "@contracts";
-import { Button, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, PageHeader, toast } from "../../components/ui/index.tsx";
 import { newIdempotencyKey, type PublicBookingContact } from "./port.ts";
 import { canCancel, canComplete, canReschedule, formatCents, formatRange, serviceName } from "./agenda.ts";
 import { formatDayLong, localParts } from "./time.ts";
@@ -18,20 +18,12 @@ const SOURCE_LABEL: Record<Booking["source"], string> = {
   quote: "Orçamento aceito",
 };
 
-const DONE_MESSAGE: Record<string, string> = {
-  criado: "Agendamento confirmado.",
-  reagendado: "Atendimento reagendado.",
-};
-
 export function BookingDetailPage() {
   const { bookingId = "" } = useParams();
   const port = usePort();
   const { ctx } = useBase();
   const state = useAsync(`booking:${bookingId}`, () => port.getBooking(bookingId));
-  const location = useLocation();
-  const done = (location.state as { done?: string } | null)?.done;
-  // Ficam fora do detalhe: o detalhe é remontado a cada versão nova do atendimento.
-  const [message, setMessage] = useState<string | undefined>(done ? DONE_MESSAGE[done] : undefined);
+  // Fica fora do detalhe: o detalhe é remontado a cada versão nova do atendimento.
   const [failure, setFailure] = useState<Failure | null>(null);
 
   return (
@@ -43,7 +35,7 @@ export function BookingDetailPage() {
       >
         ‹ Voltar para a agenda
       </Link>
-      <h1 id="booking-title">Atendimento</h1>
+      <PageHeader id="booking-title" title="Atendimento" />
       <DemoNotice kind={port.kind} />
       {state.error ? (
         <ErrorPanel error={state.error} operation="load" onRetry={state.reload} />
@@ -53,20 +45,12 @@ export function BookingDetailPage() {
         </p>
       ) : (
         <>
-          {message ? <StatusBanner tone="success">{message}</StatusBanner> : null}
           {failure ? <ErrorPanel error={failure.err} operation={failure.op} /> : null}
           <BookingDetail
             key={state.data.version}
             booking={state.data}
             reload={state.reload}
-            onMessage={(m) => {
-              setFailure(null);
-              setMessage(m);
-            }}
-            onFailure={(f) => {
-              setMessage(undefined);
-              setFailure(f);
-            }}
+            onFailure={setFailure}
           />
         </>
       )}
@@ -80,12 +64,10 @@ type Failure = { err: unknown; op: "cancel" | "complete" };
 function BookingDetail({
   booking,
   reload,
-  onMessage,
   onFailure,
 }: {
   booking: Booking;
   reload: () => void;
-  onMessage: (m: string) => void;
   onFailure: (f: Failure | null) => void;
 }) {
   const port = usePort();
@@ -121,10 +103,13 @@ function BookingDetail({
     try {
       if (op === "cancel") {
         await port.cancel({ booking_id: booking.id, expected_version: booking.version, reason: reason.trim() }, keys.cancel);
-        onMessage("Atendimento cancelado. O horário voltou a ficar livre.");
+        toast("Atendimento cancelado. O horário voltou a ficar livre.");
       } else {
         await port.complete({ booking_id: booking.id, expected_version: booking.version }, keys.complete);
-        onMessage("Atendimento concluído. O pagamento não foi registrado: cobre e registre o recebimento no Caixa quando receber.");
+        toast({
+          message: "Atendimento concluído. O pagamento não foi registrado: cobre e registre o recebimento no Caixa quando receber.",
+          duration: 8000,
+        });
       }
       setPanel(null);
       reload();
@@ -179,7 +164,7 @@ function BookingDetail({
       <TimezoneNote timezone={tz} at={booking.starts_at} />
 
       {panel === null ? (
-        <div className="tn-sched-actions">
+        <div className="tn-actions">
           {canReschedule(booking) ? (
             <Link className="tn-button" data-variant="secondary" to="reagendar">
               Reagendar
@@ -239,9 +224,9 @@ function BookingDetail({
               </span>
             ) : null}
           </div>
-          <div className="tn-sched-actions">
-            <Button type="submit" disabled={pending} aria-busy={pending || undefined}>
-              {pending ? "Cancelando…" : "Confirmar cancelamento"}
+          <div className="tn-actions">
+            <Button type="submit" variant="danger" loading={pending} loadingText="Cancelando…">
+              Confirmar cancelamento
             </Button>
             <Button variant="ghost" onClick={() => setPanel(null)} disabled={pending}>
               Voltar
@@ -254,9 +239,9 @@ function BookingDetail({
         <div className="tn-sched-confirm" role="group" aria-labelledby="complete-title">
           <h3 id="complete-title">Marcar como concluído?</h3>
           <p>Isso registra que o atendimento aconteceu. Não registra pagamento.</p>
-          <div className="tn-sched-actions">
-            <Button onClick={() => void submit("complete")} disabled={pending} aria-busy={pending || undefined}>
-              {pending ? "Concluindo…" : "Confirmar conclusão"}
+          <div className="tn-actions">
+            <Button onClick={() => void submit("complete")} loading={pending} loadingText="Concluindo…">
+              Confirmar conclusão
             </Button>
             <Button variant="ghost" onClick={() => setPanel(null)} disabled={pending}>
               Voltar
