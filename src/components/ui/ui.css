@@ -53,6 +53,11 @@
   color: var(--tn-text);
   font: inherit;
 }
+/* iPhone: o Safari amplia a tela ao tocar num campo com letra menor que 16 px. Em tela de toque, todo campo tem 16 px ou
+   mais. O !important vence os módulos que herdam o 14 px do rótulo com `font: inherit` (mensagens, caixa, pagamentos…). */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea { font-size: max(16px, 1em) !important; }
+}
 :where(.tn-app, .tn-auth) :where(textarea) { padding: var(--tn-space-2) var(--tn-space-3); min-height: 96px; }
 :where(.tn-app, .tn-auth) :where(input, select, textarea):focus-visible { border-color: var(--tn-text); }
 :where(.tn-app, .tn-auth) :where(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; accent-color: var(--tn-action); }
