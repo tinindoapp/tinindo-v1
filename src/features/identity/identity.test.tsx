@@ -188,7 +188,7 @@ describe("onboarding do negócio ativo", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Concluir" }));
     expect(await screen.findByText("Escolha o objetivo principal.")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("group", { name: /O que você mais quer resolver/ })).toHaveFocus());
+    await waitFor(() => expect(screen.getAllByRole("radio")[0]!).toHaveFocus());
     expect(saveOnboarding).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByLabelText("Ocupar horários vagos da agenda"));

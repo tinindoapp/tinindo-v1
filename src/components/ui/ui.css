@@ -229,16 +229,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  min-height: var(--tn-size-touch);
   padding: 0 var(--tn-space-4);
   border-radius: var(--tn-radius-pill);
   font-size: var(--tn-text-support);
   font-weight: var(--tn-font-weight-medium);
   cursor: pointer;
 }
-/* Alvo de toque de 44 px mesmo com a pílula de 36 px dentro do trilho. */
-.tn-segmented__option::after { content: ""; position: absolute; inset: -4px 0; }
-.tn-segmented__option input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+/* O rádio cobre a opção inteira (44 px) e fica por cima: o toque e o clique caem nele. */
+.tn-segmented__option input { position: absolute; z-index: 1; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .tn-segmented__option:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
 .tn-segmented__option[data-selected] { background: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
 
@@ -275,7 +274,8 @@
   background: var(--tn-surface);
   cursor: pointer;
 }
-.tn-choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.tn-choice input { position: absolute; z-index: 1; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.tn-choice:has(input[aria-invalid="true"]) { border-color: var(--tn-danger-text); }
 .tn-choice:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
 .tn-choice__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
 .tn-choice__title { font-weight: var(--tn-font-weight-medium); }

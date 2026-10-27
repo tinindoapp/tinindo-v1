@@ -63,7 +63,13 @@ export function ChoiceCard({
   title,
   description,
   disabled,
+  invalid,
+  describedBy,
 }: {
+  /** Grupo com erro (validação no envio): o primeiro cartão recebe o foco pelo useFormErrors. */
+  invalid?: boolean;
+  /** id da mensagem de erro do grupo. */
+  describedBy?: string;
   type?: "radio" | "checkbox";
   name: string;
   value: string;
@@ -75,7 +81,8 @@ export function ChoiceCard({
 }) {
   return (
     <label className="tn-choice" data-selected={checked || undefined} data-disabled={disabled || undefined}>
-      <input type={type} name={name} value={value} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <input type={type} name={name} value={value} checked={checked} disabled={disabled} aria-invalid={invalid || undefined}
+        aria-describedby={describedBy} onChange={(e) => onChange(e.target.checked)} />
       <span className="tn-choice__text">
         <span className="tn-choice__title">{title}</span>
         {description ? <span className="tn-choice__desc">{description}</span> : null}

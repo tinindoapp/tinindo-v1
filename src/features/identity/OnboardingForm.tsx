@@ -66,19 +66,16 @@ export function OnboardingForm({ tenantId, profession, onboarding, onSaved }: Pr
     <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate aria-labelledby="onboarding-title">
       <h2 id="onboarding-title">{done ? "Objetivo e política de cancelamento" : "Dois passos para começar"}</h2>
 
-      {/* Sem campo único para marcar como inválido: o grupo recebe o foco quando falta escolher. */}
-      <fieldset
-        className="tn-id-choices"
-        tabIndex={-1}
-        aria-invalid={errors.goal ? true : undefined}
-        aria-describedby={errors.goal ? "goal-error" : undefined}
-      >
+      {/* Faltou escolher: os cartões ficam marcados como inválidos e o foco vai para o primeiro. */}
+      <fieldset className="tn-id-choices">
         <legend>O que você mais quer resolver agora?</legend>
         <div className="tn-id-choices__group">
           {preset.goalOrder.map((g) => (
             <ChoiceCard
               key={g}
               name="goal"
+              invalid={!!errors.goal}
+              describedBy={errors.goal ? "goal-error" : undefined}
               value={g}
               checked={goal === g}
               onChange={() => {

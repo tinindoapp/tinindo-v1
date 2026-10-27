@@ -77,13 +77,8 @@ export function CreateBusinessPage() {
             onChange={() => clear("name")}
           />
 
-          {/* Sem campo único para marcar como inválido: o grupo recebe o foco quando falta escolher. */}
-          <fieldset
-            className="tn-id-choices"
-            tabIndex={-1}
-            aria-invalid={errors.profession ? true : undefined}
-            aria-describedby={errors.profession ? "profession-error" : undefined}
-          >
+          {/* Faltou escolher: os cartões ficam marcados como inválidos e o foco vai para o primeiro. */}
+          <fieldset className="tn-id-choices">
             <legend>Profissão</legend>
             {SEGMENTS.map((segment) => (
               <div key={segment} className="tn-id-choices__group">
@@ -94,6 +89,8 @@ export function CreateBusinessPage() {
                     <ChoiceCard
                       key={p}
                       name="profession"
+                      invalid={!!errors.profession}
+                      describedBy={errors.profession ? "profession-error" : undefined}
                       value={p}
                       checked={profession === p}
                       onChange={() => {
