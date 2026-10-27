@@ -87,6 +87,6 @@ $([[ $fail -eq 0 ]] && echo Pronto || echo "Terminou com falhas acima"). Falta, 
 - Auth → URL Configuration: Site URL = $APP_URL e Redirect URLs = $APP_URL/**
 - Auth → SMTP: servidor próprio (ex.: Resend), senão o cadastro dos testadores trava no limite de e-mails
 - Frontend: VITE_APP_ENV=staging, VITE_SUPABASE_URL=https://$REF.supabase.co, VITE_SUPABASE_PUBLISHABLE_KEY=<publishable>
-- Conferir em 2 min: select jobname, status, return_message from cron.job_run_details order by start_time desc limit 8;
+- Conferir em 2 min: select j.jobname, d.status, d.start_time from cron.job_run_details d join cron.job j using (jobid) order by d.start_time desc limit 8;
 EOF
 exit $fail
