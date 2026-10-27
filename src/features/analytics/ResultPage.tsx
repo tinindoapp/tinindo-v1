@@ -3,7 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import type { AnalyticsBaseline, AnalyticsMetricsOutput, TimeRange } from "@contracts";
 import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { deltaText, localDayStart, metricMath, metricValue, PERIODS } from "./format.ts";
+import { deltaText, localDayStart, metricMath, metricValue, monthStartOffset, PERIODS } from "./format.ts";
 import { type AnalyticsPort, newKey } from "./port.ts";
 
 function explain(err: unknown): string {
@@ -37,9 +37,11 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
     port.timezone().then((t) => alive && setTz(t), (e: unknown) => alive && setError(e ?? new Error("erro")));
     return () => { alive = false; };
   }, [port]);
+  const range = data && tz ? `De ${fmtDay(data.period.starts_at, tz)} a ${fmtDay(new Date(Date.parse(data.period.ends_at) - 1).toISOString(), tz)}` : "";
   const period = (id: string, zone: string): TimeRange => {
     const p = PERIODS.find((x) => x.id === id) ?? PERIODS[1];
-    return { starts_at: localDayStart(port.now(), p.from, zone), ends_at: localDayStart(port.now(), p.to, zone) };
+    const from = p.from ?? monthStartOffset(port.now(), zone);
+    return { starts_at: localDayStart(port.now(), from, zone), ends_at: localDayStart(port.now(), p.to, zone) };
   };
   useEffect(() => {
     if (!tz) return;
@@ -114,6 +116,8 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
                 <li key={m.key} className="tn-an-metric" data-status={m.status}>
                   <h3>{m.label}</h3>
                   <p className="tn-an-value tn-num">{metricValue(m)}</p>
+                  {/* Período ao lado do número (item 47): o mesmo número em outra tela só bate no mesmo período. */}
+                  <p className="tn-muted">{range}</p>
                   {metricMath(m) ? <p className="tn-muted">Conta: {metricMath(m)}</p> : null}
                   {c ? <p className="tn-muted">Ponto de partida: {metricValue({ unit: m.unit, value: c.baseline_value, status: c.baseline_value === null ? "insufficient" : "ok" })} · diferença: {deltaText(m.unit, c.delta)}</p> : null}
                   <p className="tn-an-note">{m.note}</p>

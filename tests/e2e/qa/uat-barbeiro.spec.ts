@@ -192,7 +192,7 @@ test.describe("UAT barbeiro", () => {
     await expect(page.getByText(/Recebido R\$\s?40,00/)).toBeVisible();
     await expect(pending.getByRole("listitem").filter({ hasText: "Bruno" })).toHaveCount(0);
     const payments = page.getByRole("region", { name: "Recebimentos no mês" });
-    await expect(payments.getByRole("listitem").filter({ hasText: "R$ 40,00" })).toHaveCount(1);
+    await expect(payments.getByRole("listitem").filter({ hasText: "20/10/2026" }).filter({ hasText: "R$ 40,00" })).toHaveCount(1);
   });
 
   test("10a · agenda de amanhã responde visualmente o que há na quarta", async ({ page }) => {

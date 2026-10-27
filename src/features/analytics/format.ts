@@ -52,5 +52,13 @@ export function localDayStart(now: Date, offsetDays: number, timeZone: string): 
 export const PERIODS = [
   { id: "7", label: "Últimos 7 dias (até ontem)", from: -7, to: 0 },
   { id: "28", label: "Últimos 28 dias (até ontem)", from: -28, to: 0 },
+  // Mesmo período das Metas: do dia 1º do mês até ontem (from é calculado no dia, ver monthStartOffset).
+  { id: "month", label: "Este mês (até ontem)", from: null, to: 0 },
   { id: "next7", label: "Hoje e próximos 6 dias", from: 0, to: 7 },
 ] as const;
+
+/** Dias entre hoje e o dia 1º do mês corrente, no fuso do negócio (0 no próprio dia 1º). */
+export function monthStartOffset(now: Date, timeZone: string): number {
+  const day = Number(new Intl.DateTimeFormat("en-CA", { timeZone, day: "2-digit" }).format(now));
+  return -(day - 1);
+}

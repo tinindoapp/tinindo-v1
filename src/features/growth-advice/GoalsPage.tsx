@@ -20,7 +20,11 @@ const KEYS = Object.keys(METRIC_LABEL) as GoalMetricKey[];
 const isCents = (k: GoalMetricKey) => k === "received" || k === "expenses";
 const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
 
-function GoalForm({ port, metrics, onDone }: { port: GrowthAdvicePort; metrics: GoalList["metrics"]; onDone: (n: Notice) => void }) {
+/** Período escrito ao lado do número (item 47 da auditoria): "Em outubro até agora". */
+const monthSoFar = (iso: string) =>
+  `Em ${new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" }).format(new Date(Date.parse(iso) + 12 * 3_600_000))} até agora`;
+
+function GoalForm({ port, metrics, monthStart, onDone }: { port: GrowthAdvicePort; metrics: GoalList["metrics"]; monthStart: string; onDone: (n: Notice) => void }) {
   const [key, setKey] = useState<GoalMetricKey>("no_show");
   const [target, setTarget] = useState("10");
   const [note, setNote] = useState("");
@@ -55,7 +59,7 @@ function GoalForm({ port, metrics, onDone }: { port: GrowthAdvicePort; metrics: 
       <Field label={isCents(key) ? "Meta (R$ no mês)" : "Meta (%)"} inputMode="decimal" value={target} error={errors.target} onChange={(e) => setTarget(e.target.value)} />
       <Field label="Nota (opcional)" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
       <p className="tn-muted tn-ga-now">
-        {m ? (m.status === "ok" ? `Agora: ${m.unit === "cents" ? formatTarget("cents", m.value ?? 0) : pct(m.value)}${m.denominator !== null ? ` (${m.numerator} de ${m.denominator})` : ""}.` : `Agora: ${PROGRESS_STATUS[m.status]}.`) : ""}
+        {m ? (m.status === "ok" ? `${monthSoFar(monthStart)}: ${m.unit === "cents" ? formatTarget("cents", m.value ?? 0) : pct(m.value)}${m.denominator !== null ? ` (${m.numerator} de ${m.denominator})` : ""}.` : `${monthSoFar(monthStart)}: ${PROGRESS_STATUS[m.status]}.`) : ""}
       </p>
       <Button type="submit" loading={busy}>Criar meta</Button>
       {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
@@ -70,7 +74,7 @@ function GoalItem({ g, port, onDone }: { g: Goal; port: GrowthAdvicePort; onDone
     <li className="tn-ga-item">
       <h3>{g.label ?? METRIC_LABEL[g.metric_key]} · meta {formatTarget(g.unit, g.target)}</h3>
       <p><strong>{g.status === "active" ? (p.achieved ? "Atingida" : "Em andamento") : "Arquivada"}</strong> · {DIRECTION[g.direction]} · mês {g.period_start.slice(5, 7)}/{g.period_start.slice(0, 4)}{g.note ? ` · ${g.note}` : ""}</p>
-      <p className="tn-muted">Agora: {current}{p.denominator !== null && p.status === "ok" ? ` (${p.numerator} de ${p.denominator})` : ""}{p.attainment !== null ? ` · ${Math.round(p.attainment * 100)}% do caminho` : ""}</p>
+      <p className="tn-muted">{monthSoFar(g.period_start)}: {current}{p.denominator !== null && p.status === "ok" ? ` (${p.numerator} de ${p.denominator})` : ""}{p.attainment !== null ? ` · ${Math.round(p.attainment * 100)}% do caminho` : ""}</p>
       {p.attainment !== null ? <progress className="tn-ga-progress" max={1} value={p.attainment} aria-label={`Progresso de ${g.label ?? g.metric_key}`} /> : null}
       {g.status === "active" ? (
         <div className="tn-actions">
@@ -200,7 +204,7 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
       </div>
       <Card aria-labelledby="ga-goals-title">
         <h2 id="ga-goals-title">Metas do mês</h2>
-        {goals ? <GoalForm key={`new:${nonce}`} port={port} metrics={goals.metrics} onDone={done} /> : null}
+        {goals ? <GoalForm key={`new:${nonce}`} port={port} metrics={goals.metrics} monthStart={goals.month_start} onDone={done} /> : null}
         {goals && goals.goals.length === 0 ? <p className="tn-muted">Nenhuma meta ainda.</p> : null}
         <ul className="tn-ga-list" aria-label="Metas">
           {goals?.goals.map((g) => <GoalItem key={g.id} g={g} port={port} onDone={done} />)}

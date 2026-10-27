@@ -9,10 +9,11 @@ test("resultado: conta e denominador, dado ausente não vira zero, ponto de part
   await expect(occupancy).toContainText(/Conta: [\d.]+ min de [\d.]+ min/);
   await expect(occupancy).toContainText("expediente menos bloqueios");
   const reminders = metrics.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Lembretes enviados" }) });
-  await expect(reminders).toContainText("Conta: 3 de 4");
+  await expect(reminders).toContainText("Conta: 43 de 57");
   await expect(reminders).toContainText("Enviado não é entregue nem lido");
-  const quotes = metrics.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Orçamentos aceitos" }) });
-  await expect(quotes).toContainText("Dados insuficientes");
+  // Sem oferta de vaga no período: "Dados insuficientes", nunca 0%.
+  const offers = metrics.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Ofertas de vaga aceitas" }) });
+  await expect(offers).toContainText("Dados insuficientes");
   await expect(page.getByRole("region", { name: "O que falta nos dados" })).toContainText("sem cobrança registrada");
 
   const form = page.getByRole("form", { name: "Guardar como ponto de partida" });

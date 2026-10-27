@@ -8,13 +8,13 @@ test("metas e conteúdo: progresso com denominador, uma meta por indicador, suge
 
   // Meta de faltas: progresso é o indicador com denominador.
   const form = page.getByRole("form", { name: "Nova meta" });
-  await expect(form.getByText("Agora: 15% (6 de 40).")).toBeVisible();
+  await expect(form.getByText("Em outubro até agora: 16% (6 de 37).")).toBeVisible();
   await form.getByLabel("Meta (%)").fill("10");
   await form.getByRole("button", { name: "Criar meta" }).click();
   await expect(page.getByText(/Meta de Faltas criada: 10% \(quanto menor, melhor\)/)).toBeVisible();
   const goals = page.getByRole("list", { name: "Metas" });
   await expect(goals).toContainText("Faltas · meta 10%");
-  await expect(goals).toContainText("Agora: 15% (6 de 40) · 67% do caminho");
+  await expect(goals).toContainText("Em outubro até agora: 16% (6 de 37) · 62% do caminho");
   await expect(goals.getByRole("progressbar")).toHaveCount(1);
   // Segunda meta do mesmo indicador no mês é recusada.
   await page.getByRole("form", { name: "Nova meta" }).getByLabel("Meta (%)").fill("5");
@@ -23,16 +23,15 @@ test("metas e conteúdo: progresso com denominador, uma meta por indicador, suge
   // Indicador sem dado: insuficiente, não zero.
   const form3 = page.getByRole("form", { name: "Nova meta" });
   await form3.getByRole("combobox", { name: "Indicador" }).selectOption("waitlist_acceptance");
-  await expect(form3.getByText("Agora: ainda sem dado suficiente (não é zero).")).toBeVisible();
+  await expect(form3.getByText("Em outubro até agora: ainda sem dado suficiente (não é zero).")).toBeVisible();
 
   // Sugestões com evidência e decisão; acompanhamento como variação observada.
   const suggestions = page.getByRole("list", { name: "Sugestões" });
-  await expect(suggestions.getByRole("listitem")).toHaveCount(5);
+  await expect(suggestions.getByRole("listitem")).toHaveCount(4);
   await expect(suggestions).toContainText("Faltas acima de 15% e lembretes abaixo de 80%");
-  await expect(suggestions).toContainText("Evidência: Faltas: 15% (6 de 40 atendimentos) · Lembrete enviado: 50%");
-  await expect(suggestions).toContainText("Agenda ocupada: 40% de 120 h · 6 clientes que aceitam mensagem");
-  await expect(suggestions).toContainText("Atendimentos com cobrança: 82% de 34");
-  await expect(suggestions.locator(".tn-ga-evidence .tn-num").first()).toHaveText("15%");
+  await expect(suggestions).toContainText("Evidência: Faltas: 16% (6 de 37 atendimentos) · Lembrete enviado: 76%");
+  await expect(suggestions).toContainText("Agenda ocupada: 12% de 132 h · 6 clientes que aceitam mensagem");
+  await expect(suggestions.locator(".tn-ga-evidence .tn-num").first()).toHaveText("16%");
   // Sem nome cru de campo na tela.
   const body = await page.locator("main").innerText();
   for (const raw of ["no_show", "sellable_minutes", "charge_coverage", "no_show_n", "worker", " = "]) expect(body).not.toContain(raw);

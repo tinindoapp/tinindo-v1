@@ -97,8 +97,9 @@ function build() {
       const id = uuid("6a000000", n);
       visits.push({ id, customer_id: customer, service_id: slot.service, starts_at: starts, ends_at: ends, status,
         agreed_price_cents: svc.price_cents, reminder_sent: (d + s) % 4 !== 0 });
-      // Alguns concluídos ficam sem cobrança (o Caixa lista para cobrar; o Resultado mostra a cobertura).
-      const uncharged = d % 6 === 5 && s === 0;
+      // Um concluído de setembro ficou sem cobrança (o Resultado de 28 dias mostra a cobertura). Em outubro, só os de
+      // segunda 19/10 da Agenda estão sem cobrança: são os que o Caixa lista para cobrar.
+      const uncharged = date < "2026-10-01" && d % 6 === 5 && s === 0;
       if (status === "completed" && !uncharged) {
         payments.push({ id: uuid("6b000000", n), booking_id: id, customer_id: customer, description: svc.name, amount_cents: svc.price_cents,
           method: methods[(d + s) % methods.length]!, received_at: ends });
@@ -134,8 +135,8 @@ export const DEMO_EXPENSES: readonly DemoExpense[] = [
 
 /** Valores em aberto (cobrança feita, ainda não paga). Os mesmos no Caixa ("A receber") e em Pagamentos. */
 export const DEMO_OPEN_RECEIVABLES: readonly DemoOpenReceivable[] = [
-  { id: uuid("6d000000", 1), customer_id: FX.customers.abInA, description: "Corte · Cliente Exemplo Ana", amount_cents: 6000, due_at: at("2026-10-16", "12:00") },
-  { id: uuid("6d000000", 2), customer_id: FX.customers.guestInA, description: "Barba · Cliente Exemplo Bruno", amount_cents: 4000, due_at: at("2026-10-23", "12:00") },
+  { id: uuid("6d000000", 1), customer_id: FX.customers.abInA, description: "Corte · Ana (exemplo)", amount_cents: 6000, due_at: at("2026-10-16", "12:00") },
+  { id: uuid("6d000000", 2), customer_id: FX.customers.guestInA, description: "Barba · Bruno (exemplo)", amount_cents: 4000, due_at: at("2026-10-23", "12:00") },
   { id: uuid("6d000000", 3), customer_id: null, description: "Produto · pomada", amount_cents: 3098, due_at: null },
 ];
 

@@ -30,7 +30,7 @@ describe("demonstração de Metas e conteúdo (mesmas regras do banco)", () => {
   it("sugestões só com dado; decisão uma vez por mês; acompanhamento é variação observada; conteúdo só pelo escopo", async () => {
     const port = createDemoPort();
     const a = AdviceListOutput.parse(await port.advice());
-    expect(a.suggestions.map((s) => s.rule_code)).toEqual(["no_show_reminders", "occupancy_campaign", "charge_coverage", "quote_recurrence", "profile_bio"]);
+    expect(a.suggestions.map((s) => s.rule_code)).toEqual(["no_show_reminders", "occupancy_campaign", "quote_recurrence", "profile_bio"]);
     expect(JSON.stringify(a)).not.toMatch(/caus|efeito/);
     await port.decide("no_show_reminders", "accepted", "d1");
     expect(await code(port.decide("no_show_reminders", "dismissed", "d2"))).toBe("POLICY_REJECTED/decided");

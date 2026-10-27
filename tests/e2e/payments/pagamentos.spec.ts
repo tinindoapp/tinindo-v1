@@ -73,7 +73,7 @@ test("pagamentos: cobrança Pix pelo provedor simulado, cliente paga pelo link, 
   // De volta ao negócio: paga uma vez, recebível saiu dos abertos; estorno total vinculado.
   await soft(page, "/app/pagamentos");
   await expect(list).toContainText("Pago (confirmado pelo banco)");
-  await expect(form.getByLabel("Quem está devendo")).not.toContainText("Corte · Ana Beatriz");
+  await expect(form.getByLabel("Quem está devendo")).not.toContainText("Corte · Ana");
   // Estorno mexe em dinheiro: pede confirmação com o valor e o motivo.
   await list.getByRole("button", { name: /Estornar tudo de Corte/ }).click();
   const refund = list.getByRole("group", { name: /Estornar R\$\s60,00 de Corte/ });
@@ -83,7 +83,7 @@ test("pagamentos: cobrança Pix pelo provedor simulado, cliente paga pelo link, 
   await refund.getByRole("button", { name: "Sim, estornar" }).click();
   await expect(page.getByText(/Estorno de R\$\s60,00 confirmado pelo banco/)).toBeVisible();
   await expect(list).toContainText("Estornado");
-  await expect(form.getByLabel("Quem está devendo")).toContainText("Corte · Ana Beatriz");
+  await expect(form.getByLabel("Quem está devendo")).toContainText("Corte · Ana");
 
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

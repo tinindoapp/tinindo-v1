@@ -34,7 +34,7 @@ test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → receb
   await expect(visit).toContainText("Ana");
   await expect(visit).toContainText("R$ 60,00");
   // Concluir não é receber: saldo ainda é o dos exemplos.
-  await expect(received(page)).toHaveText("R$ 260,00");
+  await expect(received(page)).toHaveText("R$ 1.740,00");
   await noHorizontalScroll(page);
 
   await visit.getByRole("button", { name: /Marcar como recebido/ }).dblclick();
@@ -42,7 +42,7 @@ test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → receb
   await expect(pending.getByRole("listitem").filter({ hasText: "20/10/2026" })).toHaveCount(0);
   const payments = page.getByRole("region", { name: "Recebimentos no mês" });
   await expect(payments.getByRole("listitem").filter({ hasText: "20/10/2026" }).filter({ hasText: "R$ 60,00" })).toHaveCount(1);
-  await expect(received(page)).toHaveText("R$ 320,00");
+  await expect(received(page)).toHaveText("R$ 1.800,00");
 
   // A cliente (Ana, na demonstração) avalia exatamente esse atendimento, uma vez.
   await softGo(page, "/avaliar");
@@ -136,11 +136,11 @@ test.describe("regressões da auditoria", () => {
     const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
     await pending.getByRole("listitem").filter({ hasText: "Bruno" }).getByRole("button", { name: /Cobrar depois/ }).click();
     const open = page.getByRole("region", { name: "A receber" });
-    await open.getByRole("button", { name: /Registrar recebimento/ }).click();
+    await open.getByRole("button", { name: "Registrar recebimento de Barba", exact: true }).click();
     await open.getByLabel("Valor recebido (R$)").fill("0");
     await open.getByRole("button", { name: "Registrar pagamento" }).click();
     await expect(open.getByText("Informe o valor recebido.")).toBeVisible();
-    await expect(received(page)).toHaveText("R$ 260,00");
+    await expect(received(page)).toHaveText("R$ 1.740,00");
   });
 });
 
