@@ -78,7 +78,7 @@ test("pagamentos: cobrança Pix pelo provedor simulado, cliente paga pelo link, 
   await list.getByRole("button", { name: /Estornar tudo de Corte/ }).click();
   const refund = list.getByRole("group", { name: /Estornar R\$\s60,00 de Corte/ });
   await refund.getByRole("button", { name: "Sim, estornar" }).click();
-  await expect(refund.getByText("Preencha o que falta acima para confirmar.")).toBeVisible();
+  await expect(refund.getByText("Escreva o motivo do estorno.")).toBeVisible();
   await refund.getByLabel("Motivo do estorno").fill("Cliente desistiu");
   await refund.getByRole("button", { name: "Sim, estornar" }).click();
   await expect(page.getByText(/Estorno de R\$\s60,00 confirmado pelo banco/)).toBeVisible();

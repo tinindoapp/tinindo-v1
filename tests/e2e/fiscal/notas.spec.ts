@@ -61,7 +61,7 @@ test("notas fiscais: passo a passo até elegível, nota em homologação não é
   const cancel = list.getByRole("group", { name: /Cancelar a nota H000001\?/ });
   await expect(cancel).toContainText("perde o valor fiscal");
   await cancel.getByRole("button", { name: "Sim, pedir cancelamento" }).click();
-  await expect(cancel.getByText("Preencha o que falta acima para confirmar.")).toBeVisible();
+  await expect(cancel.getByText("Escreva o motivo do cancelamento com pelo menos 15 letras.")).toBeVisible();
   await expect(list).toContainText("Autorizada");
   await cancel.getByLabel("Motivo do cancelamento").fill("Valor lançado errado no atendimento");
   await cancel.getByRole("button", { name: "Sim, pedir cancelamento" }).click();
