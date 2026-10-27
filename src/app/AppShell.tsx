@@ -2,13 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router";
 import { BrandSymbol, Wordmark } from "../components/ui/index.tsx";
 import { Icon, IconSprite } from "../components/ui/icons.tsx";
-import { DemoBanner } from "./DemoBanner.tsx";
 import { MODULES } from "./modules.ts";
 import { activeTo, buildNavigation, HOME, isItemActive, type NavSection, sectionFor } from "./navigation.ts";
 import { useSession } from "./session.tsx";
 import "./shell.css";
-
-export { DemoBanner };
 
 /** Área da Conta (P01): alcançável sem negócio, para criar o primeiro ou resgatar um vínculo de cliente. */
 export function isAccountArea(pathname: string): boolean {
@@ -35,15 +32,46 @@ function TenantSwitcher({ compact }: { compact?: boolean }) {
   return <span className="tn-tenant__name">{memberships[0]?.tenant_name ?? "Sem negócio"}</span>;
 }
 
-/** Sub-abas do grupo atual (ex.: Dinheiro → Caixa, Pagamentos, Assinaturas). No desktop a barra lateral já mostra. */
+/** Sub-abas do grupo atual (ex.: Dinheiro → Caixa, Pagamentos, Assinaturas). No desktop a barra lateral já mostra.
+ *  A faixa rola de lado: a sub-aba ativa vai para o centro e a borda esmaece quando há mais telas daquele lado. */
 function SectionTabs({ section, active }: { section: NavSection; active: string | null }) {
+  const list = useRef<HTMLUListElement>(null);
+  const [more, setMore] = useState({ start: false, end: false });
+
+  useEffect(() => {
+    const ul = list.current;
+    if (!ul) return;
+    const update = () => {
+      const max = ul.scrollWidth - ul.clientWidth;
+      const next = { start: ul.scrollLeft > 1, end: ul.scrollLeft < max - 1 };
+      setMore((prev) => (prev.start === next.start && prev.end === next.end ? prev : next));
+    };
+    update();
+    ul.addEventListener("scroll", update, { passive: true });
+    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    resize?.observe(ul);
+    return () => {
+      ul.removeEventListener("scroll", update);
+      resize?.disconnect();
+    };
+  }, [section.id]);
+
+  useEffect(() => {
+    const ul = list.current;
+    const current = ul?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!ul || !current) return;
+    const a = current.getBoundingClientRect();
+    const box = ul.getBoundingClientRect();
+    ul.scrollLeft += a.left + a.width / 2 - (box.left + box.width / 2);
+  }, [active, section.id]);
+
   return (
     <nav className="tn-subnav" aria-label={`Telas de ${section.label}`}>
-      <ul>
+      <ul ref={list} data-more-start={more.start || undefined} data-more-end={more.end || undefined}>
         {section.items.map((i) => (
           <li key={i.to}>
             <Link to={i.to} aria-current={i.to === active ? "page" : undefined}>
-              {i.label}
+              {i.short}
             </Link>
           </li>
         ))}
@@ -111,8 +139,8 @@ export function AppShell() {
         Pular para o conteúdo
       </a>
       <IconSprite />
+      {/* A faixa "Demonstração" fica no RouteFrame (todas as rotas); aqui só a barra, presa logo abaixo dela. */}
       <div className="tn-app__top">
-        <DemoBanner />
         <header className="tn-appbar tn-glass">
           <NavLink to="/app" end className="tn-appbar__brand" aria-label="Início">
             <span className="tn-only-mobile"><BrandSymbol size={32} /></span>
