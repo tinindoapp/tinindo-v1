@@ -2,7 +2,7 @@
 // e na prévia do dono. Mostra só a projeção publicada: nada de CRM, contatos ou agenda alheia.
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, Field, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
 import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, SlotsData } from "./api.ts";
 import { CATEGORY_LABEL, errorMessage, formatTime, newIdempotencyKey } from "./useNetworkApi.ts";
@@ -43,10 +43,8 @@ export function PublicProfileView({ profile, api }: { profile: PublicProfileData
   const name = profile.fields.display_name ?? CATEGORY_LABEL[profile.category];
   return (
     <div className="tn-stack">
+      <PageHeader id="perfil-nome" eyebrow={CATEGORY_LABEL[profile.category]} title={name} subtitle={profile.area} />
       <Card as="article" aria-labelledby="perfil-nome">
-        <p className="tn-caps">{CATEGORY_LABEL[profile.category]}</p>
-        <h1 id="perfil-nome">{name}</h1>
-        <p className="tn-net-muted">{profile.area}</p>
         <ul className="tn-net-badges" aria-label="Reputação">
           <li>{profile.reputation.identity_verified ? "Identidade verificada" : "Identidade não verificada"}</li>
           <li>
@@ -58,7 +56,7 @@ export function PublicProfileView({ profile, api }: { profile: PublicProfileData
           </li>
         </ul>
         {/* Avaliar exige login e só lista atendimentos concluídos do próprio cliente (regra do servidor). */}
-        <p className="tn-net-small">
+        <p className="tn-muted">
           Já foi atendido aqui? <Link to="/avaliar">Avaliar meu atendimento</Link> ·{" "}
           <Link to="/app/conta/reservas">Minhas reservas</Link>
         </p>
@@ -66,7 +64,7 @@ export function PublicProfileView({ profile, api }: { profile: PublicProfileData
         {profile.fields.services_summary ? <p>{profile.fields.services_summary}</p> : null}
       </Card>
       {profile.fields.booking_link ? <BookingSlots slug={profile.slug} api={api} /> : null}
-      <p className="tn-net-muted tn-net-small">
+      <p className="tn-muted">
         Informações publicadas pelo próprio profissional. A Tinindo não garante habilidade nem resultado. Algo
         errado ou indevido? Fale com a equipe Tinindo para pedir correção ou remoção.
       </p>
@@ -95,6 +93,8 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const { formRef: requestRef, errors: requestErrors, show: showRequest, clear: clearRequest } = useFormErrors<"name" | "phone">();
+  const { formRef: codeRef, errors: codeErrors, show: showCode, clear: clearCode } = useFormErrors<"code">();
 
   useEffect(() => {
     let cancelled = false;
@@ -131,7 +131,11 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
   };
 
   async function requestSlot() {
-    if (!chosen || !e164 || !name.trim()) return;
+    const ok = showRequest({
+      name: name.trim() ? null : "Informe seu nome.",
+      phone: !phone.trim() ? "Informe seu WhatsApp com DDD." : e164 ? null : "Use o número com DDD, por exemplo (11) 97777-4343.",
+    });
+    if (!chosen || !ok || !e164) return;
     const key = bookKey ?? newIdempotencyKey();
     setBookKey(key);
     setBusy(true);
@@ -153,7 +157,8 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
   }
 
   async function confirmCode() {
-    if (step.kind !== "code" || !/^\d{6}$/.test(code)) return;
+    if (step.kind !== "code") return;
+    if (!showCode({ code: /^\d{6}$/.test(code) ? null : "Digite os 6 números do código." })) return;
     setBusy(true);
     setProblem(null);
     try {
@@ -181,7 +186,7 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
           {b.service_name} · {formatDay(b.slot.starts_at)} às <span className="tn-num">{formatTime(b.slot.starts_at)}</span>.
           {api.demo ? " Demonstração: a reserva entrou só na Agenda desta aba." : null}
         </StatusBanner>
-        <p className="tn-net-small">
+        <p className="tn-muted">
           Para remarcar ou cancelar, fale com o profissional. Tem login? Veja em <Link to="/app/conta/reservas">Minhas reservas</Link>.
         </p>
       </Card>
@@ -207,6 +212,8 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
         ) : null}
         <form
           className="tn-stack"
+          ref={codeRef}
+          noValidate
           onSubmit={(e) => {
             e.preventDefault();
             void confirmCode();
@@ -218,11 +225,15 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
             autoComplete="one-time-code"
             maxLength={6}
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            error={codeErrors.code}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+              clearCode("code");
+            }}
           />
           {problem ? <StatusBanner tone="danger">{problem}</StatusBanner> : null}
-          <Button type="submit" disabled={busy || code.length !== 6}>
-            {busy ? "Confirmando…" : "Confirmar horário"}
+          <Button type="submit" loading={busy} loadingText="Confirmando…">
+            Confirmar horário
           </Button>
           <Button
             type="button"
@@ -250,24 +261,22 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
       ) : null}
       {services && services.length > 0 ? (
         <div className="tn-stack">
-          <div className="tn-field">
-            <label htmlFor="servico">Serviço</label>
-            <select
-              id="servico"
-              value={serviceId}
-              onChange={(e) => {
-                setServiceId(e.target.value);
-                setChosen(null);
-                resetRequest();
-              }}
-            >
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} · {s.duration_min} min
-                </option>
-              ))}
-            </select>
-          </div>
+          <Field
+            as="select"
+            label="Serviço"
+            value={serviceId}
+            onChange={(e) => {
+              setServiceId(e.target.value);
+              setChosen(null);
+              resetRequest();
+            }}
+          >
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} · {s.duration_min} min
+              </option>
+            ))}
+          </Field>
           {api.demo ? null : (
             <Field
               label="Dia"
@@ -310,6 +319,8 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
             <form
               className="tn-stack"
               aria-label="Pedir horário"
+              ref={requestRef}
+              noValidate
               onSubmit={(e) => {
                 e.preventDefault();
                 void requestSlot();
@@ -324,8 +335,10 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
                 autoComplete="name"
                 maxLength={80}
                 value={name}
+                error={requestErrors.name}
                 onChange={(e) => {
                   setName(e.target.value);
+                  clearRequest("name");
                   resetRequest();
                 }}
               />
@@ -335,14 +348,15 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
                 autoComplete="tel"
                 placeholder="(11) 97777-4343"
                 value={phone}
-                error={phone.trim() && !e164 ? "Use o número com DDD, por exemplo (11) 97777-4343." : undefined}
+                error={requestErrors.phone}
                 onChange={(e) => {
                   setPhone(e.target.value);
+                  clearRequest("phone");
                   resetRequest();
                 }}
               />
-              <Button type="submit" disabled={busy || !e164 || !name.trim()}>
-                {busy ? "Pedindo…" : "Pedir este horário"}
+              <Button type="submit" loading={busy} loadingText="Pedindo…">
+                Pedir este horário
               </Button>
             </form>
           ) : null}

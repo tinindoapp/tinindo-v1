@@ -1,7 +1,7 @@
 /* Diretório (P23). Só tokens; ação preta; laranja nunca em botão ou texto. */
 .tn-dir { display: grid; gap: var(--tn-space-4); min-width: 0; }
 .tn-dir > :is(.tn-page-header, .tn-help) { margin: 0; }
-.tn-dir-muted { color: var(--tn-text-muted); font-size: var(--tn-text-support); margin: 0; }
+.tn-dir-card .tn-muted { margin: 0; }
 .tn-dir-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); }
 .tn-dir-head h2 { margin: 0; }
 .tn-dir-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--tn-space-3); border-radius: var(--tn-radius-pill); border: 1px solid var(--tn-border-control); font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }

@@ -2,7 +2,7 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Profession } from "@contracts";
-import { Button, Card, Field, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";
 import { useIdempotencyKey } from "./idempotency.ts";
@@ -17,25 +17,25 @@ export function CreateBusinessPage() {
   const navigate = useNavigate();
   const idem = useIdempotencyKey();
   const [error, setError] = useState<string | null>(null);
-  const [fieldError, setFieldError] = useState<{ name?: string; profession?: string; terms?: string }>({});
+  const [profession, setProfession] = useState<Profession | null>(null);
+  const [terms, setTerms] = useState(false);
+  const { formRef, errors, show, clear } = useFormErrors<"name" | "profession" | "terms">();
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const name = String(form.get("name") ?? "").trim();
-    const profession = Profession.safeParse(form.get("profession"));
-    const errors = {
-      name: name ? undefined : "Informe o nome do negócio.",
-      profession: profession.success ? undefined : "Escolha a profissão.",
-      terms: form.get("terms") === "on" ? undefined : "Para criar o negócio, aceite os termos e a política de privacidade.",
-    };
-    setFieldError(errors);
-    if (errors.name || errors.profession || errors.terms || !profession.success) return;
+    const ok = show({
+      name: name ? null : "Informe o nome do negócio.",
+      profession: profession ? null : "Escolha a profissão.",
+      terms: terms ? null : "Para criar o negócio, aceite os termos e a política de privacidade.",
+    });
+    if (!ok || !profession) return;
 
     const input = {
       name,
-      profession: profession.data,
+      profession,
       timezone: String(form.get("timezone") ?? "America/Sao_Paulo"),
       accepted_policy_versions: [POLICY_VERSIONS.terms, POLICY_VERSIONS.privacy],
     };
@@ -55,70 +55,105 @@ export function CreateBusinessPage() {
   }
 
   return (
-    <Card aria-labelledby="new-business-title">
-      <p className="tn-caps">Conta</p>
-      <h1 id="new-business-title">Criar meu negócio</h1>
-      <p>Leva menos de um minuto. Horários, serviços e preços vêm depois, no seu ritmo.</p>
+    <div className="tn-stack">
+      <PageHeader
+        id="new-business-title"
+        eyebrow="Conta"
+        title="Criar meu negócio"
+        subtitle="Leva menos de um minuto. Horários, serviços e preços vêm depois, no seu ritmo."
+      />
       {!services.online ? (
         <StatusBanner tone="info">Demonstração sem servidor: o cadastro fica desabilitado.</StatusBanner>
       ) : null}
-      <form className="tn-stack" onSubmit={onSubmit} noValidate>
-        <Field label="Nome do negócio" name="name" maxLength={120} autoComplete="organization" required error={fieldError.name} />
+      <Card aria-labelledby="new-business-title">
+        <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate>
+          <Field
+            label="Nome do negócio"
+            name="name"
+            maxLength={120}
+            autoComplete="organization"
+            required
+            error={errors.name}
+            onChange={() => clear("name")}
+          />
 
-        <fieldset className="tn-id-choices" aria-describedby={fieldError.profession ? "profession-error" : undefined}>
-          <legend>Profissão</legend>
-          {SEGMENTS.map((segment) => (
-            <div key={segment} className="tn-id-choices__group">
-              <p className="tn-id-choices__segment">{SEGMENT_LABEL[segment]}</p>
-              {Profession.options
-                .filter((p) => PROFESSION_PRESETS[p].segment === segment)
-                .map((p) => (
-                  <label key={p} className="tn-id-choice">
-                    <input type="radio" name="profession" value={p} required />
-                    <span>{PROFESSION_PRESETS[p].label}</span>
-                  </label>
-                ))}
-            </div>
-          ))}
-          {fieldError.profession ? (
-            <span id="profession-error" role="alert" className="tn-id-error">
-              {fieldError.profession}
-            </span>
-          ) : null}
-        </fieldset>
+          {/* Sem campo único para marcar como inválido: o grupo recebe o foco quando falta escolher. */}
+          <fieldset
+            className="tn-id-choices"
+            tabIndex={-1}
+            aria-invalid={errors.profession ? true : undefined}
+            aria-describedby={errors.profession ? "profession-error" : undefined}
+          >
+            <legend>Profissão</legend>
+            {SEGMENTS.map((segment) => (
+              <div key={segment} className="tn-id-choices__group">
+                <p className="tn-id-choices__segment">{SEGMENT_LABEL[segment]}</p>
+                {Profession.options
+                  .filter((p) => PROFESSION_PRESETS[p].segment === segment)
+                  .map((p) => (
+                    <ChoiceCard
+                      key={p}
+                      name="profession"
+                      value={p}
+                      checked={profession === p}
+                      onChange={() => {
+                        setProfession(p);
+                        clear("profession");
+                      }}
+                      title={PROFESSION_PRESETS[p].label}
+                    />
+                  ))}
+              </div>
+            ))}
+            {errors.profession ? (
+              <span id="profession-error" className="tn-field__error">
+                {errors.profession}
+              </span>
+            ) : null}
+          </fieldset>
 
-        <div className="tn-field">
-          <label htmlFor="business-timezone">Fuso horário</label>
-          <select id="business-timezone" name="timezone" defaultValue="America/Sao_Paulo">
+          <Field as="select" label="Fuso horário" name="timezone" defaultValue="America/Sao_Paulo">
             {BRAZIL_TIMEZONES.map((tz) => (
               <option key={tz.id} value={tz.id}>
                 {tz.label}
               </option>
             ))}
-          </select>
-        </div>
+          </Field>
 
-        <label className="tn-id-choice">
-          <input type="checkbox" name="terms" aria-describedby={fieldError.terms ? "terms-error" : undefined} />
-          <span>
-            Li e aceito os termos de uso e a política de privacidade da fase piloto. Não cadastro dados de saúde de
-            ninguém.
-          </span>
-        </label>
-        {fieldError.terms ? (
-          <span id="terms-error" role="alert" className="tn-id-error">
-            {fieldError.terms}
-          </span>
-        ) : null}
+          <div className="tn-id-terms">
+            <label className="tn-id-check">
+              <input
+                type="checkbox"
+                name="terms"
+                checked={terms}
+                onChange={(e) => {
+                  setTerms(e.target.checked);
+                  clear("terms");
+                }}
+                aria-invalid={errors.terms ? true : undefined}
+                aria-describedby={errors.terms ? "terms-error" : undefined}
+              />
+              <span>
+                Li e aceito os termos de uso e a política de privacidade da fase piloto. Não cadastro dados de saúde de
+                ninguém.
+              </span>
+            </label>
+            {errors.terms ? (
+              <span id="terms-error" className="tn-field__error">
+                {errors.terms}
+              </span>
+            ) : null}
+          </div>
 
-        {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-        <div className="tn-id-actions">
-          <Button type="submit" disabled={pending || !services.online}>
-            {pending ? "Criando…" : "Criar negócio"}
-          </Button>
-          <Link to="/app/conta">Voltar</Link>
-        </div>
-      </form>
-    </Card>
+          {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+          <div className="tn-actions">
+            <Button type="submit" loading={pending} loadingText="Criando…" disabled={!services.online}>
+              Criar negócio
+            </Button>
+            <Link to="/app/conta">Voltar</Link>
+          </div>
+        </form>
+      </Card>
+    </div>
   );
 }

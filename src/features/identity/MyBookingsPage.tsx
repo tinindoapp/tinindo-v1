@@ -96,7 +96,7 @@ export function MyBookingsPage() {
         </Section>
       ) : null}
       {state.kind === "ready" && state.bookings.length > 0 ? (
-        <p className="tn-id-muted">Para remarcar ou cancelar, fale com o profissional. Esta lista não altera nenhuma reserva.</p>
+        <p className="tn-muted">Para remarcar ou cancelar, fale com o profissional. Esta lista não altera nenhuma reserva.</p>
       ) : null}
     </div>
   );
