@@ -2,6 +2,6 @@
 .tn-ga-action-link {
   display: inline-flex;
   align-items: center;
-  min-height: var(--tn-size-touch, 44px);
-  padding-inline: var(--tn-space-2, 0.5rem);
+  min-height: var(--tn-size-touch);
+  padding-inline: var(--tn-space-2);
 }
