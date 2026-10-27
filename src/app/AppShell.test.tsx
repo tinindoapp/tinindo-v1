@@ -25,6 +25,23 @@ describe("shell do app (demonstração sem servidor)", () => {
     expect(within(document.querySelector<HTMLElement>("header.tn-appbar")!).getByText("Barbearia Exemplo A")).toBeInTheDocument();
   });
 
+  it("faixa Demonstração aparece uma vez, no app e nas páginas públicas", async () => {
+    for (const path of ["/app", "/entrar", "/criar-conta", "/recuperar-senha", "/diretorio"]) {
+      const { unmount } = renderAt(path);
+      await screen.findAllByRole("heading", { level: 1 });
+      expect(screen.getAllByRole("note")).toHaveLength(1);
+      expect(screen.getByRole("note")).toHaveTextContent("Demonstração · ");
+      expect(screen.getByRole("note")).toHaveTextContent("dados fictícios");
+      unmount();
+    }
+  });
+
+  it("sub-abas usam rótulo curto só onde há um (Espera, Lembretes)", () => {
+    const items = buildNavigation(MODULES).flatMap((s) => s.items);
+    const short = Object.fromEntries(items.filter((i) => i.short !== i.label).map((i) => [i.label, i.short]));
+    expect(short).toEqual({ "Lista de espera": "Espera", Relacionamento: "Lembretes" });
+  });
+
   it("navegação lista um item por módulo registrado", async () => {
     renderAt("/app");
     const nav = await screen.findByRole("navigation", { name: "Principal" });
@@ -35,7 +52,9 @@ describe("shell do app (demonstração sem servidor)", () => {
     renderAt("/app/agenda");
     expect(await screen.findByRole("heading", { name: "Agenda", level: 1 })).toBeInTheDocument();
     const tabs = screen.getByRole("navigation", { name: "Telas de Agenda" });
-    expect(tabs).toHaveTextContent("Lista de espera");
+    // Sub-aba com rótulo curto; o menu lateral mantém o nome inteiro.
+    expect(within(tabs).getByRole("link", { name: "Espera" })).toHaveAttribute("href", "/app/lista-de-espera");
+    expect(screen.getByRole("navigation", { name: "Principal" })).toHaveTextContent("Lista de espera");
     expect(within(tabs).getByRole("link", { name: "Agenda" })).toHaveAttribute("aria-current", "page");
     expect(within(tabs).getByRole("link", { name: "Horários" })).not.toHaveAttribute("aria-current");
     expect(tabs).toHaveTextContent("Preços");

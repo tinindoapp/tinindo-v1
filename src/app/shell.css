@@ -1,14 +1,45 @@
 /* Shell do app (dono: integrador; ADR-0024). Mobile-first: barra superior compacta, abas fixas embaixo, menu em folha.
    A partir de 900 px: barra lateral fixa com os grupos e sem abas. Só tokens da marca; vidro só em barras. */
+/* Alturas fixas do topo (auditoria de UX, item 2): a faixa "Demonstração" e a barra do app somam --tn-top-h, que
+   posiciona a barra lateral e o scroll-padding (o foco não para atrás das barras, WCAG 2.4.11). */
+:root {
+  --tn-demo-h: 0px;
+  --tn-appbar-h: 0px;
+  --tn-tabbar-h: 0px;
+  --tn-top-h: calc(var(--tn-demo-h) + var(--tn-appbar-h));
+  scroll-padding-top: calc(var(--tn-top-h) + var(--tn-space-2));
+  scroll-padding-bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-2));
+}
+:root:has(.tn-demo-banner) { --tn-demo-h: 28px; }
+:root:has(.tn-app) { --tn-appbar-h: 56px; --tn-tabbar-h: 64px; }
+
+/* Faixa "Demonstração": em todas as rotas (RouteFrame), presa no topo, sempre em 1 linha. Se faltar espaço,
+   a versão do build encurta (só o commit) e depois corta com reticências; o essencial fica inteiro. */
 .tn-demo-banner {
+  position: sticky;
+  top: 0;
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--tn-demo-h);
+  padding: 0 max(var(--tn-space-4), env(safe-area-inset-right)) 0 max(var(--tn-space-4), env(safe-area-inset-left));
+  overflow: hidden;
   background: var(--tn-warning-bg);
   color: var(--tn-warning-text);
   font-size: var(--tn-font-size-xs);
-  text-align: center;
-  padding: var(--tn-space-1) var(--tn-space-4);
-}
-.tn-demo-banner__build {
+  line-height: 1;
   white-space: nowrap;
+}
+.tn-demo-banner__main { flex: none; }
+.tn-demo-banner__build {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+@media (max-width: 599.98px) {
+  .tn-demo-banner__long { display: none; }
 }
 
 /* "Pular para o conteúdo": fora do fluxo, visível só com foco (WCAG 2.4.1). */
@@ -35,20 +66,18 @@
 
 /* ------------------------------------------------------------------ estrutura */
 .tn-app {
-  --tn-appbar-h: 56px;
-  --tn-tabbar-h: 64px;
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--tn-demo-h));
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr;
 }
-.tn-app__top { position: sticky; top: 0; z-index: 30; }
+.tn-app__top { position: sticky; top: var(--tn-demo-h); z-index: 30; }
 
 .tn-appbar {
   display: flex;
   align-items: center;
   gap: var(--tn-space-3);
-  min-height: var(--tn-appbar-h);
+  height: var(--tn-appbar-h);
   padding: 0 max(var(--tn-space-4), env(safe-area-inset-right)) 0 max(var(--tn-space-3), env(safe-area-inset-left));
   border-width: 0 0 1px;
   border-style: solid;
@@ -122,9 +151,11 @@
   padding: var(--tn-space-4) max(var(--tn-space-4), env(safe-area-inset-right)) 0 max(var(--tn-space-4), env(safe-area-inset-left));
 }
 
-/* Sub-abas do grupo: chips roláveis, a ativa preenchida (rótulo + preenchimento, não só cor). */
+/* Sub-abas do grupo: chips roláveis de 44 px, a ativa preenchida (rótulo + preenchimento, não só cor).
+   Quando há mais telas fora da vista, a borda daquele lado esmaece (data-more-start/end, ver SectionTabs). */
 .tn-subnav { padding: var(--tn-space-3) 0 0; }
 .tn-subnav ul {
+  --tn-subnav-fade: 32px;
   list-style: none;
   margin: 0;
   padding: 0 var(--tn-space-4);
@@ -132,12 +163,25 @@
   gap: var(--tn-space-2);
   overflow-x: auto;
   scrollbar-width: none;
+  scroll-padding-inline: var(--tn-subnav-fade);
+}
+.tn-subnav ul[data-more-end] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--tn-subnav-fade)), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--tn-subnav-fade)), transparent);
+}
+.tn-subnav ul[data-more-start] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--tn-subnav-fade));
+  mask-image: linear-gradient(to right, transparent, #000 var(--tn-subnav-fade));
+}
+.tn-subnav ul[data-more-start][data-more-end] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--tn-subnav-fade), #000 calc(100% - var(--tn-subnav-fade)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--tn-subnav-fade), #000 calc(100% - var(--tn-subnav-fade)), transparent);
 }
 .tn-subnav ul::-webkit-scrollbar { display: none; }
 .tn-subnav a {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--tn-size-touch);
   padding: 0 var(--tn-space-4);
   border: 1px solid var(--tn-border);
   border-radius: var(--tn-radius-pill);
@@ -172,7 +216,7 @@
   gap: 2px;
   min-height: var(--tn-tabbar-h);
   color: var(--tn-text-muted);
-  font-size: 11px;
+  font-size: var(--tn-font-size-xs);
   font-weight: var(--tn-font-weight-medium);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
@@ -184,8 +228,9 @@
   border-radius: var(--tn-radius-pill);
   transition: background var(--tn-motion-fast) var(--tn-motion-ease);
 }
+/* Aba ativa: pílula preenchida com --tn-selected-indicator (>= 3:1 contra a barra, WCAG 1.4.11) + rótulo em 600. */
 .tn-tabbar a[aria-current="page"] { color: var(--tn-text); font-weight: var(--tn-font-weight-semibold); }
-.tn-tabbar a[aria-current="page"] .tn-icon { background: var(--tn-action-subtle); }
+.tn-tabbar a[aria-current="page"] .tn-icon { background: var(--tn-selected-indicator); color: var(--tn-text-on-action); }
 .tn-tabbar span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ------------------------------------------------------------------ menu (folha no celular, barra lateral no desktop) */
@@ -230,16 +275,17 @@
 .tn-nav__link:hover { background: var(--tn-action-subtle); }
 .tn-nav__link[aria-current="page"] { background: var(--tn-action-subtle); font-weight: var(--tn-font-weight-semibold); }
 .tn-nav__link[aria-current="page"] .tn-icon { color: var(--tn-text); }
-/* Traço laranja: acento decorativo da marca; o estado ativo já vem do fundo e do peso. */
+/* Item ativo: o fundo sutil sozinho dá 1,17:1; o traço em --tn-selected-indicator (>= 3:1 contra o fundo e contra
+   o realce, WCAG 1.4.11) é o que marca o estado, junto com o peso 600. */
 .tn-nav__link[aria-current="page"]::before {
   content: "";
   position: absolute;
   left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
   border-radius: var(--tn-radius-pill);
-  background: var(--tn-brand-accent);
+  background: var(--tn-selected-indicator);
 }
 .tn-nav__foot {
   display: grid;
@@ -281,21 +327,21 @@
 @keyframes tn-sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 @media (min-width: 900px) {
+  :root:has(.tn-app) { --tn-appbar-h: 64px; --tn-tabbar-h: 0px; }
   .tn-app {
-    --tn-tabbar-h: 0px;
     grid-template-columns: 248px minmax(0, 1fr);
     grid-template-rows: auto 1fr;
   }
   .tn-app__top { grid-column: 1 / -1; }
-  .tn-appbar { padding: 0 var(--tn-space-6) 0 var(--tn-space-5); min-height: 64px; }
+  .tn-appbar { padding: 0 var(--tn-space-6) 0 var(--tn-space-5); }
   .tn-appbar__tenant { justify-content: flex-end; }
   .tn-only-mobile { display: none; }
   .tn-only-desktop { display: inline-flex; }
   .tn-nav {
     position: sticky;
-    top: 64px;
+    top: var(--tn-top-h);
     align-self: start;
-    height: calc(100dvh - 64px);
+    height: calc(100dvh - var(--tn-top-h));
     overflow-y: auto;
     padding: var(--tn-space-3) var(--tn-space-3) var(--tn-space-8);
     border-right: 1px solid var(--tn-border);

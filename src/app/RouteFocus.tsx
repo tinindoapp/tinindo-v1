@@ -4,6 +4,7 @@
 // agenda) não move o foco, para não tirar a pessoa do controle que acabou de usar.
 import { useEffect, useRef } from "react";
 import { Outlet, useLocation } from "react-router";
+import { DemoBanner } from "./DemoBanner.tsx";
 
 export const APP_TITLE = "Tinindo";
 /** Telas que montam o <h1> depois de carregar dados têm este prazo para ele aparecer. */
@@ -57,10 +58,11 @@ export function RouteFocus() {
   return null;
 }
 
-/** Raiz do roteador: efeitos globais de navegação + a rota atual. */
+/** Raiz do roteador: faixa "Demonstração" (uma vez, em todas as rotas), efeitos globais de navegação e a rota atual. */
 export function RouteFrame() {
   return (
     <>
+      <DemoBanner />
       <RouteFocus />
       <Outlet />
     </>
