@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("resultado: conta e denominador, dado ausente não vira zero, baseline congelada e comparação sem causa", async ({ page }) => {
+test("resultado: conta e denominador, dado ausente não vira zero, ponto de partida guardado e comparação sem causa", async ({ page }) => {
   await page.goto("/app/resultado");
   await expect(page.getByRole("heading", { name: "Resultado", level: 1 })).toBeVisible();
   await expect(page.getByText("Comparar antes e depois não prova")).toBeVisible();
@@ -15,12 +15,16 @@ test("resultado: conta e denominador, dado ausente não vira zero, baseline cong
   await expect(quotes).toContainText("Dados insuficientes");
   await expect(page.getByRole("region", { name: "O que falta nos dados" })).toContainText("sem cobrança registrada");
 
-  const form = page.getByRole("form", { name: "Congelar uma baseline" });
-  await form.getByRole("button", { name: "Congelar baseline" }).click();
-  await expect(page.getByText(/Baseline “Antes da Tinindo” congelada/)).toBeVisible();
+  const form = page.getByRole("form", { name: "Guardar como ponto de partida" });
+  await form.getByRole("button", { name: "Guardar ponto de partida" }).click();
+  await expect(page.getByText(/Ponto de partida “Antes da Tinindo” guardado/)).toBeVisible();
   await page.getByLabel("Período").selectOption({ label: "Últimos 7 dias (até ontem)" });
-  await expect(occupancy).toContainText(/Baseline: .* · diferença: /);
-  await expect(reminders).toContainText(/Baseline: .* · diferença: /);
+  await expect(occupancy).toContainText(/Ponto de partida: .* · diferença: /);
+  await expect(reminders).toContainText(/Ponto de partida: .* · diferença: /);
+  // Sem jargão nem indicador interno da Tinindo na tela do profissional.
+  const body = await page.locator("main").innerText();
+  expect(body.toLowerCase()).not.toContain("baseline");
+  expect(body).not.toContain("Minutos da equipe Tinindo");
   await expect(metrics).toContainText("não prova que a Tinindo causou a mudança");
 
   await page.getByLabel("Período").selectOption({ label: "Hoje e próximos 6 dias" });
