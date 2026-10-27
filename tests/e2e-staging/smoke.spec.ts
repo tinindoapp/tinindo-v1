@@ -21,9 +21,16 @@ const BROWSER_FUNCTIONS = readdirSync(FUNCTIONS_DIR, { withFileTypes: true })
   .map((d) => d.name);
 
 test.describe("homologação · build publicado", () => {
-  test("serve o build de homologação, não a demonstração local", async ({ page }) => {
+  test("serve o build de homologação, não a demonstração local", async ({ page, request }) => {
+    const scripts: string[] = [];
+    page.on("response", (r) => { if (r.url().endsWith(".js")) scripts.push(r.url()); });
     await page.goto("/entrar");
-    await expect(page.getByRole("note")).toContainText("homologação");
+    // Com Supabase configurado o app não é demonstração: a faixa "Demonstração · dados fictícios" (DemoBanner) some.
+    await expect(page.locator(".tn-demo-banner")).toHaveCount(0);
+    if (env.supabaseUrl) {
+      const bodies = await Promise.all(scripts.map(async (u) => (await request.get(u)).text()));
+      expect(bodies.some((b) => b.includes(new URL(env.supabaseUrl!).host)), "bundle aponta para o Supabase de homologação").toBe(true);
+    }
     await expect(page.getByRole("heading", { name: "Entrar", level: 1 })).toBeVisible();
     await noHorizontalScroll(page);
   });
