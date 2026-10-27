@@ -25,7 +25,12 @@ describe("agenda (demonstração sobre fixtures)", () => {
     const list = await screen.findByRole("list", { name: /Linha do tempo/ });
     expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent("09:00–09:30");
     expect(screen.getByText(/Dados de exemplo\./)).toBeInTheDocument();
-    expect(screen.getByText(/confirmados de 9 h vendáveis/)).toBeInTheDocument();
+    // Ocupação compacta acima da lista; detalhes recolhidos em "Ver números do dia".
+    expect(screen.getByText(/% ocupado/)).toBeInTheDocument();
+    expect(screen.getByText("Ver números do dia")).toBeInTheDocument();
+    expect(screen.getByText(/de 9 h vendáveis/)).toBeInTheDocument();
+    const occ = screen.getByRole("group", { name: "Ocupação do dia" });
+    expect(occ.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText(/Reservas provisórias \(não contam\): 1/)).toBeInTheDocument();
   });
 

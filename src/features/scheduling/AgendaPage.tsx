@@ -10,7 +10,6 @@ import {
   formatMinutes,
   formatRange,
   occupancy,
-  type Occupancy,
   serviceName,
 } from "./agenda.ts";
 import { addDays, dayWindow, formatDayLong, formatDayShort, isCivilDate, localParts, weekStart } from "./time.ts";
@@ -110,7 +109,7 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
         </p>
       ) : (
         <>
-          <OccupancyCard plans={range.data.plans} bookings={range.data.bookings} label="Ocupação do dia" />
+          <OccupancyLine plans={range.data.plans} bookings={range.data.bookings} label="Ocupação do dia" more="Ver números do dia" />
           <DayList date={date} plan={range.data.plans?.[0] ?? null} bookings={range.data.bookings} tz={tz} services={services}
             serviceOf={(id) => serviceName(services, id)}
             customerOf={(id) => customers.find((c) => c.id === id)?.name ?? (id ? "Cliente" : "Sem cliente cadastrado")}
@@ -122,39 +121,41 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
   );
 }
 
-function OccupancyCard({ plans, bookings, label }: { plans: DayPlan[] | null; bookings: Booking[]; label: string }) {
+/** Ocupação numa linha compacta acima da lista (a lista do dia aparece sem rolar no celular); números em "Ver números". */
+function OccupancyLine({ plans, bookings, label, more }: { plans: DayPlan[] | null; bookings: Booking[]; label: string; more: string }) {
   if (!plans) {
     return (
-      <div className="tn-sched-occupancy">
-        <h3>{label}</h3>
-        <p className="tn-sched-muted">Ocupação indisponível: o expediente ainda não vem do servidor.</p>
-      </div>
+      <p className="tn-sched-occline tn-sched-muted" aria-label={label}>
+        Ocupação indisponível: o expediente ainda não vem do servidor.
+      </p>
     );
   }
   const o = occupancy(plans, bookings);
   return (
-    <div className="tn-sched-occupancy">
-      <h3>{label}</h3>
-      <OccupancySummary o={o} />
-      <ul className="tn-sched-occ-details">
-        <li>Bloqueios: {formatMinutes(o.blockedMinutes)}</li>
-        <li>Reservas provisórias (não contam): {o.holds}</li>
-        <li>Faltas: {o.noShows}</li>
-        <li>Cancelamentos: {o.cancellations}</li>
-      </ul>
+    <div className="tn-sched-occline" role="group" aria-label={label}>
+      {o.percent === null ? (
+        <p className="tn-sched-occline__figure tn-sched-muted">Sem expediente neste período.</p>
+      ) : (
+        <>
+          <p className="tn-sched-occline__figure tn-num">
+            <strong>{o.percent}% ocupado</strong> · {formatMinutes(o.confirmedMinutes)} de {formatMinutes(o.sellableMinutes)}
+          </p>
+          <meter className="tn-sched-meter" min={0} max={o.sellableMinutes} value={o.confirmedMinutes} aria-label={`Ocupação ${o.percent}%`} />
+        </>
+      )}
+      <details className="tn-sched-occline__more">
+        <summary>{more}</summary>
+        <ul className="tn-sched-occ-details">
+          {o.percent !== null ? (
+            <li>Confirmados: {formatMinutes(o.confirmedMinutes)} de {formatMinutes(o.sellableMinutes)} vendáveis</li>
+          ) : null}
+          <li>Bloqueios: {formatMinutes(o.blockedMinutes)}</li>
+          <li>Reservas provisórias (não contam): {o.holds}</li>
+          <li>Faltas: {o.noShows}</li>
+          <li>Cancelamentos: {o.cancellations}</li>
+        </ul>
+      </details>
     </div>
-  );
-}
-
-function OccupancySummary({ o }: { o: Occupancy }) {
-  if (o.percent === null) return <p className="tn-sched-muted">Sem expediente neste período.</p>;
-  return (
-    <>
-      <p className="tn-sched-occ-figure tn-num">
-        <strong>{o.percent}%</strong> · {formatMinutes(o.confirmedMinutes)} confirmados de {formatMinutes(o.sellableMinutes)} vendáveis
-      </p>
-      <meter className="tn-sched-meter" min={0} max={o.sellableMinutes} value={o.confirmedMinutes} aria-label={`Ocupação ${o.percent}%`} />
-    </>
   );
 }
 
@@ -254,7 +255,7 @@ function WeekView({ first, today, onPick }: { first: string; today: string; onPi
       <h2 className="tn-sched-daytitle">
         Semana de {formatDayShort(first)} a {formatDayShort(addDays(first, 6))}
       </h2>
-      <OccupancyCard plans={plans} bookings={bookings} label="Ocupação da semana" />
+      <OccupancyLine plans={plans} bookings={bookings} label="Ocupação da semana" more="Ver números da semana" />
       <ul className="tn-sched-weekdays">
         {days.map((d) => {
           const list = ofDay(d);
