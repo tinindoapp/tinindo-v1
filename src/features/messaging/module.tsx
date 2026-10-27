@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
-import { Card, StatusBanner } from "../../components/ui/index.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { ContextResponse } from "@contracts";
 import { tenantA } from "@contracts/fixtures.ts";
 import { createApiClient } from "../../lib/api/client.ts";
@@ -36,10 +36,10 @@ function usePort(): { port: MessagingPort | null; timezone: string; tenantId: st
 
 function NoTenant({ title }: { title: string }) {
   return (
-    <Card aria-labelledby="msg-no-tenant">
-      <h1 id="msg-no-tenant">{title}</h1>
+    <div className="tn-stack">
+      <PageHeader id="msg-no-tenant" title={title} />
       <StatusBanner tone="info">Selecione um negócio para ver o canal.</StatusBanner>
-    </Card>
+    </div>
   );
 }
 

@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProviderService } from "@contracts";
 import { FX, services } from "@contracts/fixtures.ts";
 import type { CrmCustomer } from "@contracts";
 import { ApiError } from "../../lib/api/client.ts";
+import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { SessionProvider } from "../../app/session.tsx";
 import { routes } from "../../app/router.tsx";
 import { type CrmApi, CrmApiContext, createDemoCrmApi, DEMO_CUSTOMERS } from "./api.ts";
@@ -39,8 +40,10 @@ const renderWith = (api: CrmApi, ui: React.ReactNode) =>
   render(
     <MemoryRouter>
       <CrmApiContext.Provider value={api}>{ui}</CrmApiContext.Provider>
+      <Toaster />
     </MemoryRouter>,
   );
+afterEach(() => dismissToast());
 const type = (label: string | RegExp, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
@@ -69,7 +72,24 @@ describe("clientes", () => {
     const [input, key] = vi.mocked(api.upsertCustomer).mock.calls[0]!;
     expect(input).toEqual({ name: "Bruno Novo", phone: "+5511912345678", email: null, declared_source: "referral" });
     expect(key).toMatch(/^[0-9a-f-]{36}$/);
-    expect(await screen.findByText("Bruno Novo foi salvo.")).toBeInTheDocument();
+    expect(within(await screen.findByRole("status")).getByText("Bruno Novo foi salvo.")).toBeInTheDocument();
+  });
+
+  it("Salvar fica ativo; no envio mostra todos os erros embaixo dos campos e foca o primeiro", async () => {
+    const api = fakeApi();
+    renderWith(api, <CustomersPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Novo cliente" }));
+    type("Telefone", "1199");
+    type("E-mail", "sem-arroba");
+    const save = screen.getByRole("button", { name: "Salvar" });
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+    expect(await screen.findByText("Informe o nome.")).toBeInTheDocument();
+    expect(screen.getByText(/Telefone inválido/)).toBeInTheDocument();
+    expect(screen.getByText(/E-mail inválido/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Nome")).toHaveFocus());
+    expect(screen.getByLabelText("Nome")).toHaveAttribute("aria-invalid", "true");
+    expect(api.upsertCustomer).not.toHaveBeenCalled();
   });
 
   it("telefone inválido é barrado antes do servidor", async () => {
@@ -118,7 +138,29 @@ describe("clientes", () => {
         expect.any(String),
       ),
     );
-    expect(await screen.findByText("Ana Exemplo foi arquivado.")).toBeInTheDocument();
+    expect(within(await screen.findByRole("status")).getByText("Ana Exemplo foi arquivado.")).toBeInTheDocument();
+  });
+
+  it("Desfazer depois de arquivar desarquiva com a versão nova", async () => {
+    const api = fakeApi();
+    renderWith(api, <CustomersPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Arquivar Ana Exemplo" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
+    await waitFor(() => expect(api.archiveCustomer).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.archiveCustomer).mock.calls[1]![0]).toEqual({ customer_id: ana.id, expected_version: 4, archived: false });
+    expect(await screen.findByText("Ana Exemplo voltou para a lista.")).toBeInTheDocument();
+  });
+
+  it("erro ao arquivar aparece no aviso, sem Desfazer", async () => {
+    const api = fakeApi({
+      archiveCustomer: vi.fn(async () => {
+        throw new ApiError("STALE_VERSION", "Este registro foi alterado por outra pessoa. Recarregue e tente de novo.", 409, null, false);
+      }),
+    });
+    renderWith(api, <CustomersPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Arquivar Ana Exemplo" }));
+    expect(within(await screen.findByRole("status")).getByText(/alterado por outra pessoa/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument();
   });
 });
 
@@ -176,6 +218,19 @@ describe("serviços", () => {
     expect(await screen.findByText(/não pode passar do preço base/)).toBeInTheDocument();
     expect(api.saveService).not.toHaveBeenCalled();
   });
+
+  it("arquivar serviço executa na hora e Desfazer reativa", async () => {
+    const api = fakeApi();
+    renderWith(api, <ServicesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Arquivar Corte" }));
+    await waitFor(() => expect(api.saveService).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(api.saveService).mock.calls[0]![0]).toMatchObject({ active: false });
+    expect(within(screen.getByRole("status")).getByText("Corte foi arquivado.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    await waitFor(() => expect(api.saveService).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.saveService).mock.calls[1]![0]).toMatchObject({ active: true });
+    expect(await screen.findByText("Corte voltou ao catálogo.")).toBeInTheDocument();
+  });
 });
 
 describe("importação", () => {
@@ -230,6 +285,13 @@ describe("importação", () => {
     fireEvent.click(screen.getByRole("button", { name: "Importar" }));
     await waitFor(() => expect(api.importCustomers).toHaveBeenCalled());
     expect(vi.mocked(api.importCustomers).mock.calls[0]![0].find((r) => r.line === 3)?.on_duplicate).toBe("create");
+  });
+
+  it("Ver prévia sem conteúdo explica embaixo do campo e foca nele", async () => {
+    renderWith(fakeApi(), <ImportPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Ver prévia" }));
+    expect(await screen.findByText(/Cole o conteúdo da planilha/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Ou cole o conteúdo")).toHaveFocus();
   });
 
   it("arquivo sem coluna nome é recusado com mensagem", async () => {
