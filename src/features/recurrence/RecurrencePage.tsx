@@ -98,6 +98,7 @@ function SubscribeForm({ port, base, plans, onDone }: { port: RecurrencePort; ba
 function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubscription; port: RecurrencePort; timezone: string; onDone: (n: Notice) => void }) {
   const [history, setHistory] = useState<RecurrenceCycle[] | null>(null);
   const [reason, setReason] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const act = (run: () => Promise<unknown>, ok: string) => run().then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
   const c = sub.current_cycle;
   return (
@@ -120,7 +121,7 @@ function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubs
               <input maxLength={280} value={reason} onChange={(e) => setReason(e.target.value)} />
             </label>
             <Button variant="secondary" onClick={() => void act(() => port.cancel(sub, true, reason.trim() || null, newKey()), "A assinatura segue até o fim do ciclo e não renova. Saldo e termos preservados.")}>Cancelar no fim do ciclo</Button>
-            <Button variant="ghost" onClick={() => void act(() => port.cancel(sub, false, reason.trim() || null, newKey()), "Assinatura encerrada agora. As sessões do ciclo atual continuam válidas até o fim dele.")}>Cancelar agora</Button>
+            {!confirming ? <Button variant="ghost" onClick={() => setConfirming(true)}>Cancelar agora</Button> : null}
           </>
         ) : null}
         {sub.status === "active" && sub.cancel_at_period_end ? (
@@ -128,6 +129,20 @@ function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubs
         ) : null}
         <Button variant="ghost" onClick={() => void port.cycles(sub.id).then(setHistory, (e: unknown) => onDone({ tone: "danger", text: explain(e) }))}>Ver ciclos</Button>
       </div>
+      {confirming && sub.status === "active" && !sub.cancel_at_period_end ? (
+        <div className="tn-rc-confirm" role="group" aria-label={`Encerrar a assinatura de ${sub.customer_name ?? "cliente"} agora?`}>
+          <p><strong>Encerrar a assinatura agora?</strong></p>
+          <p>
+            {sub.customer_name ?? "A cliente"} deixa de assinar hoje e nada mais renova.
+            {c ? ` ${c.package.remaining_credits === 1 ? "A sessão restante do ciclo atual continua" : `As ${c.package.remaining_credits} sessões restantes do ciclo atual continuam`} valendo até ${formatDate(c.ends_at, timezone)}, e a cobrança deste ciclo (${formatCents(c.receivable.amount_cents)}) continua no Caixa.` : ""}
+            {" "}Para desfazer, será preciso uma nova adesão. Se quiser só parar de renovar, use “Cancelar no fim do ciclo”.
+          </p>
+          <div className="tn-rc-actions">
+            <Button onClick={() => { setConfirming(false); void act(() => port.cancel(sub, false, reason.trim() || null, newKey()), "Assinatura encerrada agora. As sessões do ciclo atual continuam válidas até o fim dele."); }}>Sim, encerrar agora</Button>
+            <Button variant="ghost" onClick={() => setConfirming(false)}>Voltar</Button>
+          </div>
+        </div>
+      ) : null}
       {history ? (
         <ul className="tn-rc-list" aria-label={`Ciclos de ${sub.customer_name ?? "cliente"}`}>
           {history.map((h) => <li key={h.id}>Ciclo {h.cycle_no} · {formatDate(h.starts_at, timezone)} a {formatDate(h.ends_at, timezone)} · {h.package.remaining_credits}/{h.package.purchased_credits} sessões · {RECEIVABLE_STATUS[h.receivable.status]}</li>)}
@@ -179,8 +194,8 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
           </Button>
         ) : null}
       />
-      <Help><p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (Pix pelo provedor ou manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p></Help>
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é cobrado. "Avançar o ciclo" simula a renovação pelo worker.</StatusBanner> : null}
+      <Help><p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (por Pix ou registro manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p></Help>
+      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é cobrado. "Avançar o ciclo" simula a renovação que o sistema faz sozinho.</StatusBanner> : null}
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {notice ? <StatusBanner tone={notice.tone}>{notice.text}</StatusBanner> : null}
 

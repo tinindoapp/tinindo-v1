@@ -7,7 +7,6 @@
   border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); background: transparent; color: inherit; cursor: pointer;
 }
 .tn-fin-period button:disabled { opacity: .5; cursor: not-allowed; }
-.tn-fin-period__label { text-transform: capitalize; }
 .tn-fin-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--tn-space-3); margin: 0; }
 .tn-fin-sum dt { font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); }
 .tn-fin-sum dd { margin: 0; font-size: var(--tn-font-size-xl); font-weight: 600; }
@@ -30,3 +29,12 @@
 @media (max-width: 30rem) {
   .tn-fin-form { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
+/* Destaque do mês: quanto sobrou (recebido − gasto). */
+.tn-fin-left { display: grid; gap: var(--tn-space-1); margin: var(--tn-space-2) 0 var(--tn-space-3); }
+.tn-fin-left__label { font-size: var(--tn-font-size-sm); color: var(--tn-text-muted); font-weight: var(--tn-font-weight-medium); }
+.tn-fin-left__value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.tn-fin-alert { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); margin-top: var(--tn-space-3); padding: var(--tn-space-3); border: 1px solid var(--tn-border-control); border-left-width: 4px; border-radius: var(--tn-radius-md); }
+.tn-fin-alert a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); font-weight: var(--tn-font-weight-medium); }
+.tn-fin-section h2:focus { outline: none; }
+.tn-fin-section h2:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: 2px; }
+.tn-fin-confirm { display: grid; gap: var(--tn-space-2); width: 100%; }

@@ -38,7 +38,31 @@ interface State {
   unknownOnce: Set<number>;
 }
 let shared: State | null = null;
+// A cobrança de exemplo fica guardada na aba (sessionStorage): abrir o link /pagar#t=… recarregando a página continua
+// encontrando a cobrança. Some ao fechar a aba; nunca vai a servidor.
+const STORE = "tinindo.demo.payments";
+type Stored = Omit<State, "psp" | "events" | "idem" | "unknownOnce"> & { psp: [string, Ledger][]; events: string[]; idem: [string, unknown][]; unknownOnce: number[] };
+function load(): State | null {
+  try {
+    const raw = sessionStorage.getItem(STORE);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Stored;
+    return { ...v, psp: new Map(v.psp), events: new Set(v.events), idem: new Map(v.idem), unknownOnce: new Set(v.unknownOnce) };
+  } catch {
+    return null;
+  }
+}
+function save() {
+  if (!shared) return;
+  try {
+    const v: Stored = { ...shared, psp: [...shared.psp], events: [...shared.events], idem: [...shared.idem], unknownOnce: [...shared.unknownOnce] };
+    sessionStorage.setItem(STORE, JSON.stringify(v));
+  } catch {
+    /* sem armazenamento: vale enquanto a página estiver aberta */
+  }
+}
 function state(): State {
+  if (!shared) shared = load();
   if (!shared) {
     shared = { receivables: [], charges: [], refunds: [], entries: [], psp: new Map(), events: new Set(), reconciliations: [], idem: new Map(), seq: 0, clock: Date.parse(FIXED_NOW), unknownOnce: new Set() };
     const mk = (customer_id: string | null, description: string, amount_cents: number) => shared!.receivables.push({
@@ -49,9 +73,18 @@ function state(): State {
   }
   return shared;
 }
+/** Só para testes: esquece a memória da aba como um recarregamento (o que foi guardado na sessão continua). */
+export function forgetDemoMemory() {
+  shared = null;
+}
 /** Só para testes. */
 export function resetDemoState() {
   shared = null;
+  try {
+    sessionStorage.removeItem(STORE);
+  } catch {
+    /* sem armazenamento */
+  }
 }
 const ts = () => {
   const s = shared!;
@@ -64,6 +97,7 @@ const once = async <T>(key: string, run: () => T): Promise<T> => {
   if (s.idem.has(key)) return clone(s.idem.get(key)) as T;
   const v = run();
   s.idem.set(key, clone(v));
+  save();
   return clone(v);
 };
 const strip = (c: PaymentCharge & { token: string }): PaymentCharge => {
@@ -228,6 +262,7 @@ export function createDemoPort(): PaymentsPort {
         else if (l.status === "pending") r.still_unknown++;
         else { c.status = l.status; c.version += 1; r.closed++; }
       }
+      save();
       return r;
     },
   };
@@ -236,12 +271,14 @@ export function createDemoPort(): PaymentsPort {
 /** Só para testes e para a tela da demonstração: adianta o relógio (vence cobranças). */
 export function advanceDemoClock(ms: number) {
   state().clock += ms;
+  save();
 }
 
 export function createDemoLinkPort(): PaymentLinkPort {
   const find = (token: string) => state().charges.find((c) => c.token === token) ?? fail("NOT_FOUND");
   return {
     kind: "demo",
+    businessName: DEMO_BUSINESS,
     async view(token): Promise<LinkView> {
       const c = find(token);
       return { charge_id: c.id, business_name: DEMO_BUSINESS, description: c.description, amount_cents: c.amount_cents, provider: c.provider, simulated: true,
@@ -255,8 +292,10 @@ export function createDemoLinkPort(): PaymentLinkPort {
       if (l.status !== "pending") return { status: c.status, applied: 0, duplicates: 0 };
       l.status = outcome;
       if (outcome === "paid") l.paid_at = ts();
-      if (!notify) return { status: "pending", applied: 0, duplicates: 0 };
-      return ingest(`sim:${c.external_id}:${outcome}`, outcome === "paid" ? "charge.paid" : "charge.expired", c.external_id!);
+      if (!notify) { save(); return { status: "pending", applied: 0, duplicates: 0 }; }
+      const out = ingest(`sim:${c.external_id}:${outcome}`, outcome === "paid" ? "charge.paid" : "charge.expired", c.external_id!);
+      save();
+      return out;
     },
   };
 }
