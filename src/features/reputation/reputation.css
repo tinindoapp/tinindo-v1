@@ -12,5 +12,7 @@
 .tn-rev-reply { padding-left: var(--tn-space-3); border-left: 2px solid var(--tn-border-control); }
 /* Nota de 1 a 5: Segmented do sistema, com cada opção de 44 × 44 (alvo inteiro, não só a área de toque). */
 .tn-rev-rating .tn-segmented__option { min-width: var(--tn-size-touch); min-height: var(--tn-size-touch); padding: 0 var(--tn-space-2); }
+/* Com 44 px a área extra (::after) não é necessária; o rádio fica por cima para o toque cair nele mesmo. */
+.tn-rev-rating .tn-segmented__option input { z-index: 1; }
 .tn-rev-page { max-width: 640px; margin: 0 auto; padding: var(--tn-space-6) var(--tn-space-4) var(--tn-space-8); display: grid; gap: var(--tn-space-3); }
 .tn-rev-page h1 { margin: 0; font-size: var(--tn-text-title); }
