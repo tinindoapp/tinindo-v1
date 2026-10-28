@@ -1,6 +1,6 @@
 // Caixa registrado (P07): o que entrou, o que saiu e o que falta receber, com período e cobertura.
 // Separações que a tela nunca mistura: atendimento concluído ≠ cobrado ≠ recebido; crédito de pacote ≠ caixa.
-import { createContext, type FormEvent, type MouseEvent, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type FormEvent, type MouseEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { ExpenseCategory, PackageDetail, PaymentRecord, Receivable, TimeRange, UnchargedBooking } from "@contracts";
 import { Button, Card, ConfirmAction, Field, Help, IconButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
@@ -68,14 +68,14 @@ function explain(err: unknown): string {
   }
 }
 
-/** Mesma chave para o mesmo pedido (repetir não duplica); pedido diferente, chave nova. */
-function useKeyFor() {
-  const [last, setLast] = useState<{ sig: string; key: string } | null>(null);
+/** Mesma chave para o mesmo pedido (repetir não duplica); pedido diferente, chave nova.
+ *  Fica num ref, não em estado: dois toques antes do próximo render precisam ver a mesma chave. */
+export function useKeyFor() {
+  const last = useRef<{ sig: string; key: string } | null>(null);
   return (payload: unknown) => {
     const sig = JSON.stringify(payload);
-    const key = last?.sig === sig ? last.key : newKey();
-    setLast({ sig, key });
-    return key;
+    if (last.current?.sig !== sig) last.current = { sig, key: newKey() };
+    return last.current.key;
   };
 }
 
