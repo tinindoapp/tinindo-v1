@@ -15,6 +15,11 @@ create temp table ids as select
   '60000000-0000-4000-8000-0000000000a1'::uuid as rec1,
   '60000000-0000-4000-8000-0000000000a2'::uuid as rec2;
 grant select on ids to anon, authenticated, service_role;
+-- Data local do negócio: fiscal_emit recusa competência depois dela, e current_date (UTC) passa um dia à frente
+-- entre 00:00 e 03:00 UTC em America/Sao_Paulo. Lida aqui, antes de trocar de papel.
+create temp table today as select (clock_timestamp() at time zone t.timezone)::date as d
+  from public.tenants t where t.id = (select tenant_a from ids);
+grant select on today to anon, authenticated, service_role;
 create temp table r (k text primary key, v jsonb);
 grant select, insert, update on r to anon, authenticated, service_role;
 create function pg_temp.login_as(p_user uuid) returns void language sql as $$
@@ -27,7 +32,7 @@ create function pg_temp.reasons() returns text language sql as $$
   select coalesce(string_agg(x, ',' order by x), '') from jsonb_array_elements_text(pg_temp.get_a()->'eligibility'->'reasons') x
 $$;
 create function pg_temp.emit(p_k text, p_rec uuid, p_doc text, p_amount bigint) returns jsonb language sql as $$
-  select public.fiscal_emit((select tenant_a from ids), p_rec, 'Cliente Exemplo', p_doc, 'Corte de cabelo masculino', p_amount, current_date, p_k, pg_temp.h(p_k))
+  select public.fiscal_emit((select tenant_a from ids), p_rec, 'Cliente Exemplo', p_doc, 'Corte de cabelo masculino', p_amount, (select d from today), p_k, pg_temp.h(p_k))
 $$;
 grant execute on function pg_temp.h(text), pg_temp.got(text), pg_temp.get_a(), pg_temp.reasons(), pg_temp.emit(text, uuid, text, bigint) to anon, authenticated, service_role;
 
@@ -149,7 +154,7 @@ insert into r select 'x3', public.fiscal_emit_result((pg_temp.got('e2')->'body'-
 reset role;
 select pg_temp.login_as((select owner_a from ids));
 set local role authenticated;
-insert into r select 'f1', public.fiscal_folder((select tenant_a from ids), to_char(current_date, 'YYYY-MM'));
+insert into r select 'f1', public.fiscal_folder((select tenant_a from ids), to_char((select d from today), 'YYYY-MM'));
 select is(jsonb_array_length(pg_temp.got('f1')->'documents'), 2, 'pasta do mês: autorizada e cancelada');
 select is((pg_temp.got('f1')->'totals'->>'authorized_cents')::int, 6000, 'cancelada não soma no total');
 select is((pg_temp.got('f1')->'totals'->>'cancelled_count')::int, 1, 'cancelada contada à parte');
