@@ -338,8 +338,19 @@ function AfterCancel({ info }: { info: Cancelled }) {
   const waitlist = useAsync(`waitlist:${b.id}`, () => port.waitlistEntries());
   const start = localParts(b.starts_at, tz);
   const service = serviceName(services, b.service_id);
-  const digits = whatsAppDigits(info.phone);
-  const notice = cancelNoticeText({ name: info.contactName, service, day: formatDayLong(start.date), time: start.time, business: ctx.tenantName });
+  // Cancelar antes de o contato do pedido pelo link chegar deixava o aviso sem WhatsApp: busca aqui o que faltou.
+  const [late, setLate] = useState<PublicBookingContact | null>(null);
+  const needsContact = !info.phone && b.source === "public_link";
+  useEffect(() => {
+    if (!needsContact) return;
+    let stale = false;
+    port.publicContact(b.id).then((c) => !stale && setLate(c), () => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [port, b.id, needsContact]);
+  const digits = whatsAppDigits(info.phone ?? late?.phone_e164 ?? null);
+  const notice = cancelNoticeText({ name: info.contactName ?? late?.name ?? null, service, day: formatDayLong(start.date), time: start.time, business: ctx.tenantName });
   const people = waitlist.data ? waitlistMatches(waitlist.data, b.starts_at, tz) : null;
 
   /** Refaz no mesmo horário, serviço e cliente: cota de novo e cria confirmado. É um atendimento novo (id novo). */
