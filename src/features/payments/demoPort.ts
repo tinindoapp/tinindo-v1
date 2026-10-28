@@ -12,8 +12,9 @@ import {
   type Reconciliation,
   RETRYABLE,
 } from "@contracts";
-import { FIXED_NOW, FX } from "@contracts/fixtures.ts";
+import { FIXED_NOW } from "@contracts/fixtures.ts";
 import { ApiError } from "../../lib/api/client.ts";
+import { DEMO_OPEN_RECEIVABLES } from "../../lib/demo/dataset.ts";
 import type { ChargeCreated, ChargesList, LinkView, PaymentLinkPort, PaymentsPort, SimPayResult } from "./port.ts";
 
 function fail(code: ErrorCode, field?: string): never {
@@ -65,11 +66,10 @@ function state(): State {
   if (!shared) shared = load();
   if (!shared) {
     shared = { receivables: [], charges: [], refunds: [], entries: [], psp: new Map(), events: new Set(), reconciliations: [], idem: new Map(), seq: 0, clock: Date.parse(FIXED_NOW), unknownOnce: new Set() };
-    const mk = (customer_id: string | null, description: string, amount_cents: number) => shared!.receivables.push({
-      id: id("e2000000"), customer_id, booking_id: null, package_id: null, description, amount_cents, paid_cents: 0, open_cents: amount_cents, due_at: null, status: "open", version: 1, created_at: ts() });
-    mk(FX.customers.abInA, "Corte · Ana Beatriz (exemplo)", 6000);
-    mk(FX.customers.guestInA, "Barba · Carlos (exemplo)", 4000);
-    mk(null, "Produto · pomada", 3098);
+    // Valores em aberto da base de exemplo única (dataset.ts): os mesmos que o Caixa mostra em "A receber".
+    for (const o of DEMO_OPEN_RECEIVABLES) shared.receivables.push({
+      id: o.id, customer_id: o.customer_id, booking_id: null, package_id: null, description: o.description, amount_cents: o.amount_cents,
+      paid_cents: 0, open_cents: o.amount_cents, due_at: o.due_at, status: "open", version: 1, created_at: ts() });
   }
   return shared;
 }

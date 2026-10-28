@@ -95,4 +95,29 @@ describe("porta do servidor (contrato v1)", () => {
     expect(await p.quote({ service_id: FX.services.corteA, resource_id: FX.resources.A, slot: quote.slot })).toMatchObject({ final_price_cents: 5100 });
     expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toMatch(/\/pricing\/pricing\.quote$/);
   });
+
+  it("confirmar reserva e falta vão para as rotas do motor, com chave de idempotência", async () => {
+    const confirmed = { ...bookingsA[3], status: "confirmed", hold_expires_at: null, agreed_price_cents: 6000, version: 2 };
+    const a = port(json(200, { data: { booking: confirmed }, meta }));
+    expect((await a.port.confirm({ booking_id: bookingsA[3]!.id, expected_version: 1 }, "chave-0000000000000010")).status).toBe("confirmed");
+    const [url1, init1] = a.fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url1).toMatch(/\/scheduling\/booking\.confirm$/);
+    expect((init1.headers as Record<string, string>)["Idempotency-Key"]).toBe("chave-0000000000000010");
+
+    const b = port(json(200, { data: { booking: { ...bookingsA[0], status: "no_show", version: 2 } }, meta }));
+    const noShow = { booking_id: bookingsA[0]!.id, expected_version: 1, reason: "Cliente não compareceu", revert: false };
+    expect((await b.port.noShow(noShow, "chave-0000000000000011")).status).toBe("no_show");
+    const [url2, init2] = b.fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url2).toMatch(/\/scheduling\/booking\.no_show$/);
+    expect(JSON.parse(init2.body as string)).toEqual(noShow);
+  });
+
+  it("lista de espera é lida da função do módulo (waitlist.list), só as entradas", async () => {
+    const entry = { id: bookingsA[0]!.id, tenant_id: FX.tenants.A, customer_id: FX.customers.abInA, service_id: FX.services.corteA,
+      status: "active", joined_at: "2026-10-18T13:00:00Z", valid_until: "2026-11-18T13:00:00Z",
+      acceptable_windows: [{ weekday: 3, local_start: "09:00", local_end: "19:00" }], version: 1 };
+    const { port: p, fetchMock } = port(json(200, { data: { entries: [entry], candidates: [], offers: [] }, meta }));
+    expect(await p.waitlistEntries()).toEqual([entry]);
+    expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toMatch(/\/waitlist\/waitlist\.list$/);
+  });
 });

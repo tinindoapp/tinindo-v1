@@ -1,5 +1,7 @@
-// Clientes: listar, buscar, criar, editar e arquivar. Duplicado é só sugerido, nunca mesclado.
+// Clientes: listar, buscar, criar, editar e arquivar. Duplicado é só sugerido, nunca mesclado. No cartão, ligar e
+// WhatsApp à mão; editar e arquivar no menu "⋯"; o nome abre a ficha (CustomerPage).
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import { type Profession } from "@contracts";
 import {
   type CrmCustomer,
@@ -8,6 +10,7 @@ import {
 } from "@contracts";
 import { Button, Card, Field, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
+import { ActionsMenu, ContactButtons } from "./contact.tsx";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
 import { CrmDemoNotice, fieldErrors, Tag } from "./shared.tsx";
@@ -160,7 +163,9 @@ export function CustomersPage() {
           {items.map((c) => (
             <li key={c.id} className="crm-item">
               <div className="crm-item__main">
-                <span className="crm-item__title">{c.name}</span>
+                <Link to={c.id} className="crm-item__name">
+                  {c.name}
+                </Link>
                 {c.archived_at ? <Tag>Arquivado</Tag> : null}
                 <div className="crm-item__meta">
                   {[formatPhone(c.phone), c.email, c.declared_source ? `Origem: ${SOURCE_LABEL[c.declared_source]}` : null]
@@ -169,31 +174,32 @@ export function CustomersPage() {
                 </div>
               </div>
               <div className="tn-actions crm-item__actions">
-                <Button
-                  variant="secondary"
-                  disabled={api.readOnly}
-                  aria-label={`Editar ${c.name}`}
-                  onClick={() =>
-                    setDraft({
-                      id: c.id,
-                      version: c.version,
-                      name: c.name,
-                      phone: formatPhone(c.phone),
-                      email: c.email ?? "",
-                      source: c.declared_source ?? "",
-                    })
-                  }
-                >
-                  Editar
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={api.readOnly}
-                  aria-label={`${c.archived_at ? "Desarquivar" : "Arquivar"} ${c.name}`}
-                  onClick={() => void toggleArchive(c)}
-                >
-                  {c.archived_at ? "Desarquivar" : "Arquivar"}
-                </Button>
+                <ContactButtons name={c.name} phone={c.phone} />
+                {/* Editar e arquivar são menos usados que ligar: ficam no menu "⋯". */}
+                <ActionsMenu
+                  label={`Mais ações para ${c.name}`}
+                  hint={api.readOnly ? "Demonstração: editar e arquivar ficam bloqueados." : undefined}
+                  actions={[
+                    {
+                      label: "Editar",
+                      disabled: api.readOnly,
+                      onSelect: () =>
+                        setDraft({
+                          id: c.id,
+                          version: c.version,
+                          name: c.name,
+                          phone: formatPhone(c.phone),
+                          email: c.email ?? "",
+                          source: c.declared_source ?? "",
+                        }),
+                    },
+                    {
+                      label: c.archived_at ? "Desarquivar" : "Arquivar",
+                      disabled: api.readOnly,
+                      onSelect: () => void toggleArchive(c),
+                    },
+                  ]}
+                />
               </div>
             </li>
           ))}
@@ -226,6 +232,11 @@ function CustomerForm({
   const [busy, setBusy] = useState(false);
   const keys = useMemo(() => createKeyRing(), []);
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
+  // Aberto pelo botão ou pelo menu "⋯": o foco vai para o primeiro campo (o formulário fica acima da lista).
+  useEffect(() => {
+    const first = formRef.current?.querySelector<HTMLInputElement>("input");
+    first?.focus();
+  }, [formRef]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();

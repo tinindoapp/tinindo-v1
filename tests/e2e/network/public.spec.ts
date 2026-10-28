@@ -17,6 +17,7 @@ test("perfil público abre fora do shell, sem dados privados; escolher horário 
   // Mesmo resumo da lista de avaliações da demonstração (2 de exemplo), com link para ela.
   await expect(page.getByRole("link", { name: "2 avaliações de clientes" })).toHaveAttribute("href", "/avaliacoes/barbearia-publica");
   await expect(page.locator("body")).not.toContainText("10000000-0000-4000-8000-00000000000a");
+  await page.getByRole("button", { name: "Escolher dia e hora" }).click();
   const slots = page.getByRole("list", { name: "Horários livres" });
   await slots.getByRole("button").first().click();
   // Escolher só abre o pedido (nome, WhatsApp e código); o fluxo completo está em public-booking.spec.ts.

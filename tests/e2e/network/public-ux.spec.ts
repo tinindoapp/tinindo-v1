@@ -28,11 +28,14 @@ test("dono publica e recebe o link pronto para mandar; no /p/:slug os campos tê
 
   await page.getByRole("link", { name: "Abrir perfil público" }).click();
   await expect(page).toHaveURL(/\/p\/barbearia-ux$/);
+  // Passo 1: o serviço é um cartão de escolha de 44 px ou mais.
+  expect(await height(page.getByRole("radio", { name: /^Corte/ }).locator("xpath=.."))).toBeGreaterThanOrEqual(44);
+  await page.getByRole("button", { name: "Escolher dia e hora" }).click();
   const slots = page.getByRole("list", { name: "Horários livres" });
   await slots.getByRole("button").first().click();
   await expect(page.getByText(/Vamos mandar um código de 6 dígitos para o\s+seu WhatsApp para confirmar/)).toBeVisible();
   await expect(page.getByText(/WhatsApp do profissional/)).toHaveCount(0);
-  for (const field of [page.getByLabel("Serviço"), page.getByLabel("Seu nome"), page.getByLabel("WhatsApp com DDD")]) {
+  for (const field of [page.getByLabel("Seu nome"), page.getByLabel("WhatsApp com DDD")]) {
     expect(await height(field)).toBeGreaterThanOrEqual(44);
   }
   if (test.info().project.name === "mobile") {

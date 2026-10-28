@@ -51,18 +51,18 @@ describe("jornada integrada da demonstração", () => {
     expect(uncharged).toHaveLength(1);
     expect(uncharged[0]).toMatchObject({ customer_id: FX.customers.abInA, agreed_price_cents: 6000 });
     expect(uncharged[0]!.package_ids).toHaveLength(1);
-    expect(await caixa.summary(period, TZ)).toMatchObject({ received_cents: before.received_cents, receivable_open_cents: 0 });
+    expect(await caixa.summary(period, TZ)).toMatchObject({ received_cents: before.received_cents, receivable_open_cents: before.receivable_open_cents });
 
     const r = await caixa.chargeBooking({ booking_id: ANA_0900 }, key());
     expect(r).toMatchObject({ booking_id: ANA_0900, amount_cents: 6000, paid_cents: 0, status: "open" });
     await expect(caixa.chargeBooking({ booking_id: ANA_0900 }, key())).rejects.toMatchObject({ code: "POLICY_REJECTED" });
     expect((await caixa.uncharged(period)).map((b) => b.booking_id)).not.toContain(ANA_0900);
-    expect((await caixa.summary(period, TZ)).receivable_open_cents).toBe(6000);
+    expect((await caixa.summary(period, TZ)).receivable_open_cents).toBe(before.receivable_open_cents + 6000);
 
     await caixa.recordPayment({ receivable_id: r.id, amount_cents: 6000, method: "pix", received_at: "2026-10-20T12:00:00Z" }, key());
     const after = await caixa.summary(period, TZ);
     expect(after.received_cents).toBe(before.received_cents + 6000);
-    expect(after.receivable_open_cents).toBe(0);
+    expect(after.receivable_open_cents).toBe(before.receivable_open_cents);
 
     // A cliente pode avaliar o atendimento concluído (uma vez).
     const pend = await cliente.pending();

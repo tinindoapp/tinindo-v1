@@ -9,6 +9,7 @@ import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { supabase } from "../../lib/supabase.ts";
 import { type CrmApi, CrmApiContext, createDemoCrmApi, createServerCrmApi } from "./api.ts";
+import { CustomerPage } from "./CustomerPage.tsx";
 import { CustomersPage } from "./CustomersPage.tsx";
 import { ImportPage } from "./ImportPage.tsx";
 import { ServicesPage } from "./ServicesPage.tsx";
@@ -64,6 +65,8 @@ export const crmModule: ModuleDefinition = {
         { index: true, element: <CustomersPage /> },
         { path: "servicos", element: <ServicesPage /> },
         { path: "importar", element: <ImportPage /> },
+        // Ficha do cliente (rotas fixas acima vencem o parâmetro).
+        { path: ":customerId", element: <CustomerPage /> },
       ],
     },
   ],

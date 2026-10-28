@@ -31,12 +31,12 @@ interface Today {
   tenantName: string;
   timezone: string;
   dateLabel: string;
-  agenda: { upcoming: (Booking & { serviceName: string; customerName: string | null })[]; confirmed: number; held: number } | null;
+  agenda: { upcoming: (Booking & { serviceName: string; customerName: string | null })[]; confirmed: number; held: (Booking & { serviceName: string })[] } | null;
   money: { unchargedCount: number; unchargedCents: number; receivedCents: number } | null;
   advice: { count: number; first: string | null } | null;
 }
 
-const STATUS: Partial<Record<Booking["status"], string>> = { held: "Provisória", confirmed: "Confirmado", completed: "Concluído", no_show: "Falta" };
+const STATUS: Partial<Record<Booking["status"], string>> = { held: "Provisória", confirmed: "Confirmado", completed: "Concluído", no_show: "Faltou" };
 
 async function loadToday(p: Ports): Promise<Today> {
   const ctx = await p.scheduling.context();
@@ -54,7 +54,12 @@ async function loadToday(p: Ports): Promise<Today> {
         .filter((b) => Date.parse(b.ends_at) > now.getTime())
         .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
         .map((b) => ({ ...b, serviceName: svc.get(b.service_id) ?? "Atendimento", customerName: b.customer_id ? (cus.get(b.customer_id) ?? null) : null }));
-      return { upcoming, confirmed: live.filter((b) => b.status === "confirmed").length, held: live.filter((b) => b.status === "held").length };
+      // Reservas provisórias, a que vence primeiro antes: cada pendência leva direto à reserva.
+      const held = live
+        .filter((b) => b.status === "held")
+        .sort((a, b) => (a.hold_expires_at ?? a.starts_at).localeCompare(b.hold_expires_at ?? b.starts_at))
+        .map((b) => ({ ...b, serviceName: svc.get(b.service_id) ?? "Atendimento" }));
+      return { upcoming, confirmed: live.filter((b) => b.status === "confirmed").length, held };
     })(),
     (async () => {
       const period = monthPeriod(month, tz);
@@ -114,7 +119,7 @@ export function Home() {
       {t ? (
         <>
           <Stats label="Resumo">
-            <Stat label="Atendimentos hoje" value={t.agenda ? t.agenda.confirmed : "—"} hint={t.agenda ? (t.agenda.held ? `+${t.agenda.held} provisória` : "confirmados") : "indisponível"} to="/app/agenda" />
+            <Stat label="Atendimentos hoje" value={t.agenda ? t.agenda.confirmed : "—"} hint={t.agenda ? (t.agenda.held.length ? `+${t.agenda.held.length} provisória` : "confirmados") : "indisponível"} to="/app/agenda" />
             <Stat label="A cobrar" value={t.money ? t.money.unchargedCount : "—"} hint={t.money ? formatCents(t.money.unchargedCents) : "indisponível"} to="/app/caixa" />
             <Stat label="Recebido no mês" value={t.money ? formatCents(t.money.receivedCents) : "—"} hint="registrado" to="/app/caixa" />
           </Stats>
@@ -150,7 +155,16 @@ export function Home() {
             {(() => {
               const rows = [
                 t.money && t.money.unchargedCount > 0 ? <ListItem key="charge" to="/app/caixa" icon="receber" title={`${t.money.unchargedCount} atendimento(s) sem cobrança`} meta={`${formatCents(t.money.unchargedCents)} a registrar no Caixa`} /> : null,
-                t.agenda && t.agenda.held > 0 ? <ListItem key="held" to="/app/agenda" icon="agenda" title={`${t.agenda.held} reserva(s) provisória(s)`} meta="Confirme ou libere o horário" /> : null,
+                ...(t.agenda?.held ?? []).slice(0, 3).map((b) => (
+                  <ListItem
+                    key={`held-${b.id}`}
+                    to={`/app/agenda/atendimento/${b.id}`}
+                    icon="agenda"
+                    title={<>Reserva provisória · <span className="tn-num">{formatTime(b.starts_at, t.timezone)}</span> {b.serviceName}</>}
+                    meta={`${b.hold_expires_at ? `Vence às ${formatTime(b.hold_expires_at, t.timezone)}. ` : ""}Confirme ou libere o horário`}
+                  />
+                )),
+                t.agenda && t.agenda.held.length > 3 ? <ListItem key="held-more" to="/app/agenda" icon="agenda" title={`Mais ${t.agenda.held.length - 3} reservas provisórias`} meta="Ver na agenda" /> : null,
                 t.advice && t.advice.count > 0 ? <ListItem key="advice" to="/app/metas" icon="metas" title={`${t.advice.count} sugestão(ões) com base nos seus números`} meta={t.advice.first ?? undefined} /> : null,
               ].filter(Boolean);
               return rows.length ? <List label="Pendências">{rows}</List> : <p className="tn-today__empty">Nada pendente agora.</p>;

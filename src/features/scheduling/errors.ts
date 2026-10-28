@@ -18,7 +18,38 @@ export function isErrorLike(e: unknown): e is ErrorLike {
   return typeof e === "object" && e !== null && typeof (e as { code?: unknown }).code === "string";
 }
 
-export function explainError(error: unknown, operation: "create" | "reschedule" | "cancel" | "complete" | "load"): ErrorExplanation {
+export type Operation = "create" | "reschedule" | "cancel" | "complete" | "confirm" | "no_show" | "undo_cancel" | "load";
+
+/** Recusa de regra (422) em ações sobre um atendimento existente: o motivo depende da ação. */
+const POLICY_BY_OPERATION: Partial<Record<Operation, ErrorExplanation>> = {
+  confirm: {
+    title: "A reserva provisória venceu",
+    body: "O prazo para confirmar passou e o horário voltou a ficar livre. Para manter o cliente, faça um novo agendamento.",
+    action: "none",
+  },
+  no_show: {
+    title: "Não dá para mudar a falta agora",
+    body: "Falta só vale para atendimento confirmado que já começou. Nada foi alterado.",
+    action: "none",
+  },
+  complete: {
+    title: "Não dá para marcar como atendido",
+    body: "Só atendimento confirmado que já começou pode ser marcado como atendido. Nada foi alterado.",
+    action: "none",
+  },
+  cancel: {
+    title: "Este atendimento não pode mais ser cancelado",
+    body: "Só reserva provisória ou atendimento confirmado pode ser cancelado. Nada foi alterado.",
+    action: "none",
+  },
+  undo_cancel: {
+    title: "Não deu para desfazer o cancelamento",
+    body: "O horário saiu do expediente ou já passou. Nenhum atendimento foi criado. Marque outro horário.",
+    action: "none",
+  },
+};
+
+export function explainError(error: unknown, operation: Operation): ErrorExplanation {
   if (typeof error === "object" && error !== null && (error as { notConnected?: unknown }).notConnected === true) {
     const e = error as unknown as { what: string; dependsOn: string };
     return {
@@ -37,7 +68,11 @@ export function explainError(error: unknown, operation: "create" | "reschedule" 
         body:
           operation === "reschedule"
             ? "Outra reserva confirmou este horário antes de você (conflito 409). O atendimento continua no horário antigo. Atualizamos os horários livres: escolha outro."
-            : "Outra reserva confirmou este horário antes de você (conflito 409). Nenhum agendamento foi criado. Atualizamos os horários livres: escolha outro.",
+            : operation === "undo_cancel"
+              ? "Outro atendimento já ocupou este horário depois do cancelamento. Nenhum atendimento foi criado. Marque outro horário."
+              : operation === "no_show"
+                ? "Outro atendimento já ocupou este horário depois da falta. A falta continua registrada."
+                : "Outra reserva confirmou este horário antes de você (conflito 409). Nenhum agendamento foi criado. Atualizamos os horários livres: escolha outro.",
         action: "choose_another_slot",
       };
     case "STALE_VERSION":
@@ -53,6 +88,7 @@ export function explainError(error: unknown, operation: "create" | "reschedule" 
         action: "reload",
       };
     case "POLICY_REJECTED":
+      if (POLICY_BY_OPERATION[operation]) return POLICY_BY_OPERATION[operation];
       return {
         title: "As regras do negócio não permitem esta ação",
         body: "O valor pode ter vencido ou o horário saiu do expediente. Peça um novo valor e revise antes de confirmar.",

@@ -11,6 +11,58 @@
 }
 .crm-item__main { min-width: 0; overflow-wrap: anywhere; }
 .crm-item__title { font-weight: var(--tn-font-weight-semibold); }
+/* Nome do cliente: leva à ficha. Alvo de 44 px de altura, sublinhado só no foco e ao passar o ponteiro. */
+.crm-item__name {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tn-size-touch);
+  color: var(--tn-text);
+  font-weight: var(--tn-font-weight-semibold);
+  text-decoration: underline;
+  text-decoration-color: var(--tn-border-control);
+  text-underline-offset: 3px;
+}
+@media (hover: hover) { .crm-item__name:hover { text-decoration-color: currentColor; } }
+.crm-contact { padding: 0 var(--tn-space-4); }
+/* Menu "⋯" das ações de cadastro. */
+.crm-menu { position: relative; }
+.crm-menu__list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + var(--tn-space-1));
+  right: 0;
+  display: grid;
+  min-width: 12rem;
+  max-width: min(18rem, calc(100vw - 2 * var(--tn-space-4)));
+  padding: var(--tn-space-1);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface);
+  box-shadow: var(--tn-shadow-md);
+}
+.crm-menu__item {
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-3);
+  border: 0;
+  border-radius: var(--tn-radius-sm);
+  background: transparent;
+  color: var(--tn-text);
+  text-align: left;
+  cursor: pointer;
+}
+.crm-menu__item:focus-visible { outline-offset: -2px; }
+.crm-menu__item[aria-disabled="true"] { opacity: var(--tn-opacity-disabled); cursor: not-allowed; }
+@media (hover: hover) { .crm-menu__item:hover:not([aria-disabled="true"]) { background: var(--tn-action-subtle); } }
+.crm-menu__item:active:not([aria-disabled="true"]) { background: var(--tn-action-subtle); }
+.crm-menu__hint { margin: 0; padding: var(--tn-space-2) var(--tn-space-3); color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+/* Ficha */
+.crm-back { justify-self: start; padding-left: var(--tn-space-2); }
+.crm-facts { display: grid; gap: var(--tn-space-2) var(--tn-space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); margin: 0; }
+.crm-facts dt { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.crm-facts dd { margin: 0; overflow-wrap: anywhere; }
+.crm-visit { display: grid; gap: var(--tn-space-1); }
+.crm-visit__when { font-weight: var(--tn-font-weight-semibold); }
+.crm-visit__meta { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .crm-item__meta { font-size: var(--tn-text-support); color: var(--tn-text-muted); }
 .crm-item__actions { justify-content: end; }
 .crm-tag {
@@ -27,4 +79,6 @@
 @media (max-width: 560px) {
   .crm-item { grid-template-columns: minmax(0, 1fr); }
   .crm-item__actions { justify-content: start; }
+  /* No celular, o menu "⋯" fica na ponta direita da linha de botões. */
+  .crm-item__actions .crm-menu { margin-left: auto; }
 }

@@ -17,7 +17,7 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   await page.goto("/app/caixa");
   await expect(page.getByRole("heading", { name: "Caixa", level: 1 })).toBeVisible();
   await expect(page.getByText("Dados de exemplo.")).toBeVisible();
-  await expect(received(page)).toHaveText("R$ 260,00");
+  await expect(received(page)).toHaveText("R$ 1.740,00");
   await expect(summary(page)).toContainText("Não é lucro");
   // Destaque: sobrou = recebido − gasto, ambos como exibidos.
   await expectLeftover(page);
@@ -41,38 +41,38 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   await bruno.getByLabel("Forma").selectOption("cash");
   await bruno.getByRole("button", { name: /Marcar como recebido/ }).click();
   await expect(page.getByText(/Recebido R\$\s?40,00 \(Dinheiro\)/)).toBeVisible();
-  await expect(received(page)).toHaveText("R$ 300,00");
+  await expect(received(page)).toHaveText("R$ 1.780,00");
   await expect(pending.getByRole("listitem")).toHaveCount(1);
 
   // Estorno: o recebimento original fica no histórico e sai do total.
   const payments = page.getByRole("region", { name: "Recebimentos no mês" });
-  await payments.getByRole("listitem").filter({ hasText: "R$ 40,00" }).getByRole("button", { name: /Estornar/ }).click();
+  await payments.getByRole("listitem").filter({ hasText: "R$ 40,00 · Dinheiro · 20/10" }).getByRole("button", { name: /Estornar/ }).click();
   await payments.getByLabel("Motivo do estorno").fill("Cliente pagou com Pix depois");
   await payments.getByRole("button", { name: "Sim, estornar" }).click();
-  await expect(received(page)).toHaveText("R$ 260,00");
+  await expect(received(page)).toHaveText("R$ 1.740,00");
   await expect(payments.getByText(/Estorno de R\$\s?40,00/)).toBeVisible();
 
   // Corte da Ana pago com crédito: debita o pacote, não gera caixa.
   await pending.getByRole("listitem").filter({ hasText: "Ana" }).getByRole("button", { name: /Usar crédito do pacote/ }).click();
   await expect(page.getByText(/Saldo: 3 sessões de 4/)).toBeVisible();
-  await expect(received(page)).toHaveText("R$ 260,00");
+  await expect(received(page)).toHaveText("R$ 1.740,00");
 
   // Despesa registrada entra em "Gasto".
   await page.getByLabel("Valor da despesa (R$)").fill("20,00");
   await page.getByRole("button", { name: "Registrar despesa" }).click();
-  await expect(spent(page)).toHaveText("R$ 35,00");
+  await expect(spent(page)).toHaveText("R$ 335,00");
   await expectLeftover(page);
-  await expect(page.getByTestId("fin-left")).toHaveText(/R\$\s?225,00/);
+  await expect(page.getByTestId("fin-left")).toHaveText(/R\$\s?1\.405,00/);
 
   // Estorno de despesa: mesmo padrão do recebimento (abre, explica, confirma).
   const expenses = page.getByRole("region", { name: "Despesas" });
   await expenses.getByRole("listitem").filter({ hasText: "R$ 20,00" }).getByRole("button", { name: /Estornar/ }).click();
   const confirm = expenses.getByRole("group", { name: /Estornar despesa/ });
   await expect(confirm).toContainText("Sai R$");
-  await expect(spent(page)).toHaveText("R$ 35,00");
+  await expect(spent(page)).toHaveText("R$ 335,00");
   await confirm.getByRole("button", { name: "Sim, estornar" }).click();
   await expect(page.getByRole("status").getByText(/Despesa estornada\./)).toBeVisible();
-  await expect(spent(page)).toHaveText("R$ 15,00");
+  await expect(spent(page)).toHaveText("R$ 315,00");
 
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -88,5 +88,5 @@ test("caixa: recebimento acima do que falta é explicado e nada é registrado", 
   await open.getByLabel("Valor recebido (R$)").fill("45,00");
   await open.getByRole("button", { name: "Registrar pagamento" }).click();
   await expect(open.getByText(/passa do que falta receber/)).toBeVisible();
-  await expect(received(page)).toHaveText("R$ 260,00");
+  await expect(received(page)).toHaveText("R$ 1.740,00");
 });

@@ -159,3 +159,115 @@ O `css-tokens.test.ts` ficou sem a lista de pendências: as duas reservas `var(-
   - item 18: Chip para dias da semana;
   - `share.tsx`, que está duplicado em vendas e relacionamento;
   - o `ActButton` local de Notas, Metas e Campanhas, que pode virar um botão compartilhado de ação assíncrona.
+
+Bloco 1 entrou na `main` pelo PR #62 (merge f9c27ad), com o CI verde.
+
+## Bloco 2 · fluxos de impacto A
+
+Mesmo modo de trabalho do bloco 1. A base foi `wip/onda2-b2`, com a `main` depois do #62. Fiz o E1 e o 47. Três frentes paralelas fizeram 24, 25 e 27 (Agenda), 35, 36 e 37 (Clientes e Mensagens) e E4 e E5 (perfil público). Nada em `supabase/`: as operações novas do frontend chamam rotas que já existem no servidor e no contrato.
+
+### E1 · Prévia do link no WhatsApp
+
+- `worker/og.ts` e `worker/index.ts`: o Worker que serve o frontend passa a rodar código só em `/p/*` e `/s/*` (`run_worker_first` em `wrangler.jsonc` e `wrangler.homolog.jsonc`). Nessas rotas, troca o bloco de tags padrão do `index.html` (entre `og:start` e `og:end`) pelas tags do perfil (`network/public.profile`) ou do site publicado (`presence.public_site`). Só entram os campos que o dono publicou.
+- Configuração: a URL do Supabase e a chave pública vêm de `dist/og-config.json`, que o build gera (plugin em `vite.config.ts`). São as mesmas que já vão no bundle, então não há configuração nova no painel da Cloudflare.
+- Falha aberta: sem Supabase (demonstração), com o perfil fora do ar, com erro ou com mais de 1,5 s de espera, o Worker devolve o app com a prévia genérica. Cache de 5 min.
+- Testes: `worker/og.test.ts` com 7 casos. Também conferido com `wrangler deploy --dry-run` e `wrangler dev`.
+- **Atenção no deploy:** é o primeiro código de servidor no Worker do frontend. Se a prévia falhar em produção, o comportamento volta ao do SPA sozinho. Para desligar de vez, basta tirar `main` e `run_worker_first` do `wrangler.jsonc`.
+
+### 47 · Base de exemplo única
+
+- **Dados:** `src/lib/demo/dataset.ts` guarda o histórico de 21/09 a 22/10: atendimentos em todos os estados, recebimentos, despesas, valores em aberto e o funil (lembretes, orçamentos, ofertas). A semana de 19/10 é a mesma da Agenda.
+- **Quem lê:** Caixa, Pagamentos, Resultado, Metas e Assistente derivam os números daqui, com a mesma conta (`demoCounts` e `demoMetrics`).
+- **Período ao lado do número:**
+  - Metas: "Em outubro até agora".
+  - Resultado: cada indicador mostra "De 01/10 a 19/10" e há a opção nova "Este mês (até ontem)".
+  - O Caixa já mostrava o mês; o Assistente já diz o intervalo.
+- **Testes:** `src/lib/demo/dataset.test.ts` confere os portos lado a lado. `tests/e2e/qa/totais.spec.ts` lê as telas e compara:
+  - recebido entre Caixa, Resultado, Metas e Assistente;
+  - gasto entre Caixa, Resultado e Metas;
+  - faltas (quantos de quantos) entre Resultado e Metas;
+  - a receber entre Caixa e Pagamentos.
+- **Decisão sobre os números da demonstração:** eles mudaram. Outubro tem R$ 1.740 recebidos, R$ 315 gastos e R$ 130,98 a receber, com 2 atendimentos sem cobrança (os de 19/10). As specs do piloto (`qa/jornada-integrada`, `qa/uat-barbeiro`) e as do Caixa, do Resultado e das Metas passaram a conferir esses valores. O que cada uma testa (concluir não é receber, recebimento único, estorno, saldo) ficou igual.
+
+### 24 · Reserva provisória
+
+- Tela do atendimento com status `held`:
+  - "Confirmar reserva", que chama `booking.confirm` (já existia no servidor);
+  - "Liberar horário", com confirmação e um motivo fixo enviado ao servidor;
+  - "Vence às HH:MM".
+- Em Hoje, cada reserva provisória vira uma pendência que leva direto a ela.
+- A regra da demonstração ficou numa função só (`confirmHeld`), usada também pelo link público.
+
+### 25 · Atendido e Faltou
+
+- Depois do início do horário, o detalhe e o cartão da linha do dia mostram "Atendido" e "Faltou".
+- "Atendido" é o concluir que já existia, com confirmação.
+- "Faltou" executa na hora (`booking.no_show` com motivo fixo) e o Toast oferece Desfazer (`revert`). O detalhe também mostra "Desfazer falta".
+- O rótulo de `no_show` agora é "Faltou".
+- **Decisão (muda a onda 1):** no celular, o botão flutuante "Novo agendamento" virou redondo, só com o +. O nome acessível continua o mesmo. O botão largo cobria o "Faltou" do primeiro cartão.
+
+### 27 · Cancelar com próximo passo
+
+- A confirmação pede o motivo e o botão é `danger` "Sim, cancelar".
+- Depois de cancelar, a tela mostra a região "Atendimento cancelado" com:
+  - o motivo digitado;
+  - **Desfazer:** cota o mesmo horário e cria de novo, com o mesmo serviço e o mesmo cliente;
+  - **Avisar no WhatsApp:** texto pronto, sem o motivo, quando há telefone;
+  - **Oferecer à lista de espera (N pessoas).**
+- **Decisão:** o Desfazer gera um atendimento novo, com id novo, porque `cancelled` é final no contrato. Se o valor de hoje for diferente, o Toast diz. Se o horário foi ocupado, a tela explica e oferece "Marcar outro horário".
+- O motivo só aparece na sessão em que foi digitado: o contrato `Booking` não devolve o motivo (pedido ao Felipe).
+- A lista de espera ainda não recebe o horário pela URL. O link abre a tela, que mostra a oferta.
+
+### 35 · Clientes
+
+- No cartão do cliente: "Ligar" (`tel:`) e "WhatsApp" (`wa.me`), com 44 px. Sem telefone, os botões não aparecem.
+- "Editar" e "Arquivar" ficam no menu "⋯": `role="menu"`, teclado com setas, Esc fecha e o foco volta ao botão.
+- O ícone `opcoes` entrou no sistema de ícones.
+- Ficha nova em `/app/clientes/:customerId`, com contato, os mesmos botões e os atendimentos próximos e anteriores.
+- **Limite no servidor:** a ficha lê o cliente pela lista do CRM e os atendimentos por `booking.list`, em ±60 dias. Atendimentos mais antigos não aparecem, e a tela diz isso (pedido ao Felipe).
+
+### 36 e 37 · Mensagens
+
+- Com o número conectado, a conexão vira uma linha de status com "Gerenciar", e as conversas vêm primeiro.
+- Sem conexão, aparece um estado vazio guiado.
+- A linha inteira da conversa leva a `/app/mensagens/:contactId`. O campo de escrever fica fixo acima da barra de abas, e a lista mostra "3 não lidas" escrito.
+- **Decisão:** o aviso "Mensagem na fila…" sai dentro do campo de escrever, não no Toast, que cobriria o próprio campo.
+
+### E4 · Reserva pelo link em etapas
+
+- Etapas "Serviço · Dia e hora · Seus dados · Código", com "Passo N de 4" e `aria-current="step"`.
+- Os dias aparecem numa fileira de chips antes da hora. Um resumo da escolha fica visível a partir do passo 2.
+- Voltar não perde nada do que já foi escolhido.
+- **Decisão:** tocar num horário já leva ao passo 3. O resumo não fica preso na tela, porque na prévia dentro do app colidiria com as barras.
+- A demonstração passou a gerar os horários do dia pedido.
+
+### E5 · Perfil só com selos positivos
+
+- "Identidade não verificada" saiu. "Identidade verificada" só aparece quando é verdade. "Perfil novo · ainda sem avaliações" só aparece sem avaliações.
+- Preço, foto e "Falar no WhatsApp" ficaram fora, porque o contrato público não tem esses campos (pedido ao Felipe).
+
+### Pedidos de contrato (recado ao Felipe, issue `para-felipe`)
+
+1. `Booking.status_reason`: o banco já guarda; falta devolver.
+2. Leitura de cliente por id no CRM.
+3. `booking.list_by_customer`, sem janela de 60 dias.
+4. Campos opt-in no perfil público: foto, WhatsApp e preço dos serviços.
+5. Liberar a própria reserva provisória ao editar o contato no link público. Hoje a pessoa colide com o próprio pedido.
+
+### Testes do bloco 2
+
+- **Unitários:** 558 passaram. Novos:
+  - `worker/og.test.ts`, `src/lib/demo/dataset.test.ts`;
+  - fluxos da agenda (provisória, Faltou e Desfazer, cancelar com próximo passo, Desfazer com id novo e com horário ocupado);
+  - ficha e menu do cliente, caixa de entrada;
+  - etapas do link público e selos.
+- **e2e novos:**
+  - `qa/totais.spec.ts`;
+  - `scheduling/atendimento.spec.ts`;
+  - `crm/clientes.spec.ts`;
+  - `network/reserva-etapas.spec.ts`, que roda em claro, escuro, desktop e celular;
+  - `messaging/canal.spec.ts`, reescrito.
+
+## Próximo passo
+
+Onda 3 da auditoria, com o que ficou de fora nas duas ondas: item 18 (Chip), `share.tsx` compartilhado, botão de ação assíncrona compartilhado, a lista de espera recebendo o horário pela URL e os plurais "(s)" (item 58).

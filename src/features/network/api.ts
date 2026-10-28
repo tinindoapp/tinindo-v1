@@ -239,7 +239,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
       // Com a Agenda da aba carregada, os horários são os dela (o que o dono e outros visitantes ocuparam some).
       const agenda = publicBooking();
       if (agenda) return { slots: await agenda.slots(serviceId, window), timezone: tenantA.timezone };
-      const free = demoSlots(bookingsA, service, FIXED_NOW).filter((s) => !demoState.localHolds.some((h) => overlaps(h, s)));
+      const free = demoSlots(bookingsA, service, FIXED_NOW, window.starts_at.slice(0, 10)).filter((s) => !demoState.localHolds.some((h) => overlaps(h, s)));
       return { slots: free, timezone: tenantA.timezone };
     },
     async book(input, key) {

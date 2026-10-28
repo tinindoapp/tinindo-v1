@@ -42,6 +42,7 @@ const APP: Record<string, ReactNode> = {
   fechar: <path d="M6 6l12 12M18 6 6 18" />,
   seta: <path d="m9 6 6 6-6 6" />,
   voltar: <path d="m15 6-6 6 6 6" />,
+  opcoes: <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth={3} />,
   mais: <path d="M12 5v14M5 12h14" />,
   preco: (
     <>

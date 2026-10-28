@@ -84,8 +84,12 @@ export interface AsyncState<T> {
   reload(): void;
 }
 
-/** Carrega `load` sempre que `key` mudar; `reload` força nova leitura. */
-export function useAsync<T>(key: string, load: () => Promise<T>): AsyncState<T> {
+/**
+ * Carrega `load` sempre que `key` mudar; `reload` força nova leitura.
+ * `keepWhileReloading`: no `reload` da mesma chave, continua mostrando o dado anterior até chegar o novo (a lista do dia
+ * não pisca nem perde o foco depois de uma ação num cartão).
+ */
+export function useAsync<T>(key: string, load: () => Promise<T>, keepWhileReloading = false): AsyncState<T> {
   const [nonce, setNonce] = useState(0);
   const fullKey = `${key}#${nonce}`;
   const [state, setState] = useState<{ key: string; data?: T; error?: unknown } | null>(null);
@@ -100,7 +104,8 @@ export function useAsync<T>(key: string, load: () => Promise<T>): AsyncState<T> 
       alive = false;
     };
   }, [fullKey]);
-  const current = state?.key === fullKey ? state : null;
+  const stale = keepWhileReloading && state && state.key.startsWith(`${key}#`) && state.data !== undefined ? state : null;
+  const current = state?.key === fullKey ? state : stale;
   return useMemo(
     () => ({ data: current?.data, error: current?.error, loading: current === null, reload: () => setNonce((n) => n + 1) }),
     [current],

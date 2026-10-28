@@ -61,7 +61,8 @@ test.describe("UAT cliente de dois profissionais", () => {
   test("4 · profissional A não descobre o histórico da cliente com B", async ({ page }) => {
     test.fixme(true, `${PENDING.multiTenant} SEC-01/SEC-02 precisam de RLS real; a demonstração não prova fronteira.`);
     await page.goto("/app/clientes");
-    await page.getByRole("button", { name: /Editar Cliente AB/ }).click();
+    await page.getByRole("button", { name: /Mais ações para Cliente AB/ }).click();
+    await page.getByRole("menuitem", { name: "Editar" }).click();
     await expect(page.locator("body")).not.toContainText("Sessão de treino");
   });
 });

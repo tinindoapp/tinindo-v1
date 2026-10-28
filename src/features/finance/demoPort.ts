@@ -27,6 +27,7 @@ import {
 import { FIXED_NOW, FX, services as fixtureServices, tenantA } from "@contracts/fixtures.ts";
 import type { z } from "zod";
 import { ApiError } from "../../lib/api/client.ts";
+import { DEMO_EXPENSES, DEMO_OPEN_RECEIVABLES, demoPayments, demoUncharged } from "../../lib/demo/dataset.ts";
 import type { FinancePort } from "./port.ts";
 
 function fail(code: ErrorCode, field?: string): never {
@@ -98,13 +99,9 @@ export function createDemoPort(options: DemoPortOptions = {}): FinancePort {
   let seq = 100;
   const next = (prefix: string) => id(prefix, ++seq);
 
-  // Atendimentos concluídos de exemplo (segunda 19/10, os mesmos da Agenda), ainda sem cobrança.
-  const seeded: DemoBooking[] = [
-    { booking_id: id("60000000", 101), customer_id: FX.customers.abInA, service_id: FX.services.corteA,
-      starts_at: "2026-10-19T17:00:00Z", agreed_price_cents: 6000, completed_event_id: id("65000000", 1) },
-    { booking_id: id("60000000", 105), customer_id: FX.customers.guestInA, service_id: FX.services.barbaA,
-      starts_at: "2026-10-19T19:30:00Z", agreed_price_cents: 4000, completed_event_id: id("65000000", 2) },
-  ];
+  // Atendimentos concluídos sem cobrança da base de exemplo única (inclui os de segunda 19/10, os mesmos da Agenda).
+  const seeded: DemoBooking[] = demoUncharged(now).map((v, i) => ({ booking_id: v.id, customer_id: v.customer_id, service_id: v.service_id,
+    starts_at: v.starts_at, agreed_price_cents: v.agreed_price_cents ?? 0, completed_event_id: id("65000000", i + 1) }));
   /** Exemplos + concluídos na Agenda, uma vez por atendimento (o mesmo id nunca vira duas cobranças). */
   const allBookings = (): DemoBooking[] => {
     const list = [...seeded];
@@ -166,19 +163,32 @@ export function createDemoPort(options: DemoPortOptions = {}): FinancePort {
     return p;
   }
 
-  // Histórico de exemplo do mês: um corte pago no dia 16, uma despesa e um pacote quitado.
+  // Histórico da base de exemplo única (src/lib/demo/dataset.ts): cada atendimento pago vira cobrança quitada, mais o
+  // pacote de 4 cortes, as despesas e os valores ainda em aberto. Os mesmos números do Resultado, das Metas e do Assistente.
   {
-    const r = newReceivable({ customer_id: FX.customers.guestInA, booking_id: null, package_id: null, description: "Corte",
-      amount_cents: 6000, due_at: "2026-10-16T15:00:00Z" });
-    pay(r, 6000, "pix", "2026-10-16T15:40:00Z");
-    expenses.push({ id: next("64000000"), amount_cents: 1500, paid_at: "2026-10-15T13:00:00Z", category: "supplies",
-      description: "Lâminas", reversal_of: null, reversed: false });
-    const pkg: Pkg = { id: id("66000000", 1), customer_id: FX.customers.abInA, service_id: FX.services.corteA,
-      purchased_credits: 4, total_price_cents: 20000, expires_at: "2027-01-31T23:59:59-03:00", created_at: "2026-10-05T14:00:00Z" };
-    packages.push(pkg);
-    const pr = newReceivable({ customer_id: pkg.customer_id, booking_id: null, package_id: pkg.id, description: "Pacote 4 × Corte",
-      amount_cents: 20000, due_at: pkg.created_at });
-    pay(pr, 20000, "card", "2026-10-05T14:05:00Z");
+    for (const x of demoPayments()) {
+      if (x.booking_id === null) {
+        const pkg: Pkg = { id: id("66000000", 1), customer_id: x.customer_id!, service_id: FX.services.corteA,
+          purchased_credits: 4, total_price_cents: x.amount_cents, expires_at: "2027-01-31T23:59:59-03:00", created_at: x.received_at };
+        packages.push(pkg);
+        const pr = newReceivable({ customer_id: pkg.customer_id, booking_id: null, package_id: pkg.id, description: x.description,
+          amount_cents: x.amount_cents, due_at: pkg.created_at });
+        pr.created_at = x.received_at;
+        pay(pr, x.amount_cents, x.method, x.received_at);
+        continue;
+      }
+      const r = newReceivable({ customer_id: x.customer_id, booking_id: x.booking_id, package_id: null, description: x.description,
+        amount_cents: x.amount_cents, due_at: x.received_at });
+      r.created_at = x.received_at;
+      pay(r, x.amount_cents, x.method, x.received_at);
+    }
+    for (const e of DEMO_EXPENSES) expenses.push({ id: e.id, amount_cents: e.amount_cents, paid_at: e.paid_at, category: e.category,
+      description: e.description, reversal_of: null, reversed: false });
+    for (const o of DEMO_OPEN_RECEIVABLES) {
+      const r = newReceivable({ customer_id: o.customer_id, booking_id: null, package_id: null, description: o.description,
+        amount_cents: o.amount_cents, due_at: o.due_at });
+      r.created_at = o.due_at ?? nowIso();
+    }
   }
 
   return {

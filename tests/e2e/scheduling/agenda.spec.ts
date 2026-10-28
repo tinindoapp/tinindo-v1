@@ -54,7 +54,7 @@ test("cria, reagenda e cancela um atendimento", async ({ page }) => {
 
   await page.getByRole("button", { name: "Cancelar atendimento" }).click();
   await page.getByLabel("Motivo").fill("Cliente pediu para remarcar depois");
-  await page.getByRole("button", { name: "Confirmar cancelamento" }).click();
+  await page.getByRole("button", { name: "Sim, cancelar" }).click();
   await expect(page.getByText("Atendimento cancelado. O horário voltou a ficar livre.")).toBeVisible();
   await expect(page.getByText("Cancelado", { exact: true })).toBeVisible();
 
@@ -101,8 +101,13 @@ test("celular: o primeiro atendimento do dia aparece sem rolar e o botão flutua
   expect(box.y + box.height).toBeLessThanOrEqual(812);
   const fab = await page.getByRole("link", { name: "Novo agendamento" }).boundingBox();
   if (fab && (await page.getByRole("link", { name: "Novo agendamento" }).evaluate((el) => getComputedStyle(el).position)) === "fixed") {
-    const overlaps = box.y < fab.y + fab.height && fab.y < box.y + box.height && box.x < fab.x + fab.width && fab.x < box.x + box.width;
-    expect(overlaps).toBe(false);
+    // O botão redondo fica no canto do cartão; nada que se lê ou se toca no cartão fica embaixo dele.
+    const parts = first.locator(".tn-sched-time, .tn-sched-item__title, .tn-sched-badge, button");
+    for (let i = 0; i < (await parts.count()); i++) {
+      const p = (await parts.nth(i).boundingBox())!;
+      const overlaps = p.y < fab.y + fab.height && fab.y < p.y + p.height && p.x < fab.x + fab.width && fab.x < p.x + p.width;
+      expect(overlaps, await parts.nth(i).innerText()).toBe(false);
+    }
   }
   // No fim da página, o último item fica acima do botão flutuante (folga embaixo).
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));

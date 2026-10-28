@@ -9,6 +9,7 @@ import { addDays, localParts, weekdayOf, type Window, zoned } from "../../../sup
 import type { AgendaBooking, AgentData, Customer, Finance, Service } from "../../../supabase/functions/_shared/domain/agent/types.ts";
 import { canonicalJson, sha256Hex } from "../../../supabase/functions/_shared/http/command.ts";
 import { ApiError } from "../../lib/api/client.ts";
+import { DEMO_EXPENSES, DEMO_OPEN_RECEIVABLES, demoPayments, demoVisits } from "../../lib/demo/dataset.ts";
 import type { AgentPort, Approval, Proposal, Receipt } from "./port.ts";
 
 const TZ = "America/Sao_Paulo";
@@ -38,14 +39,6 @@ const HOURS: Record<number, [string, string][]> = {
   4: [["09:00", "12:00"], ["13:00", "19:00"]], 5: [["09:00", "12:00"], ["13:00", "19:00"]], 6: [["09:00", "14:00"]],
 };
 
-function booking(id: string, date: string, start: string, end: string, svc: Service, customer: string | null,
-  status: AgendaBooking["status"], price: number | null): AgendaBooking {
-  return {
-    id, service_id: svc.id, customer_id: customer, starts_at: at(date, start), ends_at: at(date, end), status, agreed_price_cents: price, version: 1,
-    occupied: { starts_at: at(date, start), ends_at: new Date(Date.parse(at(date, end)) + svc.buffer_after_min * 60_000).toISOString() },
-  };
-}
-
 interface DemoProposal extends Proposal { createdAt: number }
 interface State {
   bookings: AgendaBooking[];
@@ -58,17 +51,14 @@ interface State {
 let shared: State | null = null;
 function state(): State {
   if (shared) return shared;
-  const [corte, barba] = SERVICES as [Service, Service];
-  const d = "2026-10-20";
+  // Agenda da base de exemplo única (dataset.ts): os mesmos atendimentos da Agenda, do Caixa e do Resultado.
+  const buffer = (svc: string) => SERVICES.find((x) => x.id === svc)?.buffer_after_min ?? 0;
   shared = {
-    bookings: [
-      booking("60000000-0000-4000-8000-000000000001", d, "09:00", "09:30", corte, FX.customers.abInA, "confirmed", 6000),
-      booking("60000000-0000-4000-8000-000000000002", d, "09:40", "10:10", corte, FX.customers.guestInA, "confirmed", 6000),
-      booking("60000000-0000-4000-8000-000000000003", d, "10:20", "10:40", barba, FX.customers.guestInA, "confirmed", 4000),
-      booking("60000000-0000-4000-8000-000000000004", d, "10:45", "11:15", corte, null, "held", null),
-      booking("60000000-0000-4000-8000-000000000005", d, "11:25", "11:55", corte, FX.customers.abInA, "confirmed", 6000),
-      booking("60000000-0000-4000-8000-000000000006", d, "15:00", "15:30", corte, FX.customers.guestInA, "confirmed", 5100),
-    ],
+    bookings: demoVisits().filter((v) => v.status !== "expired").map((v): AgendaBooking => ({
+      id: v.id, service_id: v.service_id, customer_id: v.customer_id, starts_at: v.starts_at, ends_at: v.ends_at, status: v.status as AgendaBooking["status"],
+      agreed_price_cents: v.status === "held" ? null : v.agreed_price_cents, version: 1,
+      occupied: { starts_at: v.starts_at, ends_at: new Date(Date.parse(v.ends_at) + buffer(v.service_id) * 60_000).toISOString() },
+    })),
     proposals: new Map(),
     approvals: new Map(),
     receipts: new Map(),
@@ -113,17 +103,21 @@ function data(): AgentData {
           .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at)),
       };
     },
+    // Recebido, gasto e a receber da base de exemplo única: o mesmo que o Caixa e o Resultado mostram no período.
     finance: async (w: Window): Promise<Finance> => {
-      const inW = (x: string) => Date.parse(x) >= Date.parse(w.starts_at) && Date.parse(x) < Date.parse(w.ends_at);
-      const pays = [["2026-10-13", 6000], ["2026-10-15", 6000], ["2026-10-17", 4000]].filter(([d]) => inW(at(String(d), "12:00")));
-      const exps = [["2026-10-14", 4500]].filter(([d]) => inW(at(String(d), "12:00")));
-      const recs = inW(at("2026-10-14", "12:00")) ? 2 : 0;
-      const sum = (xs: (string | number)[][]) => xs.reduce((a, x) => a + Number(x[1]), 0);
+      const inW = (x: string) => Date.parse(x) >= Date.parse(w.starts_at) && Date.parse(x) < Date.parse(w.ends_at) && Date.parse(x) <= now().getTime();
+      const pays = demoPayments().filter((x) => inW(x.received_at));
+      const exps = DEMO_EXPENSES.filter((x) => inW(x.paid_at));
+      const supplies = exps.filter((x) => x.category === "supplies");
+      const open = DEMO_OPEN_RECEIVABLES;
+      const sum = (xs: readonly { amount_cents: number }[]) => xs.reduce((a, x) => a + x.amount_cents, 0);
+      const dates = [...pays.map((x) => x.received_at), ...exps.map((x) => x.paid_at)].sort();
+      const due = open.map((o) => o.due_at).filter((d): d is string => !!d && Date.parse(d) >= now().getTime()).sort();
       return {
         period: w, received_cents: sum(pays), payments_count: pays.length, spent_cents: sum(exps), expenses_count: exps.length,
-        supplies_cents: sum(exps), supplies_count: exps.length, receivable_open_cents: 12000, receivable_open_count: 2,
-        receivable_next_due_at: at("2026-10-23", "12:00"), records_count: pays.length + exps.length + recs,
-        first_record_at: at("2026-10-13", "12:00"), packages: [], as_of: asOf,
+        supplies_cents: sum(supplies), supplies_count: supplies.length, receivable_open_cents: sum(open), receivable_open_count: open.length,
+        receivable_next_due_at: due[0] ?? null, records_count: pays.length + exps.length,
+        first_record_at: dates[0] ?? null, packages: [], as_of: asOf,
       };
     },
   };
