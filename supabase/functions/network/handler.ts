@@ -30,6 +30,7 @@ import {
   OwnerProfile,
   OwnerProfileOutput,
   ProfileUnpublishOutput,
+  PendingRequest,
   PublicBookInput,
   PublicBookOutput,
   PublicConfirmInput,
@@ -144,7 +145,7 @@ export function createNetworkHandler(deps: NetworkDeps) {
 
   async function handle(req: Request, op: string, requestId: string, cors: Record<string, string>) {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-    const failWith = (code: Parameters<typeof fail>[0], opts: { field?: string; message?: string } = {}) =>
+    const failWith = (code: Parameters<typeof fail>[0], opts: { field?: string; message?: string; details?: Record<string, unknown> } = {}) =>
       fail(code, requestId, { ...opts, extra: cors });
 
     if (!isOperation(op)) return failWith("NOT_FOUND");
@@ -194,10 +195,16 @@ export function createNetworkHandler(deps: NetworkDeps) {
 
     /** Envelope {status_code, body} ou {status_code 4xx, error, field} das RPCs que gravam antes de recusar. */
     const respondEnvelope = <T extends z.ZodType>(schema: T, data: unknown) => {
-      const env = data as { status_code?: unknown; body?: unknown; error?: unknown; field?: unknown } | null;
+      const env = data as { status_code?: unknown; body?: unknown; error?: unknown; field?: unknown; details?: unknown } | null;
       const status = typeof env?.status_code === "number" ? env.status_code : 0;
       if (status >= 400 && status <= 499 && typeof env?.error === "string" && env.error in ERROR_STATUS) {
-        return failWith(env.error as ErrorCode, { field: typeof env.field === "string" ? env.field : undefined });
+        // Só o resumo do pedido pendente sai como details, validado pelo contrato; o resto do envelope fica no servidor.
+        const details = env.error === "PENDING_REQUEST_EXISTS" ? PendingRequest.safeParse(env.details) : null;
+        if (details && !details.success) return failWith("INTERNAL_ERROR");
+        return failWith(env.error as ErrorCode, {
+          field: typeof env.field === "string" ? env.field : undefined,
+          details: details?.data,
+        });
       }
       if (status !== 200 && status !== 201) return failWith("INTERNAL_ERROR");
       return respond(schema, env?.body, status);
@@ -314,8 +321,10 @@ export function createNetworkHandler(deps: NetworkDeps) {
           p_contact_name: input.data.contact.name,
           p_contact_phone: input.data.contact.phone_e164,
           p_idem_key: idemKey,
-          p_request_hash: await requestHash(input.data),
+          // replace_existing é decisão de quem pede, não identidade do pedido: fica fora do hash da chave.
+          p_request_hash: await requestHash({ ...input.data, replace_existing: undefined }),
           p_request_id: requestId,
+          p_replace_existing: input.data.replace_existing,
         }, true);
         if (r instanceof Response) return r;
         return respondEnvelope(PublicBookOutput, r.data);

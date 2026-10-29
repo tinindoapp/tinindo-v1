@@ -139,6 +139,8 @@ interface DemoBookRequest {
   serviceName: string;
   contactName: string;
   contactPhone: string;
+  /** Trocado por um pedido novo do mesmo contato: o código deixa de valer. */
+  replaced: boolean;
 }
 
 interface DemoState {
@@ -244,7 +246,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
     },
     async book(input, key) {
       if (!demoState.profile?.published_at || demoState.profile.slug !== input.slug) throw notFound();
-      const hash = JSON.stringify(input);
+      const hash = JSON.stringify({ ...input, replace_existing: undefined });
       const prior = demoState.requests.get(key);
       if (prior) {
         if (prior.hash !== hash) throw new ApiError("IDEMPOTENCY_MISMATCH", "Pedido diferente com a mesma chave.", 409, null, false);
@@ -253,6 +255,19 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
       const service = services.find((s) => s.id === input.service_id && s.tenant_id === tenantA.id);
       if (!service) throw notFound();
       const agenda = publicBooking();
+      // Mesma regra do banco: o mesmo WhatsApp com pedido aguardando código só troca com replace_existing.
+      const pending = [...demoState.requests.values()].find((r) => r.contactPhone === input.contact.phone_e164 && !r.confirmed && !r.replaced);
+      if (pending && !input.replace_existing) {
+        throw new ApiError("PENDING_REQUEST_EXISTS", "Você já tem um pedido aguardando confirmação.", 409, null, false, "contact.phone_e164", {
+          request_id: pending.request.request_id, service_name: pending.serviceName,
+          starts_at: pending.request.slot.starts_at, expires_at: pending.request.expires_at,
+        });
+      }
+      if (pending) {
+        if (agenda) await agenda.release(pending.bookingId);
+        else demoState.localHolds = demoState.localHolds.filter((h) => h.starts_at !== pending.request.slot.starts_at);
+        pending.replaced = true;
+      }
       let hold: { booking_id: string; starts_at: string; ends_at: string; hold_expires_at: string };
       if (agenda) {
         hold = await agenda.hold({ service_id: service.id, starts_at: input.starts_at });
@@ -268,16 +283,19 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         slot: { starts_at: hold.starts_at, ends_at: hold.ends_at },
         expires_at: hold.hold_expires_at,
         delivery: "queued",
+        ...(pending ? { replaced: { service_name: pending.serviceName, starts_at: pending.request.slot.starts_at } } : {}),
         demoCode: code,
       };
-      demoState.requests.set(key, { request, bookingId: hold.booking_id, code, attempts: 0, confirmed: null, hash, serviceName: service.name,
-        contactName: input.contact.name.trim(), contactPhone: input.contact.phone_e164 });
+      // Trocar não zera as tentativas de código já gastas no pedido anterior.
+      demoState.requests.set(key, { request, bookingId: hold.booking_id, code, attempts: pending?.attempts ?? 0, confirmed: null, hash,
+        serviceName: service.name, contactName: input.contact.name.trim(), contactPhone: input.contact.phone_e164, replaced: false });
       return request;
     },
     async confirmBooking(input) {
       const r = [...demoState.requests.values()].find((x) => x.request.request_id === input.request_id);
       if (!r) throw notFound();
       if (r.confirmed) return r.confirmed;
+      if (r.replaced) throw rejected("expires_at");
       if (r.attempts >= 5) throw rejected("attempts");
       if (input.code !== r.code) {
         r.attempts += 1;

@@ -81,6 +81,9 @@ export function explainError(error: unknown, operation: Operation): ErrorExplana
         body: "Alguém alterou o atendimento em outro lugar (conflito 409). Sua mudança não foi aplicada para não sobrescrever a outra. Recarregamos os dados: revise e tente de novo.",
         action: "reload",
       };
+    case "PENDING_REQUEST_EXISTS":
+      // Só o link público usa este código; a agenda do dono nunca o recebe.
+      return { title: "Já existe um pedido aguardando confirmação", body: "Confirme o pedido anterior com o código ou troque por este.", action: "none" };
     case "IDEMPOTENCY_MISMATCH":
       return {
         title: "Pedido repetido com dados diferentes",
