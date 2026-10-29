@@ -79,10 +79,11 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `action.execute` | approval_ref, key | Checagem atual de política, execução e recibo |
 | `profile.publish` | whitelist dos campos públicos | Perfil público sem vazamento do CRM |
 | `profile.unpublish` | key | Perfil fora do ar |
-| `profile.get` | — | Visão do dono (inclui despublicado e versão) |
+| `profile.get` | — | Visão do dono (inclui despublicado, versão e as chaves de mídia) |
+| `profile.media` | caminho da foto já enviada ao bucket `profile-photos`, texto alternativo, `show_photo`, `show_whatsapp`, `show_prices`, key | Foto e chaves do perfil, auditadas; o público recebe `photo` e `whatsapp_e164` só com a chave ligada (null desligada) |
 | `public.profile` | slug | Perfil publicado, sem tenant_id (anônimo) |
 | `public.slots` | slug, service, janela | Horários livres do link público (anônimo) |
-| `public.services` | slug | Serviços do link público: nome e duração, sem preço (anônimo) |
+| `public.services` | slug | Serviços do link público: nome e duração; `price_from_cents` ("a partir de", preço base) só com "Mostrar preços" ligado; desligado, sem preço nenhum (anônimo) |
 | `public.book` | slug, service, início, contato (nome e telefone), key | Reserva provisória e código enviado ao contato pelo canal do negócio; não é confirmação (anônimo) |
 | `public.confirm` | request_id, código, key | Provisória vira confirmada; código errado conta tentativa (máx. 5); vencido não confirma (anônimo) |
 | `public.contact` | booking_id | Dono: nome e WhatsApp informados no pedido pelo link |

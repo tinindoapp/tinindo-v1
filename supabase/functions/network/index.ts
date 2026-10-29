@@ -26,6 +26,7 @@ const rpc = async (accessToken: string | null, fn: string, args: Record<string, 
 const handler = createNetworkHandler({
   allowedOrigins,
   publicAppUrl,
+  photoBaseUrl: `${url.replace(/\/$/, "")}/storage/v1/object/public/profile-photos`,
   rpc,
   // Motor de agenda (P03), como anon: só horários livres de perfil publicado, sem tenant nem reservas.
   listPublicSlots: async (input) => {

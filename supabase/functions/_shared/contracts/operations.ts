@@ -324,6 +324,10 @@ export const OPERATIONS = {
     module: "network", owner: "P09", kind: "query", idempotent: false,
     input: NoInput, output: network.OwnerProfileOutput,
   },
+  "profile.media": {
+    module: "network", owner: "P09", kind: "command", idempotent: true,
+    input: network.ProfileMediaInput, output: network.OwnerProfileOutput,
+  },
   "public.profile": {
     module: "network", owner: "P09", kind: "query", idempotent: false,
     input: network.PublicProfileQuery, output: network.PublicProfile,

@@ -146,3 +146,21 @@
 .tn-net-public { min-height: 100dvh; background: var(--tn-bg); }
 .tn-net-public__header { padding: var(--tn-space-4); max-width: 720px; margin: 0 auto; }
 .tn-net-public__main { padding: 0 var(--tn-space-4) var(--tn-space-10); max-width: 720px; margin: 0 auto; }
+
+/* Foto do negócio (recado #64, item 4): ao lado do nome no perfil público e na prévia do dono. */
+.tn-net-head {
+  display: flex;
+  align-items: center;
+  gap: var(--tn-space-4);
+}
+.tn-net-head > :last-child {
+  flex: 1;
+  min-width: 0;
+}
+.tn-net-photo {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+}
