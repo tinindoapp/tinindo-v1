@@ -191,7 +191,7 @@ export function createDemoLinkPort(): QuoteLinkPort {
       if (cur.slot) {
         if (slotTaken(cur.slot)) fail("SLOT_CONFLICT");
         booking = { id: id("82000000"), tenant_id: FX.tenants.A, resource_id: FX.resources.A, customer_id: r.quote.customer_id,
-          service_id: cur.slot.service_id, starts_at: cur.slot.starts_at, ends_at: cur.slot.ends_at, status: "confirmed",
+          service_id: cur.slot.service_id, starts_at: cur.slot.starts_at, ends_at: cur.slot.ends_at, status: "confirmed", status_reason: null,
           hold_expires_at: null, price_quote_id: null, agreed_price_cents: cur.total_cents, source: "quote", version: 2 };
       }
       r.decision = { decision: "accepted", version_no: cur.version_no, snapshot_hash: cur.snapshot_hash, booking, decided_at: now().toISOString() };

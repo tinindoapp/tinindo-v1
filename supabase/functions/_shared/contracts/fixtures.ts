@@ -98,6 +98,7 @@ const booking = (
   starts_at: starts,
   ends_at: ends,
   status,
+  status_reason: null,
   // Hold vence 10 min após FIXED_NOW; demais estados não têm prazo.
   hold_expires_at: status === "held" ? "2026-10-20T09:10:00-03:00" : null,
   price_quote_id: null,
