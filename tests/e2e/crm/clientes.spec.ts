@@ -44,7 +44,8 @@ test("clientes: Ligar e WhatsApp no cartão, menu “⋯” por teclado e ficha 
   await expect(page.getByRole("main").getByRole("link", { name: "Ligar para Cliente AB (exemplo)" })).toBeVisible();
   const history = page.getByRole("region", { name: "Atendimentos" });
   await expect(history.getByRole("region", { name: /Anteriores \(\d+\)/ })).toContainText("Concluído");
-  await expect(history).toContainText("Atendimentos mais antigos ainda não aparecem aqui.");
+  await expect(history).toContainText("Até agora:");
+  await expect(history).not.toContainText("mais antigos não aparecem");
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 
