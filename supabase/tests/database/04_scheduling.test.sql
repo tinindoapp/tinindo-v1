@@ -3,7 +3,7 @@
 -- Datas relativas a now(): a semana seguinte, em America/Sao_Paulo (timezone dos tenants do seed).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(93);
+select plan(96);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -232,6 +232,7 @@ select throws_ok(format($$ select public.scheduling_booking_reschedule(%L, %L, 1
 insert into r select 'b1c', public.scheduling_booking_cancel((select tenant_a from ids), pg_temp.bid('b1'), 2,
   'Cliente pediu', 'idem-cancel-b1-001', pg_temp.h('c1'));
 select is(pg_temp.got('b1c')->'body'->'booking'->>'status', 'cancelled', 'cancelado');
+select is(pg_temp.got('b1c')->'body'->'booking'->>'status_reason', 'Cliente pediu', 'cancelado devolve o motivo ao dono');
 select is(public.scheduling_booking_cancel((select tenant_a from ids), pg_temp.bid('b1'), 2,
   'Cliente pediu', 'idem-cancel-b1-001', pg_temp.h('c1')), pg_temp.got('b1c'), 'cancelamento repetido → mesma resposta');
 select throws_ok(format($$ select public.scheduling_booking_cancel(%L, %L, 3, 'De novo', 'idem-cancel-b1-002', %L) $$,
@@ -274,9 +275,12 @@ select is(pg_temp.got('done')->'body'->'booking'->>'status', 'completed', 'concl
 insert into r select 'ns', public.scheduling_booking_no_show((select tenant_a from ids),
   '60000000-0000-4000-8000-0000000000f2', 1, 'Não veio', false, 'idem-noshow-00001', pg_temp.h('ns'));
 select is(pg_temp.got('ns')->'body'->'booking'->>'status', 'no_show', 'falta marcada');
+select is(pg_temp.got('ns')->'body'->'booking'->>'status_reason', 'Não veio', 'falta devolve o motivo ao dono');
 insert into r select 'nsr', public.scheduling_booking_no_show((select tenant_a from ids),
   '60000000-0000-4000-8000-0000000000f2', 2, 'Chegou atrasado', true, 'idem-noshow-rev01', pg_temp.h('nsr'));
 select is(pg_temp.got('nsr')->'body'->'booking'->>'status', 'confirmed', 'falta revertida com motivo');
+select ok(pg_temp.got('nsr')->'body'->'booking' ? 'status_reason' and pg_temp.got('nsr')->'body'->'booking'->>'status_reason' is null,
+  'confirmado não expõe o motivo da falta desfeita');
 reset role;
 select is((select count(*)::int from public.outbox_events e where e.aggregate_id = '60000000-0000-4000-8000-0000000000f1'
   and e.event_type = 'booking.completed.v1'), 1, 'conclusão emite evento');
