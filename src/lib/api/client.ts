@@ -19,6 +19,7 @@ export class ApiError extends Error {
     readonly requestId: string | null,
     readonly retryable: boolean,
     readonly field?: string,
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -75,7 +76,7 @@ export function createApiClient(opts: ApiClientOptions) {
       const err = ErrorEnvelope.safeParse(json);
       if (err.success) {
         const e = err.data.error;
-        throw new ApiError(e.code, e.message, res.status, err.data.request_id, e.retryable, e.field);
+        throw new ApiError(e.code, e.message, res.status, err.data.request_id, e.retryable, e.field, e.details);
       }
       throw new ApiError("INTERNAL_ERROR", "Resposta inesperada do servidor.", res.status, requestId, true);
     }

@@ -6,6 +6,7 @@
 #  4. Código errado conta tentativa; depois de 5, nem o certo confirma. Código de outro pedido não confirma.
 #  5. Pedido vencido não confirma e o horário volta a ficar livre.
 #  6. Limite por contato no negócio; o contato não vira cliente do CRM nem contato do canal.
+#  6b. O mesmo contato pede dois horários ao mesmo tempo → um pedido e um PENDING_REQUEST_EXISTS; trocando ao mesmo tempo → um só ativo.
 #  7. O despacho leva o código ao contato informado, pelo canal do negócio.
 # Uso: PGHOST=/tmp PGPORT=54329 PGUSER=postgres npm run db:test:concurrency
 set -euo pipefail
@@ -31,6 +32,14 @@ SQL
 ask() { # $1 chave, $2 dia, $3 HH:MM, $4 telefone, $5 hash do pedido (opcional)
   as_anon "select public.public_booking_request('$SLUG', '$CORTE_A', $(at "$2" "$3"), 'Visitante', '$4', '$1',
     repeat('${5:-${1: -1}}', 64))"
+}
+ask_replace() { # como ask, trocando o pedido pendente do mesmo contato (replace_existing)
+  as_anon "select public.public_booking_request('$SLUG', '$CORTE_A', $(at "$2" "$3"), 'Visitante', '$4', '$1',
+    repeat('${1: -1}', 64), null, true)"
+}
+ask_slow() { # como ask (ou ask_replace com $5 = true), segurando o commit 0,5 s: força as transações a se sobreporem
+  as_anon "select public.public_booking_request('$SLUG', '$CORTE_A', $(at "$2" "$3"), 'Visitante', '$4', '$1',
+    repeat('${1: -1}', 64), null, ${5:-false}); select pg_sleep(0.5)"
 }
 confirm() { # $1 pedido, $2 código
   as_anon "select public.public_booking_confirm('$1', '$2')"
@@ -106,11 +115,30 @@ psql -qX -c "update public.bookings b set hold_expires_at = now() - interval '1 
 check "pedido vencido não confirma" "$(confirm "$REQ3" "$CODE3" 2>&1 | grep -c 'POLICY_REJECTED' || true)" 1
 check "o horário vencido volta a ficar livre" "$(ask "novo-pedido-mesmo-h-1" 0 "14:00" "+5511930000002" 2>&1 | grep -c 'status_code' || true)" 1
 
-# 6 · limite por contato e CRM
-for i in 1 2 3 4; do ask "limite-contato-link-$i" 0 "1$((4 + i)):30" "+5511940000001" >"$TMP/limit.$i" 2>&1 || true; done
-check "o 4º pedido do mesmo contato na hora é recusado" "$(grep -c 'QUOTA_EXCEEDED' "$TMP/limit.4" || true)" 1
+# 6 · limite por contato (a troca conta no limite) e CRM
+ask "limite-contato-link-1" 0 "15:30" "+5511940000001" >"$TMP/limit.1" 2>&1 || true
+for i in 2 3 4; do ask_replace "limite-contato-link-$i" 0 "1$((4 + i)):30" "+5511940000001" >"$TMP/limit.$i" 2>&1 || true; done
+check "o 4º pedido do mesmo contato na hora é recusado, mesmo trocando" "$(grep -c 'QUOTA_EXCEEDED' "$TMP/limit.4" || true)" 1
+check "trocando, o contato fica com um só pedido aguardando" "$(psql -qXtA -c "select count(*) from public.public_booking_requests
+  where contact_phone_e164 = '+5511940000001' and status = 'pending'")" 1
 check "o contato não vira cliente do CRM" "$(psql -qXtA -c "select count(*) from public.customers")" "$CUSTOMERS_BEFORE"
 check "nem contato da caixa de entrada" "$(psql -qXtA -c "select count(*) from public.channel_contacts")" 0
+
+# 6b · mesmo contato, dois pedidos ao mesmo tempo (horários que as seções anteriores deixam livres)
+ask_slow "pendente-simult-link-1" 0 "09:00" "+5511950000001" >"$TMP/pend.1" 2>&1 &
+ask_slow "pendente-simult-link-2" 0 "12:00" "+5511950000001" >"$TMP/pend.2" 2>&1 &
+wait
+check "sem trocar: um pedido criado e o outro recebe PENDING_REQUEST_EXISTS" "$(cat "$TMP"/pend.* | grep -c 'PENDING_REQUEST_EXISTS' || true)" 1
+ask_replace "pendente-simult-link-3" 0 "13:00" "+5511950000002" >/dev/null
+ask_slow "pendente-simult-link-4" 0 "15:00" "+5511950000002" true >"$TMP/pend.4" 2>&1 &
+ask_slow "pendente-simult-link-5" 0 "16:00" "+5511950000002" true >"$TMP/pend.5" 2>&1 &
+wait
+check "trocando ao mesmo tempo: termina um só pedido ativo" "$(psql -qXtA -c "select count(*) from public.public_booking_requests q
+  join public.bookings b on b.id = q.booking_id
+  where q.contact_phone_e164 = '+5511950000002' and q.status = 'pending' and b.status = 'held'")" 1
+check "e um só horário segurado por esse contato" "$(psql -qXtA -c "select count(*) from public.bookings b
+  join public.public_booking_requests q on q.booking_id = b.id
+  where q.contact_phone_e164 = '+5511950000002' and b.blocks_capacity")" 1
 
 # 7 · despacho do código
 OUT=$(psql -qXtA -c "set role service_role; select public.channel_dispatch_claim(50)")

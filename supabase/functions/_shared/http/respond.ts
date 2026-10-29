@@ -61,11 +61,11 @@ export function ok(
 export function fail(
   code: ErrorCode,
   requestId: string,
-  opts: { message?: string; field?: string; extra?: Record<string, string> } = {},
+  opts: { message?: string; field?: string; details?: Record<string, unknown>; extra?: Record<string, string> } = {},
 ): Response {
   return json(
     ERROR_STATUS[code],
-    errorBody(code, opts.message ?? DEFAULT_MESSAGES[code], requestId, opts.field),
+    errorBody(code, opts.message ?? DEFAULT_MESSAGES[code], requestId, opts.field, opts.details),
     requestId,
     opts.extra ?? {},
   );
