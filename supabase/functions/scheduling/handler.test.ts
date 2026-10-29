@@ -156,6 +156,20 @@ describe("consultas", () => {
     expect(args).not.toHaveProperty("p_idem_key");
   });
 
+  it("booking.list_by_customer pede o cliente, traduz o cursor para p_before_* e devolve next_cursor opaco", async () => {
+    const rpc = okRpc({ items: [booking], next: { key: "2026-10-20T13:00:00Z", id: booking.id } });
+    const cursor = encodeCursor({ key: "2026-10-27T12:00:00Z", id: FX.customers.guestInA });
+    const res = await setup(rpc).handler(post("booking.list_by_customer", { customer_id: FX.customers.abInA, cursor }, {}));
+    expect(res.status).toBe(200);
+    const data = successEnvelope(BookingListOutput).parse(await res.json()).data;
+    expect(data.next_cursor).toBe(encodeCursor({ key: "2026-10-20T13:00:00Z", id: booking.id }));
+    const args = (rpc.mock.calls[0] as unknown as [string, string, Record<string, unknown>])[2];
+    expect(args).toMatchObject({
+      p_customer_id: FX.customers.abInA, p_before_starts: "2026-10-27T12:00:00Z", p_before_id: FX.customers.guestInA, p_limit: 100,
+    });
+    expect(args).not.toHaveProperty("p_idem_key");
+  });
+
   it("cursor adulterado → 400 sem consultar o banco", async () => {
     const rpc = vi.fn();
     const window = { starts_at: "2026-10-20T03:00:00Z", ends_at: "2026-10-21T03:00:00Z" };
