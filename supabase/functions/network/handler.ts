@@ -29,6 +29,7 @@ import { type Clock, corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock }
 import {
   OwnerProfile,
   OwnerProfileOutput,
+  ProfileMediaInput,
   ProfileUnpublishOutput,
   PublicBookInput,
   PublicBookOutput,
@@ -59,6 +60,8 @@ export interface NetworkDeps {
    */
   listPublicSlots?(input: z.infer<typeof PublicSlotsInput>): Promise<z.infer<typeof AvailabilityListOutput>>;
   allowedOrigins: readonly string[];
+  /** Base pública do bucket profile-photos (…/storage/v1/object/public/profile-photos). Ausente = sem foto na resposta. */
+  photoBaseUrl?: string;
   clock?: Clock;
   log?: (entry: Record<string, unknown>) => void;
 }
@@ -88,7 +91,21 @@ interface ProfileRow {
   published_at: string | null;
   reputation: { identity_verified: boolean; reviews_count: number };
   version?: number;
+  /** Visão do dono (network_profile_json). */
+  media?: {
+    photo_path: string | null;
+    photo_alt: string;
+    show_photo: boolean;
+    show_whatsapp: boolean;
+    show_prices: boolean;
+    whatsapp_e164: string | null;
+  };
+  /** Leitura pública: já filtrados pelas chaves no banco. */
+  photo?: { path: string; alt: string } | null;
+  whatsapp_e164?: string | null;
 }
+
+export const photoUrl = (base: string, path: string) => `${base.replace(/\/$/, "")}/${path}`;
 
 /** Monta `fields` só com campos escolhidos pelo profissional; o link de reserva é derivado do slug. */
 function profileFields(row: ProfileRow, publicAppUrl: string) {
@@ -108,6 +125,7 @@ const OPERATIONS = {
   "profile.publish": { method: "POST", auth: true, tenant: true, idempotent: true },
   "profile.unpublish": { method: "POST", auth: true, tenant: true, idempotent: true },
   "profile.get": { method: "GET", auth: true, tenant: true, idempotent: false },
+  "profile.media": { method: "POST", auth: true, tenant: true, idempotent: true },
   "public.profile": { method: "GET", auth: false, tenant: false, idempotent: false },
   "public.slots": { method: "POST", auth: false, tenant: false, idempotent: false },
   "public.services": { method: "POST", auth: false, tenant: false, idempotent: false },
@@ -125,6 +143,27 @@ const isOperation = (v: string): v is Operation => Object.hasOwn(OPERATIONS, v);
 
 export function createNetworkHandler(deps: NetworkDeps) {
   const clock = deps.clock ?? systemClock;
+
+  /** Visão do dono: o perfil e as chaves de mídia, com a URL pública da foto. */
+  const ownerProfile = (row: ProfileRow): z.input<typeof OwnerProfile> => {
+    const media = row.media ?? {
+      photo_path: null, photo_alt: "Foto do negócio", show_photo: false, show_whatsapp: false, show_prices: false, whatsapp_e164: null,
+    };
+    return {
+      slug: row.slug,
+      category: row.category,
+      area: row.area,
+      public_fields: row.public_fields,
+      fields: profileFields(row, deps.publicAppUrl),
+      published_at: row.published_at,
+      reputation: row.reputation,
+      version: row.version ?? 1,
+      media: {
+        ...media,
+        photo_url: media.photo_path && deps.photoBaseUrl ? photoUrl(deps.photoBaseUrl, media.photo_path) : null,
+      },
+    };
+  };
 
   return async (req: Request): Promise<Response> => {
     const started = clock.now().getTime();
@@ -251,17 +290,27 @@ export function createNetworkHandler(deps: NetworkDeps) {
         if (r instanceof Response) return r;
         const row = r.data as ProfileRow | null;
         if (!row) return respond(OwnerProfileOutput, { profile: null });
-        const profile: z.input<typeof OwnerProfile> = {
-          slug: row.slug,
-          category: row.category,
-          area: row.area,
-          public_fields: row.public_fields,
-          fields: profileFields(row, deps.publicAppUrl),
-          published_at: row.published_at,
-          reputation: row.reputation,
-          version: row.version ?? 1,
-        };
-        return respond(OwnerProfileOutput, { profile });
+        return respond(OwnerProfileOutput, { profile: ownerProfile(row) });
+      }
+
+      case "profile.media": {
+        const input = ProfileMediaInput.safeParse(body);
+        if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        const r = await call("network_profile_media_set", {
+          p_tenant_id: tenantHeader,
+          p_photo_path: input.data.photo_path,
+          p_photo_alt: input.data.photo_alt,
+          p_show_photo: input.data.show_photo,
+          p_show_whatsapp: input.data.show_whatsapp,
+          p_show_prices: input.data.show_prices,
+          p_idem_key: idemKey,
+          p_request_hash: await requestHash(input.data),
+          p_request_id: requestId,
+        }, true);
+        if (r instanceof Response) return r;
+        const row = (r.data as { body?: ProfileRow } | null)?.body;
+        if (!row) return failWith("INTERNAL_ERROR");
+        return respond(OwnerProfileOutput, { profile: ownerProfile(row) });
       }
 
       case "public.profile": {
@@ -278,6 +327,8 @@ export function createNetworkHandler(deps: NetworkDeps) {
           fields: profileFields(row, deps.publicAppUrl),
           published_at: row.published_at,
           reputation: row.reputation,
+          photo: row.photo && deps.photoBaseUrl ? { url: photoUrl(deps.photoBaseUrl, row.photo.path), alt: row.photo.alt } : null,
+          whatsapp_e164: row.whatsapp_e164 ?? null,
         });
       }
 

@@ -52,9 +52,15 @@ describe("P43 · registro ↔ handler ↔ SQL", () => {
   });
 
   it("respostas sem contato, código nem preço de lista", () => {
+    // Recado #64, item 4: o único preço é o "a partir de" (price_from_cents), e só com "Mostrar preços" ligado.
+    const shown = (schema: { shape: object }) => Object.keys(schema.shape).filter((k) => k !== "price_from_cents").join(" ");
     for (const schema of [PublicBookOutput, PublicConfirmOutput, PublicService]) {
-      expect(Object.keys(schema.shape).join(" ")).not.toMatch(/phone|contact|code|name_key|price|cents/);
+      expect(shown(schema)).not.toMatch(/phone|contact|code|name_key|price|cents/);
     }
+    const photo = readFileSync(new URL("../../../supabase/migrations/20261029034000_p09_profile_photo.sql", import.meta.url), "utf8");
+    const services = photo.slice(photo.indexOf("create or replace function public.public_booking_services"));
+    expect(services).toContain("case when v_prices then jsonb_build_object('price_from_cents', s.base_price_cents) else '{}'::jsonb end");
+    expect(services).not.toMatch(/min_price_cents|estimated_cost_cents|fee_bps/);
     const reqJson = sql.slice(sql.indexOf("create function app.pbk_request_json"), sql.indexOf("create function app.pbk_confirmed_json"));
     expect(reqJson).not.toMatch(/contact_|code/);
   });

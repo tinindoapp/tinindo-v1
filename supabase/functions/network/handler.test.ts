@@ -118,6 +118,48 @@ describe("network · perfil", () => {
     expect(body.data.profile?.published_at).toBeNull();
     expect(body.data.profile?.version).toBe(2);
   });
+
+  const PHOTO = `${FX.tenants.A}/5f0c3b6e-1d2a-4c3b-9e8f-0a1b2c3d4e5f.webp`;
+  const BUCKET = "https://exemplo.supabase.co/storage/v1/object/public/profile-photos";
+  const media = { photo_path: PHOTO, photo_alt: "Foto de Barbearia Exemplo A", show_photo: true, show_whatsapp: true, show_prices: false,
+    whatsapp_e164: "+5511933334444" };
+  const mediaBody = { photo_path: PHOTO, photo_alt: null, show_photo: true, show_whatsapp: true, show_prices: false };
+
+  it("profile.media grava pela RPC do dono e devolve as chaves com a URL pública da foto", async () => {
+    const rpc = vi.fn(async () => ({ data: { status_code: 200, body: { ...profileRow, media } }, error: null }));
+    const res = await setup(rpc, { photoBaseUrl: BUCKET }).handler(req("profile.media", { headers: owner, body: mediaBody }));
+    expect(res.status).toBe(200);
+    const profile = successEnvelope(OwnerProfileOutput).parse(await res.json()).data.profile!;
+    expect(profile.media).toEqual({ ...media, photo_url: `${BUCKET}/${PHOTO}` });
+    expect(rpc).toHaveBeenCalledWith("user-jwt", "network_profile_media_set", expect.objectContaining({
+      p_tenant_id: FX.tenants.A, p_photo_path: PHOTO, p_photo_alt: null, p_show_photo: true, p_show_whatsapp: true, p_show_prices: false,
+      p_idem_key: IDEM, p_request_hash: await requestHash(mediaBody),
+    }));
+  });
+
+  it("profile.media recusa caminho fora da pasta do formato e corpo sem as chaves, sem tocar no banco", async () => {
+    const rpc = vi.fn();
+    const { handler } = setup(rpc);
+    for (const photo_path of ["../outro/foto.webp", `${FX.tenants.A}/foto.png`, "https://evil.example/x.webp"]) {
+      const res = await handler(req("profile.media", { headers: owner, body: { ...mediaBody, photo_path } }));
+      expect(ErrorEnvelope.parse(await res.json()).error).toMatchObject({ code: "VALIDATION_ERROR", field: "photo_path" });
+    }
+    expect((await handler(req("profile.media", { headers: owner, body: { photo_path: null } }))).status).toBe(400);
+    expect((await handler(req("profile.media", { headers: { ...owner, Authorization: "" }, body: mediaBody }))).status).toBe(401);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("leitura pública: foto vira URL do bucket e o WhatsApp passa como veio (o banco já filtrou pelas chaves)", async () => {
+    const row = { ...profileRow, photo: { path: PHOTO, alt: "Fachada" }, whatsapp_e164: "+5511933334444" };
+    const on = await setup(vi.fn(async () => ({ data: row, error: null })), { photoBaseUrl: BUCKET })
+      .handler(req("public.profile", { method: "GET", query: "?slug=barbearia-a" }));
+    expect(successEnvelope(PublicProfile).parse(await on.json()).data).toMatchObject({
+      photo: { url: `${BUCKET}/${PHOTO}`, alt: "Fachada" }, whatsapp_e164: "+5511933334444",
+    });
+    const off = await setup(vi.fn(async () => ({ data: { ...row, photo: null, whatsapp_e164: null }, error: null })), { photoBaseUrl: BUCKET })
+      .handler(req("public.profile", { method: "GET", query: "?slug=barbearia-a" }));
+    expect(successEnvelope(PublicProfile).parse(await off.json()).data).toMatchObject({ photo: null, whatsapp_e164: null });
+  });
 });
 
 describe("network · convites", () => {

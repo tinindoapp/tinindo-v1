@@ -3,7 +3,25 @@ import type { Profession } from "@contracts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { ApiError, createApiClient } from "../../lib/api/client.ts";
-import { createDemoNetworkApi, createHttpNetworkApi, type NetworkApi } from "./api.ts";
+import { supabase } from "../../lib/supabase.ts";
+import { createDemoNetworkApi, createHttpNetworkApi, type NetworkApi, type PhotoStorage } from "./api.ts";
+
+/** Bucket profile-photos pelo cliente do navegador, com a sessão de quem está logado. */
+function photoStorage(): PhotoStorage | null {
+  if (!supabase) return null;
+  const bucket = supabase.storage.from("profile-photos");
+  return {
+    async upload(path, blob, contentType) {
+      // Caminho novo a cada foto (uuid): nada é sobrescrito, e a URL pública pode ficar em cache por um ano.
+      const { error } = await bucket.upload(path, blob, { contentType, upsert: false, cacheControl: "31536000" });
+      if (error) throw new ApiError("PROVIDER_UNAVAILABLE", "Não foi possível enviar a foto. Tente de novo.", 503, null, true);
+    },
+    async remove(path) {
+      await bucket.remove([path]);
+    },
+    publicUrl: (path) => bucket.getPublicUrl(path).data.publicUrl,
+  };
+}
 
 /** Servidor real quando o Supabase está configurado; senão, demonstração offline rotulada. */
 export function useNetworkApi(): NetworkApi {
@@ -15,7 +33,7 @@ export function useNetworkApi(): NetworkApi {
       publishableKey: appEnv.supabase.publishableKey,
       getAccessToken,
     });
-    return createHttpNetworkApi(call, tenantId);
+    return createHttpNetworkApi(call, tenantId, photoStorage());
   }, [tenantId, getAccessToken]);
 }
 

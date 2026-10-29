@@ -15,6 +15,13 @@ const todayInSaoPaulo = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Amer
 const formatDay = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 
+/** "R$ 60,00": preço "a partir de" dos serviços, quando o dono liga "Mostrar preços". */
+export const formatPrice = (cents: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+/** Botão do WhatsApp do perfil: abre a conversa com o número do negócio e uma mensagem pronta (a pessoa envia). */
+export const WHATSAPP_GREETING = "Olá! Vi seu perfil na Tinindo.";
+export const whatsappLink = (e164: string) => `https://wa.me/${e164.replace(/\D/g, "")}?text=${encodeURIComponent(WHATSAPP_GREETING)}`;
+
 /** Quantos dias a fileira de chips mostra a partir de hoje. */
 export const DAYS_AHEAD = 14;
 /** "2026-10-20" + n dias, em data de calendário (meio-dia UTC evita virar o dia). */
@@ -56,7 +63,17 @@ export function PublicProfileView({ profile, api }: { profile: PublicProfileData
   const name = profile.fields.display_name ?? CATEGORY_LABEL[profile.category];
   return (
     <div className="tn-stack">
-      <PageHeader id="perfil-nome" eyebrow={CATEGORY_LABEL[profile.category]} title={name} subtitle={profile.area} />
+      <div className="tn-net-head">
+        {profile.photo ? <img className="tn-net-photo" src={profile.photo.url} alt={profile.photo.alt} width={96} height={96} /> : null}
+        <PageHeader id="perfil-nome" eyebrow={CATEGORY_LABEL[profile.category]} title={name} subtitle={profile.area} />
+      </div>
+      {profile.whatsapp_e164 ? (
+        <div className="tn-actions">
+          <a className="tn-button" data-variant="secondary" href={whatsappLink(profile.whatsapp_e164)} target="_blank" rel="noopener noreferrer">
+            Conversar no WhatsApp
+          </a>
+        </div>
+      ) : null}
       <Card as="article" aria-labelledby="perfil-nome">
         {/* Só selos positivos (BRAND.md, Reputação): o que falta não vira selo. Sem "Tinindo garante". */}
         <ul className="tn-net-badges" aria-label="Reputação">
@@ -321,7 +338,9 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
                   resetRequest();
                 }}
                 title={s.name}
-                description={`${s.duration_min} min`}
+                description={
+                  s.price_from_cents != null ? `${s.duration_min} min · a partir de ${formatPrice(s.price_from_cents)}` : `${s.duration_min} min`
+                }
               />
             ))}
           </fieldset>
