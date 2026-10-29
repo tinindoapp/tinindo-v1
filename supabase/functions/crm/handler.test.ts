@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ErrorEnvelope, successEnvelope } from "../_shared/contracts/index.ts";
 import { FX, services } from "../_shared/contracts/fixtures.ts";
-import { CrmCustomerUpsertOutput, CustomerListOutput, ImportOutput } from "./contract.ts";
+import { CrmCustomerUpsertOutput, CustomerGetOutput, CustomerListOutput, ImportOutput } from "./contract.ts";
 import { canonicalJson, type CrmDeps, createCrmHandler, decodeCursor, encodeCursor } from "./handler.ts";
 
 const ORIGIN = "http://localhost:5173";
@@ -217,6 +217,29 @@ describe("Edge Function crm · comandos", () => {
 });
 
 describe("Edge Function crm · listagem e importação", () => {
+  it("customer.get lê um cliente por id (GET), repassando tenant e id ao banco", async () => {
+    const rpc = okRpc({ customer });
+    const res = await setup(rpc).handler(get(`customer.get?customer_id=${customer.id}`));
+    expect(res.status).toBe(200);
+    expect(successEnvelope(CustomerGetOutput).parse(await res.json()).data.customer.id).toBe(customer.id);
+    expect(rpc).toHaveBeenCalledWith("user-jwt", "crm_customer_get", { p_tenant_id: FX.tenants.A, p_customer_id: customer.id });
+  });
+
+  it("customer.get sem id válido → 400 sem consultar o banco; POST → 400", async () => {
+    const rpc = okRpc({ customer });
+    const { handler } = setup(rpc);
+    expect((await handler(get("customer.get?customer_id=abc"))).status).toBe(400);
+    expect((await handler(post("customer.get", { customer_id: customer.id }))).status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("customer.get de outro negócio → 404 NOT_FOUND", async () => {
+    const rpc = vi.fn(async () => ({ data: null, error: { code: "PT404", message: "NOT_FOUND" } }));
+    const res = await setup(rpc).handler(get(`customer.get?customer_id=${customer.id}`));
+    expect(res.status).toBe(404);
+    expect((await error(res)).code).toBe("NOT_FOUND");
+  });
+
   it("lista com cursor opaco que volta íntegro", async () => {
     const rpc = okRpc({ items: [customer], next: { key: "visitante sem login (exemplo)", id: customer.id } });
     const res = await setup(rpc).handler(get("customers?q=vis&limit=1"));

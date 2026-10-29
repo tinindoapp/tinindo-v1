@@ -13,6 +13,7 @@ import {
   type CrmCustomerUpsertInput,
   CrmCustomerUpsertOutput,
   CustomerArchiveOutput,
+  CustomerGetOutput,
   CustomerListOutput,
   type ImportInput,
   ImportOutput,
@@ -95,17 +96,14 @@ export function createServerCrmApi(opts: {
     readOnly: false,
     profession: opts.readProfession,
     listCustomers,
-    // Ainda não há leitura por id no contrato (pedido registrado no handoff): percorre a lista, arquivados inclusive.
+    // Leitura por id (customer.get), arquivados inclusive. Id de outro negócio ou inexistente → null.
     getCustomer: async (id) => {
-      let cursor: string | undefined;
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const out = await listCustomers({ include_archived: true, limit: 100, cursor });
-        const found = out.items.find((c) => c.id === id);
-        if (found) return found;
-        if (!out.next_cursor) return null;
-        cursor = out.next_cursor;
+      try {
+        return (await call(path(CRM_ROUTES.getCustomer) + qs({ customer_id: id }), CustomerGetOutput, { tenantId })).data.customer;
+      } catch (e) {
+        if (e instanceof ApiError && e.code === "NOT_FOUND") return null;
+        throw e;
       }
-      return null;
     },
     // Histórico pela agenda (booking.list, que já existe): duas janelas de 60 dias, filtradas por este cliente.
     customerHistory: async (customerId) => {
