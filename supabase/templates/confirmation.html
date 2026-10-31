@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<!-- Modelo "Confirm signup" do Supabase Auth. Assunto: "Confirme seu e-mail na Tinindo".
+     Cores fixas de brand/tokens (cliente de e-mail não lê var()): tinta-950 #111111,
+     tinta-600 #4A4A46, tinta-200 #DEDED9, papel-50 #F7F7F5, branco-0 #FFFFFF.
+     Laranja não é usado: não é cor de botão nem de texto. -->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Confirme seu e-mail</title>
+</head>
+<body style="margin:0;padding:0;background:#F7F7F5;font-family:Inter,Arial,Helvetica,sans-serif;color:#111111;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F7F7F5;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#FFFFFF;border:1px solid #DEDED9;border-radius:12px;">
+          <tr>
+            <td style="padding:32px 28px;">
+              <p style="margin:0 0 24px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#4A4A46;">Tinindo</p>
+              <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:600;">Confirme seu e-mail</h1>
+              <p style="margin:0 0 24px;font-size:16px;line-height:1.5;">Você criou uma conta na Tinindo com o e-mail {{ .Email }}. Para começar a usar, confirme que este endereço é seu.</p>
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-radius:8px;background:#111111;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 24px;font-size:16px;font-weight:600;color:#FFFFFF;text-decoration:none;">Confirmar e-mail</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:24px 0 0;font-size:14px;line-height:1.5;color:#4A4A46;">Se o botão não abrir, copie este endereço no navegador:<br><a href="{{ .ConfirmationURL }}" style="color:#111111;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+              <p style="margin:24px 0 0;font-size:14px;line-height:1.5;color:#4A4A46;">Não foi você? Pode ignorar esta mensagem. Nenhuma conta será ativada sem a confirmação.</p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:16px 0 0;font-size:12px;color:#4A4A46;">Mensagem automática. Não responda a este e-mail.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
