@@ -5,7 +5,7 @@ import type { SalesQuote } from "@contracts";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { ShareActions } from "./share.tsx";
-import { newKey, type QuoteDetail, type QuoteDraft, type SalesBase, type SalesPort } from "./port.ts";
+import { newKey, type QuoteDetail, type QuoteDraft, type QuoteMaterialCost, type SalesBase, type SalesPort } from "./port.ts";
 import {
   centsToInput,
   explain,
@@ -119,6 +119,8 @@ export function QuotesPage() {
   const { formRef, errors, show } = useFormErrors();
   const [fresh, setFresh] = useState<{ quoteId: string; token: string } | null>(null);
   const [detail, setDetail] = useState<QuoteDetail | null>(null);
+  // Custo de materiais da versão atual (P30). "unavailable" = sem estoque cadastrado ou módulo fora do ar: o orçamento não depende disso.
+  const [costOf, setCostOf] = useState<{ quoteId: string; value: QuoteMaterialCost | "unavailable" } | null>(null);
   const [pending, setPending] = useState(false);
   const [keys, setKeys] = useState(() => ({ save: newKey() }));
 
@@ -133,6 +135,14 @@ export function QuotesPage() {
     return () => { alive = false; };
   }, [port, nonce]);
   const reload = () => setNonce((n) => n + 1);
+  useEffect(() => {
+    if (!detail) return;
+    let alive = true;
+    const quoteId = detail.quote.id;
+    port.materialCost(quoteId).then((value) => alive && setCostOf({ quoteId, value }), () => alive && setCostOf({ quoteId, value: "unavailable" }));
+    return () => { alive = false; };
+  }, [port, detail]);
+  const cost = costOf && detail && costOf.quoteId === detail.quote.id ? costOf.value : null;
 
   const tz = base?.timezone ?? "America/Sao_Paulo";
   const customer = (id: string) => base?.customers.find((c) => c.id === id)?.name ?? "Cliente";
@@ -407,6 +417,21 @@ export function QuotesPage() {
                 </li>
               ))}
             </ol>
+            {cost && cost !== "unavailable" ? (
+              <section aria-label="Custo de materiais" className="tn-stack">
+                <h3>Materiais da versão {cost.version_no}</h3>
+                <p>
+                  Custo estimado de materiais <span className="tn-num">{formatCents(cost.material_cost_cents)}</span> · margem estimada{" "}
+                  <span className="tn-num">{formatCents(cost.margin_cents)}</span> sobre <span className="tn-num">{formatCents(cost.total_cents)}</span>
+                </p>
+                {!cost.covered ? (
+                  <p className="tn-muted">
+                    Sem ficha de uso ou sem custo no estoque: {cost.lines.filter((l) => !l.covered).map((l) => l.description).join(", ")}. Esses itens entram como custo zero na estimativa.
+                  </p>
+                ) : null}
+                <p className="tn-muted">Pela ficha de cada serviço e pelo custo médio do estoque hoje (Materiais). Não muda o preço nem o orçamento.</p>
+              </section>
+            ) : cost === "unavailable" ? <p className="tn-muted">Custo de materiais indisponível agora.</p> : null}
             <div className="tn-actions"><Button variant="ghost" onClick={() => setDetail(null)}>Fechar</Button></div>
           </div>
         </Card>

@@ -52,6 +52,8 @@ O teste de concorrência usa uma largada por advisory lock: sem ela, o tempo de 
 
 O P28 não estava no quadro (`P25–P41 continuam planejados e não ativados`). A liberação no branch `coordination` foi recusada pelo controle de permissões desta sessão, e o `advance` exige a fase toda concluída (o P42 está em andamento com o Gabriel). A entrega segue o precedente do `reconcile` (P10–P24): o integrador registra P28 no quadro com o PR e o SHA de merge.
 
+Registrado no quadro em 31/10 pelo integrador (ação `reconcile`, autorização do dono): P28 `done` com PR #60 e merge `27316a7`; P30 `done` com PR #61 e merge `7e032ff`.
+
 ## Mocks e pendências
 
 - Demonstração offline com dados de exemplo (Bia, Caio vinculado, sala, duas cadeiras, um atendimento de ontem), rotulada.

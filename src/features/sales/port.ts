@@ -1,5 +1,5 @@
 // Porta dos Orçamentos (P11). Demonstração: emulação na aba; servidor: Edge Function `sales` (+ `crm` e `context`).
-import type { SalesQuote, SalesQuoteDecideOutput, SalesQuoteDetailOutput, SalesQuotePublicView } from "@contracts";
+import type { MaterialQuoteCostOutput, SalesQuote, SalesQuoteDecideOutput, SalesQuoteDetailOutput, SalesQuotePublicView } from "@contracts";
 import type { z } from "zod";
 
 export interface SalesBase {
@@ -21,6 +21,8 @@ export interface QuoteDraft {
 export type QuoteDetail = z.infer<typeof SalesQuoteDetailOutput>;
 export type QuoteView = z.infer<typeof SalesQuotePublicView>;
 export type QuoteDecision = z.infer<typeof SalesQuoteDecideOutput>;
+/** Custo estimado de materiais da versão atual (P30): ficha do serviço × custo médio do estoque. Só leitura. */
+export type QuoteMaterialCost = z.infer<typeof MaterialQuoteCostOutput>;
 
 export interface SalesPort {
   readonly kind: "demo" | "server";
@@ -34,6 +36,8 @@ export interface SalesPort {
   /** Gera o link. O token vem só nesta resposta; gerar de novo invalida o anterior. */
   send(quote: SalesQuote, key: string): Promise<{ quote: SalesQuote; token: string | null }>;
   cancel(quoteId: string, key: string): Promise<SalesQuote>;
+  /** Custo de materiais e margem estimada da versão atual (P30). Não muda o orçamento. */
+  materialCost(quoteId: string): Promise<QuoteMaterialCost>;
 }
 
 /** Link do cliente (anônimo): ver não muda nada; aceitar e recusar citam a versão e o hash vistos. */

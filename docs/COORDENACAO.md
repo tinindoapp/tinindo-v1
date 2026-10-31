@@ -2,14 +2,16 @@
 
 Complementa `AGENTS.md`. Vale para qualquer pessoa ou sessão que escreva no repositório ao mesmo tempo que outra.
 
-## Estado do quadro (26/10/2026)
+## Estado do quadro (31/10/2026)
 
 - Fase atual: `expansao-1`. A fase `pilot` (P00–P10) está concluída no quadro. A parte de código do P10 é o PR #25; os gates externos do P10 viraram o **P42**.
 - Os pacotes P11–P24 foram entregues em PRs fora do quadro, de 18/10 a 24/10. Foram registrados como concluídos, com o PR e o commit de merge de cada um (ação `reconcile` no histórico do quadro).
 - Pacotes liberados nesta fase:
   - **P42**: liberação do piloto. É só do coordenador: exige Docker, contas e decisões do dono.
   - **P43**: reserva pelo link público. Disponível para reserva.
-- P25–P41 continuam planejados e não ativados. Cada um entra no quadro quando o integrador liberar.
+- **P43** concluído (PR #42).
+- **P28** (equipes e recursos, PR #60) e **P30** (materiais e custos, PR #61) foram entregues a pedido do dono antes de entrarem no quadro. Em 31/10 o integrador os registrou como concluídos, com PR e commit de merge (ação `reconcile`).
+- Os demais pacotes entre P25 e P41 continuam planejados e não ativados. Cada um entra no quadro quando o integrador liberar.
 
 ## Antes de escrever
 
