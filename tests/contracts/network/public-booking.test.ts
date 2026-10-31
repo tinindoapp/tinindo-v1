@@ -4,9 +4,13 @@ import { describe, expect, it } from "vitest";
 import { OPERATIONS, PublicBookOutput, PublicConfirmOutput, PublicService } from "@contracts";
 
 const sql = readFileSync(new URL("../../../supabase/migrations/20261026164500_p43_public_booking.sql", import.meta.url), "utf8");
+// Troca do pedido pendente (recado #64, item 5): recria public_booking_request com p_replace_existing.
+const replace = readFileSync(new URL("../../../supabase/migrations/20261029033000_p43_replace_pending_request.sql", import.meta.url), "utf8");
 const handler = readFileSync(new URL("../../../supabase/functions/network/handler.ts", import.meta.url), "utf8");
+/** Parâmetros da definição mais recente da função (a migration da troca vence a original). */
 function sqlParams(fn: string): string[] {
-  const m = new RegExp(`create function public\\.${fn}\\(([\\s\\S]*?)\\)\\s*returns`, "m").exec(sql);
+  const re = new RegExp(`create function public\\.${fn}\\(([\\s\\S]*?)\\)\\s*returns`, "m");
+  const m = re.exec(replace) ?? re.exec(sql);
   if (!m) throw new Error(`função ${fn} não encontrada`);
   return (m[1] ?? "").split(",").map((p) => p.trim().split(/\s+/)[0] ?? "").filter(Boolean);
 }
@@ -46,15 +50,25 @@ describe("P43 · registro ↔ handler ↔ SQL", () => {
       expect(sql).toMatch(new RegExp(`revoke all on function public\\.${fn}\\([^)]*\\) from public, anon, authenticated;`));
       expect(sql).toMatch(new RegExp(`grant execute on function public\\.${fn}\\([^)]*\\) to anon, authenticated;`));
     }
+    for (const grant of ["revoke all on function public\\.public_booking_request\\([^)]*boolean\\) from public, anon, authenticated;",
+      "grant execute on function public\\.public_booking_request\\([^)]*boolean\\) to anon, authenticated;"]) {
+      expect(replace).toMatch(new RegExp(grant));
+    }
     expect(sql).toMatch(/revoke all on public\.public_booking_requests from anon, authenticated;/);
     expect(sql).not.toMatch(/create policy [a-z_]+ on public\.public_booking_requests/);
     expect(sql.match(/security definer set search_path = ''/g)?.length).toBeGreaterThanOrEqual(8);
   });
 
   it("respostas sem contato, código nem preço de lista", () => {
+    // Recado #64, item 4: o único preço é o "a partir de" (price_from_cents), e só com "Mostrar preços" ligado.
+    const shown = (schema: { shape: object }) => Object.keys(schema.shape).filter((k) => k !== "price_from_cents").join(" ");
     for (const schema of [PublicBookOutput, PublicConfirmOutput, PublicService]) {
-      expect(Object.keys(schema.shape).join(" ")).not.toMatch(/phone|contact|code|name_key|price|cents/);
+      expect(shown(schema)).not.toMatch(/phone|contact|code|name_key|price|cents/);
     }
+    const photo = readFileSync(new URL("../../../supabase/migrations/20261029034000_p09_profile_photo.sql", import.meta.url), "utf8");
+    const services = photo.slice(photo.indexOf("create or replace function public.public_booking_services"));
+    expect(services).toContain("case when v_prices then jsonb_build_object('price_from_cents', s.base_price_cents) else '{}'::jsonb end");
+    expect(services).not.toMatch(/min_price_cents|estimated_cost_cents|fee_bps/);
     const reqJson = sql.slice(sql.indexOf("create function app.pbk_request_json"), sql.indexOf("create function app.pbk_confirmed_json"));
     expect(reqJson).not.toMatch(/contact_|code/);
   });

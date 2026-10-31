@@ -44,7 +44,7 @@ const SOURCE_LABEL: Record<Booking["source"], string> = {
 
 type Failure = { err: unknown; op: Operation };
 
-/** O que a tela guarda do cancelamento feito agora. O motivo não volta do servidor (o contrato Booking não tem). */
+/** O que a tela guarda do cancelamento feito agora (contato e próximo passo). Depois de recarregar, o motivo vem de `status_reason`. */
 interface Cancelled {
   booking: Booking;
   reason: string;
@@ -248,6 +248,12 @@ function BookingDetail({
                 ? `Venceu às ${holdDeadline.time}: confirme para tentar manter o horário`
                 : `Vence às ${holdDeadline.time} se não for confirmada`}
             </dd>
+          </>
+        ) : null}
+        {booking.status_reason ? (
+          <>
+            <dt>{booking.status === "no_show" ? "Motivo da falta" : "Motivo do cancelamento"}</dt>
+            <dd>{booking.status_reason}</dd>
           </>
         ) : null}
         <dt>Origem</dt>

@@ -7,6 +7,7 @@ export const EventType = z.enum([
   "booking.cancelled.v1",
   "booking.completed.v1",
   "booking.rescheduled.v1",
+  "booking.hold_released.v1",
   "payment.recorded.v1",
   "waitlist.offer.expired.v1",
   "agent.action.approved.v1",

@@ -19,6 +19,8 @@ import {
   CrmCustomerUpsertOutput,
   CustomerArchiveInput,
   CustomerArchiveOutput,
+  CustomerGetOutput,
+  CustomerGetQuery,
   CustomerListOutput,
   CustomerListQuery,
   ImportInput,
@@ -67,11 +69,11 @@ export function createCrmHandler(deps: CrmDeps) {
 
   async function handle(req: Request, route: string, requestId: string, cors: Record<string, string>) {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-    const isList = route === CRM_ROUTES.listCustomers || route === CRM_ROUTES.listServices;
+    const isRead = route === CRM_ROUTES.listCustomers || route === CRM_ROUTES.listServices || route === CRM_ROUTES.getCustomer;
     const known = (Object.values(CRM_ROUTES) as string[]).includes(route);
     if (!known) return fail("NOT_FOUND", requestId, { extra: cors });
-    if (req.method !== (isList ? "GET" : "POST")) {
-      return fail("VALIDATION_ERROR", requestId, { message: isList ? "Use GET." : "Use POST.", extra: cors });
+    if (req.method !== (isRead ? "GET" : "POST")) {
+      return fail("VALIDATION_ERROR", requestId, { message: isRead ? "Use GET." : "Use POST.", extra: cors });
     }
 
     const auth = req.headers.get("Authorization") ?? "";
@@ -89,6 +91,11 @@ export function createCrmHandler(deps: CrmDeps) {
         return listCustomers(ctx, url);
       case CRM_ROUTES.listServices:
         return listServices(ctx, url);
+      case CRM_ROUTES.getCustomer: {
+        const parsed = CustomerGetQuery.safeParse(Object.fromEntries(url.searchParams));
+        if (!parsed.success) return invalid(parsed.error, ctx);
+        return query(ctx, "crm_customer_get", { p_tenant_id: tenantId, p_customer_id: parsed.data.customer_id }, CustomerGetOutput);
+      }
       case CRM_ROUTES.importPreview: {
         const input = await readBody(req, ImportPreviewInput, ctx);
         if (input instanceof Response) return input;

@@ -6,7 +6,7 @@ Antes de paralelizar, P00 integra contratos v1 e fixtures compartilhadas em `sup
 
 Contexto do servidor: `actor_user_id`, `tenant_id` validado contra membership/escopo do cliente, `role`, `request_id`, `channel`. O request pode selecionar um tenant; não concede acesso a ele. O modelo nunca escolhe livremente o tenant executável.
 
-Envelope de sucesso: `{data, meta:{request_id, as_of, schema_version}}`. Erro: `{error:{code,message,field?,retryable},request_id}`. Códigos: 400 `VALIDATION_ERROR`; 401 `AUTH_REQUIRED`; 403 `FORBIDDEN`; 404 `NOT_FOUND` sem revelar objeto privado; 409 `SLOT_CONFLICT`, `STALE_VERSION`, `IDEMPOTENCY_MISMATCH`; 422 `POLICY_REJECTED`; 429 `QUOTA_EXCEEDED`; 503 `PROVIDER_UNAVAILABLE`.
+Envelope de sucesso: `{data, meta:{request_id, as_of, schema_version}}`. Erro: `{error:{code,message,field?,retryable,details?},request_id}`; `details` só nos códigos que o documentam. Códigos: 400 `VALIDATION_ERROR`; 401 `AUTH_REQUIRED`; 403 `FORBIDDEN`; 404 `NOT_FOUND` sem revelar objeto privado; 409 `SLOT_CONFLICT`, `STALE_VERSION`, `IDEMPOTENCY_MISMATCH`, `PENDING_REQUEST_EXISTS`; 422 `POLICY_REJECTED`; 429 `QUOTA_EXCEEDED`; 503 `PROVIDER_UNAVAILABLE`.
 
 Datas ISO 8601 com offset; moeda ISO; preços inteiros em centavos dentro do intervalo seguro do contrato; UUIDs; paginação por cursor; limites de 50–100 itens definidos por endpoint. Proibir listagens ilimitadas. Esquema Zod ou equivalente deve validar no backend; tipagem TypeScript sozinha não valida JSON externo.
 
@@ -38,6 +38,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `booking.no_show` | booking_id, expected_version, motivo, revert, key | Falta marcada ou revertida com motivo |
 | `booking.create_series` | serviço, cliente, primeiro slot, semanas (2–12), tudo-ou-nada, key | Ocorrências semanais materializadas; conflitos explícitos |
 | `booking.list` | janela (≤ 62 dias), cursor, limit | Reservas do tenant que começam na janela |
+| `booking.list_by_customer` | customer_id, cursor, limit | Todas as reservas de um cliente do tenant, da mais recente para a mais antiga, sem janela |
 | `booking.get` | booking_id | Reserva na visão do dono |
 | `schedule.settings` | — | Recurso ativo, timezone e expediente semanal |
 | `schedule.rules_save` | resource, expected_version, faixas semanais, key | Expediente trocado inteiro; reservas existentes intactas |
@@ -79,11 +80,12 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `action.execute` | approval_ref, key | Checagem atual de política, execução e recibo |
 | `profile.publish` | whitelist dos campos públicos | Perfil público sem vazamento do CRM |
 | `profile.unpublish` | key | Perfil fora do ar |
-| `profile.get` | — | Visão do dono (inclui despublicado e versão) |
+| `profile.get` | — | Visão do dono (inclui despublicado, versão e as chaves de mídia) |
+| `profile.media` | caminho da foto já enviada ao bucket `profile-photos`, texto alternativo, `show_photo`, `show_whatsapp`, `show_prices`, key | Foto e chaves do perfil, auditadas; o público recebe `photo` e `whatsapp_e164` só com a chave ligada (null desligada) |
 | `public.profile` | slug | Perfil publicado, sem tenant_id (anônimo) |
 | `public.slots` | slug, service, janela | Horários livres do link público (anônimo) |
-| `public.services` | slug | Serviços do link público: nome e duração, sem preço (anônimo) |
-| `public.book` | slug, service, início, contato (nome e telefone), key | Reserva provisória e código enviado ao contato pelo canal do negócio; não é confirmação (anônimo) |
+| `public.services` | slug | Serviços do link público: nome e duração; `price_from_cents` ("a partir de", preço base) só com "Mostrar preços" ligado; desligado, sem preço nenhum (anônimo) |
+| `public.book` | slug, service, início, contato (nome e telefone), `replace_existing` (padrão false), key | Reserva provisória e código enviado ao contato pelo canal do negócio; não é confirmação (anônimo). O mesmo WhatsApp com pedido aguardando código no negócio: sem `replace_existing` → 409 `PENDING_REQUEST_EXISTS` com `details {request_id, expires_at}` (sem serviço nem horário, para não revelar o pedido de outra pessoa); com ele, o anterior vence (`replaced`), o código antigo deixa de valer, sai `booking.hold_released.v1` e a resposta traz `replaced: true`. A troca conta nos mesmos limites e não zera as tentativas |
 | `public.confirm` | request_id, código, key | Provisória vira confirmada; código errado conta tentativa (máx. 5); vencido não confirma (anônimo) |
 | `public.contact` | booking_id | Dono: nome e WhatsApp informados no pedido pelo link |
 | `referral.create` | kind, dados mínimos, origem | Link pessoal de convite, sem envio automático |

@@ -11,6 +11,7 @@ import {
   BookingCreateSeriesInput,
   BookingCreateSeriesOutput,
   BookingGetInput,
+  BookingListByCustomerInput,
   BookingListInput,
   BookingListOutput,
   BookingNoShowInput,
@@ -35,6 +36,12 @@ const slotArgs = (slot: { starts_at: string; ends_at: string }) => ({
   p_starts_at: slot.starts_at,
   p_ends_at: slot.ends_at,
 });
+
+/** Página de atendimentos do banco ({ items, next }) no formato do contrato, com cursor opaco. */
+const bookingPage = (data: unknown) => {
+  const raw = data as { items?: unknown; next?: { key: string; id: string } | null } | null;
+  return { bookings: raw?.items, next_cursor: raw?.next ? encodeCursor(raw.next) : null };
+};
 
 export const SCHEDULING_ROUTES: Record<string, Route> = {
   "availability.list": route({
@@ -92,10 +99,16 @@ export const SCHEDULING_ROUTES: Record<string, Route> = {
         p_after_starts: cursor?.key ?? null, p_after_id: cursor?.id ?? null, p_limit: i.limit,
       };
     },
-    shape: (data) => {
-      const raw = data as { items?: unknown; next?: { key: string; id: string } | null } | null;
-      return { bookings: raw?.items, next_cursor: raw?.next ? encodeCursor(raw.next) : null };
+    shape: bookingPage,
+  }),
+  "booking.list_by_customer": route({
+    rpc: "scheduling_booking_list_by_customer", input: BookingListByCustomerInput, output: BookingListOutput, command: false,
+    args: (i) => {
+      const cursor = decodeCursor(i.cursor);
+      if (cursor === false) return false;
+      return { p_customer_id: i.customer_id, p_before_starts: cursor?.key ?? null, p_before_id: cursor?.id ?? null, p_limit: i.limit };
     },
+    shape: bookingPage,
   }),
   "booking.get": route({
     rpc: "scheduling_booking_get", input: BookingGetInput, output: BookingOutput, command: false,

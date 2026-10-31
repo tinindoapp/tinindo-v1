@@ -17,6 +17,7 @@ import type { z } from "zod";
 import {
   type OwnerProfile,
   OwnerProfileOutput,
+  type ProfileMediaInput,
   ProfileUnpublishOutput,
   ReferralClaimOutput,
   type ReferralInspectOutput,
@@ -27,6 +28,7 @@ import {
 import { ApiError, type CallOptions } from "../../lib/api/client.ts";
 import { currentReviewSummary, providePublicContact, publicBooking, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { demoSlots } from "./demo-slots.ts";
+import type { ProcessedPhoto } from "./photo.ts";
 
 export type PublicProfileData = z.infer<typeof PublicProfile>;
 export type ReferralLinkData = z.infer<typeof ReferralLink>;
@@ -37,6 +39,15 @@ export interface PublicService {
   id: string;
   name: string;
   duration_min: number;
+  /** "a partir de", só com "Mostrar preços" ligado. */
+  price_from_cents?: number | null;
+}
+
+/** Bucket profile-photos pelo cliente Supabase do navegador (RLS: só membro grava na pasta do negócio). */
+export interface PhotoStorage {
+  upload(path: string, blob: Blob, contentType: string): Promise<void>;
+  remove(path: string): Promise<void>;
+  publicUrl(path: string): string;
 }
 
 export type BookRequest = z.infer<typeof PublicBookOutput> & {
@@ -51,6 +62,12 @@ export interface NetworkApi {
   getOwnProfile(): Promise<OwnerProfile | null>;
   publishProfile(input: z.input<typeof ProfilePublishInput>, idempotencyKey: string): Promise<PublicProfileData>;
   unpublishProfile(idempotencyKey: string): Promise<void>;
+  /** Envia a foto já preparada para a pasta do negócio; devolve o caminho e a URL pública. */
+  uploadProfilePhoto(photo: ProcessedPhoto): Promise<{ path: string; url: string }>;
+  /** Apaga um arquivo da pasta do negócio (foto trocada ou removida). */
+  removeProfilePhoto(path: string): Promise<void>;
+  /** Foto, texto alternativo e as chaves "Mostrar foto", "Mostrar botão do WhatsApp" e "Mostrar preços". */
+  setProfileMedia(input: z.input<typeof ProfileMediaInput>, idempotencyKey: string): Promise<OwnerProfile>;
   getPublicProfile(slug: string): Promise<PublicProfileData>;
   /** Serviços que o visitante pode escolher (nome e duração). Vazio se o perfil não mostra o link de reserva. */
   publicServices(slug: string): Promise<PublicService[]>;
@@ -71,7 +88,7 @@ type Call = <T extends z.ZodType>(
   opts?: CallOptions,
 ) => Promise<{ data: z.infer<T> }>;
 
-export function createHttpNetworkApi(call: Call, tenantId: string | null): NetworkApi {
+export function createHttpNetworkApi(call: Call, tenantId: string | null, storage: PhotoStorage | null = null): NetworkApi {
   const tenant = tenantId ?? undefined;
   return {
     demo: false,
@@ -83,6 +100,20 @@ export function createHttpNetworkApi(call: Call, tenantId: string | null): Netwo
     },
     async unpublishProfile(idempotencyKey) {
       await call("/network/profile.unpublish", ProfileUnpublishOutput, { method: "POST", tenantId: tenant, body: {}, idempotencyKey });
+    },
+    async uploadProfilePhoto(photo) {
+      if (!storage || !tenantId) throw new ApiError("PROVIDER_UNAVAILABLE", "Envio de foto indisponível.", 503, null, true);
+      const path = `${tenantId}/${crypto.randomUUID()}.${photo.ext}`;
+      await storage.upload(path, photo.blob, photo.type);
+      return { path, url: storage.publicUrl(path) };
+    },
+    async removeProfilePhoto(path) {
+      await storage?.remove(path);
+    },
+    async setProfileMedia(input, idempotencyKey) {
+      const profile = (await call("/network/profile.media", OwnerProfileOutput, { method: "POST", tenantId: tenant, body: input, idempotencyKey })).data.profile;
+      if (!profile) throw new ApiError("NOT_FOUND", "Perfil não encontrado.", 404, null, false);
+      return profile;
     },
     async getPublicProfile(slug) {
       return (await call(`/network/public.profile?slug=${encodeURIComponent(slug)}`, PublicProfile)).data;
@@ -139,17 +170,23 @@ interface DemoBookRequest {
   serviceName: string;
   contactName: string;
   contactPhone: string;
+  /** Trocado por um pedido novo do mesmo contato: o código deixa de valer. */
+  replaced: boolean;
 }
 
 interface DemoState {
   profile: OwnerProfile | null;
+  /** Fotos enviadas na demonstração: caminho → URL local (blob:) da aba. */
+  photos: Map<string, string>;
   referrals: DemoReferral[];
   requests: Map<string, DemoBookRequest>;
   /** Horários segurados quando a Agenda da demonstração não está carregada (testes do módulo). */
   localHolds: { starts_at: string; ends_at: string }[];
 }
 
-const demoState: DemoState = { profile: null, referrals: [], requests: new Map(), localHolds: [] };
+const demoState: DemoState = { profile: null, photos: new Map(), referrals: [], requests: new Map(), localHolds: [] };
+/** Número fictício do negócio A, como se estivesse conectado no canal (Mensagens) da demonstração. */
+export const DEMO_BUSINESS_WHATSAPP = "+5511999990001";
 
 // A Agenda da demonstração mostra ao dono quem pediu cada horário pelo link (como public.contact no servidor).
 providePublicContact((bookingId) => {
@@ -160,6 +197,8 @@ providePublicContact((bookingId) => {
 /** Só para testes: volta a demonstração ao estado inicial. */
 export function resetDemoNetwork() {
   demoState.profile = null;
+  for (const url of demoState.photos.values()) URL.revokeObjectURL?.(url);
+  demoState.photos.clear();
   setPublishedSlug(null);
   demoState.referrals = [];
   demoState.requests.clear();
@@ -187,8 +226,19 @@ function toPublic(p: OwnerProfile): PublicProfileData {
   if (!p.published_at) throw notFound();
   // Mesmo resumo da lista pública de avaliações da demonstração (no servidor, vem da mesma função).
   const reputation = currentReviewSummary() ?? p.reputation;
-  return { slug: p.slug, category: p.category, area: p.area, fields: p.fields, published_at: p.published_at, reputation };
+  const m = p.media;
+  return {
+    slug: p.slug, category: p.category, area: p.area, fields: p.fields, published_at: p.published_at, reputation,
+    // Como no servidor: foto e WhatsApp só com a chave ligada.
+    photo: m.show_photo && m.photo_url ? { url: m.photo_url, alt: m.photo_alt } : null,
+    whatsapp_e164: m.show_whatsapp ? m.whatsapp_e164 : null,
+  };
 }
+
+const demoMedia = (): OwnerProfile["media"] => ({
+  photo_path: null, photo_url: null, photo_alt: `Foto de ${tenantA.name}`,
+  show_photo: false, show_whatsapp: false, show_prices: false, whatsapp_e164: DEMO_BUSINESS_WHATSAPP,
+});
 
 export function createDemoNetworkApi(origin: string): NetworkApi {
   const now = () => new Date().toISOString();
@@ -214,6 +264,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         published_at: now(),
         reputation: { identity_verified: false, reviews_count: 0 },
         version: (demoState.profile?.version ?? 0) + 1,
+        media: demoState.profile?.media ?? demoMedia(),
       };
       setPublishedSlug(input.slug);
       return toPublic(demoState.profile);
@@ -223,6 +274,40 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
       demoState.profile = { ...demoState.profile, published_at: null, version: demoState.profile.version + 1 };
       setPublishedSlug(null);
     },
+    async uploadProfilePhoto(photo) {
+      const path = `${tenantA.id}/${crypto.randomUUID()}.${photo.ext}`;
+      const url = URL.createObjectURL(photo.blob);
+      demoState.photos.set(path, url);
+      return { path, url };
+    },
+    async removeProfilePhoto(path) {
+      const url = demoState.photos.get(path);
+      if (url) URL.revokeObjectURL(url);
+      demoState.photos.delete(path);
+    },
+    async setProfileMedia(input) {
+      const p = demoState.profile;
+      if (!p) throw notFound();
+      if (input.photo_path && !demoState.photos.has(input.photo_path)) {
+        throw new ApiError("VALIDATION_ERROR", "Envie a foto de novo.", 400, null, false, "photo_path");
+      }
+      if (input.show_photo && !input.photo_path) throw rejected("show_photo");
+      const alt = input.photo_alt?.trim();
+      demoState.profile = {
+        ...p,
+        version: p.version + 1,
+        media: {
+          ...p.media,
+          photo_path: input.photo_path,
+          photo_url: input.photo_path ? demoState.photos.get(input.photo_path)! : null,
+          photo_alt: alt || `Foto de ${tenantA.name}`,
+          show_photo: input.show_photo,
+          show_whatsapp: input.show_whatsapp,
+          show_prices: input.show_prices,
+        },
+      };
+      return demoState.profile;
+    },
     async getPublicProfile(slug) {
       if (!demoState.profile || demoState.profile.slug !== slug) throw notFound();
       return toPublic(demoState.profile);
@@ -231,7 +316,10 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
       if (!demoState.profile || demoState.profile.slug !== slug) return [];
       return services
         .filter((s) => s.tenant_id === tenantA.id && s.active)
-        .map((s) => ({ id: s.id, name: s.name, duration_min: s.duration_min }));
+        .map((s) => ({
+          id: s.id, name: s.name, duration_min: s.duration_min,
+          ...(demoState.profile?.media.show_prices ? { price_from_cents: s.base_price_cents } : {}),
+        }));
     },
     async publicSlots(_slug, serviceId, window) {
       const service = services.find((s) => s.id === serviceId);
@@ -244,7 +332,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
     },
     async book(input, key) {
       if (!demoState.profile?.published_at || demoState.profile.slug !== input.slug) throw notFound();
-      const hash = JSON.stringify(input);
+      const hash = JSON.stringify({ ...input, replace_existing: undefined });
       const prior = demoState.requests.get(key);
       if (prior) {
         if (prior.hash !== hash) throw new ApiError("IDEMPOTENCY_MISMATCH", "Pedido diferente com a mesma chave.", 409, null, false);
@@ -253,6 +341,18 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
       const service = services.find((s) => s.id === input.service_id && s.tenant_id === tenantA.id);
       if (!service) throw notFound();
       const agenda = publicBooking();
+      // Mesma regra do banco: o mesmo WhatsApp com pedido aguardando código só troca com replace_existing.
+      const pending = [...demoState.requests.values()].find((r) => r.contactPhone === input.contact.phone_e164 && !r.confirmed && !r.replaced);
+      if (pending && !input.replace_existing) {
+        throw new ApiError("PENDING_REQUEST_EXISTS", "Você já tem um pedido aguardando confirmação.", 409, null, false, "contact.phone_e164", {
+          request_id: pending.request.request_id, expires_at: pending.request.expires_at,
+        });
+      }
+      if (pending) {
+        if (agenda) await agenda.release(pending.bookingId);
+        else demoState.localHolds = demoState.localHolds.filter((h) => h.starts_at !== pending.request.slot.starts_at);
+        pending.replaced = true;
+      }
       let hold: { booking_id: string; starts_at: string; ends_at: string; hold_expires_at: string };
       if (agenda) {
         hold = await agenda.hold({ service_id: service.id, starts_at: input.starts_at });
@@ -268,16 +368,19 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         slot: { starts_at: hold.starts_at, ends_at: hold.ends_at },
         expires_at: hold.hold_expires_at,
         delivery: "queued",
+        ...(pending ? { replaced: true as const } : {}),
         demoCode: code,
       };
-      demoState.requests.set(key, { request, bookingId: hold.booking_id, code, attempts: 0, confirmed: null, hash, serviceName: service.name,
-        contactName: input.contact.name.trim(), contactPhone: input.contact.phone_e164 });
+      // Trocar não zera as tentativas de código já gastas no pedido anterior.
+      demoState.requests.set(key, { request, bookingId: hold.booking_id, code, attempts: pending?.attempts ?? 0, confirmed: null, hash,
+        serviceName: service.name, contactName: input.contact.name.trim(), contactPhone: input.contact.phone_e164, replaced: false });
       return request;
     },
     async confirmBooking(input) {
       const r = [...demoState.requests.values()].find((x) => x.request.request_id === input.request_id);
       if (!r) throw notFound();
       if (r.confirmed) return r.confirmed;
+      if (r.replaced) throw rejected("expires_at");
       if (r.attempts >= 5) throw rejected("attempts");
       if (input.code !== r.code) {
         r.attempts += 1;

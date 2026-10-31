@@ -57,6 +57,11 @@ export const CustomerListOutput = z.object({
 });
 export type CustomerListOutput = z.infer<typeof CustomerListOutput>;
 
+/** Query string de GET /crm/customer.get: um cliente do negócio, arquivado ou não. Fora do negócio → NOT_FOUND. */
+export const CustomerGetQuery = z.object({ customer_id: Uuid });
+export const CustomerGetOutput = z.object({ customer: CrmCustomer });
+export type CustomerGetOutput = z.infer<typeof CustomerGetOutput>;
+
 /** Query string de GET /crm/services. */
 export const ServiceListQuery = z.object({
   include_inactive: Flag,
@@ -126,6 +131,7 @@ export type ImportOutput = z.infer<typeof ImportOutput>;
 /** Rotas da função `crm`: listas em GET /functions/v1/crm/<rota>, o resto em POST. */
 export const CRM_ROUTES = {
   listCustomers: "customers",
+  getCustomer: "customer.get",
   listServices: "services",
   upsertCustomer: "customer.upsert",
   archiveCustomer: "customer.archive",

@@ -3,6 +3,8 @@
 export {
   OwnerProfile,
   OwnerProfileOutput,
+  PendingRequest,
+  ProfileMediaInput,
   ProfileUnpublishOutput,
   PublicBookInput,
   PublicBookOutput,

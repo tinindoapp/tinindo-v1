@@ -3,7 +3,7 @@
 -- Datas relativas a now(): a semana seguinte, em America/Sao_Paulo (timezone dos tenants do seed).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(93);
+select plan(101);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -232,6 +232,7 @@ select throws_ok(format($$ select public.scheduling_booking_reschedule(%L, %L, 1
 insert into r select 'b1c', public.scheduling_booking_cancel((select tenant_a from ids), pg_temp.bid('b1'), 2,
   'Cliente pediu', 'idem-cancel-b1-001', pg_temp.h('c1'));
 select is(pg_temp.got('b1c')->'body'->'booking'->>'status', 'cancelled', 'cancelado');
+select is(pg_temp.got('b1c')->'body'->'booking'->>'status_reason', 'Cliente pediu', 'cancelado devolve o motivo ao dono');
 select is(public.scheduling_booking_cancel((select tenant_a from ids), pg_temp.bid('b1'), 2,
   'Cliente pediu', 'idem-cancel-b1-001', pg_temp.h('c1')), pg_temp.got('b1c'), 'cancelamento repetido → mesma resposta');
 select throws_ok(format($$ select public.scheduling_booking_cancel(%L, %L, 3, 'De novo', 'idem-cancel-b1-002', %L) $$,
@@ -274,9 +275,12 @@ select is(pg_temp.got('done')->'body'->'booking'->>'status', 'completed', 'concl
 insert into r select 'ns', public.scheduling_booking_no_show((select tenant_a from ids),
   '60000000-0000-4000-8000-0000000000f2', 1, 'Não veio', false, 'idem-noshow-00001', pg_temp.h('ns'));
 select is(pg_temp.got('ns')->'body'->'booking'->>'status', 'no_show', 'falta marcada');
+select is(pg_temp.got('ns')->'body'->'booking'->>'status_reason', 'Não veio', 'falta devolve o motivo ao dono');
 insert into r select 'nsr', public.scheduling_booking_no_show((select tenant_a from ids),
   '60000000-0000-4000-8000-0000000000f2', 2, 'Chegou atrasado', true, 'idem-noshow-rev01', pg_temp.h('nsr'));
 select is(pg_temp.got('nsr')->'body'->'booking'->>'status', 'confirmed', 'falta revertida com motivo');
+select ok(pg_temp.got('nsr')->'body'->'booking' ? 'status_reason' and pg_temp.got('nsr')->'body'->'booking'->>'status_reason' is null,
+  'confirmado não expõe o motivo da falta desfeita');
 reset role;
 select is((select count(*)::int from public.outbox_events e where e.aggregate_id = '60000000-0000-4000-8000-0000000000f1'
   and e.event_type = 'booking.completed.v1'), 1, 'conclusão emite evento');
@@ -325,6 +329,24 @@ insert into r select 'list', public.scheduling_booking_list((select tenant_a fro
   pg_temp.at(1, '00:00'), null, null, 2);
 select is(jsonb_array_length(pg_temp.got('list')->'items'), 2, 'listagem respeita o limite');
 select ok(pg_temp.got('list')->'next' is not null and pg_temp.got('list')->'next' <> 'null'::jsonb, 'devolve cursor da próxima página');
+
+-- ------------------------------------------------------------------ histórico do cliente (sem janela)
+insert into r select 'byc', public.scheduling_booking_list_by_customer((select tenant_a from ids), (select cust_a from ids));
+select is(jsonb_array_length(pg_temp.got('byc')->'items'),
+  (select count(*)::int from public.bookings b where b.tenant_id = (select tenant_a from ids) and b.customer_id = (select cust_a from ids)),
+  'histórico do cliente traz todos os atendimentos dele, de qualquer data e estado');
+select ok((select bool_and(x->>'customer_id' = (select cust_a from ids)::text) from jsonb_array_elements(pg_temp.got('byc')->'items') x),
+  'histórico só tem atendimentos deste cliente');
+select ok((select bool_and((a->>'starts_at')::timestamptz >= (b->>'starts_at')::timestamptz)
+  from jsonb_array_elements(pg_temp.got('byc')->'items') with ordinality a(a, i)
+  join jsonb_array_elements(pg_temp.got('byc')->'items') with ordinality b(b, j) on j = i + 1),
+  'do mais recente para o mais antigo');
+insert into r select 'byc1', public.scheduling_booking_list_by_customer((select tenant_a from ids), (select cust_a from ids), null, null, 1);
+insert into r select 'byc2', public.scheduling_booking_list_by_customer((select tenant_a from ids), (select cust_a from ids),
+  (pg_temp.got('byc1')->'next'->>'key')::timestamptz, (pg_temp.got('byc1')->'next'->>'id')::uuid, 1);
+select is(pg_temp.got('byc2')->'items'->0->>'id', pg_temp.got('byc')->'items'->1->>'id', 'o cursor continua de onde a página parou');
+select throws_ok(format($$ select public.scheduling_booking_list_by_customer(%L, %L) $$, (select tenant_a from ids), (select cust_b from ids)),
+  'PT404', 'NOT_FOUND', 'cliente de outro negócio → NOT_FOUND');
 reset role;
 
 -- ------------------------------------------------------------------ link público (P09)

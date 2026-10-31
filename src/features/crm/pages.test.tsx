@@ -21,8 +21,7 @@ const ana: CrmCustomer = {
 const history: CustomerHistory = {
   timezone: "America/Sao_Paulo",
   now: "2026-10-20T12:00:00.000Z",
-  from: "2026-08-21T12:00:00.000Z",
-  until: "2026-12-19T12:00:00.000Z",
+  complete: true,
   items: [
     { id: "b3", starts_at: "2026-10-27T13:00:00.000Z", service: "Corte", status: "confirmed", price_cents: 6000 },
     { id: "b2", starts_at: "2026-10-13T13:00:00.000Z", service: "Barba", status: "no_show", price_cents: 4000 },

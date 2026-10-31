@@ -77,6 +77,8 @@ export interface FixturePortOptions {
 export interface FixturePublicLink {
   publicHold(input: { service_id: string; starts_at: string }): Promise<Booking>;
   publicConfirm(bookingId: string): Promise<Booking>;
+  /** Pedido trocado por outro do mesmo contato: o horário provisório volta a ficar livre. */
+  publicRelease(bookingId: string): Promise<void>;
 }
 
 /** Prazo da reserva provisória do link (app.sched_hold_minutes no servidor). */
@@ -247,7 +249,7 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
     bookings.push({
       id: `60000000-0000-4000-8000-${String(900 + ++seq).padStart(12, "0")}`,
       tenant_id: FX.tenants.A, resource_id: FX.resources.A, customer_id: null, service_id: serviceId,
-      starts_at: slot.starts_at, ends_at: slot.ends_at, status: "confirmed", hold_expires_at: null,
+      starts_at: slot.starts_at, ends_at: slot.ends_at, status: "confirmed", status_reason: null, hold_expires_at: null,
       price_quote_id: null, agreed_price_cents: null, source: "public_link", version: 1,
     });
     fail("SLOT_CONFLICT", "slot");
@@ -394,6 +396,7 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
           starts_at: input.slot.starts_at,
           ends_at: input.slot.ends_at,
           status: input.mode === "confirm" ? "confirmed" : "held",
+          status_reason: null,
           hold_expires_at: input.mode === "hold" ? toZonedIso(now.getTime() + QUOTE_TTL_MIN * MIN, tz) : null,
           price_quote_id: input.quote_id,
           agreed_price_cents: agreed ?? svc.base_price_cents,
@@ -421,6 +424,7 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         starts_at: slot.starts_at,
         ends_at: slot.ends_at,
         status: "held",
+        status_reason: null,
         hold_expires_at: toZonedIso(now.getTime() + PUBLIC_HOLD_MIN * MIN, tz),
         price_quote_id: null,
         agreed_price_cents: null,
@@ -437,6 +441,11 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
       const current = booking(id);
       if (current.status !== "held") fail("POLICY_REJECTED", "expires_at");
       return delay(confirmHeld(current, "expires_at"));
+    },
+    async publicRelease(id) {
+      const current = booking(id);
+      if (current.status === "held") update(current.id, { status: "expired", hold_expires_at: null });
+      await delay(undefined);
     },
 
     async confirm(raw, key) {
@@ -462,7 +471,7 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         if (input.revert && bookings.some((b) => b.id !== current.id && ACTIVE_STATUSES.includes(b.status) && overlap(b, current))) {
           fail("SLOT_CONFLICT", "slot");
         }
-        return update(current.id, { status: input.revert ? "confirmed" : "no_show" });
+        return update(current.id, { status: input.revert ? "confirmed" : "no_show", status_reason: input.revert ? null : input.reason });
       });
       return delay(result);
     },
@@ -499,7 +508,7 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         takeSimulatedStale(current.id);
         checkVersion(current, input.expected_version);
         if (current.status !== "held" && current.status !== "confirmed") fail("POLICY_REJECTED");
-        return update(current.id, { status: "cancelled", hold_expires_at: null });
+        return update(current.id, { status: "cancelled", status_reason: input.reason, hold_expires_at: null });
       });
       return delay(result);
     },

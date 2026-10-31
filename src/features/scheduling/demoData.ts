@@ -45,6 +45,7 @@ const extra = (n: number, starts: string, ends: string, service: string, custome
   starts_at: starts,
   ends_at: ends,
   status,
+  status_reason: status === "cancelled" ? "Cliente pediu para remarcar" : status === "no_show" ? "Não compareceu" : null,
   hold_expires_at: null,
   price_quote_id: null,
   agreed_price_cents: price,

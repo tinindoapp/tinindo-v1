@@ -156,6 +156,10 @@ export const OPERATIONS = {
     module: "scheduling", owner: "P03", kind: "query", idempotent: false,
     input: scheduling.BookingListInput, output: scheduling.BookingListOutput,
   },
+  "booking.list_by_customer": {
+    module: "scheduling", owner: "P03", kind: "query", idempotent: false,
+    input: scheduling.BookingListByCustomerInput, output: scheduling.BookingListOutput,
+  },
   "booking.get": {
     module: "scheduling", owner: "P03", kind: "query", idempotent: false,
     input: scheduling.BookingGetInput, output: scheduling.BookingOutput,
@@ -323,6 +327,10 @@ export const OPERATIONS = {
   "profile.get": {
     module: "network", owner: "P09", kind: "query", idempotent: false,
     input: NoInput, output: network.OwnerProfileOutput,
+  },
+  "profile.media": {
+    module: "network", owner: "P09", kind: "command", idempotent: true,
+    input: network.ProfileMediaInput, output: network.OwnerProfileOutput,
   },
   "public.profile": {
     module: "network", owner: "P09", kind: "query", idempotent: false,

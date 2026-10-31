@@ -9,6 +9,15 @@ import { createDemoNetworkApi, createHttpNetworkApi, resetDemoNetwork } from "./
 import { networkModule, networkPublicRoutes } from "./module.tsx";
 import { PublicProfileView } from "./PublicProfileView.tsx";
 
+// O jsdom não tem canvas nem createImageBitmap: o preparo da foto tem testes próprios (photo.test.ts).
+vi.mock("./photo.ts", async (original) => ({
+  ...(await original<typeof import("./photo.ts")>()),
+  processPhoto: async () => ({ blob: new Blob(["webp"], { type: "image/webp" }), type: "image/webp", ext: "webp" }),
+}));
+let blobs = 0;
+URL.createObjectURL ??= () => `blob:demo/${++blobs}`;
+URL.revokeObjectURL ??= () => undefined;
+
 function renderAt(path: string) {
   const router = createMemoryRouter(
     [{ path: "/app/perfil", children: networkModule.routes }, ...networkPublicRoutes],
@@ -267,6 +276,92 @@ describe("páginas públicas (demonstração)", () => {
     expect(screen.queryByRole("button", { name: "Continuar" })).not.toBeInTheDocument();
     fireEvent.click(within(await screen.findByRole("list", { name: "Horários livres" })).getByRole("button", { name: "12:00" }));
     expect(await screen.findByLabelText("Seu nome")).toHaveValue("Maria");
+  });
+
+  it("mesmo WhatsApp com pedido aguardando código: avisa, mantém o anterior ou troca pelo novo", async () => {
+    await publishDemoProfile();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    const ask = async (time: string) => {
+      await chooseService();
+      fireEvent.click(within(await screen.findByRole("list", { name: "Horários livres" })).getByRole("button", { name: time }));
+      fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
+      fireEvent.change(screen.getByLabelText("WhatsApp com DDD"), { target: { value: "(11) 97777-4343" } });
+      fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
+    };
+    await ask("12:00");
+    expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();
+    const first = /O código seria (\d{6})/.exec(screen.getByText(/nenhuma mensagem é enviada/).textContent ?? "")![1]!;
+
+    // Outra aba (ou a mesma pessoa depois): pede outro horário com o mesmo WhatsApp.
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    await ask("13:00");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Já existe um pedido aguardando confirmação para este WhatsApp. Se continuar, ele será trocado por este.");
+    expect(alert).not.toHaveTextContent("12:00");
+
+    // Manter o anterior: segue para o código do pedido que já existe, sem pedir o novo.
+    fireEvent.click(within(alert).getByRole("button", { name: "Manter o anterior" }));
+    expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();
+    expect(screen.getByText("Pedido anterior deste WhatsApp")).toBeInTheDocument();
+
+    // Voltar e trocar: o anterior é cancelado, o código antigo deixa de valer.
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Pedir este horário" }));
+    fireEvent.click(within(await screen.findByRole("alert")).getByRole("button", { name: "Trocar pelo novo" }));
+    expect(await screen.findByText(/Seu pedido anterior foi cancelado e substituído por este/)).not.toHaveTextContent("12:00");
+    const api = createDemoNetworkApi("http://localhost");
+    await expect(api.confirmBooking({ request_id: "x", code: first }, "k")).rejects.toBeInstanceOf(ApiError);
+    const second = /O código seria (\d{6})/.exec(screen.getByText(/nenhuma mensagem é enviada/).textContent ?? "")![1]!;
+    fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: second } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
+    expect(await screen.findByRole("heading", { name: "Horário confirmado" })).toBeInTheDocument();
+    expect(screen.getByText(/Corte · terça-feira, 20\/10 às/)).toHaveTextContent("13:00");
+    // O horário do pedido trocado voltou a ficar livre.
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    await chooseService();
+    expect(within(await screen.findByRole("list", { name: "Horários livres" })).getByRole("button", { name: "12:00" })).toBeInTheDocument();
+  });
+
+  it("foto e chaves do perfil: começam desligadas; ligadas, o público vê foto, botão do WhatsApp e preço", async () => {
+    await publishDemoProfile();
+    const media = screen.getByRole("region", { name: "Foto e contato" });
+    for (const name of ["Mostrar foto", "Mostrar botão do WhatsApp", "Mostrar preços"]) {
+      expect(within(media).getByRole("checkbox", { name: new RegExp(name) })).not.toBeChecked();
+    }
+    expect(within(media).getByRole("checkbox", { name: /Mostrar foto/ })).toBeDisabled();
+
+    // Desligadas: nada aparece no perfil público.
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    await screen.findByRole("heading", { name: "Escolha o serviço" });
+    expect(document.querySelector(".tn-net-photo")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Conversar no WhatsApp" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/a partir de/)).not.toBeInTheDocument();
+
+    cleanup();
+    renderAt("/app/perfil");
+    const box = await screen.findByRole("region", { name: "Foto e contato" });
+    fireEvent.change(within(box).getByLabelText("Foto do negócio"), { target: { files: [new File(["x"], "foto.jpg", { type: "image/jpeg" })] } });
+    const alt = await within(box).findByLabelText("Descrição da foto");
+    expect((alt as HTMLInputElement).value).toMatch(/^Foto de /);
+    fireEvent.change(alt, { target: { value: "Fachada da barbearia" } });
+    for (const name of ["Mostrar foto", "Mostrar botão do WhatsApp", "Mostrar preços"]) {
+      fireEvent.click(within(box).getByRole("checkbox", { name: new RegExp(name) }));
+    }
+    expect(within(box).getByText(/número do negócio, \(11\) 99999-0001/)).toBeInTheDocument();
+    fireEvent.click(within(box).getByRole("button", { name: "Salvar foto e opções" }));
+    expect(await screen.findByText("Foto e opções do perfil salvas.")).toBeInTheDocument();
+
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    expect(await screen.findByRole("img", { name: "Fachada da barbearia" })).toHaveAttribute("src", expect.stringMatching(/^blob:/));
+    expect(screen.getByRole("link", { name: "Conversar no WhatsApp" })).toHaveAttribute(
+      "href", `https://wa.me/5511999990001?text=${encodeURIComponent("Olá! Vi seu perfil na Tinindo.")}`,
+    );
+    expect((await screen.findByRole("radio", { name: /^Corte/ })).closest("label")).toHaveTextContent(/a partir de R\$\s60,00/);
   });
 
   it("toE164 aceita os formatos comuns e recusa número sem DDD", async () => {

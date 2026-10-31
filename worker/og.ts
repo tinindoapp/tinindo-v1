@@ -15,6 +15,8 @@ export interface OgTags {
   description: string;
   url: string;
   image: string;
+  /** Lado da imagem quadrada em px: 512 no ícone padrão, 800 na foto do perfil. */
+  imageSide?: number;
 }
 
 const CATEGORY: Record<string, string> = {
@@ -60,8 +62,8 @@ export function renderTags(tags: OgTags): string {
     `<meta property="og:description" content="${d}" />`,
     `<meta property="og:url" content="${escape(tags.url)}" />`,
     `<meta property="og:image" content="${escape(tags.image)}" />`,
-    `<meta property="og:image:width" content="512" />`,
-    `<meta property="og:image:height" content="512" />`,
+    `<meta property="og:image:width" content="${tags.imageSide ?? 512}" />`,
+    `<meta property="og:image:height" content="${tags.imageSide ?? 512}" />`,
     `<meta name="twitter:card" content="summary" />`,
     OG_END,
   ].join("\n    ");
@@ -112,6 +114,10 @@ export async function tagsFor(
     const about = str(fields.bio) ?? str(fields.services_summary);
     const lead = [category, area].filter(Boolean).join(" · ");
     const action = str(fields.booking_link) ? "Veja os horários livres e agende pelo link." : "Veja o perfil no Tinindo.";
+    // Foto do negócio quando o dono ligou "Mostrar foto" (o servidor já manda null desligado); só do bucket público.
+    const photo = p.photo && typeof p.photo === "object" ? str((p.photo as Record<string, unknown>).url) : null;
+    const photoBase = `${config.supabase_url.replace(/\/$/, "")}/storage/v1/object/public/profile-photos/`;
+    if (photo?.startsWith(photoBase)) return { title: name, description: sentences([lead, about, action]), url, image: photo, imageSide: 800 };
     return { title: name, description: sentences([lead, about, action]), url, image };
   }
 
