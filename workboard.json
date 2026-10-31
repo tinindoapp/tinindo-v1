@@ -678,9 +678,65 @@
       "pr": 42,
       "block_reason": null,
       "merge_sha": "483b87f612459995117de3d5b69d7f1d9edaf8cb"
+    },
+    "P28": {
+      "id": "P28",
+      "title": "Equipes e recursos",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P03",
+        "P07",
+        "P15"
+      ],
+      "resources": [
+        "resources"
+      ],
+      "paths": [
+        "src/features/resources/",
+        "supabase/functions/resources/",
+        "db/proposals/P28/",
+        "tests/contracts/resources/",
+        "tests/e2e/resources/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/pensive-allen-kdu6np",
+      "lease_until": null,
+      "pr": 60,
+      "block_reason": null,
+      "merge_sha": "27316a75d93b0cbbd985ca76fb9a08f2921d26a5"
+    },
+    "P30": {
+      "id": "P30",
+      "title": "Materiais e custos",
+      "lead_hint": "Entregue fora do quadro (reconciliado)",
+      "depends_on": [
+        "P02",
+        "P07",
+        "P11"
+      ],
+      "resources": [
+        "materials"
+      ],
+      "paths": [
+        "src/features/materials/",
+        "supabase/functions/materials/",
+        "db/proposals/P30/",
+        "tests/contracts/materials/",
+        "tests/e2e/materials/"
+      ],
+      "status": "done",
+      "owner": "fffalleiros",
+      "session": "reconcile",
+      "branch": "claude/pensive-allen-kdu6np",
+      "lease_until": null,
+      "pr": 61,
+      "block_reason": null,
+      "merge_sha": "7e032ffd15400fc4ae2978591fffcba59817f380"
     }
   },
-  "updated_at": "2026-10-27T11:49:17.733260Z",
+  "updated_at": "2026-10-31T11:00:00.734155Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1368,6 +1424,26 @@
       "session": "gabriel-p42-ux",
       "pr": null,
       "reason": null
+    },
+    {
+      "id": "c1e0462b-4a15-4293-98fb-0387f7bef9fa",
+      "at": "2026-10-31T11:00:00.734155Z",
+      "action": "reconcile",
+      "task": "P28",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 60,
+      "reason": "Entregue em PR merged fora do quadro (P28/P30 não estavam liberados); registrado pelo integrador com autorização do dono em 31/10."
+    },
+    {
+      "id": "e5799261-fded-47af-a6f3-86e5efbc0920",
+      "at": "2026-10-31T11:00:00.734155Z",
+      "action": "reconcile",
+      "task": "P30",
+      "actor": "fffalleiros",
+      "session": "reconcile",
+      "pr": 61,
+      "reason": "Entregue em PR merged fora do quadro (P28/P30 não estavam liberados); registrado pelo integrador com autorização do dono em 31/10."
     }
   ]
 }
