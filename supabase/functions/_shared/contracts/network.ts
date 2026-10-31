@@ -135,11 +135,10 @@ export const PublicBookInput = z.object({
    *  PENDING_REQUEST_EXISTS, com PendingRequest em error.details. */
   replace_existing: z.boolean().default(false),
 });
-/** Resumo do pedido que ainda aguarda código (error.details de PENDING_REQUEST_EXISTS). Sem nome nem telefone. */
+/** Pedido que ainda aguarda código (error.details de PENDING_REQUEST_EXISTS). Só id e prazo: sem serviço, horário,
+ *  nome nem telefone, para que digitar o WhatsApp de outra pessoa não revele o que ela marcou. */
 export const PendingRequest = z.object({
   request_id: Uuid,
-  service_name: z.string(),
-  starts_at: IsoDateTime,
   expires_at: IsoDateTime,
 });
 export const PublicBookOutput = z.object({
@@ -149,8 +148,8 @@ export const PublicBookOutput = z.object({
   expires_at: IsoDateTime,
   /** Situação do envio do código. Enviado não é entregue. */
   delivery: z.enum(["queued", "sending", "sent", "failed", "delivery_unknown"]),
-  /** Presente quando este pedido trocou um anterior do mesmo contato (que foi cancelado). */
-  replaced: z.object({ service_name: z.string(), starts_at: IsoDateTime }).optional(),
+  /** true quando este pedido trocou um anterior do mesmo contato (que foi cancelado). Não diz qual era. */
+  replaced: z.literal(true).optional(),
 });
 
 export const PublicConfirmInput = z.object({

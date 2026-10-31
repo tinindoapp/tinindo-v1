@@ -259,8 +259,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
       const pending = [...demoState.requests.values()].find((r) => r.contactPhone === input.contact.phone_e164 && !r.confirmed && !r.replaced);
       if (pending && !input.replace_existing) {
         throw new ApiError("PENDING_REQUEST_EXISTS", "Você já tem um pedido aguardando confirmação.", 409, null, false, "contact.phone_e164", {
-          request_id: pending.request.request_id, service_name: pending.serviceName,
-          starts_at: pending.request.slot.starts_at, expires_at: pending.request.expires_at,
+          request_id: pending.request.request_id, expires_at: pending.request.expires_at,
         });
       }
       if (pending) {
@@ -283,7 +282,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         slot: { starts_at: hold.starts_at, ends_at: hold.ends_at },
         expires_at: hold.hold_expires_at,
         delivery: "queued",
-        ...(pending ? { replaced: { service_name: pending.serviceName, starts_at: pending.request.slot.starts_at } } : {}),
+        ...(pending ? { replaced: true as const } : {}),
         demoCode: code,
       };
       // Trocar não zera as tentativas de código já gastas no pedido anterior.

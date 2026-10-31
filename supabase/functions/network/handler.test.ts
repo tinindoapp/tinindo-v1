@@ -284,24 +284,24 @@ describe("network · reserva pelo link (P43)", () => {
     expect(rpc).toHaveBeenLastCalledWith("cliente-jwt", "public_booking_request", expect.anything());
   });
 
-  it("public.book: pedido pendente do mesmo WhatsApp vira 409 com o resumo; replace_existing vai para a RPC e volta replaced", async () => {
-    const summary = { request_id: bookRow.request_id, service_name: "Corte", starts_at: "2026-10-30T17:00:00Z", expires_at: "2026-10-27T12:15:00Z" };
+  it("public.book: pedido pendente do mesmo WhatsApp vira 409 só com id e prazo; replace_existing vai para a RPC e volta replaced", async () => {
+    const summary = { request_id: bookRow.request_id, expires_at: "2026-10-27T12:15:00Z" };
     const pending = vi.fn(async () => ({
-      data: { status_code: 409, error: "PENDING_REQUEST_EXISTS", field: "contact.phone_e164", details: { ...summary, contact_phone: "+5511977774343" } },
+      data: { status_code: 409, error: "PENDING_REQUEST_EXISTS", field: "contact.phone_e164", details: { ...summary, service_name: "Corte", starts_at: "2026-10-30T17:00:00Z", contact_phone: "+5511977774343" } },
       error: null,
     }));
     const res = await setup(pending).handler(req("public.book", { headers: visitor, body: bookBody }));
     expect(res.status).toBe(409);
     const body = ErrorEnvelope.parse(await res.json());
     expect(body.error).toMatchObject({ code: "PENDING_REQUEST_EXISTS", field: "contact.phone_e164" });
-    // Só o resumo do contrato sai: nada além dele (nem telefone) vaza do envelope.
+    // Só id e prazo saem: serviço, horário e telefone não vazam do envelope.
     expect(body.error.details).toEqual(summary);
     expect(pending).toHaveBeenCalledWith(null, "public_booking_request", expect.objectContaining({ p_replace_existing: false }));
 
     const broken = vi.fn(async () => ({ data: { status_code: 409, error: "PENDING_REQUEST_EXISTS", details: { request_id: "x" } }, error: null }));
     expect((await setup(broken).handler(req("public.book", { headers: visitor, body: bookBody }))).status).toBe(500);
 
-    const replaced = { service_name: "Corte", starts_at: "2026-10-30T17:00:00Z" };
+    const replaced = true;
     const swap = vi.fn(async () => ({ data: { status_code: 201, body: { ...bookRow, replaced } }, error: null }));
     const ok = await setup(swap).handler(req("public.book", { headers: visitor, body: { ...bookBody, replace_existing: true } }));
     expect(ok.status).toBe(201);

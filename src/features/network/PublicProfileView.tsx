@@ -14,25 +14,17 @@ const dayWindow = (day: string) => ({ starts_at: `${day}T00:00:00${OFFSET}`, end
 const todayInSaoPaulo = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 const formatDay = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
-/** "Corte · qui, 30/10 às 14:00": o pedido anterior, no aviso de troca e no aviso depois de trocar. */
-export function requestLabel(serviceName: string, startsAt: string): string {
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(startsAt));
-  return `${serviceName} · ${shortDay(day).replace(" ", ", ")} às ${formatTime(startsAt)}`;
-}
 
-/** Resumo do pedido que aguarda código (error.details de PENDING_REQUEST_EXISTS). */
+/** Pedido que aguarda código (error.details de PENDING_REQUEST_EXISTS). Só id e prazo: o servidor não diz qual é. */
 interface PendingSummary {
   request_id: string;
-  service_name: string;
-  starts_at: string;
   expires_at: string;
 }
 function pendingSummary(e: unknown): PendingSummary | null {
   if (!(e instanceof ApiError) || e.code !== "PENDING_REQUEST_EXISTS" || !e.details) return null;
   const d = e.details;
-  return typeof d.request_id === "string" && typeof d.service_name === "string" && typeof d.starts_at === "string" &&
-      typeof d.expires_at === "string"
-    ? { request_id: d.request_id, service_name: d.service_name, starts_at: d.starts_at, expires_at: d.expires_at }
+  return typeof d.request_id === "string" && typeof d.expires_at === "string"
+    ? { request_id: d.request_id, expires_at: d.expires_at }
     : null;
 }
 
@@ -269,7 +261,7 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
     if (!pending || !e164) return;
     if (request?.data.request_id !== pending.request_id) {
       setRequest({
-        data: { request_id: pending.request_id, slot: { starts_at: pending.starts_at, ends_at: pending.starts_at }, expires_at: pending.expires_at, delivery: "sent" },
+        data: { request_id: pending.request_id, slot: { starts_at: pending.expires_at, ends_at: pending.expires_at }, expires_at: pending.expires_at, delivery: "sent" },
         phone: e164,
       });
     }
@@ -333,7 +325,7 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
   const title = STEPS.find((s) => s.phase === step)?.title;
   // Resumo da escolha, à vista do passo 2 em diante: "Corte · ter 20/10 · 10:00".
   const summary = kept && step === "code"
-    ? requestLabel(kept.service_name, kept.starts_at)
+    ? "Pedido anterior deste WhatsApp"
     : [service?.name, shortDay(day), chosen ? formatTime(chosen) : null].filter(Boolean).join(" · ");
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(firstDay, i));
 
@@ -489,8 +481,7 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
           {pending ? (
             <div className="tn-stack" data-gap="sm" role="alert">
               <StatusBanner tone="warning">
-                Você já tem um pedido aguardando confirmação: <span className="tn-num">{requestLabel(pending.service_name, pending.starts_at)}</span>.
-                Se continuar, ele será trocado por este.
+                Já existe um pedido aguardando confirmação para este WhatsApp. Se continuar, ele será trocado por este.
               </StatusBanner>
               <div className="tn-actions">
                 <Button variant="secondary" onClick={keepPrevious}>
@@ -518,8 +509,7 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
         <div className="tn-stack">
           {request.data.replaced ? (
             <StatusBanner tone="success">
-              Seu pedido anterior foi cancelado e substituído por este
-              (<span className="tn-num">{requestLabel(request.data.replaced.service_name, request.data.replaced.starts_at)}</span> foi liberado).
+              Seu pedido anterior foi cancelado e substituído por este.
             </StatusBanner>
           ) : null}
           <StatusBanner tone="info">

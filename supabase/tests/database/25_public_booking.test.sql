@@ -133,13 +133,13 @@ insert into r select 't2', public.public_booking_request('barbearia-link-a', (se
   (select monday_10 from ids) + interval '7 hours', 'Joana Silva', '+5511955550009', 'troca-pedido-000002', repeat('2', 64));
 select is((select v->>'status_code' || ':' || (v->>'error') || ':' || (v->'details'->>'request_id') from r where k = 't2'),
   (select '409:PENDING_REQUEST_EXISTS:' || (v->'body'->>'request_id') from r where k = 't1'),
-  'mesmo WhatsApp com pedido aguardando: 409 com o resumo do anterior, sem trocar sozinho');
-select is((select (v->'details'->>'starts_at')::timestamptz from r where k = 't2'), (select monday_10 from ids) + interval '6 hours',
-  'o resumo traz o horário do pedido anterior');
+  'mesmo WhatsApp com pedido aguardando: 409 com o id do anterior, sem trocar sozinho');
+select is((select (select array_agg(k order by k) from jsonb_object_keys(v->'details') k) from r where k = 't2'), array['expires_at', 'request_id'],
+  'o 409 não revela serviço nem horário do pedido anterior');
 insert into r select 't3', public.public_booking_request('barbearia-link-a', (select corte_a from ids),
   (select monday_10 from ids) + interval '7 hours', 'Joana Silva', '+5511955550009', 'troca-pedido-000003', repeat('3', 64), null, true);
-select is((select (v->'body'->'replaced'->>'starts_at')::timestamptz from r where k = 't3'), (select monday_10 from ids) + interval '6 hours',
-  'com replace_existing a resposta traz o pedido trocado');
+select is((select v->'body'->'replaced' from r where k = 't3'), 'true'::jsonb,
+  'com replace_existing a resposta diz que trocou, sem dizer qual');
 reset role;
 select is((select b.status || ':' || b.status_reason || ':' || b.blocks_capacity::text from public.bookings b
   join public.public_booking_requests q on q.booking_id = b.id where q.idem_key = 'troca-pedido-000001'),

@@ -28,7 +28,8 @@ test("mesmo WhatsApp: aviso antes de trocar, manter o anterior, trocar e confirm
   await secondSlot.click();
   await page.getByRole("button", { name: "Pedir este horário" }).click();
   const alert = page.getByRole("alert");
-  await expect(alert).toContainText(`Você já tem um pedido aguardando confirmação: Corte · ter, 20/10 às ${firstTime}.`);
+  await expect(alert).toContainText("Já existe um pedido aguardando confirmação para este WhatsApp.");
+  await expect(alert).not.toContainText(firstTime);
   await expect(alert).toContainText("Se continuar, ele será trocado por este.");
   for (const name of ["Trocar pelo novo", "Manter o anterior"]) {
     expect((await alert.getByRole("button", { name }).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -39,7 +40,7 @@ test("mesmo WhatsApp: aviso antes de trocar, manter o anterior, trocar e confirm
   // Manter: segue para o código do pedido anterior.
   await alert.getByRole("button", { name: "Manter o anterior" }).click();
   await expect(page.getByRole("heading", { name: "Confirme o horário" })).toBeVisible();
-  await expect(page.getByText(`Corte · ter, 20/10 às ${firstTime}`)).toBeVisible();
+  await expect(page.getByText("Pedido anterior deste WhatsApp")).toBeVisible();
 
   // Trocar: o anterior é cancelado e a tela diz isso.
   await page.getByRole("button", { name: "Voltar" }).click();

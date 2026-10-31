@@ -5,7 +5,7 @@
 --   com o resumo do pedido anterior (serviço, início, prazo e id), e a tela pergunta se troca ou mantém.
 -- * Com replace_existing = true, a MESMA transação libera o anterior e cria o novo: o hold anterior vai para 'expired'
 --   com status_reason 'replaced', o pedido anterior fica 'replaced' (o código dele deixa de valer e não é mais
---   despachado) e sai booking.hold_released.v1. A resposta traz replaced {service_name, starts_at}.
+--   despachado) e sai booking.hold_released.v1. A resposta traz replaced: true.
 -- * A troca passa pelos mesmos limites por contato e por negócio (o pedido novo conta), e o pedido novo herda as
 --   tentativas de código já gastas no anterior: trocar não zera tentativas.
 -- * Dois pedidos simultâneos do mesmo contato passam um de cada vez pela trava do recurso: termina um só ativo.
@@ -18,22 +18,18 @@ alter table public.public_booking_requests add column replaced_request_id uuid r
 create index public_booking_requests_pending_contact on public.public_booking_requests (tenant_id, contact_phone_e164)
   where status = 'pending';
 
-/** Resumo de um pedido para a tela do visitante: serviço e início do horário. Sem nome nem telefone. */
+/** O que o visitante recebe sobre um pedido pendente do mesmo WhatsApp: só o id (inútil sem o código) e o prazo.
+ *  Sem serviço nem horário: quem digitar o número de outra pessoa não descobre o que ela marcou (decisão do Felipe, 31/10). */
 create function app.pbk_request_summary(q public.public_booking_requests) returns jsonb
 language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object('request_id', q.id, 'service_name', s.name, 'starts_at', app.sched_ts(b.starts_at),
-    'expires_at', app.sched_ts(q.expires_at))
-  from public.bookings b join public.provider_services s on s.tenant_id = b.tenant_id and s.id = b.service_id
-  where b.tenant_id = q.tenant_id and b.id = q.booking_id
+  select jsonb_build_object('request_id', q.id, 'expires_at', app.sched_ts(q.expires_at))
 $$;
 revoke all on function app.pbk_request_summary(public.public_booking_requests) from public;
 
-/** {replaced: {service_name, starts_at}} quando o pedido substituiu outro; senão, objeto vazio. */
+/** {replaced: true} quando o pedido substituiu outro; senão, objeto vazio. Sem dizer qual era o anterior. */
 create function app.pbk_replaced_json(q public.public_booking_requests) returns jsonb
 language sql stable security definer set search_path = '' as $$
-  select coalesce((select jsonb_build_object('replaced', jsonb_build_object('service_name', x->>'service_name', 'starts_at', x->>'starts_at'))
-                   from public.public_booking_requests r, app.pbk_request_summary(r) x
-                   where r.id = q.replaced_request_id), '{}'::jsonb)
+  select case when q.replaced_request_id is not null then jsonb_build_object('replaced', true) else '{}'::jsonb end
 $$;
 revoke all on function app.pbk_replaced_json(public.public_booking_requests) from public;
 
@@ -128,7 +124,7 @@ begin
   for update of q;
   if v_pending.id is not null then
     if not coalesce(p_replace_existing, false) then
-      -- Sem gravar nada: a tela mostra o resumo e pergunta se troca. O handler traduz o envelope 4xx.
+      -- Sem gravar nada: a tela avisa que há um pedido pendente (sem dizer qual) e pergunta se troca. O handler traduz o envelope 4xx.
       return jsonb_build_object('status_code', 409, 'error', 'PENDING_REQUEST_EXISTS', 'field', 'contact.phone_e164',
         'details', app.pbk_request_summary(v_pending));
     end if;

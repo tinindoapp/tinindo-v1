@@ -289,18 +289,19 @@ describe("páginas públicas (demonstração)", () => {
     renderAt("/p/barbearia-exemplo");
     await ask("13:00");
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Você já tem um pedido aguardando confirmação: Corte · ter, 20/10 às 12:00. Se continuar, ele será trocado por este.");
+    expect(alert).toHaveTextContent("Já existe um pedido aguardando confirmação para este WhatsApp. Se continuar, ele será trocado por este.");
+    expect(alert).not.toHaveTextContent("12:00");
 
     // Manter o anterior: segue para o código do pedido que já existe, sem pedir o novo.
     fireEvent.click(within(alert).getByRole("button", { name: "Manter o anterior" }));
     expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();
-    expect(screen.getByText("Corte · ter, 20/10 às 12:00")).toBeInTheDocument();
+    expect(screen.getByText("Pedido anterior deste WhatsApp")).toBeInTheDocument();
 
     // Voltar e trocar: o anterior é cancelado, o código antigo deixa de valer.
     fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
     fireEvent.click(await screen.findByRole("button", { name: "Pedir este horário" }));
     fireEvent.click(within(await screen.findByRole("alert")).getByRole("button", { name: "Trocar pelo novo" }));
-    expect(await screen.findByText(/Seu pedido anterior foi cancelado e substituído por este/)).toHaveTextContent("Corte · ter, 20/10 às 12:00");
+    expect(await screen.findByText(/Seu pedido anterior foi cancelado e substituído por este/)).not.toHaveTextContent("12:00");
     const api = createDemoNetworkApi("http://localhost");
     await expect(api.confirmBooking({ request_id: "x", code: first }, "k")).rejects.toBeInstanceOf(ApiError);
     const second = /O código seria (\d{6})/.exec(screen.getByText(/nenhuma mensagem é enviada/).textContent ?? "")![1]!;
