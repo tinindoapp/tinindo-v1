@@ -15,6 +15,7 @@ Fluxo (docs/09): PR revisado → `main` → homologação → smoke → aprovaç
 ## 2 · Homologação
 
 - [ ] `supabase db push` no projeto de homologação; `supabase functions deploy` de todas as funções de `supabase/functions` (26 em 27/10, com `resources` do P28 e `materials` do P30); cron do `jobs` (`X-Tinindo-Jobs-Secret`) (worker + réguas do P13 + renovação do P20 + indicações do P21 + fechamento de campanhas do P19 + acompanhamento de sugestões do P22), do `channel.dispatch` (`X-Tinindo-Dispatch-Secret`), do `payment.sync` e do `fiscal.sync` (`X-Tinindo-Sync-Secret`) ativos (1 min).
+- [ ] E-mail do Auth pelo SMTP próprio (Resend em `mail.tinindoapp.com.br`), "Confirm email" religado e modelos em português de `supabase/templates/` colados no painel; cadastro, confirmação e "Esqueci minha senha" testados com e-mail novo, fora do spam do Gmail (roteiro: `EMAIL-RESEND.md`).
 - [ ] Smoke manual com a conta técnica sintética: entrar → agenda → novo agendamento → caixa → orçamento pelo link → pergunta ao assistente. Nenhum dado real.
 - [ ] `tests/e2e-staging` (desktop, iPhone WebKit, Android) passando contra a homologação; relatório anexado (ver o README da pasta).
 - [ ] iPhone real conforme `docs/qa/IPHONE-SAFARI.md`.
