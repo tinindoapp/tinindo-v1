@@ -176,15 +176,20 @@ describe("ficha do cliente", () => {
 describe("servidor", () => {
   const ok = <T,>(data: T) => ({ data, requestId: "r" });
 
-  it("getCustomer percorre a lista com arquivados até achar o id", async () => {
-    const call = vi.fn(async (path: string) => {
-      if (path.includes("cursor=c2")) return ok({ items: [ana], next_cursor: null });
-      return ok({ items: [bruno], next_cursor: "c2" });
-    });
+  it("getCustomer lê customer.get por id, numa chamada só", async () => {
+    const call = vi.fn(async (_path: string) => ok({ customer: ana }));
     const api = createServerCrmApi({ call: call as never, tenantId: FX.tenants.A, readProfession: async () => "barber" });
     expect(await api.getCustomer(ana.id)).toEqual(ana);
-    expect(call.mock.calls[0]![0]).toContain("include_archived=true");
-    expect(call).toHaveBeenCalledTimes(2);
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(call.mock.calls[0]![0]).toBe(`/crm/customer.get?customer_id=${ana.id}`);
+  });
+
+  it("getCustomer devolve null quando o servidor responde NOT_FOUND", async () => {
+    const call = vi.fn(async () => {
+      throw new ApiError("NOT_FOUND", "Não encontrado.", 404, "r", false);
+    });
+    const api = createServerCrmApi({ call: call as never, tenantId: FX.tenants.A, readProfession: async () => "barber" });
+    expect(await api.getCustomer(ana.id)).toBeNull();
   });
 
   it("customerHistory lê booking.list em duas janelas e fica só com o cliente pedido", async () => {

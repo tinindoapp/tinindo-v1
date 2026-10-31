@@ -2,7 +2,7 @@
 -- importação com relatório por linha. Roda depois da fundação + 001_crm.sql + seed sintético.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(57);
+select plan(61);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -128,6 +128,12 @@ select is(jsonb_array_length(public.crm_customer_list((select tenant_a from ids)
   'lista padrão esconde arquivados');
 select is(jsonb_array_length(public.crm_customer_list((select tenant_a from ids), null, true)->'items'), 5,
   'lista com arquivados mostra todos');
+select is(public.crm_customer_get((select tenant_a from ids), pg_temp.cid('a2'))->'customer'->>'id', pg_temp.cid('a2')::text,
+  'customer.get lê o cliente por id, arquivado inclusive');
+select throws_ok(format($$ select public.crm_customer_get(%L, %L) $$, (select tenant_a from ids),
+  pg_temp.got('b1')->'body'->'customer'->>'id'), 'PT404', 'NOT_FOUND', 'customer.get: cliente de B pelo negócio A → NOT_FOUND');
+select throws_ok(format($$ select public.crm_customer_get(%L, %L) $$, (select tenant_b from ids),
+  pg_temp.got('b1')->'body'->'customer'->>'id'), 'PT403', 'FORBIDDEN', 'customer.get: dono A não lê o negócio B');
 select is(public.crm_customer_list((select tenant_a from ids), 'ana')->'items'->0->>'id',
   pg_temp.cid('a1')::text, 'busca por nome');
 select is(jsonb_array_length(public.crm_customer_list((select tenant_a from ids), '98765', true)->'items'), 2,
@@ -208,6 +214,8 @@ select pg_temp.login_as((select customer_ab from ids));
 set local role authenticated;
 select throws_ok(format($$ select public.crm_customer_list(%L) $$, (select tenant_a from ids)),
   'PT403', 'FORBIDDEN', 'cliente final com login não lista o CRM do negócio');
+select throws_ok(format($$ select public.crm_customer_get(%L, %L) $$, (select tenant_a from ids), pg_temp.cid('a2')),
+  'PT403', 'FORBIDDEN', 'cliente final com login não lê cliente por id');
 select is_empty('select 1 from public.customers', 'cliente final não lê linhas do CRM');
 reset role;
 
