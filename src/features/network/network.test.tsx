@@ -269,6 +269,53 @@ describe("páginas públicas (demonstração)", () => {
     expect(await screen.findByLabelText("Seu nome")).toHaveValue("Maria");
   });
 
+  it("mesmo WhatsApp com pedido aguardando código: avisa, mantém o anterior ou troca pelo novo", async () => {
+    await publishDemoProfile();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    const ask = async (time: string) => {
+      await chooseService();
+      fireEvent.click(within(await screen.findByRole("list", { name: "Horários livres" })).getByRole("button", { name: time }));
+      fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
+      fireEvent.change(screen.getByLabelText("WhatsApp com DDD"), { target: { value: "(11) 97777-4343" } });
+      fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
+    };
+    await ask("12:00");
+    expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();
+    const first = /O código seria (\d{6})/.exec(screen.getByText(/nenhuma mensagem é enviada/).textContent ?? "")![1]!;
+
+    // Outra aba (ou a mesma pessoa depois): pede outro horário com o mesmo WhatsApp.
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    await ask("13:00");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Já existe um pedido aguardando confirmação para este WhatsApp. Se continuar, ele será trocado por este.");
+    expect(alert).not.toHaveTextContent("12:00");
+
+    // Manter o anterior: segue para o código do pedido que já existe, sem pedir o novo.
+    fireEvent.click(within(alert).getByRole("button", { name: "Manter o anterior" }));
+    expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();
+    expect(screen.getByText("Pedido anterior deste WhatsApp")).toBeInTheDocument();
+
+    // Voltar e trocar: o anterior é cancelado, o código antigo deixa de valer.
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Pedir este horário" }));
+    fireEvent.click(within(await screen.findByRole("alert")).getByRole("button", { name: "Trocar pelo novo" }));
+    expect(await screen.findByText(/Seu pedido anterior foi cancelado e substituído por este/)).not.toHaveTextContent("12:00");
+    const api = createDemoNetworkApi("http://localhost");
+    await expect(api.confirmBooking({ request_id: "x", code: first }, "k")).rejects.toBeInstanceOf(ApiError);
+    const second = /O código seria (\d{6})/.exec(screen.getByText(/nenhuma mensagem é enviada/).textContent ?? "")![1]!;
+    fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: second } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
+    expect(await screen.findByRole("heading", { name: "Horário confirmado" })).toBeInTheDocument();
+    expect(screen.getByText(/Corte · terça-feira, 20\/10 às/)).toHaveTextContent("13:00");
+    // O horário do pedido trocado voltou a ficar livre.
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    await chooseService();
+    expect(within(await screen.findByRole("list", { name: "Horários livres" })).getByRole("button", { name: "12:00" })).toBeInTheDocument();
+  });
+
   it("toE164 aceita os formatos comuns e recusa número sem DDD", async () => {
     const { toE164 } = await import("./PublicProfileView.tsx");
     expect(toE164("(11) 97777-4343")).toBe("+5511977774343");

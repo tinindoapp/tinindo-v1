@@ -77,6 +77,8 @@ export interface FixturePortOptions {
 export interface FixturePublicLink {
   publicHold(input: { service_id: string; starts_at: string }): Promise<Booking>;
   publicConfirm(bookingId: string): Promise<Booking>;
+  /** Pedido trocado por outro do mesmo contato: o horário provisório volta a ficar livre. */
+  publicRelease(bookingId: string): Promise<void>;
 }
 
 /** Prazo da reserva provisória do link (app.sched_hold_minutes no servidor). */
@@ -439,6 +441,11 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
       const current = booking(id);
       if (current.status !== "held") fail("POLICY_REJECTED", "expires_at");
       return delay(confirmHeld(current, "expires_at"));
+    },
+    async publicRelease(id) {
+      const current = booking(id);
+      if (current.status === "held") update(current.id, { status: "expired", hold_expires_at: null });
+      await delay(undefined);
     },
 
     async confirm(raw, key) {

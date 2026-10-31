@@ -3,7 +3,7 @@
 -- repetições e as tentativas do código são provadas com conexões simultâneas em tests/db-concurrency/24_public_booking.sh.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(33);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -39,7 +39,7 @@ select tenant_a, 'barbearia-link-a', 'barber', 'Centro', array['display_name', '
 union all select tenant_b, 'personal-sem-link-b', 'personal_trainer', 'Zona Sul', array['display_name'], now() from ids;
 
 -- ------------------------------------------------------------------ estrutura
-select ok(has_function_privilege('anon', 'public.public_booking_request(text, uuid, timestamptz, text, text, text, text, uuid)', 'execute'),
+select ok(has_function_privilege('anon', 'public.public_booking_request(text, uuid, timestamptz, text, text, text, text, uuid, boolean)', 'execute'),
   'anon pede horário');
 select ok(has_function_privilege('anon', 'public.public_booking_confirm(uuid, text, uuid)', 'execute'), 'anon confirma');
 select ok(has_function_privilege('anon', 'public.public_booking_services(text)', 'execute'), 'anon lista serviços');
@@ -122,6 +122,39 @@ reset role;
 select is((select coalesce(b.customer_id::text, '-') || ':' || coalesce(b.guest_ref, '-') from public.bookings b
   where b.starts_at = (select monday_10 from ids) + interval '2 hours'),
   (select ab_in_a::text || ':-' from ids), 'reserva no próprio cadastro do cliente, sem nome solto');
+
+-- ------------------------------------------------------------------ pedido novo do mesmo contato substitui o anterior
+select pg_temp.as_anon();
+set local role anon;
+insert into r select 't1', public.public_booking_request('barbearia-link-a', (select corte_a from ids),
+  (select monday_10 from ids) + interval '6 hours', 'Joana', '+5511955550009', 'troca-pedido-000001', repeat('1', 64));
+select public.public_booking_confirm((v->'body'->>'request_id')::uuid, '999999') from r where k = 't1';
+insert into r select 't2', public.public_booking_request('barbearia-link-a', (select corte_a from ids),
+  (select monday_10 from ids) + interval '7 hours', 'Joana Silva', '+5511955550009', 'troca-pedido-000002', repeat('2', 64));
+select is((select v->>'status_code' || ':' || (v->>'error') || ':' || (v->'details'->>'request_id') from r where k = 't2'),
+  (select '409:PENDING_REQUEST_EXISTS:' || (v->'body'->>'request_id') from r where k = 't1'),
+  'mesmo WhatsApp com pedido aguardando: 409 com o id do anterior, sem trocar sozinho');
+select is((select (select array_agg(k order by k) from jsonb_object_keys(v->'details') k) from r where k = 't2'), array['expires_at', 'request_id'],
+  'o 409 não revela serviço nem horário do pedido anterior');
+insert into r select 't3', public.public_booking_request('barbearia-link-a', (select corte_a from ids),
+  (select monday_10 from ids) + interval '7 hours', 'Joana Silva', '+5511955550009', 'troca-pedido-000003', repeat('3', 64), null, true);
+select is((select v->'body'->'replaced' from r where k = 't3'), 'true'::jsonb,
+  'com replace_existing a resposta diz que trocou, sem dizer qual');
+reset role;
+select is((select b.status || ':' || b.status_reason || ':' || b.blocks_capacity::text from public.bookings b
+  join public.public_booking_requests q on q.booking_id = b.id where q.idem_key = 'troca-pedido-000001'),
+  'expired:replaced:false', 'o horário anterior foi liberado na mesma transação');
+select is((select status from public.public_booking_requests where idem_key = 'troca-pedido-000001'), 'replaced', 'pedido anterior marcado como trocado');
+select is((select count(*)::int from public.public_booking_requests where contact_phone_e164 = '+5511955550009' and status = 'pending'), 1,
+  'só um pedido aguardando para o contato');
+select is((select count(*)::int from public.outbox_events e join public.public_booking_requests q on q.booking_id = e.aggregate_id
+  where q.idem_key = 'troca-pedido-000001' and e.event_type = 'booking.hold_released.v1'), 1, 'evento de horário liberado');
+select is((select attempts from public.public_booking_requests where idem_key = 'troca-pedido-000003'), 1,
+  'trocar não zera as tentativas de código');
+select throws_ok(format($$ select public.public_booking_confirm(%L, %L) $$,
+    (select id from public.public_booking_requests where idem_key = 'troca-pedido-000001'),
+    (select code from public.public_booking_requests where idem_key = 'troca-pedido-000001')),
+  'PT422', 'POLICY_REJECTED', 'o código do pedido trocado deixa de valer');
 
 -- ------------------------------------------------------------------ limite por perfil
 insert into public.public_booking_requests (tenant_id, booking_id, connection_id, contact_name, contact_phone_e164, code, code_hash,

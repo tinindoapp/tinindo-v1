@@ -22,6 +22,8 @@ export const ERROR_STATUS = {
   SLOT_CONFLICT: 409,
   STALE_VERSION: 409,
   IDEMPOTENCY_MISMATCH: 409,
+  /** Link público: o mesmo contato já tem um pedido aguardando código (details traz o resumo). */
+  PENDING_REQUEST_EXISTS: 409,
   POLICY_REJECTED: 422,
   QUOTA_EXCEEDED: 429,
   INTERNAL_ERROR: 500,
@@ -44,6 +46,8 @@ export const ErrorEnvelope = z.object({
     message: z.string().min(1).max(500),
     field: z.string().max(200).optional(),
     retryable: z.boolean(),
+    /** Dados extras que a tela precisa para decidir (só em códigos que os documentam, como PENDING_REQUEST_EXISTS). */
+    details: z.record(z.string(), z.unknown()).optional(),
   }),
   request_id: Uuid,
 });
@@ -54,9 +58,10 @@ export function errorBody(
   message: string,
   requestId: string,
   field?: string,
+  details?: Record<string, unknown>,
 ): ErrorEnvelope {
   return {
-    error: { code, message, retryable: RETRYABLE.has(code), ...(field ? { field } : {}) },
+    error: { code, message, retryable: RETRYABLE.has(code), ...(field ? { field } : {}), ...(details ? { details } : {}) },
     request_id: requestId,
   };
 }
@@ -70,6 +75,7 @@ export const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   SLOT_CONFLICT: "Este horário não está mais disponível.",
   STALE_VERSION: "Este registro foi alterado por outra pessoa. Recarregue e tente de novo.",
   IDEMPOTENCY_MISMATCH: "Esta chave de operação já foi usada com outros dados.",
+  PENDING_REQUEST_EXISTS: "Você já tem um pedido aguardando confirmação.",
   POLICY_REJECTED: "A operação não é permitida pelas regras do negócio.",
   QUOTA_EXCEEDED: "Limite de uso atingido. Tente mais tarde.",
   INTERNAL_ERROR: "Erro inesperado. Tente novamente.",

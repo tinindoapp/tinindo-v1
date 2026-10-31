@@ -15,6 +15,19 @@ const todayInSaoPaulo = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Amer
 const formatDay = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 
+/** Pedido que aguarda código (error.details de PENDING_REQUEST_EXISTS). Só id e prazo: o servidor não diz qual é. */
+interface PendingSummary {
+  request_id: string;
+  expires_at: string;
+}
+function pendingSummary(e: unknown): PendingSummary | null {
+  if (!(e instanceof ApiError) || e.code !== "PENDING_REQUEST_EXISTS" || !e.details) return null;
+  const d = e.details;
+  return typeof d.request_id === "string" && typeof d.expires_at === "string"
+    ? { request_id: d.request_id, expires_at: d.expires_at }
+    : null;
+}
+
 /** Quantos dias a fileira de chips mostra a partir de hoje. */
 export const DAYS_AHEAD = 14;
 /** "2026-10-20" + n dias, em data de calendário (meio-dia UTC evita virar o dia). */
@@ -137,6 +150,10 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
   const [bookKey, setBookKey] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("service");
   const [request, setRequest] = useState<{ data: BookRequest; phone: string } | null>(null);
+  // O mesmo WhatsApp já tem pedido aguardando código: a pessoa escolhe trocar ou manter.
+  const [pending, setPending] = useState<PendingSummary | null>(null);
+  // Mantido o anterior (pedido de outra aba ou de antes): o resumo mostra ele, não a escolha nova.
+  const [kept, setKept] = useState<PendingSummary | null>(null);
   const [booking, setBooking] = useState<BookConfirmed | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -191,6 +208,7 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
   const resetRequest = () => {
     setBookKey(null);
     setProblem(null);
+    setPending(null);
   };
   const go = (next: Phase) => {
     setProblem(null);
@@ -201,12 +219,14 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
     setChosen(null);
     setBookKey(null);
     setRequest(null);
+    setPending(null);
+    setKept(null);
     setReload((n) => n + 1);
     setPhase("slot");
     setProblem(message);
   };
 
-  async function requestSlot() {
+  async function requestSlot(replaceExisting = false) {
     const ok = showRequest({
       name: name.trim() ? null : "Informe seu nome.",
       phone: !phone.trim() ? "Informe seu WhatsApp com DDD." : e164 ? null : "Use o número com DDD, por exemplo (11) 97777-4343.",
@@ -217,16 +237,39 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
     setBusy(true);
     setProblem(null);
     try {
-      const data = await api.book({ slug, service_id: serviceId, starts_at: chosen, contact: { name: name.trim(), phone_e164: e164 } }, key);
+      const data = await api.book(
+        { slug, service_id: serviceId, starts_at: chosen, contact: { name: name.trim(), phone_e164: e164 }, replace_existing: replaceExisting },
+        key,
+      );
       setRequest({ data, phone: e164 });
+      setPending(null);
+      setKept(null);
       setCode("");
       setPhase("code");
     } catch (e) {
-      if (e instanceof ApiError && e.code === "SLOT_CONFLICT") backToSlots(bookingError(e));
+      const summary = pendingSummary(e);
+      if (summary) setPending(summary);
+      else if (e instanceof ApiError && e.code === "SLOT_CONFLICT") backToSlots(bookingError(e));
       else setProblem(bookingError(e));
     } finally {
       setBusy(false);
     }
+  }
+
+  /** "Manter o anterior": segue para o código do pedido que já existe; o novo não é pedido. */
+  function keepPrevious() {
+    if (!pending || !e164) return;
+    if (request?.data.request_id !== pending.request_id) {
+      setRequest({
+        data: { request_id: pending.request_id, slot: { starts_at: pending.expires_at, ends_at: pending.expires_at }, expires_at: pending.expires_at, delivery: "sent" },
+        phone: e164,
+      });
+    }
+    setKept(pending);
+    setPending(null);
+    setBookKey(null);
+    setCode("");
+    go("code");
   }
 
   async function confirmCode() {
@@ -281,7 +324,9 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
   const step: StepPhase = phase === "done" ? "code" : phase;
   const title = STEPS.find((s) => s.phase === step)?.title;
   // Resumo da escolha, à vista do passo 2 em diante: "Corte · ter 20/10 · 10:00".
-  const summary = [service?.name, shortDay(day), chosen ? formatTime(chosen) : null].filter(Boolean).join(" · ");
+  const summary = kept && step === "code"
+    ? "Pedido anterior deste WhatsApp"
+    : [service?.name, shortDay(day), chosen ? formatTime(chosen) : null].filter(Boolean).join(" · ");
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(firstDay, i));
 
   return (
@@ -433,19 +478,40 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
             }}
           />
           {problem ? <StatusBanner tone="danger">{problem}</StatusBanner> : null}
-          <div className="tn-actions">
-            <Button variant="secondary" onClick={() => go("slot")}>
-              Voltar
-            </Button>
-            <Button type="submit" loading={busy} loadingText="Pedindo…">
-              Pedir este horário
-            </Button>
-          </div>
+          {pending ? (
+            <div className="tn-stack" data-gap="sm" role="alert">
+              <StatusBanner tone="warning">
+                Já existe um pedido aguardando confirmação para este WhatsApp. Se continuar, ele será trocado por este.
+              </StatusBanner>
+              <div className="tn-actions">
+                <Button variant="secondary" onClick={keepPrevious}>
+                  Manter o anterior
+                </Button>
+                <Button loading={busy} loadingText="Trocando…" onClick={() => void requestSlot(true)}>
+                  Trocar pelo novo
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="tn-actions">
+              <Button variant="secondary" onClick={() => go("slot")}>
+                Voltar
+              </Button>
+              <Button type="submit" loading={busy} loadingText="Pedindo…">
+                Pedir este horário
+              </Button>
+            </div>
+          )}
         </form>
       ) : null}
 
       {step === "code" && request ? (
         <div className="tn-stack">
+          {request.data.replaced ? (
+            <StatusBanner tone="success">
+              Seu pedido anterior foi cancelado e substituído por este.
+            </StatusBanner>
+          ) : null}
           <StatusBanner tone="info">
             Enviamos um código de 6 dígitos para o seu WhatsApp <span className="tn-num">{request.phone}</span>. O horário fica
             guardado até as <span className="tn-num">{formatTime(request.data.expires_at)}</span>; depois disso, volta a ficar livre.

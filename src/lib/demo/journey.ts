@@ -39,6 +39,8 @@ export interface DemoPublicBookingPort {
   slots(serviceId: string, window: { starts_at: string; ends_at: string }): Promise<{ starts_at: string; ends_at: string }[]>;
   hold(input: { service_id: string; starts_at: string }): Promise<{ booking_id: string; starts_at: string; ends_at: string; hold_expires_at: string }>;
   confirm(bookingId: string): Promise<void>;
+  /** Libera um horário provisório (pedido trocado por outro do mesmo contato). */
+  release(bookingId: string): Promise<void>;
 }
 
 const visits = new Map<string, DemoCompletedVisit>();

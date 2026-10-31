@@ -46,7 +46,7 @@ provideCustomerBookings((customerId) => customerBookingsFrom(getDemoPort(), cust
 // Link público da demonstração (P43): o horário que o visitante pede e confirma entra na agenda desta aba.
 function demoPublicLink(): FixturePublicLink {
   const port = getDemoPort() as SchedulingPort & Partial<FixturePublicLink>;
-  if (!port.publicHold || !port.publicConfirm) throw new Error("agenda da demonstração sem link público");
+  if (!port.publicHold || !port.publicConfirm || !port.publicRelease) throw new Error("agenda da demonstração sem link público");
   return port as SchedulingPort & FixturePublicLink;
 }
 providePublicBooking({
@@ -61,6 +61,9 @@ providePublicBooking({
   },
   async confirm(bookingId) {
     await demoPublicLink().publicConfirm(bookingId);
+  },
+  async release(bookingId) {
+    await demoPublicLink().publicRelease(bookingId);
   },
 });
 
