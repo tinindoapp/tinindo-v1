@@ -18,7 +18,11 @@ import {
 } from "@contracts";
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
-const sql = read("supabase/migrations/20261018120100_p02_crm.sql");
+// O CRM nasceu no P02; customer.get chegou depois (recado #64). As regras valem para todas as RPCs crm_*.
+const sql = [
+  "supabase/migrations/20261018120100_p02_crm.sql",
+  "supabase/migrations/20261029031000_crm_customer_get.sql",
+].map(read).join("\n");
 const seed = read("supabase/seed.sql");
 
 const dbCustomer = {
