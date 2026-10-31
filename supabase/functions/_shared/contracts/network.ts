@@ -31,6 +31,10 @@ export const PublicProfile = z.object({
     identity_verified: z.boolean(),
     reviews_count: z.int().min(0),
   }),
+  /** Foto do negócio; null com "Mostrar foto" desligado ou sem foto. O servidor decide. */
+  photo: z.object({ url: z.url(), alt: z.string().min(1).max(200) }).nullable().optional(),
+  /** WhatsApp do negócio (o número conectado e verificado no canal); null com "Mostrar botão do WhatsApp" desligado. */
+  whatsapp_e164: PhoneE164.nullable().optional(),
 });
 
 export const ReferralKind = z.enum(["customer_recommends_professional", "professional_invites_peer"]);
@@ -58,11 +62,37 @@ export const Slug = z.string().regex(/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/);
 /** Query string de GET /network/public.profile. */
 export const PublicProfileQuery = z.object({ slug: Slug });
 
-/** Visão do dono: igual ao perfil público, mas pode estar despublicado e traz a versão. */
+/** Caminho da foto no bucket profile-photos: `{tenant_id}/{uuid}.webp` (ou .jpg sem WebP no navegador). */
+export const ProfilePhotoPath = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webp|jpg)$/);
+/** Visão do dono das chaves "Mostrar foto", "Mostrar botão do WhatsApp" e "Mostrar preços" (todas começam desligadas). */
+export const ProfileMedia = z.object({
+  photo_path: ProfilePhotoPath.nullable(),
+  photo_url: z.url().nullable(),
+  /** Já com o padrão "Foto de <nome do negócio>" quando o dono não escreveu outro. */
+  photo_alt: z.string().min(1).max(200),
+  show_photo: z.boolean(),
+  show_whatsapp: z.boolean(),
+  show_prices: z.boolean(),
+  /** Número conectado e verificado no canal; null sem conexão (o botão não aparece mesmo ligado). */
+  whatsapp_e164: PhoneE164.nullable(),
+});
+export type ProfileMedia = z.infer<typeof ProfileMedia>;
+/** profile.media: a foto vai antes ao Storage (pasta do negócio); aqui só o caminho, o texto alternativo e as chaves. */
+export const ProfileMediaInput = z.object({
+  photo_path: ProfilePhotoPath.nullable(),
+  /** null ou vazio = "Foto de <nome do negócio>". */
+  photo_alt: z.string().trim().max(200).nullable(),
+  show_photo: z.boolean(),
+  show_whatsapp: z.boolean(),
+  show_prices: z.boolean(),
+});
+
+/** Visão do dono: igual ao perfil público, mas pode estar despublicado e traz a versão e as chaves de mídia. */
 export const OwnerProfile = PublicProfile.extend({
   public_fields: z.array(PublicProfileField),
   published_at: IsoDateTime.nullable(),
   version: z.int().min(1),
+  media: ProfileMedia,
 });
 export type OwnerProfile = z.infer<typeof OwnerProfile>;
 export const OwnerProfileOutput = z.object({ profile: OwnerProfile.nullable() });
@@ -118,6 +148,8 @@ export const PublicService = z.object({
   id: Uuid,
   name: z.string(),
   duration_min: z.int().min(5),
+  /** "a partir de": preço base do serviço, só com "Mostrar preços" ligado (desligado, o servidor não manda o campo). */
+  price_from_cents: z.int().min(0).nullable().optional(),
 });
 export const PublicServicesOutput = z.object({ services: z.array(PublicService).max(50) });
 

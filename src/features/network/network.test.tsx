@@ -9,6 +9,15 @@ import { createDemoNetworkApi, createHttpNetworkApi, resetDemoNetwork } from "./
 import { networkModule, networkPublicRoutes } from "./module.tsx";
 import { PublicProfileView } from "./PublicProfileView.tsx";
 
+// O jsdom não tem canvas nem createImageBitmap: o preparo da foto tem testes próprios (photo.test.ts).
+vi.mock("./photo.ts", async (original) => ({
+  ...(await original<typeof import("./photo.ts")>()),
+  processPhoto: async () => ({ blob: new Blob(["webp"], { type: "image/webp" }), type: "image/webp", ext: "webp" }),
+}));
+let blobs = 0;
+URL.createObjectURL ??= () => `blob:demo/${++blobs}`;
+URL.revokeObjectURL ??= () => undefined;
+
 function renderAt(path: string) {
   const router = createMemoryRouter(
     [{ path: "/app/perfil", children: networkModule.routes }, ...networkPublicRoutes],
@@ -314,6 +323,45 @@ describe("páginas públicas (demonstração)", () => {
     renderAt("/p/barbearia-exemplo");
     await chooseService();
     expect(within(await screen.findByRole("list", { name: "Horários livres" })).getByRole("button", { name: "12:00" })).toBeInTheDocument();
+  });
+
+  it("foto e chaves do perfil: começam desligadas; ligadas, o público vê foto, botão do WhatsApp e preço", async () => {
+    await publishDemoProfile();
+    const media = screen.getByRole("region", { name: "Foto e contato" });
+    for (const name of ["Mostrar foto", "Mostrar botão do WhatsApp", "Mostrar preços"]) {
+      expect(within(media).getByRole("checkbox", { name: new RegExp(name) })).not.toBeChecked();
+    }
+    expect(within(media).getByRole("checkbox", { name: /Mostrar foto/ })).toBeDisabled();
+
+    // Desligadas: nada aparece no perfil público.
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    await screen.findByRole("heading", { name: "Escolha o serviço" });
+    expect(document.querySelector(".tn-net-photo")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Conversar no WhatsApp" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/a partir de/)).not.toBeInTheDocument();
+
+    cleanup();
+    renderAt("/app/perfil");
+    const box = await screen.findByRole("region", { name: "Foto e contato" });
+    fireEvent.change(within(box).getByLabelText("Foto do negócio"), { target: { files: [new File(["x"], "foto.jpg", { type: "image/jpeg" })] } });
+    const alt = await within(box).findByLabelText("Descrição da foto");
+    expect((alt as HTMLInputElement).value).toMatch(/^Foto de /);
+    fireEvent.change(alt, { target: { value: "Fachada da barbearia" } });
+    for (const name of ["Mostrar foto", "Mostrar botão do WhatsApp", "Mostrar preços"]) {
+      fireEvent.click(within(box).getByRole("checkbox", { name: new RegExp(name) }));
+    }
+    expect(within(box).getByText(/número do negócio, \(11\) 99999-0001/)).toBeInTheDocument();
+    fireEvent.click(within(box).getByRole("button", { name: "Salvar foto e opções" }));
+    expect(await screen.findByText("Foto e opções do perfil salvas.")).toBeInTheDocument();
+
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    expect(await screen.findByRole("img", { name: "Fachada da barbearia" })).toHaveAttribute("src", expect.stringMatching(/^blob:/));
+    expect(screen.getByRole("link", { name: "Conversar no WhatsApp" })).toHaveAttribute(
+      "href", `https://wa.me/5511999990001?text=${encodeURIComponent("Olá! Vi seu perfil na Tinindo.")}`,
+    );
+    expect((await screen.findByRole("radio", { name: /^Corte/ })).closest("label")).toHaveTextContent(/a partir de R\$\s60,00/);
   });
 
   it("toE164 aceita os formatos comuns e recusa número sem DDD", async () => {

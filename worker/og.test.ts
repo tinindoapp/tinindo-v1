@@ -50,6 +50,20 @@ describe("prévia do link", () => {
     expect(res.headers.get("cache-control")).toBe("public, max-age=300");
   });
 
+  it("perfil com foto: og:image é a foto (800 px); foto fora do bucket do perfil fica com a imagem padrão", async () => {
+    const url = "https://exemplo.supabase.co/storage/v1/object/public/profile-photos/10000000-0000-4000-8000-00000000000a/5f0c3b6e-1d2a-4c3b-9e8f-0a1b2c3d4e5f.webp";
+    const withPhoto = (photoUrl: string) => vi.fn(async () => Response.json({ data: {
+      slug: "ana-cortes", category: "barber", area: "Pinheiros", fields: { display_name: "Ana" }, published_at: "2026-10-20T12:00:00Z",
+      reputation: { identity_verified: false, reviews_count: 0 }, photo: { url: photoUrl, alt: "Foto de Ana" }, whatsapp_e164: null,
+    } }));
+    let html = await (await handle(new Request("https://tinindoapp.com.br/p/ana-cortes"), { ASSETS: assets() }, withPhoto(url) as unknown as typeof fetch)).text();
+    expect(html).toContain(`<meta property="og:image" content="${url}" />`);
+    expect(html).toContain('<meta property="og:image:width" content="800" />');
+    html = await (await handle(new Request("https://tinindoapp.com.br/p/ana-cortes"), { ASSETS: assets() }, withPhoto("https://evil.example/x.webp") as unknown as typeof fetch)).text();
+    expect(html).toContain('content="https://tinindoapp.com.br/icons/app-icon-512.png"');
+    expect(html).toContain('<meta property="og:image:width" content="512" />');
+  });
+
   it("site publicado lê presence.public_site", async () => {
     const fetcher = vi.fn(async () => Response.json({ data: { site: { display_name: "Studio Bia", category: "hairdresser", area: "Centro", headline: "Cor e corte", bio: null } } }));
     const res = await handle(new Request("https://tinindoapp.com.br/s/studio-bia"), { ASSETS: assets() }, fetcher as unknown as typeof fetch);
