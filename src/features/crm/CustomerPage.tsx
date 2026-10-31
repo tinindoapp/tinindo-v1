@@ -26,8 +26,6 @@ type Load<T> = { status: "loading" } | { status: "ok"; value: T } | { status: "e
 
 const dateTime = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone, weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
-const dateOnly = (iso: string, timeZone: string) =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
 
 /** "5 concluídos · 1 faltou · 1 cancelado" (só os estados que aparecem). */
 export function historySummary(items: readonly HistoryItem[]): string {
@@ -137,11 +135,13 @@ export function CustomerPage() {
           ) : null}
           {history.status === "ok" ? (
             <>
-              <p className="tn-muted">
-                De {dateOnly(history.value.from, history.value.timezone)} a {dateOnly(history.value.until, history.value.timezone)}.
-                {historySummary(past) ? ` Até agora: ${historySummary(past)}.` : ""} Atendimentos mais antigos ainda não aparecem aqui.
-              </p>
-              {history.value.items.length === 0 ? <p>Nenhum atendimento neste período.</p> : null}
+              {historySummary(past) || !history.value.complete ? (
+                <p className="tn-muted">
+                  {historySummary(past) ? `Até agora: ${historySummary(past)}.` : ""}
+                  {history.value.complete ? "" : ` Mostrando os ${history.value.items.length} mais recentes; os mais antigos não aparecem aqui.`}
+                </p>
+              ) : null}
+              {history.value.items.length === 0 ? <p>Nenhum atendimento ainda.</p> : null}
               {upcoming.length > 0 ? <VisitList title="Próximos" id="crm-history-next" items={upcoming} timezone={history.value.timezone} /> : null}
               {past.length > 0 ? <VisitList title="Anteriores" id="crm-history-past" items={past} timezone={history.value.timezone} /> : null}
             </>

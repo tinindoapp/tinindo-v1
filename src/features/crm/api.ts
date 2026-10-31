@@ -38,9 +38,9 @@ export interface HistoryItem {
 export interface CustomerHistory {
   timezone: string;
   now: string;
-  from: string;
-  until: string;
   items: HistoryItem[];
+  /** false quando a leitura parou no teto de páginas: há atendimentos mais antigos que não vieram. */
+  complete: boolean;
 }
 
 export interface CrmApi {
@@ -50,7 +50,7 @@ export interface CrmApi {
   listCustomers(q: { q?: string; include_archived?: boolean; cursor?: string; limit?: number }): Promise<CustomerListOutput>;
   /** Ficha do cliente; null quando não existe neste negócio. */
   getCustomer(id: string): Promise<CrmCustomer | null>;
-  /** Atendimentos do cliente na agenda (anteriores e próximos, janela limitada). */
+  /** Todos os atendimentos do cliente na agenda (anteriores e próximos), do mais recente para o mais antigo. */
   customerHistory(customerId: string): Promise<CustomerHistory>;
   upsertCustomer(input: CrmCustomerUpsertInput, idempotencyKey: string): Promise<z.infer<typeof CrmCustomerUpsertOutput>>;
   archiveCustomer(
@@ -65,9 +65,6 @@ export interface CrmApi {
 
 type Call = ReturnType<typeof createApiClient>;
 
-const DAY_MS = 86_400_000;
-/** Janela do histórico na ficha: até 60 dias para trás e 60 para frente (booking.list aceita até 62 por pedido). */
-export const HISTORY_DAYS = 60;
 /** Teto de páginas por leitura de lista (100 itens cada): protege a tela de laço infinito. */
 const MAX_PAGES = 10;
 
@@ -105,38 +102,32 @@ export function createServerCrmApi(opts: {
         throw e;
       }
     },
-    // Histórico pela agenda (booking.list, que já existe): duas janelas de 60 dias, filtradas por este cliente.
+    // Histórico inteiro pela agenda (booking.list_by_customer): páginas de 100, do mais recente para o mais antigo.
     customerHistory: async (customerId) => {
-      const now = Date.now();
-      const from = new Date(now - HISTORY_DAYS * DAY_MS).toISOString();
-      const mid = new Date(now).toISOString();
-      const until = new Date(now + HISTORY_DAYS * DAY_MS).toISOString();
       const post = (body: unknown) => ({ method: "POST" as const, tenantId, body });
-      const window = async (starts_at: string, ends_at: string) => {
+      const visits = async () => {
         const out = [];
         let cursor: string | undefined;
         for (let page = 0; page < MAX_PAGES; page++) {
-          const { data } = await call("/scheduling/booking.list", BookingListOutput, post({ window: { starts_at, ends_at }, cursor, limit: 100 }));
+          const { data } = await call("/scheduling/booking.list_by_customer", BookingListOutput, post({ customer_id: customerId, cursor, limit: 100 }));
           out.push(...data.bookings);
-          if (!data.next_cursor) break;
+          if (!data.next_cursor) return { items: out, complete: true };
           cursor = data.next_cursor;
         }
-        return out;
+        return { items: out, complete: false };
       };
-      const [ctx, services, past, next] = await Promise.all([
+      const [ctx, services, all] = await Promise.all([
         call("/context", ContextResponse, { tenantId }),
         call(path(CRM_ROUTES.listServices) + qs({ include_inactive: true, limit: 100 }), ServiceListOutput, { tenantId }),
-        window(from, mid),
-        window(mid, until),
+        visits(),
       ]);
       const names = new Map(services.data.items.map((s) => [s.id, s.name]));
       return {
         timezone: ctx.data.timezone,
-        now: mid,
-        from,
-        until,
-        items: [...past, ...next]
-          .filter((b) => b.customer_id === customerId && b.status !== "expired")
+        now: new Date().toISOString(),
+        complete: all.complete,
+        items: all.items
+          .filter((b) => b.status !== "expired")
           .map((b) => ({ id: b.id, starts_at: b.starts_at, service: names.get(b.service_id) ?? "Atendimento", status: b.status, price_cents: b.agreed_price_cents }))
           .sort(byStartDesc),
       };
@@ -183,20 +174,16 @@ export function createDemoCrmApi(): CrmApi {
       };
     },
     getCustomer: async (id) => customers.find((c) => c.id === id) ?? null,
-    // Histórico da base de exemplo única (src/lib/demo/dataset.ts), com a mesma janela do servidor em volta do "agora" fixo.
+    // Histórico inteiro da base de exemplo única (src/lib/demo/dataset.ts), em volta do "agora" fixo.
     customerHistory: async (customerId) => {
       // Carregada só quando a ficha abre: a base de exemplo não entra no pacote da lista de clientes.
       const { DEMO_SERVICES, DEMO_TZ, demoNow, demoVisits } = await import("../../lib/demo/dataset.ts");
-      const now = demoNow().getTime();
-      const from = now - HISTORY_DAYS * DAY_MS;
-      const until = now + HISTORY_DAYS * DAY_MS;
       return {
         timezone: DEMO_TZ,
-        now: new Date(now).toISOString(),
-        from: new Date(from).toISOString(),
-        until: new Date(until).toISOString(),
+        now: demoNow().toISOString(),
+        complete: true,
         items: demoVisits()
-          .filter((v) => v.customer_id === customerId && v.status !== "expired" && Date.parse(v.starts_at) >= from && Date.parse(v.starts_at) < until)
+          .filter((v) => v.customer_id === customerId && v.status !== "expired")
           .map((v) => ({ id: v.id, starts_at: v.starts_at, service: DEMO_SERVICES[v.service_id]?.name ?? "Atendimento", status: v.status, price_cents: v.agreed_price_cents }))
           .sort(byStartDesc),
       };

@@ -38,6 +38,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `booking.no_show` | booking_id, expected_version, motivo, revert, key | Falta marcada ou revertida com motivo |
 | `booking.create_series` | serviço, cliente, primeiro slot, semanas (2–12), tudo-ou-nada, key | Ocorrências semanais materializadas; conflitos explícitos |
 | `booking.list` | janela (≤ 62 dias), cursor, limit | Reservas do tenant que começam na janela |
+| `booking.list_by_customer` | customer_id, cursor, limit | Todas as reservas de um cliente do tenant, da mais recente para a mais antiga, sem janela |
 | `booking.get` | booking_id | Reserva na visão do dono |
 | `schedule.settings` | — | Recurso ativo, timezone e expediente semanal |
 | `schedule.rules_save` | resource, expected_version, faixas semanais, key | Expediente trocado inteiro; reservas existentes intactas |

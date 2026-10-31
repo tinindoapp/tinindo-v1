@@ -136,6 +136,14 @@ export const BookingListOutput = z.object({
   next_cursor: z.string().nullable(),
 });
 
+/** Histórico inteiro de um cliente, sem janela: do mais recente para o mais antigo, todos os estados. Saída igual à de
+ *  booking.list. Cliente de outro negócio ou inexistente → NOT_FOUND. */
+export const BookingListByCustomerInput = z.object({
+  customer_id: Uuid,
+  cursor: z.string().min(1).max(512).optional(),
+  limit: z.int().min(1).max(100).default(100),
+});
+
 export const BookingGetInput = z.object({ booking_id: Uuid });
 
 export const AvailabilityBlock = z.object({
