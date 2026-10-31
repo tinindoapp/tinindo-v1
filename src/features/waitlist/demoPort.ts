@@ -167,7 +167,7 @@ export function createDemoLinkPort(): OfferLinkPort {
       const e = state().entries.find((x) => x.id === o.entry_id)!;
       const svc = fixtureServices.find((x) => x.id === e.service_id)!;
       o.booking = { id: o.booking_hold_id, tenant_id: FX.tenants.A, resource_id: FX.resources.A, customer_id: e.customer_id,
-        service_id: e.service_id, starts_at: o.slot.starts_at, ends_at: o.slot.ends_at, status: "confirmed", hold_expires_at: null,
+        service_id: e.service_id, starts_at: o.slot.starts_at, ends_at: o.slot.ends_at, status: "confirmed", status_reason: null, hold_expires_at: null,
         price_quote_id: o.quote_id, agreed_price_cents: svc.base_price_cents, source: "waitlist", version: 2 };
       o.status = "accepted";
       e.status = "fulfilled";

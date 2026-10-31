@@ -35,6 +35,8 @@ export const Booking = z.object({
   starts_at: IsoDateTime,
   ends_at: IsoDateTime,
   status: BookingStatus,
+  /** Motivo informado ao cancelar ou marcar falta; null nos outros estados. Só na visão do dono. */
+  status_reason: z.string().max(280).nullable(),
   hold_expires_at: IsoDateTime.nullable(),
   price_quote_id: Uuid.nullable(),
   /** Preço congelado na confirmação; não muda com regra posterior. */
