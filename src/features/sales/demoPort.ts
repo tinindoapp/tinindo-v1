@@ -18,6 +18,11 @@ const CUSTOMERS = [
 ];
 const SERVICES = fixtureServices.filter((s) => s.tenant_id === FX.tenants.A);
 const now = () => new Date(FIXED_NOW);
+/**
+ * Custo de materiais por atendimento na demonstração, igual ao exemplo da tela Materiais (P30): o corte usa 20 ml de
+ * shampoo (R$ 0,05/ml) e uma pomada (R$ 3,00). A barba não tem ficha. Os módulos não se importam; o servidor calcula de verdade.
+ */
+const DEMO_MATERIAL_CENTS: Record<string, number> = { [FX.services.corteA]: 400 };
 const clone = <T>(v: T): T => structuredClone(v);
 
 interface Row {
@@ -148,6 +153,18 @@ export function createDemoPort(): SalesPort {
         r.quote.version += 1;
         return toQuote(r);
       });
+    },
+    async materialCost(quoteId) {
+      const r = find(quoteId);
+      const v = r.versions.find((x) => x.version_no === r.quote.current_version)!;
+      const lines = v.items.map((i, line) => {
+        const unit = i.service_id ? DEMO_MATERIAL_CENTS[i.service_id] : undefined;
+        return { line, service_id: i.service_id, description: i.description, quantity: i.quantity, line_total_cents: i.line_total_cents,
+          material_cost_cents: (unit ?? 0) * i.quantity, covered: unit !== undefined };
+      });
+      const cost = lines.reduce((t, l) => t + l.material_cost_cents, 0);
+      return { quote_id: quoteId, version_no: v.version_no, total_cents: v.total_cents, lines, material_cost_cents: cost,
+        margin_cents: v.total_cents - cost, covered: lines.every((l) => l.covered) };
     },
   };
 }

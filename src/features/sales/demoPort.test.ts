@@ -57,6 +57,16 @@ describe("demonstração dos orçamentos (mesmas regras do banco)", () => {
     expect((await link.view(b.token!)).status).toBe("sent");
   });
 
+  it("custo de materiais (P30): pela ficha da versão atual; serviço sem ficha fica descoberto; não muda o orçamento", async () => {
+    const port = createDemoPort();
+    const q = await port.create(draft({ items: [{ service_id: FX.services.corteA, description: "Corte", quantity: 2, unit_price_cents: 6000 },
+      { service_id: FX.services.barbaA, description: "Barba", quantity: 1, unit_price_cents: 4000 }] }), "m1");
+    const c = await port.materialCost(q.id);
+    expect(c).toMatchObject({ version_no: 1, total_cents: 16000, material_cost_cents: 800, margin_cents: 15200, covered: false });
+    expect(c.lines.map((l) => l.covered)).toEqual([true, false]);
+    expect((await port.get(q.id)).quote.current.total_cents).toBe(16000);
+  });
+
   it("novo link invalida o anterior; cancelado some do link", async () => {
     const port = createDemoPort();
     const link = createDemoLinkPort();

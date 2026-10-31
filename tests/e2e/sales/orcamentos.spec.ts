@@ -74,6 +74,10 @@ test("orçamento: rascunho, link, nova versão, aceite da versão vista com hor�
   const versions = page.getByRole("region", { name: /Versões de/ });
   await expect(versions).toContainText("Aceito pelo cliente na versão 2");
   await expect(versions).toContainText("Versão 1");
+  // P30: custo estimado de materiais da versão atual, sem mudar o orçamento.
+  const materials = versions.getByRole("region", { name: "Custo de materiais" });
+  await expect(materials).toContainText("Materiais da versão 2");
+  await expect(materials).toContainText("Não muda o preço nem o orçamento");
 
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

@@ -3,6 +3,7 @@ import {
   ContextResponse,
   CRM_ROUTES,
   CustomerListOutput,
+  MaterialQuoteCostOutput,
   SalesQuoteDecideOutput,
   SalesQuoteDetailOutput,
   SalesQuoteListOutput,
@@ -49,6 +50,9 @@ export function createServerPort(call: Call, tenantId: string): SalesPort {
     },
     async get(quoteId) {
       return (await call(op("quote.get"), SalesQuoteDetailOutput, post({ quote_id: quoteId }))).data;
+    },
+    async materialCost(quoteId) {
+      return (await call("/materials/materials.quote_cost", MaterialQuoteCostOutput, post({ quote_id: quoteId }))).data;
     },
     async create(d, key) {
       return (await call(op("quote.create"), SalesQuoteOutput, post(d, key))).data.quote;

@@ -52,18 +52,19 @@ Não executado aqui: `supabase test db` e `supabase db lint` no PG 17, porque n�
 - Só atendimentos concluídos do P03 consomem. Reservas da equipe (P28) e venda de produto ao cliente ficam para depois.
 - A despesa no Caixa vem ligada por padrão na compra (pode desligar). O consumo não gera despesa.
 - A margem é "sobre materiais", não DRE: taxas, comissão e rateio são do P31.
-- O custo do orçamento é só leitura, via API. A tela do Orçamento (P11) não mostra esse custo ainda, para não mexer no módulo de outra área. Está pronto para ligar.
+- O custo do orçamento é só leitura. Desde 31/10 a tela de Orçamentos (P11) mostra, em "Ver versões", o custo estimado de materiais e a margem da versão atual, dizendo quais itens estão sem ficha.
 
 ## Quadro (coord.py)
 
 O P30 não estava no quadro. A liberação foi recusada pelo controle de permissões desta sessão (ver handoff do P28). O integrador registra P28 e P30 com PR e SHA de merge, como no `reconcile` de P10–P24.
+
+Registrado no quadro em 31/10 pelo integrador (ação `reconcile`, autorização do dono): P28 `done` com PR #60 e merge `27316a7`; P30 `done` com PR #61 e merge `7e032ff`.
 
 ## Mocks e pendências
 
 - A demonstração offline usa dados de exemplo: shampoo, pomada, toalha, uma compra, um corte e uma barba de ontem. Ela é rotulada como exemplo.
 - Nenhuma migration foi aplicada em banco compartilhado. A homologação (piloto de 28/10) não foi tocada.
 - Próximos passos possíveis:
-  - mostrar o custo de materiais na tela do Orçamento;
   - consumo nas reservas da equipe (P28);
   - venda de produto baixando o estoque;
   - alerta de estoque mínimo no lembrete do dono.
