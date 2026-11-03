@@ -27,31 +27,31 @@ from (select ((date_trunc('week', now() at time zone 'America/Sao_Paulo')::date 
 SQL
 
 for w in 1 2 3; do
-  psql -qXtA -c "set role service_role; select public.jobs_run(50)" >"$TMP/j.$w" 2>&1 &
+  psql -qXtA -c "set role service_role; select public.jobs_run(50)" >"$TMP/p45j.$w" 2>&1 &
 done
 wait
 check "uma rodada por negócio no dia" "$(psql -qXtA -c "select count(*) from public.insight_runs where tenant_id = '$TENANT_A'")" 1
-check "rodadas somadas = negócios (sem avaliação dupla)" "$(cat "$TMP"/j.* | grep -o '"insights": {[^}]*}' | grep -o '"tenants": [0-9]*' | awk -F': ' '{s+=$2} END {print s}')" "$(psql -qXtA -c "select count(*) from public.tenants where status = 'active'")"
+check "rodadas somadas = negócios (sem avaliação dupla)" "$(cat "$TMP"/p45j.* | grep -o '"insights": {[^}]*}' | grep -o '"tenants": [0-9]*' | awk -F': ' '{s+=$2} END {print s}')" "$(psql -qXtA -c "select count(*) from public.tenants where status = 'active'")"
 check "um insight de horário ocioso" "$(psql -qXtA -c "select count(*) from public.insights where tenant_id = '$TENANT_A' and rule_code = 'idle_slot'")" 1
 check "nenhum insight duplicado por (regra, assunto)" "$(psql -qXtA -c "select count(*) from (select 1 from public.insights group by tenant_id, rule_code, subject_key having count(*) > 1) x")" 0
-check "nenhum worker falhou" "$(cat "$TMP"/j.* | grep -c ERROR || true)" 0
+check "nenhum worker falhou" "$(cat "$TMP"/p45j.* | grep -c ERROR || true)" 0
 
 for w in 1 2; do
-  psql -qXtA -c "select app.gi_run('$TENANT_A', now())" >"$TMP/r.$w" 2>&1 &
+  psql -qXtA -c "select app.gi_run('$TENANT_A', now())" >"$TMP/p45r.$w" 2>&1 &
 done
 wait
 check "duas avaliações em paralelo: ainda um insight" "$(psql -qXtA -c "select count(*) from public.insights where tenant_id = '$TENANT_A' and rule_code = 'idle_slot'")" 1
-check "nenhuma avaliação falhou" "$(cat "$TMP"/r.* | grep -c ERROR || true)" 0
+check "nenhuma avaliação falhou" "$(cat "$TMP"/p45r.* | grep -c ERROR || true)" 0
 
 ID=$(psql -qXtA -c "select id from public.insights where tenant_id = '$TENANT_A' and rule_code = 'idle_slot'")
 VER=$(psql -qXtA -c "select version from public.insights where id = '$ID'")
 for w in 1 2; do
-  as_user "$OWNER_A" "select public.insight_act('$TENANT_A', '$ID', $VER, 'conc-insight-act-00000$w', '$H')" >"$TMP/a.$w" 2>&1 &
+  as_user "$OWNER_A" "select public.insight_act('$TENANT_A', '$ID', $VER, 'conc-insight-act-00000$w', '$H')" >"$TMP/p45a.$w" 2>&1 &
 done
 wait
 check "uma proposta de preço (P05)" "$(psql -qXtA -c "select count(*) from public.pricing_rule_proposals where tenant_id = '$TENANT_A'")" 1
-check "o outro clique foi recusado como versão/regra" "$(cat "$TMP"/a.* | grep -cE 'STALE_VERSION|POLICY_REJECTED' || true)" 1
+check "o outro clique foi recusado como versão/regra" "$(cat "$TMP"/p45a.* | grep -cE 'STALE_VERSION|POLICY_REJECTED' || true)" 1
 check "nenhuma regra de preço publicada" "$(psql -qXtA -c "select count(*) from public.pricing_rules where tenant_id = '$TENANT_A'")" 0
-check "nenhum erro interno" "$(cat "$TMP"/a.* | grep -ciE 'duplicate key|internal' || true)" 0
+check "nenhum erro interno" "$(cat "$TMP"/p45a.* | grep -ciE 'duplicate key|internal' || true)" 0
 
 finish "P45 concorrência"
