@@ -48,7 +48,10 @@ describe("lifecycle · registro ↔ função ↔ SQL", () => {
   });
   it("réguas e estados = contrato; evento de remarcação registrado; o worker roda a régua; consumidor idempotente", () => {
     expect(sql).toContain("check (rule in ('confirmation', 'reminder', 'quote_followup', 'receivable_reminder', 'reactivation'))");
-    expect([...LifecycleRule.options].sort()).toEqual(["confirmation", "quote_followup", "reactivation", "receivable_reminder", "reminder"]);
+    expect([...LifecycleRule.options].sort()).toEqual(["confirmation", "package_expiry", "quote_followup", "reactivation", "receivable_reminder", "reminder"]);
+    // P45 alarga a régua de forma aditiva (aviso de pacote como rascunho manual).
+    const p45 = readdirSync(dir).filter((f) => /^\d{14}_p45_.*\.sql$/.test(f)).map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
+    expect(p45).toContain("check (rule in ('confirmation', 'reminder', 'quote_followup', 'receivable_reminder', 'reactivation', 'package_expiry'))");
     expect(sql).toContain("check (status in ('scheduled', 'deferred', 'sent', 'manual', 'shared', 'skipped', 'cancelled'))");
     expect([...LifecycleStepStatus.options].sort()).toEqual(["cancelled", "deferred", "manual", "scheduled", "sent", "shared", "skipped"]);
     expect(EventType.options).toContain("booking.rescheduled.v1");
