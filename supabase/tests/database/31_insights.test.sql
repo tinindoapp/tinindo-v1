@@ -5,7 +5,7 @@
 -- dado mudou → recusa; acompanhamento em 30 dias por advice_decisions (P22); resumo semanal; isolamento.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(90);
+select plan(91);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -61,6 +61,7 @@ select ok(not has_table_privilege('authenticated', 'public.insights', 'insert') 
 select ok(not has_table_privilege('authenticated', 'public.insight_runs', 'select'), 'rodadas só do backend');
 select ok(not has_function_privilege('authenticated', 'app.gi_tick(integer, timestamptz)', 'execute'), 'motor só do backend');
 select is((select count(*)::int from public.channel_templates where code = 'pacote_vencendo' and category = 'utility'), 1, 'modelo de aviso de pacote (P13) aprovado por migration');
+select ok((select pg_get_constraintdef(c.oid) from pg_constraint c where c.conname = 'lifecycle_steps_rule_check') ~ 'reactivation.*campaign.*package_expiry', 'régua alargada sem perder valores anteriores (campanha do P19)');
 
 -- ------------------------------------------------------------------ 1. atendimentos sem cobrança (P07)
 select pg_temp.mk(1);

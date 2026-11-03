@@ -16,7 +16,8 @@
 -- * `app.ga_rules` (P22): a regra `charge_coverage` passa para o motor do P45 (`uncharged_bookings`, plano §3).
 -- * `app.ga_tick` (P22): decisões de regras do P45 são medidas pela própria regra 30 dias depois.
 -- * `public.jobs_run` (P06…P22): a rodada passa a chamar `app.gi_tick` (uma vez por dia por negócio).
--- Alterações aditivas no P13: régua `package_expiry` (agregado `package`) e o modelo `pacote_vencendo`.
+-- Alterações aditivas no P13: régua `package_expiry` (agregado `package`) e o modelo `pacote_vencendo`. O CHECK recriado
+-- mantém todos os valores atuais, inclusive `campaign` do P19.
 
 -- ---------------------------------------------------------------------------
 -- P13 (aditivo): aviso de pacote perto de vencer, sempre como rascunho manual criado a pedido do dono.
@@ -25,7 +26,7 @@ insert into public.channel_templates (code, category, body, params) values
   ('pacote_vencendo', 'utility', 'Olá, {{1}}! Seu pacote de {{2}} ainda tem {{3}} sessão(ões) e vale até {{4}}. Quer marcar? Responda esta mensagem.', 4);
 alter table public.lifecycle_steps drop constraint lifecycle_steps_rule_check;
 alter table public.lifecycle_steps add constraint lifecycle_steps_rule_check
-  check (rule in ('confirmation', 'reminder', 'quote_followup', 'receivable_reminder', 'reactivation', 'package_expiry'));
+  check (rule in ('confirmation', 'reminder', 'quote_followup', 'receivable_reminder', 'reactivation', 'campaign', 'package_expiry'));
 alter table public.lifecycle_steps drop constraint lifecycle_steps_aggregate_type_check;
 alter table public.lifecycle_steps add constraint lifecycle_steps_aggregate_type_check
   check (aggregate_type in ('booking', 'quote', 'receivable', 'customer', 'package'));
