@@ -46,6 +46,8 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(sheet).toHaveAttribute("aria-modal", "true");
       // Fundo travado e folha presa embaixo, dentro da tela.
       expect(await page.evaluate(() => getComputedStyle(document.body).overflow)).toBe("hidden");
+      // A folha sobe com animação (translateY de 24 px): mede depois que ela termina.
+      await sheet.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
       const box = (await sheet.boundingBox())!;
       expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
       // Botão principal fixo no rodapé da folha.
