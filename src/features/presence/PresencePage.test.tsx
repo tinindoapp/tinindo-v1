@@ -59,4 +59,19 @@ describe("Site e Google (dono)", () => {
     expect(await screen.findByText(/Acesso revogado\. Remova também/)).toBeInTheDocument();
     expect(setGoogle).toHaveBeenLastCalledWith(expect.objectContaining({ action: "revoke" }), expect.any(String));
   });
+
+  it("caixas de seleção são linhas inteiras tocáveis (E14): o texto todo marca e desmarca", async () => {
+    renderPage();
+    const form = await screen.findByRole("form", { name: "Conteúdo do site" });
+    const prices = within(form).getByRole("checkbox", { name: "Preços dos serviços" });
+    const row = prices.closest("label")!;
+    expect(row).toHaveClass("tn-choice");
+    expect(prices).not.toBeChecked();
+    fireEvent.click(within(row).getByText("Preços dos serviços"));
+    expect(prices).toBeChecked();
+    expect(row).toHaveAttribute("data-selected");
+    const google = await screen.findByRole("form", { name: "Conceder acesso ao Google" });
+    expect(within(google).getByRole("checkbox", { name: /Adicionei a Tinindo como gerente/ }).closest("label")).toHaveClass("tn-choice");
+  });
 });
+

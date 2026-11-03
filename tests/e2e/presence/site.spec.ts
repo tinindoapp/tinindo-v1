@@ -9,6 +9,13 @@ test("site e Google: rascunho, prévia só pública, publicar a prévia, página
   await expect(page.getByText("o DNS é simulado")).toBeVisible();
 
   const form = page.getByRole("form", { name: "Conteúdo do site" });
+  // E14: cada opção é uma linha inteira tocável de 44 px; tocar no texto marca.
+  const pricesRow = form.locator("label.tn-choice", { hasText: "Preços dos serviços" });
+  expect((await pricesRow.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await pricesRow.getByText("Preços dos serviços").click();
+  await expect(form.getByLabel("Preços dos serviços")).toBeChecked();
+  await pricesRow.getByText("Preços dos serviços").click();
+  await expect(form.getByLabel("Preços dos serviços")).not.toBeChecked();
   await form.getByLabel("Frase de apresentação (opcional)").fill("Corte na hora marcada");
   await form.getByLabel("Preços dos serviços").check();
   await form.getByLabel("Horários de atendimento").check();
