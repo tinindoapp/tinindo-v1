@@ -840,16 +840,16 @@
         "tests/contracts/growth-advice/",
         "tests/e2e/growth-advice/"
       ],
-      "status": "review",
+      "status": "in_progress",
       "owner": "fffalleiros",
       "session": "claude-int-p45",
       "branch": "task/p45/claude-int-p45",
-      "lease_until": "2026-11-03T16:17:04.657321Z",
+      "lease_until": "2026-11-03T16:26:18.998290Z",
       "pr": 96,
       "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T14:22:50.127332Z",
+  "updated_at": "2026-11-03T14:26:18.998290Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1876,6 +1876,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p45",
       "pr": 96,
+      "reason": null
+    },
+    {
+      "id": "ed2324df-1b87-4111-b23c-6dfb67e5f816",
+      "at": "2026-11-03T14:26:18.998290Z",
+      "action": "resume",
+      "task": "P45",
+      "actor": "fffalleiros",
+      "session": "claude-int-p45",
+      "pr": null,
       "reason": null
     }
   ]
