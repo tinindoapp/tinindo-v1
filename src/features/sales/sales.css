@@ -17,6 +17,12 @@
 .tn-qt-table { width: 100%; border-collapse: collapse; }
 .tn-qt-table th, .tn-qt-table td { text-align: left; padding: var(--tn-space-2) var(--tn-space-1); border-bottom: 1px solid var(--tn-border); }
 .tn-qt-table td.tn-num { text-align: right; }
+/* Escolha do cliente (item 46): busca e cartões de escolha. */
+.tn-qt-customer { display: grid; gap: var(--tn-space-2); flex: 1 1 100%; min-width: 0; margin: 0; padding: 0; border: 0; }
+.tn-qt-customer legend { padding: 0; margin-bottom: var(--tn-space-1); font-weight: var(--tn-font-weight-semibold); }
+.tn-qt-customer__list { display: grid; gap: var(--tn-space-2); grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); }
+.tn-qt-customer p { margin: 0; }
+.tn-qt-fixed { margin: 0; display: grid; gap: var(--tn-space-1); }
 @media (max-width: 30rem) {
   .tn-qt-item, .tn-qt-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 }

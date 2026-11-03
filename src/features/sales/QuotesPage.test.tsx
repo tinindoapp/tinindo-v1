@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FX } from "@contracts/fixtures.ts";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { createDemoPort, resetDemoState } from "./demoPort.ts";
-import { QuotesPage, SalesPortProvider } from "./QuotesPage.tsx";
+import { QuotesPage, SalesPortProvider, suggestTitle } from "./QuotesPage.tsx";
 
 const page = (port: ReturnType<typeof createDemoPort>) =>
   render(
@@ -54,10 +54,46 @@ describe("orçamentos", () => {
     const save = screen.getByRole("button", { name: "Salvar rascunho" });
     expect(save).toBeEnabled();
     fireEvent.click(save);
-    expect(await screen.findByText("Dê um título ao orçamento.")).toBeInTheDocument();
+    // Todos os erros de uma vez, cada um embaixo do seu campo; o foco vai para o primeiro (a busca do cliente).
+    expect(await screen.findByText("Escolha o cliente.")).toBeInTheDocument();
+    expect(screen.getByText("Dê um título ao orçamento.")).toBeInTheDocument();
     expect(screen.getByText("Descreva o item.")).toBeInTheDocument();
     expect(screen.getByText(/Valor inválido/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText("Título")).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText("Buscar cliente")).toHaveFocus());
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it("item 46: nenhum cliente vem escolhido; a busca filtra e o título acompanha os itens até a pessoa mudar", async () => {
+    const port = createDemoPort();
+    const create = vi.spyOn(port, "create");
+    page(port);
+    fireEvent.click(await screen.findByRole("button", { name: "Novo orçamento" }));
+    const group = screen.getByRole("group", { name: "Escolha o cliente" });
+    expect(within(group).getAllByRole("radio").every((r) => !(r as HTMLInputElement).checked)).toBe(true);
+    fireEvent.change(within(group).getByLabelText("Buscar cliente"), { target: { value: "bruno" } });
+    expect(within(group).getAllByRole("radio").map((r) => r.closest("label")!.textContent)).toEqual(["Cliente Exemplo Bruno"]);
+    fireEvent.change(within(group).getByLabelText("Buscar cliente"), { target: { value: "zzz" } });
+    expect(group).toHaveTextContent("Ninguém com “zzz”");
+    fireEvent.change(within(group).getByLabelText("Buscar cliente"), { target: { value: "ana" } });
+    fireEvent.click(within(group).getByRole("radio", { name: "Cliente Exemplo Ana" }));
+
+    fireEvent.change(screen.getByLabelText("Serviço"), { target: { value: FX.services.corteA } });
+    expect(screen.getByLabelText("Título")).toHaveValue("Corte");
+    expect(screen.getByText("Sugerido pelos itens. Você pode mudar.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar item" }));
+    fireEvent.change(within(screen.getByRole("group", { name: "Item 2" })).getByLabelText("Descrição"), { target: { value: "Hidratação" } });
+    fireEvent.change(within(screen.getByRole("group", { name: "Item 2" })).getByLabelText("Valor (R$)"), { target: { value: "30" } });
+    expect(screen.getByLabelText("Título")).toHaveValue("Corte e Hidratação");
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(create.mock.calls[0]![0]).toMatchObject({ customer_id: FX.customers.abInA, title: "Corte e Hidratação" });
+  });
+
+  it("título sugerido junta até três itens e resume o resto", () => {
+    const d = (...n: string[]) => n.map((description) => ({ description }));
+    expect(suggestTitle(d(""))).toBe("");
+    expect(suggestTitle(d("Corte", "Corte"))).toBe("Corte");
+    expect(suggestTitle(d("Corte", "Barba", "Sobrancelha"))).toBe("Corte, Barba e Sobrancelha");
+    expect(suggestTitle(d("A", "B", "C", "D"))).toBe("A, B e mais 2 itens");
   });
 });
