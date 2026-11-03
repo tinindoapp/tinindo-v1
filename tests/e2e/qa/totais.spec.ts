@@ -26,9 +26,13 @@ async function resultado(page: Page) {
   const metrics = page.getByRole("region", { name: "Indicadores" });
   const card = (name: string) => metrics.getByRole("listitem").filter({ has: page.getByRole("heading", { name, exact: true }) });
   await expect(card("Faltas")).toContainText("De 01/10 a 19/10");
+  // Dinheiro na faixa do topo (item 54), com o mesmo período escrito ao lado.
+  const strip = page.getByRole("group", { name: "Recebido, gasto e o que sobrou" });
+  const stat = (label: string) => strip.locator(".tn-stat").filter({ hasText: label });
+  await expect(stat("Recebido")).toContainText("De 01/10 a 19/10");
   return {
-    received: money(await card("Recebimentos registrados").innerText()),
-    spent: money(await card("Despesas registradas").innerText()),
+    received: money(await stat("Recebido").innerText()),
+    spent: money(await stat("Gasto").innerText()),
     noShow: /Conta: (\d+) de (\d+)/.exec(await card("Faltas").innerText())!.slice(1, 3).join(" de "),
   };
 }

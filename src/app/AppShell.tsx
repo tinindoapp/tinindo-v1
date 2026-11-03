@@ -90,6 +90,7 @@ export function AppShell() {
   const menuOpen = openAt === pathname;
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -107,6 +108,17 @@ export function AppShell() {
       delete document.body.dataset.menuOpen;
     };
   }, [menuOpen]);
+
+  // Item 60 da auditoria: no desktop, o menu lateral rola sozinho e o item ativo (ex.: Resultado, no fim) pode ficar
+  // fora da vista. Rola só o menu, e só quando o item está escondido nele.
+  useEffect(() => {
+    const nav = navRef.current;
+    const link = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !link || nav.scrollHeight <= nav.clientHeight) return;
+    const a = link.getBoundingClientRect();
+    const box = nav.getBoundingClientRect();
+    if (a.top < box.top || a.bottom > box.bottom) link.scrollIntoView({ block: "nearest" });
+  }, [pathname, state.status]);
 
   if (state.status === "loading") {
     return (
@@ -171,7 +183,7 @@ export function AppShell() {
       </div>
 
       {menuOpen ? <div className="tn-scrim" aria-hidden="true" onClick={closeMenu} /> : null}
-      <nav id="tn-menu" className="tn-nav" aria-label="Principal" data-open={menuOpen || undefined}>
+      <nav ref={navRef} id="tn-menu" className="tn-nav" aria-label="Principal" data-open={menuOpen || undefined}>
         <div className="tn-nav__head">
           <strong>Menu</strong>
           <IconButton ref={closeButton} icon="fechar" label="Fechar menu" onClick={closeMenu} />
