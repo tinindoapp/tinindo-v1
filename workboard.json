@@ -780,16 +780,16 @@
         "tests/contracts/field-service/",
         "tests/e2e/field-service/"
       ],
-      "status": "pending",
-      "owner": null,
-      "session": null,
-      "branch": null,
-      "lease_until": null,
+      "status": "in_progress",
+      "owner": "fffalleiros",
+      "session": "claude-int-p29",
+      "branch": "task/p29/claude-int-p29",
+      "lease_until": "2026-11-03T03:41:08.376481Z",
       "pr": null,
       "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T01:40:18.239140Z",
+  "updated_at": "2026-11-03T01:41:08.376481Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1566,6 +1566,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p31",
       "pr": 80,
+      "reason": null
+    },
+    {
+      "id": "fd15041f-3020-4cf3-ba90-f51c06e388c1",
+      "at": "2026-11-03T01:41:08.376481Z",
+      "action": "claim",
+      "task": "P29",
+      "actor": "fffalleiros",
+      "session": "claude-int-p29",
+      "pr": null,
       "reason": null
     }
   ]
