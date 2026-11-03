@@ -754,11 +754,11 @@
         "tests/contracts/finance-advanced/",
         "tests/e2e/finance-advanced/"
       ],
-      "status": "review",
+      "status": "in_progress",
       "owner": "fffalleiros",
       "session": "claude-int-p31",
       "branch": "task/p31/claude-int-p31",
-      "lease_until": "2026-11-03T03:26:22.682023Z",
+      "lease_until": "2026-11-03T03:45:06.866670Z",
       "pr": 80,
       "block_reason": null
     },
@@ -789,7 +789,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T01:41:08.376481Z",
+  "updated_at": "2026-11-03T01:45:06.866670Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1575,6 +1575,16 @@
       "task": "P29",
       "actor": "fffalleiros",
       "session": "claude-int-p29",
+      "pr": null,
+      "reason": null
+    },
+    {
+      "id": "94c30785-67d7-46a0-a567-810f163e68cc",
+      "at": "2026-11-03T01:45:06.866670Z",
+      "action": "resume",
+      "task": "P31",
+      "actor": "fffalleiros",
+      "session": "claude-int-p31",
       "pr": null,
       "reason": null
     }
