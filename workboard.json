@@ -789,9 +789,34 @@
       "pr": 83,
       "block_reason": null,
       "merge_sha": "2580ff61e8271af3259892a0ef67800355a7e222"
+    },
+    "P46": {
+      "id": "P46",
+      "title": "Camada de linguagem (LLM)",
+      "lead_hint": "A definir na reserva; LLM_PROVIDER=none por padrão",
+      "depends_on": [
+        "P08",
+        "P13"
+      ],
+      "resources": [
+        "llm"
+      ],
+      "paths": [
+        "supabase/functions/_shared/llm/",
+        "supabase/functions/agent/",
+        "tests/agent-evals/",
+        "release/LLM.md"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T02:30:26.688082Z",
+  "updated_at": "2026-11-03T13:27:19.102767Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1649,6 +1674,16 @@
       "session": null,
       "pr": 83,
       "reason": null
+    },
+    {
+      "id": "1baeb631-e94f-4922-8aab-1c22a00273d1",
+      "at": "2026-11-03T13:27:19.102767Z",
+      "action": "release",
+      "task": "P46",
+      "actor": "fffalleiros",
+      "session": null,
+      "pr": null,
+      "reason": "Liberado por @fffalleiros em 03/11 (tasks/P46.md). Dependências P44/P45 fora do quadro: ponto de integração preparado."
     }
   ]
 }
