@@ -31,13 +31,13 @@ async function pendingNow(): Promise<ReviewPending["pending"]> {
       review_until: iso(Date.parse(b.ends_at) + RULES.window_days * DAY_MS),
     }));
 }
-interface State { reviews: (Review & { booking_id: string | null; mine: boolean })[]; seq: number; clock: number; reports: Set<string> }
+interface State { reviews: (Review & { booking_id: string | null; mine: boolean })[]; seq: number; clock: number; reports: Set<string>; identityRequest: ReviewOwnerList["identity_request"] }
 let shared: State | null = null;
 const seedReview = (n: number, rating: number, body: string, month: string): State["reviews"][number] => ({
   id: `91000000-0000-4000-8000-00000000000${n}`, rating, body, service_name: "Corte", service_month: month, verified_booking: true, reply: null,
   created_at: `${month}-15T12:00:00Z`, status: "published", version: 1, hidden_reason: null, open_reports: 0, booking_id: null, mine: false,
 });
-const state = (): State => (shared ??= { reviews: [seedReview(1, 5, "Pontual e caprichoso.", "2026-09"), seedReview(2, 4, "Bom corte, recomendo.", "2026-08")], seq: 10, clock: Date.parse(FIXED_NOW), reports: new Set() });
+const state = (): State => (shared ??= { reviews: [seedReview(1, 5, "Pontual e caprichoso.", "2026-09"), seedReview(2, 4, "Bom corte, recomendo.", "2026-08")], seq: 10, clock: Date.parse(FIXED_NOW), reports: new Set(), identityRequest: null });
 const ts = () => new Date((state().clock += 1000)).toISOString().replace(/\.\d{3}Z$/, "Z");
 /** Só para testes. */
 export function resetDemoState() {
@@ -60,7 +60,7 @@ export function createDemoOwnerPort(): OwnerReviewsPort {
   return {
     kind: "demo",
     async list() {
-      return clone({ rules: RULES, summary: summary(), reviews: state().reviews.filter((r) => r.status !== "withdrawn").map(strip).sort((a, b) => b.created_at.localeCompare(a.created_at)) });
+      return clone({ rules: RULES, summary: summary(), identity_request: state().identityRequest, reviews: state().reviews.filter((r) => r.status !== "withdrawn").map(strip).sort((a, b) => b.created_at.localeCompare(a.created_at)) });
     },
     async reply(id, version, body) {
       const r = state().reviews.find((x) => x.id === id);
@@ -68,6 +68,12 @@ export function createDemoOwnerPort(): OwnerReviewsPort {
       if (r.version !== version) fail("STALE_VERSION");
       if (body.trim().length < 2) fail("VALIDATION_ERROR", "body");
       Object.assign(r, { reply: { body: body.trim(), at: ts() }, version: r.version + 1 });
+    },
+    async requestIdentity(method) {
+      // Mesma regra do banco: um pedido aberto por negócio; pedir de novo devolve o mesmo, sem trocar o meio.
+      const s = state();
+      s.identityRequest ??= { id: "92000000-0000-4000-8000-000000000001", status: "open", preferred_method: method, requested_at: ts() };
+      return clone(s.identityRequest);
     },
     async report(id) {
       const r = state().reviews.find((x) => x.id === id && x.status === "published");

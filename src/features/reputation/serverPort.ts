@@ -1,5 +1,5 @@
 // Portas reais de Avaliações: Edge Function `reputation`.
-import { MyReviewOutput, ReviewOwnerListOutput, ReviewPendingOutput, ReviewPublicListOutput, ReviewReplyOutput, ReviewReportOutput } from "@contracts";
+import { IdentityRequestOutput, MyReviewOutput, ReviewOwnerListOutput, ReviewPendingOutput, ReviewPublicListOutput, ReviewReplyOutput, ReviewReportOutput } from "@contracts";
 import type { createApiClient } from "../../lib/api/client.ts";
 import type { CustomerReviewsPort, OwnerReviewsPort, PublicReviewsPort } from "./port.ts";
 
@@ -18,6 +18,9 @@ export function createServerOwnerPort(call: Call, tenantId: string): OwnerReview
     },
     async report(review_id, reason, key) {
       await call(op("review.report"), ReviewReportOutput, { method: "POST", body: { review_id, reason }, idempotencyKey: key });
+    },
+    async requestIdentity(preferred_method, key) {
+      return (await call(op("identity.request"), IdentityRequestOutput, post({ preferred_method }, key))).data.identity_request;
     },
   };
 }

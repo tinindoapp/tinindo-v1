@@ -512,6 +512,10 @@ export const OPERATIONS = {
     module: "messaging", owner: "P12", kind: "query", idempotent: false,
     input: messaging.InboxListInput, output: messaging.InboxListOutput,
   },
+  "inbox.unread_count": {
+    module: "messaging", owner: "P12", kind: "query", idempotent: false,
+    input: messaging.InboxUnreadCountInput, output: messaging.InboxUnreadCountOutput,
+  },
   "conversation.get": {
     module: "messaging", owner: "P12", kind: "query", idempotent: false,
     input: messaging.ConversationGetInput, output: messaging.ConversationGetOutput,
@@ -700,6 +704,7 @@ export const OPERATIONS = {
   "review.report": { module: "reputation", owner: "P24", kind: "command", idempotent: true, input: reputation.ReviewReportInput, output: reputation.ReviewReportOutput },
   "review.owner_list": { module: "reputation", owner: "P24", kind: "query", idempotent: false, input: reputation.ReviewOwnerListInput, output: reputation.ReviewOwnerListOutput },
   "review.reply": { module: "reputation", owner: "P24", kind: "command", idempotent: true, input: reputation.ReviewReplyInput, output: reputation.ReviewReplyOutput },
+  "identity.request": { module: "reputation", owner: "P24", kind: "command", idempotent: true, input: reputation.IdentityRequestInput, output: reputation.IdentityRequestOutput },
   "review.public_list": { module: "reputation", owner: "P24", kind: "query", idempotent: false, input: reputation.ReviewPublicListInput, output: reputation.ReviewPublicListOutput },
   "resources.list": { module: "resources", owner: "P28", kind: "query", idempotent: false, input: resources.TeamListInput, output: resources.TeamListOutput },
   "resources.save": { module: "resources", owner: "P28", kind: "command", idempotent: true, input: resources.TeamResourceSaveInput, output: resources.TeamResourceOutput },

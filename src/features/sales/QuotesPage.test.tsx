@@ -63,6 +63,23 @@ describe("orçamentos", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it("recado #89: a busca acha o cliente pelo telefone; pouco dígito não filtra por telefone", async () => {
+    page(createDemoPort());
+    fireEvent.click(await screen.findByRole("button", { name: "Novo orçamento" }));
+    const group = screen.getByRole("group", { name: "Escolha o cliente" });
+    fireEvent.change(within(group).getByLabelText("Buscar cliente"), { target: { value: "(11) 98888-7777" } });
+    expect(within(group).getAllByRole("radio").map((r) => r.closest("label")!.textContent)).toEqual(["Cliente Exemplo Ana"]);
+    fireEvent.change(within(group).getByLabelText("Buscar cliente"), { target: { value: "11" } });
+    expect(group).toHaveTextContent("Ninguém com “11”");
+  });
+
+  it("recado #89: o link sai para o WhatsApp do cliente quando ele tem telefone", async () => {
+    page(await withQuote());
+    fireEvent.click(await screen.findByRole("button", { name: "Gerar link" }));
+    const wa = await screen.findByRole("link", { name: "Enviar pelo WhatsApp" });
+    expect(wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/5511988887777\?text=/);
+  });
+
   it("item 46: nenhum cliente vem escolhido; a busca filtra e o título acompanha os itens até a pessoa mudar", async () => {
     const port = createDemoPort();
     const create = vi.spyOn(port, "create");

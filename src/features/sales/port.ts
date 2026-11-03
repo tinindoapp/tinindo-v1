@@ -4,7 +4,8 @@ import type { z } from "zod";
 
 export interface SalesBase {
   timezone: string;
-  customers: { id: string; name: string }[];
+  /** Telefone E.164 do CRM (recado #89): destinatário do WhatsApp e busca. null quando não cadastrado. */
+  customers: { id: string; name: string; phone: string | null }[];
   services: { id: string; name: string; duration_min: number; base_price_cents: number }[];
 }
 

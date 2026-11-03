@@ -5,6 +5,7 @@ import {
   ContactOutput,
   ConversationGetOutput,
   InboxListOutput,
+  InboxUnreadCountOutput,
   MessageSendOutput,
   SimInboundOutput,
   SimPhoneOutput,
@@ -33,6 +34,9 @@ export function createServerPort(call: Call, tenantId: string): MessagingPort {
     },
     async inbox() {
       return (await call(op("inbox.list"), InboxListOutput, post({}))).data;
+    },
+    async unreadCount() {
+      return (await call(op("inbox.unread_count"), InboxUnreadCountOutput, post({}))).data;
     },
     async conversation(contact_id) {
       return (await call(op("conversation.get"), ConversationGetOutput, post({ contact_id }))).data;
