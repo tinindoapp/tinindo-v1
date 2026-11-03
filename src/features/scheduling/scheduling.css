@@ -294,6 +294,19 @@
   background: var(--tn-surface);
   box-shadow: var(--tn-shadow-lg);
 }
+/*
+ * "Sair sem salvar?": a pergunta sobe acima de tudo, até da folha do menu do celular (z-index 50), que continua aberta
+ * enquanto a navegação está segurada. Fixa ao pé, acima da barra de abas.
+ */
+.tn-sched-savebar[data-blocked="true"] {
+  position: fixed;
+  left: max(var(--tn-space-3), env(safe-area-inset-left));
+  right: max(var(--tn-space-3), env(safe-area-inset-right));
+  bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-3));
+  z-index: 55;
+  max-width: 40rem;
+  margin: 0 auto;
+}
 .tn-sched-savebar__text { margin: 0; font-size: var(--tn-text-support); min-width: 0; }
 .tn-sched-savebar .tn-actions { margin: 0; }
 

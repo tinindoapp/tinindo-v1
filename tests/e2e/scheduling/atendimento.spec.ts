@@ -57,7 +57,9 @@ test("cartão do dia: Faltou executa na hora e o aviso desfaz", async ({ page })
   await expect(timeline.getByRole("button", { name: /^Faltou/ })).toHaveCount(0);
   await toast(page).getByRole("button", { name: "Desfazer" }).click();
   await expect(toast(page)).toContainText("Falta desfeita.");
-  await expect(timeline.getByRole("link", { name: /09:00–09:30 Corte.*Confirmado/ })).toBeVisible();
+  // Confirmado é o normal: o cartão fica sem selo e os botões voltam.
+  await expect(timeline.getByRole("link", { name: /09:00–09:30 Corte/ })).not.toContainText("Faltou");
+  await expect(timeline.getByRole("button", { name: "Faltou às 09:00" })).toBeVisible();
 });
 
 test("detalhe: Atendido pede confirmação; depois disso não há Faltou", async ({ page }) => {
@@ -75,7 +77,7 @@ test("cancelar: motivo, Desfazer refaz no mesmo horário e a lista de espera é 
   await page.goto("/app/agenda/novo?data=2026-10-21");
   await page.getByRole("radio", { name: /Barba/ }).check();
   await page.getByRole("button", { name: "11:00", exact: true }).click();
-  await page.getByLabel("Cliente").selectOption({ label: "Cliente Exemplo Bruno" });
+  await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Bruno" }).check();
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText(/quarta-feira, 21 de outubro, 11:00–11:20/)).toBeVisible();
   const firstUrl = page.url();
@@ -117,7 +119,7 @@ test("cancelar pedido do link público: Avisar no WhatsApp abre com o texto pron
   await expect(page.getByRole("heading", { name: "Horário confirmado" })).toBeVisible();
 
   await softGo(page, "/app/agenda");
-  await page.getByRole("link", { name: new RegExp(`^${time}–.*Confirmado`) }).click();
+  await page.getByRole("link", { name: new RegExp(`^${time}–`) }).click();
   await page.getByRole("button", { name: "Cancelar atendimento" }).click();
   await page.getByLabel("Motivo").fill("Imprevisto");
   await page.getByRole("button", { name: "Sim, cancelar" }).click();

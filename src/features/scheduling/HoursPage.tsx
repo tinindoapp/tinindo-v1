@@ -126,6 +126,21 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
     if (blocker.state === "blocked") leaveRef.current?.focus();
   }, [blocker.state]);
 
+  // "Continuar editando": solta a navegação segurada, fecha a folha do menu do celular se ela ficou aberta (o shell fecha
+  // com Esc) e devolve o foco ao "Salvar".
+  const saveRef = useRef<HTMLButtonElement>(null);
+  const backToSave = useRef(false);
+  function stay() {
+    if (document.body.dataset.menuOpen) document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    backToSave.current = true;
+    blocker.reset?.();
+  }
+  useEffect(() => {
+    if (blocker.state !== "unblocked" || !backToSave.current) return;
+    backToSave.current = false;
+    saveRef.current?.focus();
+  }, [blocker.state]);
+
   const edit = (day: number, next: Interval[]) => {
     setDraft((d) => ({ ...d, [day]: next }));
     setNote(null);
@@ -242,7 +257,7 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
       </ul>
       {failure ? <ErrorPanel error={failure} operation="load" /> : null}
       {dirty || blocker.state === "blocked" ? (
-        <div className="tn-sched-savebar" role="region" aria-label="Alterações no expediente">
+        <div className="tn-sched-savebar" role="region" aria-label="Alterações no expediente" data-blocked={blocker.state === "blocked" ? "true" : undefined}>
           {blocker.state === "blocked" ? (
             <>
               <p ref={leaveRef} tabIndex={-1} className="tn-sched-savebar__text">
@@ -252,7 +267,7 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
                 <Button variant="danger" onClick={() => blocker.proceed?.()}>
                   Sair sem salvar
                 </Button>
-                <Button variant="secondary" onClick={() => blocker.reset?.()}>
+                <Button variant="secondary" onClick={stay}>
                   Continuar editando
                 </Button>
               </div>
@@ -263,7 +278,7 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
                 {note ?? "Há alterações não salvas no expediente."}
               </p>
               <div className="tn-actions">
-                <Button type="submit" loading={pending} loadingText="Salvando…">
+                <Button ref={saveRef} type="submit" loading={pending} loadingText="Salvando…">
                   Salvar expediente
                 </Button>
                 <Button variant="ghost" onClick={discard} disabled={pending}>
