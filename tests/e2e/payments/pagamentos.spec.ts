@@ -107,14 +107,14 @@ test("pagamentos: aviso perdido aparece na conciliação e a consulta resolve; s
   const rec = page.getByRole("form", { name: "Conferir o dia" });
   await rec.getByLabel("Dia").fill("2026-10-20");
   await rec.getByRole("button", { name: "Conferir o dia" }).click();
-  await expect(page.getByText(/Conferência de 20\/10\/2026: 1 diferença\(s\) listada\(s\)/)).toBeVisible();
+  await expect(page.getByText(/Conferência de 20\/10\/2026: 1 diferença listada/)).toBeVisible();
   const recs = page.getByRole("list", { name: "Conferências" });
   await expect(recs).toContainText("O extrato diz pago, mas não há recebimento no caixa");
   await expect(recs).toContainText("20/10/2026");
   await expect(recs).not.toContainText("2026-10-20");
   // A cobrança ainda não venceu: consultar não muda nada. (Na demonstração, vence em 1 h.)
   await page.getByRole("button", { name: "Consultar o banco (simulação)" }).click();
-  await expect(page.getByText(/0 consultada\(s\)/)).toBeVisible();
+  await expect(page.getByText(/0 consultadas/)).toBeVisible();
 
   // Sem resposta do provedor (valor terminado em 98): desconhecido, nunca presumido.
   await pick(page, "pomada");
@@ -123,7 +123,7 @@ test("pagamentos: aviso perdido aparece na conciliação e a consulta resolve; s
   await expect(list).toContainText("Sem resposta do banco (consultando)");
   await expect(list).toContainText("1 cobrança sem confirmação do banco");
   await page.getByRole("button", { name: "Consultar o banco (simulação)" }).click();
-  await expect(page.getByText(/1 consultada\(s\), 0 paga\(s\), 1 encerrada\(s\)/)).toBeVisible();
+  await expect(page.getByText(/1 consultada, 0 pagas, 1 encerrada/)).toBeVisible();
   await expect(list).toContainText("Falhou");
   await expect(list).not.toContainText("sem confirmação do banco");
 });
