@@ -37,7 +37,7 @@ test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → receb
   await expect(received(page)).toHaveText("R$ 1.740,00");
   await noHorizontalScroll(page);
 
-  await visit.getByRole("button", { name: /Marcar como recebido/ }).dblclick();
+  await visit.getByRole("button", { name: /^Recebi R\$/ }).dblclick();
   await expect(page.getByText(/Recebido R\$\s?60,00 \(.+\) de .*Ana/)).toBeVisible();
   await expect(pending.getByRole("listitem").filter({ hasText: "20/10/2026" })).toHaveCount(0);
   const payments = page.getByRole("region", { name: "Recebimentos no mês" });
