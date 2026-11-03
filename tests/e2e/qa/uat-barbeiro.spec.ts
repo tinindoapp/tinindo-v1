@@ -216,6 +216,8 @@ test.describe("UAT barbeiro", () => {
     await page.getByRole("textbox").fill("o que tenho amanhã?");
     await page.keyboard.press("Enter");
     await expect(page.getByText(/quarta-feira, 21 de outubro/)).toBeVisible();
+    // A cobertura fica em "Detalhes" (item 57), a um toque.
+    await page.getByRole("region", { name: "Conversa" }).locator("details.tn-ag-details summary").last().click();
     await expect(page.getByText(/registros lançados na Tinindo/)).toBeVisible();
   });
 });
