@@ -37,11 +37,12 @@ Reserva: `coord.py claim P45 --session claude-int-p45` · branch `task/p45/claud
 | Comando | Resultado |
 |---|---|
 | `npm run lint` · `typecheck` · `build` | ok |
-| `npm test` | unit e contratos ok (ver PR) |
-| `npm run db:test:local` | tudo ok (P45: 90 asserções; P22 atualizado: a regra de cobrança saiu de lá) |
-| `npm run db:test:concurrency` | ver PR (novo `29_insights`) |
-| `npm run test:integration` | ver PR (novo `46_p45_insights`, 5 passos) |
-| `npx playwright test` | ver PR (novo `growth-advice/insights.spec.ts`; `metas.spec.ts` com o título novo) |
+| `npm test` | unit 695 · contratos 791 (+38 opcionais do P46 pulados), com a main de 03/11 (P46) |
+| `npm run db:test:local` | 31 arquivos ok (P45: 91 asserções; P22 atualizado: a regra de cobrança saiu de lá) |
+| `npm run db:test:concurrency` | todos ok (novo `29_insights`, 11 verificações) |
+| `npm run test:integration` | 23 arquivos, 134 testes (novo `46_p45_insights`, 5 passos) |
+| `npx playwright test` | 267 passaram + `avisos.spec` corrigido (título novo) e reexecutado ok; 33 fixme preexistentes. Novo `growth-advice/insights.spec.ts` (desktop e celular) |
+| **Regressão pega e corrigida** | o CHECK recriado de `lifecycle_steps.rule` tinha perdido `campaign` (P19); o pgTAP 18 e a concorrência do P19 acusaram; agora o pgTAP 31 guarda os valores anteriores |
 
 Não executado aqui: `supabase test db` e `db lint` no PG 17 (sem Docker); rodam no CI.
 
@@ -60,6 +61,8 @@ Não executado aqui: `supabase test db` e `db lint` no PG 17 (sem Docker); rodam
 - P44: ligar o cartão "Deixe seu negócio pronto" acima do cartão de insights, e trocar a rota do passo "perfil incompleto" pelo passo do P44.
 - P46: frase de explicação do insight pelo modelo, a partir da evidência calculada (os números continuam do motor).
 - E-mail opcional do resumo semanal quando o SMTP estiver ligado.
+- P46 (já na main): `explainInsight` (`_shared/llm/tasks/explain.ts`) está pronto, mas não foi ligado. Ligar pede cache por versão do insight (senão a Home chamaria o modelo a cada abertura); com `LLM_PROVIDER=none` nada muda.
+- Observado, fora do escopo: o contrato `LifecycleRule` não tem `campaign` (valor do P19 no banco); a lista de passos do P13 com passo de campanha falharia no contrato. Vale um ajuste aditivo no P13/P19.
 - Homologação: nada aplicado. O projeto `kitdsdyydgutnbiwjblw` não foi tocado.
 
 ## Recuperação
