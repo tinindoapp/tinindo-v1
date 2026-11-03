@@ -27,6 +27,7 @@ export * from "./discovery.ts";
 export * from "./reputation.ts";
 export * from "./resources.ts";
 export * from "./materials.ts";
+export * from "./finance-advanced.ts";
 export * from "./field-service.ts";
 export * from "./network.ts";
 export * from "./events.ts";

@@ -280,8 +280,8 @@
     overscroll-behavior: contain;
     padding: var(--tn-space-2) var(--tn-space-3) calc(var(--tn-space-6) + env(safe-area-inset-bottom));
     border-radius: var(--tn-radius-lg) var(--tn-radius-lg) 0 0;
-    background: var(--tn-surface);
-    box-shadow: var(--tn-shadow-lg);
+    background: var(--tn-surface-float);
+    box-shadow: var(--tn-elevation-2);
   }
   .tn-nav:not([data-open]) { display: none; }
   .tn-nav[data-open] { animation: tn-sheet-in var(--tn-motion-slow) var(--tn-motion-ease); }

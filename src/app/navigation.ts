@@ -40,7 +40,7 @@ export const SECTION_SPECS: readonly SectionSpec[] = [
   },
   {
     id: "dinheiro", label: "Dinheiro", icon: "receber", tab: true,
-    items: [{ module: "finance", icon: "receber" }, { module: "payments", icon: "pagamento" }, { module: "recurrence", icon: "assinatura" }, { module: "fiscal", icon: "nota" }],
+    items: [{ module: "finance", icon: "receber" }, { module: "finance-advanced", icon: "nota", label: "Contas", short: "Contas" }, { module: "payments", icon: "pagamento" }, { module: "recurrence", icon: "assinatura" }, { module: "fiscal", icon: "nota" }],
   },
   { id: "assistente", label: "Assistente", icon: "assistente", tab: true, items: [{ module: "agent", icon: "assistente" }] },
   {

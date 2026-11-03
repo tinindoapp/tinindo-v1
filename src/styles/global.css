@@ -30,7 +30,22 @@
 
   /* Ação de perigo (só para confirmar o que não volta atrás): o vermelho de texto de cada tema como fundo. */
   --tn-danger-action: var(--tn-danger-text);
+
+  /* Elevação (item 21): três níveis e nada além deles.
+     0 · página: o fundo (--tn-bg), sem borda nem sombra.
+     1 · cartão e lista: --tn-surface, borda de 1 px e a sombra curta. Cartão e lista agrupada são o mesmo nível.
+     2 · camada flutuante (aviso, menu, folha, botão flutuante): sombra longa; no escuro, onde a sombra some,
+         a superfície elevada (--tn-surface-raised) e a borda marcam a camada. */
+  --tn-elevation-1: var(--tn-shadow-sm);
+  --tn-elevation-2: var(--tn-shadow-lg);
+  --tn-surface-float: var(--tn-surface);
 }
+/* No escuro, "afundado" (selo neutro, bloqueio, ícone de atalho) era tinta-950: mais escuro que o cartão e igual ao
+   fundo da página, parecia um buraco. Passa a ser um tom acima do cartão, como no claro (tinta-100 sobre branco). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --tn-surface-sunken: var(--tn-color-tinta-800); --tn-surface-float: var(--tn-surface-raised); }
+}
+:root[data-theme="dark"] { --tn-surface-sunken: var(--tn-color-tinta-800); --tn-surface-float: var(--tn-surface-raised); }
 @media (min-width: 900px) {
   :root { --tn-text-title: var(--tn-font-size-3xl); --tn-text-section: var(--tn-font-size-2xl); }
 }
