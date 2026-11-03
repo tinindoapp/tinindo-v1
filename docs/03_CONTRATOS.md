@@ -253,6 +253,8 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 
+Sinal da equipe Tinindo (recado #88): `my_is_operator()` → `boolean`, RPC `security definer` só para `authenticated`. É `true` quando o usuário autenticado está ativo em `platform_operators`. Não expõe nome nem lista da equipe. A sessão do frontend guarda o valor em `isOperator` (`null` enquanto carrega ou se falhar; `true` na demonstração offline). Com `false`, `/app/resultado/custo` e `/app/servicos-tinindo/operacao` mostram só o aviso, sem chamar o servidor. Não autoriza nada: as funções da equipe continuam exigindo `app.svc_operator()` e respondem FORBIDDEN.
+
 ## Exemplo de cotação
 
 ```json

@@ -1,9 +1,11 @@
 // Módulo Resultado · P18 (tasks/P18.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 // Sem Supabase (demonstração offline) usa números sintéticos rotulados; com Supabase, a função `analytics`.
-// O custo por cliente fica em /app/resultado/custo, fora do menu: o banco decide quem é operador.
+// O custo por cliente fica em /app/resultado/custo, fora do menu: o banco decide quem é operador; quem não é da equipe
+// (sinal `isOperator` da sessão, recado #88) vê só o aviso, sem chamar o servidor.
 import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
+import { OperatorGate } from "../../app/OperatorGate.tsx";
 import { useSession } from "../../app/session.tsx";
 import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
@@ -36,6 +38,14 @@ const demoNow = () => new Date(Date.parse("2026-10-20T12:00:00Z"));
 const realNow = () => new Date();
 
 function CostLayout() {
+  return (
+    <OperatorGate title="Custo por cliente" headingId="cost-title">
+      <CostScreen />
+    </OperatorGate>
+  );
+}
+
+function CostScreen() {
   const { state, getAccessToken } = useSession();
   const port = useMemo<CostPort>(() => {
     if (state.status === "offline_demo" || !appEnv.supabase) return createDemoCostPort();

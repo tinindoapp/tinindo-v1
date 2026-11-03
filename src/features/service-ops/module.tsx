@@ -1,9 +1,11 @@
 // Módulo Plano e serviços · P15 (tasks/P15.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 // Sem Supabase (demonstração offline) usa a emulação local, sempre rotulada; com Supabase, a função `service-ops`.
-// A tela da operação fica em /app/servicos-tinindo/operacao, fora do menu: o banco decide quem é operador.
+// A tela da operação fica em /app/servicos-tinindo/operacao, fora do menu: o banco decide quem é operador; quem não é
+// da equipe (sinal `isOperator` da sessão, recado #88) vê só o aviso, sem chamar o servidor.
 import { useMemo } from "react";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
+import { OperatorGate } from "../../app/OperatorGate.tsx";
 import { useSession } from "../../app/session.tsx";
 import { Card, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
@@ -37,6 +39,14 @@ function ServicesLayout() {
 }
 
 function OpsLayout() {
+  return (
+    <OperatorGate title="Operação Tinindo" headingId="ops-title">
+      <OpsScreen />
+    </OperatorGate>
+  );
+}
+
+function OpsScreen() {
   const { state, getAccessToken } = useSession();
   const port = useMemo<OpsPort>(() => {
     if (state.status === "offline_demo" || !appEnv.supabase) return createDemoOpsPort();
