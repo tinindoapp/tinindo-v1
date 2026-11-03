@@ -14,7 +14,7 @@ Reserva: `coord.py claim P45 --session claude-int-p45` · branch `task/p45/claud
 - **Edge Function `growth-advice`**: quatro rotas novas pelo `rpc-handler` (`insight.list`, `insight.snooze`, `insight.act`, `digest.list`).
 - **Contratos** aditivos em `_shared/contracts/growth-advice.ts` (`Insight`, `InsightEvidence` com período, número e denominador obrigatórios, `InsightAction`, `InsightActResult`, `WeeklyDigest`), registro v1 (owner P45), `LifecycleRule` + `package_expiry`, docs/03, docs/10 (INS-01), release/CHECKLIST.
 - **Telas**:
-  - **Home**: cartão "Para você esta semana" com até 3 sugestões por prioridade, cada uma com a frase de evidência (período, número e denominador), **Ver** e **Agora não**. Fica abaixo das ações rápidas e acima da agenda do dia; o cartão do P44 entra acima dele (comentário no `Home.tsx`). A linha antiga "N sugestões com base nos seus números" saiu das Pendências.
+  - **Home**: cartão "Para você esta semana" com até 3 sugestões por prioridade, cada uma com a frase de evidência (período, número e denominador), **Ver** e **Agora não**. Fica logo abaixo do cartão "Deixe seu negócio pronto" do P44 (rebase sobre o #95). A linha antiga "N sugestões com base nos seus números" saiu das Pendências.
   - **Metas e sugestões** (`/app/metas`, renomeada; menu Crescer): "Sugestões para você" com as abertas (corpo, evidência, onde acontece, **Preparar**/**Ver** e **Agora não**), as decididas com o acompanhamento, e "O que a conta olhou" com o status de cada regra e o motivo do insuficiente. `?insight=<id>` destaca e foca a sugestão. Depois vêm Metas, Sugestões do mês (P22), Conteúdo e Resumo da semana.
   - **Mensagens**: o resumo semanal da Tinindo aparece no topo da caixa do dono. O app injeta o cartão (`src/app/OwnerDigest.tsx` + `InboxExtraProvider`), porque um módulo não importa outro.
   - **Demonstração** rotulada: o motor é emulado sobre a base de exemplo única (`demoInsights.ts`): faltas concentradas na quarta (5 de 12), sábado vazio das 9h às 14h (5 de 5 semanas), perfil 3 de 4; clientes sem retorno como insuficiente (só 4 clientes de retorno).
@@ -37,10 +37,10 @@ Reserva: `coord.py claim P45 --session claude-int-p45` · branch `task/p45/claud
 | Comando | Resultado |
 |---|---|
 | `npm run lint` · `typecheck` · `build` | ok |
-| `npm test` | unit 695 · contratos 791 (+38 opcionais do P46 pulados), com a main de 03/11 (P46) |
+| `npm test` | unit 733 · contratos 807 (+38 opcionais do P46 pulados), com a main de 03/11 (P44 e P46) |
 | `npm run db:test:local` | 31 arquivos ok (P45: 91 asserções; P22 atualizado: a regra de cobrança saiu de lá) |
 | `npm run db:test:concurrency` | todos ok (novo `30_insights`, 11 verificações) |
-| `npm run test:integration` | 23 arquivos, 134 testes (novo `47_p45_insights`, 5 passos) |
+| `npm run test:integration` | 24 arquivos, 142 testes (novo `47_p45_insights`, 5 passos) |
 | `npx playwright test` | 267 passaram + `avisos.spec` corrigido (título novo) e reexecutado ok; 33 fixme preexistentes. Novo `growth-advice/insights.spec.ts` (desktop e celular) |
 | **Regressão pega e corrigida** | o CHECK recriado de `lifecycle_steps.rule` tinha perdido `campaign` (P19); o pgTAP 18 e a concorrência do P19 acusaram; agora o pgTAP 32 guarda os valores anteriores |
 
@@ -58,10 +58,11 @@ Não executado aqui: `supabase test db` e `db lint` no PG 17 (sem Docker); rodam
 
 ## Pendências e próximos passos
 
-- P44: ligar o cartão "Deixe seu negócio pronto" acima do cartão de insights, e trocar a rota do passo "perfil incompleto" pelo passo do P44.
+- P44 já está na main: o cartão de insights fica logo abaixo do "Deixe seu negócio pronto". Falta trocar a rota do passo "perfil incompleto" pela tela `/app/configurar` do P44, se o produto preferir.
 - P46: frase de explicação do insight pelo modelo, a partir da evidência calculada (os números continuam do motor).
 - E-mail opcional do resumo semanal quando o SMTP estiver ligado.
 - P46 (já na main): `explainInsight` (`_shared/llm/tasks/explain.ts`) está pronto, mas não foi ligado. Ligar pede cache por versão do insight (senão a Home chamaria o modelo a cada abertura); com `LLM_PROVIDER=none` nada muda.
+- Observado, fora do escopo: `tests/integration/44_p31_contas.test.ts` passo 1 é intermitente (repete o pagamento com `paid_at: new Date()`; se o segundo vira, o hash muda e dá `IDEMPOTENCY_MISMATCH`). Falhou 1 vez em 4 rodadas locais; fixar o `paid_at` resolve.
 - Observado, fora do escopo: o contrato `LifecycleRule` não tem `campaign` (valor do P19 no banco); a lista de passos do P13 com passo de campanha falharia no contrato. Vale um ajuste aditivo no P13/P19.
 - Homologação: nada aplicado. O projeto `kitdsdyydgutnbiwjblw` não foi tocado.
 
