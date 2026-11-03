@@ -312,6 +312,10 @@ export const OPERATIONS = {
     module: "agent", owner: "P08", kind: "query", idempotent: false,
     input: agent.AgentAskInput, output: agent.AgentAnswer,
   },
+  "agent.draft": {
+    module: "agent", owner: "P46", kind: "query", idempotent: false,
+    input: agent.AgentDraftInput, output: agent.AgentDraftOutput,
+  },
   "action.approve": {
     module: "agent", owner: "P08", kind: "command", idempotent: true,
     input: agent.ActionApproveInput, output: agent.ActionApproval,

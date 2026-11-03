@@ -2,6 +2,7 @@
 // gasto aplicados no servidor, oferta vinculada, grupo de controle sorteado e resultado por braço com intervalo.
 // O que a tela promete é o que o banco garante; sem controle, o resultado é observação, não efeito.
 import { type FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { ci, DESIGN, explain, formatCents, formatDate, offerLabel, pct, segmentLabel, STATUS, VERDICT } from "./labels.ts";
@@ -72,6 +73,8 @@ function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services
   return (
     <form ref={formRef} className="tn-cp-form" aria-label="Nova campanha" onSubmit={(e) => void submit(e)} noValidate>
       <Field label="Nome" maxLength={80} value={name} error={errors.name} onChange={(e) => setName(e.target.value)} />
+      {/* P46: o texto que acompanha a campanha pode ser redigido no Assistente; você revisa e copia de lá. */}
+      <Link className="tn-cp-assist" to="/app/assistente" state={{ draft: { kind: "campaign" } }}>Redigir o texto da campanha com o assistente</Link>
       <Field as="select" label="Segmento" value={kind} error={errors.kind} onChange={(e) => setKind(e.target.value as CampaignSegment["kind"])}>
         <option value="inactive_days">Sem atendimento há N dias</option>
         <option value="credit_remaining">Com sessões sobrando no pacote</option>

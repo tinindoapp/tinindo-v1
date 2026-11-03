@@ -51,6 +51,21 @@ export const AgentAnswer = z.object({
   proposal: ActionProposal.nullable(),
 });
 
+/**
+ * P46 · reescrever no tom pedido um rascunho do dono (mensagem do P13, apresentação do perfil, texto de campanha).
+ * A sugestão volta para o dono editar; nada é salvo nem enviado por esta operação. Sem provedor de linguagem
+ * (`LLM_PROVIDER=none`), `available` é false e `suggestion` é null.
+ */
+export const AgentDraftInput = z.object({
+  kind: z.enum(["message", "bio", "campaign"]),
+  tone: z.enum(["proximo", "direto", "formal"]).default("proximo"),
+  text: z.string().trim().min(1).max(1000),
+});
+export const AgentDraftOutput = z.object({
+  available: z.boolean(),
+  suggestion: z.string().max(600).nullable(),
+});
+
 export const ActionApproveInput = z.object({
   proposal_id: Uuid,
   payload_hash: z.string().regex(/^[0-9a-f]{64}$/),
