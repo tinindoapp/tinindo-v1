@@ -36,9 +36,8 @@ Reserva: `coord.py claim P29 --session claude-int-p29` · branch `task/p29/claud
 
 | Comando | Resultado |
 |---|---|
+| Bateria completa, com a main de 03/11 (P31 incluído) | unit 602 · contratos 650 · pgTAP 30 arquivos ok · concorrência 28 scripts ok · integração 129 · deno 28 funções · e2e 219 passaram, 33 fixme que já existiam |
 | `npm run lint` · `typecheck` · `build` | ok |
-| unit (`vitest run src`) | 352 |
-| contratos + função (`vitest run tests/contracts supabase/functions`) | ok (inclui `field-service`, 9 operações) |
 | pgTAP `30_field_service` | 41/41 |
 | concorrência `28_field_service` | 9/9 |
 | integração `45_p29_domicilio` | 5/5 |
@@ -54,6 +53,7 @@ Não executado aqui: `supabase test db` e `db lint` no PG 17, porque não há Do
 - **Deslocamento como `availability_blocks`**, sem mudar o motor da agenda. O lock é o mesmo do P03.
 - **Uma agenda:** a principal do negócio. O deslocamento por profissional de equipe (P28) fica para depois.
 - **Recalcular é ação do dono.** Cancelar ou remarcar pede recálculo, sem refazer sozinho, porque o novo roteiro pode não caber e quem decide é o dono.
+- **Concorrência em pasta temporária própria:** o `$TMP` do runner é o mesmo para todos os scripts, e arquivos de outros scripts entravam na contagem. A mesma correção foi feita no P31.
 - **Hint `cep` (não `cep5`)** no erro de CEP fora da zona: o mapeador de erros só aceita `[a-z_.]` no campo.
 
 ## Fora deste pacote (anotado para o P25 e depois)
