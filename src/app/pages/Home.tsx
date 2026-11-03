@@ -1,6 +1,7 @@
 // Hoje (doc 12): próximos atendimentos, pendências e até três ações úteis. Lê as mesmas portas da Agenda, do Caixa e das
 // Metas (na demonstração, as mesmas instâncias: o que muda numa tela aparece aqui). Cada bloco falha sozinho; conta vazia
-// mostra a lacuna e a próxima ação, nunca número inventado.
+// mostra a lacuna e a próxima ação, nunca número inventado. P45: "Para você esta semana" traz até 3 insights do motor
+// diário, com "Ver" e "Agora não"; o cartão de configuração do P44, quando entrar, fica ACIMA dele.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { Booking } from "@contracts";
@@ -14,6 +15,7 @@ import { createServerPort as createFinanceServerPort } from "../../features/fina
 import { createDemoPort as createAdviceDemoPort } from "../../features/growth-advice/demoPort.ts";
 import type { GrowthAdvicePort } from "../../features/growth-advice/port.ts";
 import { createServerPort as createAdviceServerPort } from "../../features/growth-advice/serverPort.ts";
+import { InsightsCard } from "../../features/growth-advice/Insights.tsx";
 import { getDemoPort as getSchedulingDemoPort } from "../../features/scheduling/SchedulingLayout.tsx";
 import type { SchedulingPort } from "../../features/scheduling/port.ts";
 import { createServerPort as createSchedulingServerPort } from "../../features/scheduling/serverPort.ts";
@@ -41,7 +43,6 @@ interface Today {
   now: number;
   agenda: { day: DayItem[]; next: DayItem | null; confirmed: number; held: (Booking & { serviceName: string })[] } | null;
   money: { unchargedCount: number; unchargedCents: number; receivedCents: number } | null;
-  advice: { count: number; first: string | null } | null;
 }
 
 /** Quantos itens do dia a lista mostra; o resto fica em "Ver os N de hoje". */
@@ -67,7 +68,7 @@ async function loadToday(p: Ports): Promise<Today> {
   const now = p.scheduling.now();
   const today = localParts(now, tz).date;
   const month = today.slice(0, 7);
-  const [agenda, money, advice] = await Promise.allSettled([
+  const [agenda, money] = await Promise.allSettled([
     (async () => {
       const [bookings, services, customers] = await Promise.all([p.scheduling.listBookings(dayWindow(today, tz)), p.scheduling.listServices(), p.scheduling.listCustomers()]);
       const svc = new Map(services.map((s) => [s.id, s.name]));
@@ -95,10 +96,6 @@ async function loadToday(p: Ports): Promise<Today> {
       const [uncharged, summary] = await Promise.all([p.finance.uncharged(period), p.finance.summary(period, tz)]);
       return { unchargedCount: uncharged.length, unchargedCents: uncharged.reduce((s, b) => s + (b.agreed_price_cents ?? 0), 0), receivedCents: summary.received_cents };
     })(),
-    (async () => {
-      const a = await p.advice.advice();
-      return { count: a.suggestions.length, first: a.suggestions[0]?.title ?? null };
-    })(),
   ]);
   return {
     tenantName: ctx.tenantName,
@@ -107,7 +104,6 @@ async function loadToday(p: Ports): Promise<Today> {
     now: now.getTime(),
     agenda: agenda.status === "fulfilled" ? agenda.value : null,
     money: money.status === "fulfilled" ? money.value : null,
-    advice: advice.status === "fulfilled" ? advice.value : null,
   };
 }
 
@@ -165,6 +161,9 @@ export function Home() {
             <li><Link to="/app/assistente" className="tn-quick__item"><span className="tn-quick__icon"><Icon name="assistente" /></span>Perguntar ao assistente</Link></li>
           </ul>
 
+          {/* P44 (configuração guiada): o cartão "Deixe seu negócio pronto" entra aqui, acima das sugestões. */}
+          <InsightsCard port={ports!.advice} />
+
           <Section title="Atendimentos de hoje" id="home-next">
             {!t.agenda ? (
               <StatusBanner tone="warning">A agenda não respondeu agora.</StatusBanner>
@@ -215,7 +214,6 @@ export function Home() {
                   />
                 )),
                 t.agenda && t.agenda.held.length > 3 ? <ListItem key="held-more" to="/app/agenda" icon="agenda" title={`Mais ${t.agenda.held.length - 3} reservas provisórias`} meta="Ver na agenda" /> : null,
-                t.advice && t.advice.count > 0 ? <ListItem key="advice" to="/app/metas" icon="metas" title={`${plural(t.advice.count, "sugestão", "sugestões")} com base nos seus números`} meta={t.advice.first ?? undefined} /> : null,
               ].filter(Boolean);
               return rows.length ? <List label="Pendências">{rows}</List> : <p className="tn-today__empty">Nada pendente agora.</p>;
             })()}

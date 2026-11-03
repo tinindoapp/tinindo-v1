@@ -59,7 +59,7 @@ describe("growth-advice · registro ↔ função ↔ SQL", () => {
     expect(EventType.options).toContain("content.published.v1");
   });
   it("P45: nove regras = contrato; motor no worker uma vez por dia; upsert por regra e assunto; sem LLM; ação só como proposta", () => {
-    const codes = [...p45.matchAll(/^  \('([a-z_]+)', '[^']+', 'P\d\d', '(proposal|open|none)'/gm)].map((m) => m[1]);
+    const codes = [...p45.matchAll(/^ {2}\('([a-z_]+)', '[^']+', 'P\d\d', '(proposal|open|none)'/gm)].map((m) => m[1]);
     expect(codes.sort()).toEqual([...InsightRuleCode.options].sort());
     for (const c of InsightRuleCode.options) expect(p45).toContain(`when '${c}' then app.gi_${c}(p_tenant_id, p_now)`);
     expect(p45).toMatch(/create or replace function public\.jobs_run[\s\S]*app\.ga_tick\(100\)[\s\S]*app\.lc_tick\(100\)[\s\S]*app\.gi_tick\(20\)/);
