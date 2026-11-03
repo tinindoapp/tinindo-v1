@@ -840,7 +840,7 @@
         "tests/contracts/growth-advice/",
         "tests/e2e/growth-advice/"
       ],
-      "status": "in_progress",
+      "status": "review",
       "owner": "fffalleiros",
       "session": "claude-int-p45",
       "branch": "task/p45/claude-int-p45",
@@ -880,7 +880,7 @@
       "merge_sha": "3e83b0639d6afa14bc3b5e0296a282b1f59ea6dc"
     }
   },
-  "updated_at": "2026-11-03T14:43:53.167419Z",
+  "updated_at": "2026-11-03T14:44:04.773225Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -2007,6 +2007,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p45",
       "pr": null,
+      "reason": null
+    },
+    {
+      "id": "1e25c3b2-6dc8-45ce-ae1f-68fd17cc8220",
+      "at": "2026-11-03T14:44:04.773225Z",
+      "action": "review",
+      "task": "P45",
+      "actor": "fffalleiros",
+      "session": "claude-int-p45",
+      "pr": 96,
       "reason": null
     }
   ]
