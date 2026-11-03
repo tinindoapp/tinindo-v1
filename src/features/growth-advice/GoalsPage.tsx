@@ -193,9 +193,13 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
     <div className="tn-ga">
       <div className="tn-page-intro">
         <PageHeader id="ga-title" title="Metas e conteúdo" />
-        <Help><p>Metas sobre os indicadores do Resultado, sugestões por regras sobre os seus dados e textos aprovados para a sua profissão. Nada aqui promete resultado: o progresso é o indicador medido, e a variação depois de uma sugestão é observada, não causada.</p></Help>
-        <StatusBanner tone="info"><strong>Sem inteligência artificial nas sugestões.</strong> Cada sugestão vem de uma regra fixa sobre um indicador com dado suficiente, e mostra a evidência. Você decide; a Tinindo nunca age sozinha.</StatusBanner>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é publicado de verdade. "Avançar 30 dias" faz agora a medição que o sistema faria sozinho depois de 30 dias.</StatusBanner> : null}
+        {/* Um aviso só (item 19): a faixa "Demonstração" do topo identifica a demonstração; as explicações ficam em "Como funciona". */}
+        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Nada é publicado de verdade.</StatusBanner> : null}
+        <Help>
+          <p>Metas sobre os indicadores do Resultado, sugestões por regras sobre os seus dados e textos aprovados para a sua profissão. Nada aqui promete resultado: o progresso é o indicador medido, e a variação depois de uma sugestão é observada, não causada.</p>
+          <p><strong>Sem inteligência artificial nas sugestões.</strong> Cada sugestão vem de uma regra fixa sobre um indicador com dado suficiente, e mostra a evidência. Você decide; a Tinindo nunca age sozinha.</p>
+          {port.kind === "demo" ? <p>“Avançar 30 dias” faz agora a medição que o sistema faria sozinho depois de 30 dias.</p> : null}
+        </Help>
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {port.followUp ? <div className="tn-actions"><Button variant="secondary" loading={following} onClick={() => void followUp()}>Avançar 30 dias (simulação)</Button></div> : null}
       </div>

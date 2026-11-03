@@ -186,9 +186,13 @@ export function CampaignsPage({ port }: { port: CampaignsPort }) {
           </Button>
         ) : null}
       />
-      <Help><p>Convide um grupo de clientes com uma oferta e meça o que aconteceu. Só entra quem consentiu receber marketing (Relacionamento), sem atendimento marcado e fora de outra campanha. Os tetos de envio e de gasto valem no servidor. Sem canal conectado, as mensagens ficam para você compartilhar.</p></Help>
-      <StatusBanner tone="info"><strong>Medição honesta.</strong> Um grupo de controle sorteado fica sem a oferta; o resultado compara os dois grupos com intervalo. Sem controle, o que você vê é observação, não efeito da campanha.</StatusBanner>
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é enviado. "Simular janela" fecha a medição como o worker faria.</StatusBanner> : null}
+      {/* Um aviso só (item 19): a faixa "Demonstração" do topo identifica a demonstração; as explicações ficam em "Como funciona". */}
+      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Nada é enviado.</StatusBanner> : null}
+      <Help>
+        <p>Convide um grupo de clientes com uma oferta e meça o que aconteceu. Só entra quem consentiu receber marketing (Relacionamento), sem atendimento marcado e fora de outra campanha. Os tetos de envio e de gasto valem no servidor. Sem canal conectado, as mensagens ficam para você compartilhar.</p>
+        <p><strong>Medição honesta.</strong> Um grupo de controle sorteado fica sem a oferta; o resultado compara os dois grupos com intervalo. Sem controle, o que você vê é observação, não efeito da campanha.</p>
+        {port.kind === "demo" ? <p>“Simular janela” fecha agora a medição que o sistema faria sozinho no fim da janela.</p> : null}
+      </Help>
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {composing && services ? (
         <Card aria-labelledby="cp-new-title">

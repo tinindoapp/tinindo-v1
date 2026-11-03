@@ -308,9 +308,12 @@ export function FiscalPage({ port }: { port: FiscalPort }) {
     <div className="tn-fsc">
       <PageHeader id="fsc-title" title="Notas fiscais" subtitle="Emitir a nota não é receber: o recebimento continua no Caixa."
         actions={o?.eligibility.eligible && !composing ? <Button onClick={() => setComposing(true)}><Icon name="mais" size={20} />Nova nota</Button> : null} />
-      <Help><p>A Tinindo emite a NFS-e no padrão nacional pelo provedor fiscal, em seu nome, quando você pedir. No piloto, só para MEI. As primeiras notas saem em homologação (teste, sem valor fiscal); produção é liberada depois de um caso homologado.</p></Help>
+      {/* Um aviso só (item 19): a faixa "Demonstração" do topo identifica a demonstração; o resto fica em "Como funciona". */}
       {env === "homologacao" ? <StatusBanner tone="info"><strong>Homologação.</strong> As notas daqui são de teste e não têm valor fiscal.</StatusBanner> : null}
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Provedor fiscal simulado; nada é enviado à prefeitura.</StatusBanner> : null}
+      <Help>
+        <p>A Tinindo emite a NFS-e no padrão nacional pelo provedor fiscal, em seu nome, quando você pedir. No piloto, só para MEI. As primeiras notas saem em homologação (teste, sem valor fiscal); produção é liberada depois de um caso homologado.</p>
+        {port.kind === "demo" ? <p>Na demonstração, o provedor fiscal é simulado: nada é enviado à prefeitura.</p> : null}
+      </Help>
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {o ? (
         <>

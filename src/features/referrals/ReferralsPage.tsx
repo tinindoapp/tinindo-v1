@@ -52,18 +52,21 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
     <div className="tn-ref">
       <div className="tn-page-intro">
         <PageHeader id="ref-title" title="Indicações" />
-        <Help><p>
-          O convite sai do seu Perfil: o link é pessoal e quem envia é você. Quando o negócio indicado passa a usar a Tinindo de verdade, você ganha crédito de perguntas do assistente no mês.
-        </p></Help>
+        {/* Um aviso só, em uma linha (item 19); as regras ficam em "Como funciona". */}
+        <StatusBanner tone="info">
+          <strong>O benefício não é avaliação.</strong>{port.kind === "demo" ? " Dados de exemplo; nada é concedido de verdade." : " Não existe nota nem ranking por indicar."}
+        </StatusBanner>
+        <Help>
+          <p>O convite sai do seu Perfil: o link é pessoal e quem envia é você. Quando o negócio indicado passa a usar a Tinindo de verdade, você ganha crédito de perguntas do assistente no mês.</p>
+          <p>
+            Não existe nota, ranking nem posição por indicar. A Tinindo mede o uso real do negócio indicado
+            {rules ? ` (${rules.min_customers} clientes e ${rules.min_completed_bookings} atendimentos concluídos em ${rules.window_days} dias)` : ""} e concede
+            {rules ? ` ${rules.reward_questions} perguntas` : " o crédito"} uma única vez por negócio indicado, até {rules?.monthly_cap ?? 10} por mês. Convite aceito pelo seu próprio negócio ou por quem já aderiu não rende.
+          </p>
+        </Help>
         <div className="tn-actions">
           <LinkButton to="/app/perfil" variant="secondary">Convidar pelo Perfil</LinkButton>
         </div>
-        <StatusBanner tone="info">
-          <strong>O benefício não é avaliação.</strong> Não existe nota, ranking nem posição por indicar. A Tinindo mede o uso real do negócio indicado
-          {rules ? ` (${rules.min_customers} clientes e ${rules.min_completed_bookings} atendimentos concluídos em ${rules.window_days} dias)` : ""} e concede
-          {rules ? ` ${rules.reward_questions} perguntas` : " o crédito"} uma única vez por negócio indicado, até {rules?.monthly_cap ?? 10} por mês. Convite aceito pelo seu próprio negócio ou por quem já aderiu não rende.
-        </StatusBanner>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é concedido de verdade.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {data ? (
           <dl className="tn-ref-summary" aria-label="Resumo">
