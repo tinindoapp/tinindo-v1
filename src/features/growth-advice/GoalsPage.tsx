@@ -21,6 +21,10 @@ const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace("
 const monthSoFar = (iso: string) =>
   `Em ${new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" }).format(new Date(Date.parse(iso) + 12 * 3_600_000))} até agora`;
 
+/** "2026-10-01" → "outubro de 2026" (Intl pt-BR, sem data crua). */
+const monthName = (iso: string) =>
+  new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.parse(iso.slice(0, 10)) + 12 * 3_600_000));
+
 function GoalForm({ port, metrics, monthStart, onDone }: { port: GrowthAdvicePort; metrics: GoalList["metrics"]; monthStart: string; onDone: (n: Notice) => void }) {
   const [key, setKey] = useState<GoalMetricKey>("no_show");
   const [target, setTarget] = useState("10");
@@ -70,7 +74,7 @@ function GoalItem({ g, port, onDone }: { g: Goal; port: GrowthAdvicePort; onDone
   return (
     <li className="tn-ga-item">
       <h3>{g.label ?? METRIC_LABEL[g.metric_key]} · meta {formatTarget(g.unit, g.target)}</h3>
-      <p><strong>{g.status === "active" ? (p.achieved ? "Atingida" : "Em andamento") : "Arquivada"}</strong> · {DIRECTION[g.direction]} · mês {g.period_start.slice(5, 7)}/{g.period_start.slice(0, 4)}{g.note ? ` · ${g.note}` : ""}</p>
+      <p><strong>{g.status === "active" ? (p.achieved ? "Atingida" : "Em andamento") : "Arquivada"}</strong> · {DIRECTION[g.direction]} · {monthName(g.period_start)}{g.note ? ` · ${g.note}` : ""}</p>
       <p className="tn-muted">{monthSoFar(g.period_start)}: {current}{p.denominator !== null && p.status === "ok" ? ` (${p.numerator} de ${p.denominator})` : ""}{p.attainment !== null ? ` · ${Math.round(p.attainment * 100)}% do caminho` : ""}</p>
       {p.attainment !== null ? <progress className="tn-ga-progress" max={1} value={p.attainment} aria-label={`Progresso de ${g.label ?? g.metric_key}`} /> : null}
       {g.status === "active" ? (

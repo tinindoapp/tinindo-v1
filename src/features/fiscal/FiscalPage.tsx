@@ -3,7 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
+import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, formatMonthName, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
 import { type FiscalDocument, type FiscalFolder, type FiscalOverview, type FiscalPort, newKey } from "./port.ts";
 import { plural } from "../../lib/text/plural.ts";
 
@@ -271,7 +271,7 @@ function Folder({ port }: { port: FiscalPort }) {
       </div>
       {err ? <StatusBanner tone="danger">{err}</StatusBanner> : null}
       {f ? (
-        <div className="tn-fsc-folder" aria-label={`Pasta de ${f.month}`} role="region">
+        <div className="tn-fsc-folder" aria-label={`Pasta de ${formatMonthName(f.month)}`} role="region">
           <p><strong>{plural(f.totals.authorized_count, "nota válida", "notas válidas")}</strong> · <span className="tn-num">{formatCents(f.totals.authorized_cents)}</span> · {plural(f.totals.cancelled_count, "cancelada")}{f.totals.homologacao_count ? ` · ${f.totals.homologacao_count} de homologação (sem valor fiscal)` : ""}</p>
           <Button variant="ghost" disabled={f.documents.length === 0} onClick={() => download(f)}>Baixar planilha (CSV)</Button>
         </div>

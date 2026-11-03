@@ -69,7 +69,7 @@ test("notas fiscais: passo a passo até elegível, nota em homologação não é
 
   // Mês padrão = mês corrente, o mesmo da data do serviço preenchida.
   await page.getByRole("button", { name: "Ver pasta" }).click();
-  const folder = page.getByRole("region", { name: /Pasta de \d{4}-\d{2}/ });
+  const folder = page.getByRole("region", { name: /Pasta de [a-zç]+ de \d{4}/ });
   await expect(folder).toContainText("0 notas válidas");
   await expect(folder).toContainText("1 cancelada");
 
