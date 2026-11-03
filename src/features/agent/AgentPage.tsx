@@ -1,8 +1,10 @@
 // Assistente do dono (P08). Consulta agenda e caixa registrado pelas ferramentas do servidor e prepara propostas.
 // Cinco estados visíveis (BRAND.md): consultado, recomendação, pendente de aprovação, executado, falha.
-// Aprovar ≠ executar: a execução repete a checagem e pode recusar. Nada muda sem a aprovação do dono.
-import { createContext, type FormEvent, useContext, useRef, useState } from "react";
+// Aprovar ≠ executar: a execução repete a checagem e pode recusar. Nada muda sem a aprovação do dono. Na tela, um toque
+// faz os dois pedidos em sequência; a aprovação continua um registro próprio, preso ao código e à versão da proposta.
+import { createContext, type FormEvent, useContext, useEffect, useRef, useState } from "react";
 import { Button, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
+import { approveLabel, splitAnswer } from "./answer.ts";
 import { type AgentPort, type Answer, type Approval, newKey, type Proposal, type Receipt } from "./port.ts";
 
 const PortContext = createContext<AgentPort | null>(null);
@@ -68,11 +70,28 @@ function Sources({ answer }: { answer: Answer }) {
   return <p className="tn-ag-sources">Fontes: {parts.join(", ")} · dados de {time(asOf)}</p>;
 }
 
-function ProposalCard({ turn, proposal, onApprove, onExecute }: {
+/** Resposta em camadas (item 57): valor em destaque na primeira linha, a frase, a lista e as ressalvas em "Detalhes". */
+function AnswerText({ text }: { text: string }) {
+  const a = splitAnswer(text);
+  return (
+    <>
+      {a.value ? <p className="tn-ag-value tn-num" aria-hidden="true">{a.value}</p> : null}
+      <p className="tn-ag-text">{a.lead}</p>
+      {a.items.length ? <ul className="tn-ag-items">{a.items.map((l, i) => <li key={i}>{l}</li>)}</ul> : null}
+      {a.details.length ? (
+        <details className="tn-ag-details">
+          <summary>Detalhes</summary>
+          {a.details.map((d, i) => <p key={i}>{d}</p>)}
+        </details>
+      ) : null}
+    </>
+  );
+}
+
+function ProposalCard({ turn, proposal, onApprove }: {
   turn: Turn;
   proposal: Proposal;
   onApprove: () => void;
-  onExecute: () => void;
 }) {
   const titleId = `ag-prop-${turn.id}`;
   return (
@@ -93,15 +112,14 @@ function ProposalCard({ turn, proposal, onApprove, onExecute }: {
         turn.receipt.status === "executed"
           ? <StatusBanner tone="success"><strong>{STATE_LABEL.executed}.</strong> Feito às {time(turn.receipt.executed_at)}. Confira na tela correspondente.</StatusBanner>
           : <StatusBanner tone="danger"><strong>{STATE_LABEL.failed}.</strong> A agenda, a versão ou o preço mudou desde a proposta; nada foi alterado. Peça uma nova proposta.</StatusBanner>
-      ) : !turn.approval ? (
-        <div className="tn-actions">
-          <Button onClick={onApprove} loading={turn.busy}>Aprovar</Button>
-          <span className="tn-muted">Aprovar não executa: você confirma em seguida.</span>
-        </div>
       ) : (
+        // Um passo (item 57): o toque aprova exatamente esta proposta (código e versão mostrados) e em seguida pede a
+        // execução, que confere de novo agenda e preço. Se a execução não responder, a aprovação fica e dá para repetir.
         <div className="tn-actions">
-          <Button onClick={onExecute} loading={turn.busy}>Executar agora</Button>
-          <span className="tn-muted">Aprovado. A execução confere de novo agenda e preço.</span>
+          <Button onClick={onApprove} loading={turn.busy}>
+            {turn.approval ? "Tentar executar de novo" : approveLabel(proposal.tool, proposal.summary)}
+          </Button>
+          <span className="tn-muted">Antes de gravar, a Tinindo confere de novo a agenda e o preço.</span>
         </div>
       )}
     </section>
@@ -114,6 +132,13 @@ export function AgentPage() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"question">();
+  // Rolar até a resposta (item 57): no celular ela chega abaixo da dobra.
+  const [scrollTo, setScrollTo] = useState<string | null>(null);
+  useEffect(() => {
+    if (!scrollTo) return;
+    // Cada pergunta tem id novo: o efeito roda uma vez por resposta.
+    document.getElementById(`ag-turn-${scrollTo}`)?.scrollIntoView?.({ block: "start" });
+  }, [scrollTo]);
   const keys = useRef(new Map<string, string>());
   const patch = (id: string, p: Partial<Turn>) => setTurns((ts) => ts.map((t) => (t.id === id ? { ...t, ...p } : t)));
   const keyFor = (k: string) => {
@@ -136,23 +161,20 @@ export function AgentPage() {
       patch(id, { error: explain(e) });
     } finally {
       setBusy(false);
+      setScrollTo(id);
     }
   }
 
-  async function approve(turn: Turn, proposal: Proposal) {
+  /** Aprovar e executar num toque: duas chamadas seguidas, com a aprovação presa ao código e à versão da proposta. */
+  async function approveAndRun(turn: Turn, proposal: Proposal) {
     patch(turn.id, { busy: true, actionError: undefined });
+    let approval = turn.approval;
     try {
-      patch(turn.id, { approval: await port.approve(proposal, keyFor(`approve:${turn.id}`)), busy: false });
-    } catch (e) {
-      patch(turn.id, { actionError: explain(e), busy: false });
-    }
-  }
-
-  async function execute(turn: Turn) {
-    if (!turn.approval) return;
-    patch(turn.id, { busy: true, actionError: undefined });
-    try {
-      patch(turn.id, { receipt: await port.execute(turn.approval.approval_id, keyFor(`execute:${turn.id}`)), busy: false });
+      if (!approval) {
+        approval = await port.approve(proposal, keyFor(`approve:${turn.id}`));
+        patch(turn.id, { approval });
+      }
+      patch(turn.id, { receipt: await port.execute(approval.approval_id, keyFor(`execute:${turn.id}`)), busy: false });
     } catch (e) {
       patch(turn.id, { actionError: explain(e), busy: false });
     }
@@ -168,12 +190,7 @@ export function AgentPage() {
     <div className="tn-ag">
       <div className="tn-page-intro">
         <PageHeader id="ag-title" title="Assistente" />
-        {port.kind === "demo" && (
-          <StatusBanner tone="info">
-            <strong>Dados de exemplo.</strong> Demonstração sem servidor: o assistente ainda não guarda nem altera dados no servidor;
-            propostas e execuções valem só nesta aba.
-          </StatusBanner>
-        )}
+        {port.kind === "demo" && <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Propostas e execuções valem só nesta aba.</StatusBanner>}
         <p className="tn-muted">
           Consulto sua agenda e o que foi registrado no caixa, e preparo propostas. Nada muda sem a sua aprovação, e eu não envio mensagens
           nem movimento dinheiro.
@@ -196,18 +213,17 @@ export function AgentPage() {
             ? (t.receipt.status === "executed" ? "executed" : "failed")
             : t.error ? "failed" : t.answer?.state ?? null;
           return (
-            <article key={t.id} className="tn-ag-turn">
+            <article key={t.id} id={`ag-turn-${t.id}`} className="tn-ag-turn">
               <p className="tn-ag-question"><span className="tn-visually-hidden">Você perguntou: </span>{t.question}</p>
               {!t.answer && !t.error && <p className="tn-muted">Consultando…</p>}
               {shown && <span className={`tn-ag-state tn-ag-state-${shown}`}>{STATE_LABEL[shown]}</span>}
               {t.error && <StatusBanner tone="danger">{t.error}</StatusBanner>}
               {t.answer && (
                 <>
-                  <p className="tn-ag-text">{t.answer.text}</p>
+                  <AnswerText text={t.answer.text} />
                   <Sources answer={t.answer} />
                   {t.answer.proposal && (
-                    <ProposalCard turn={t} proposal={t.answer.proposal}
-                      onApprove={() => void approve(t, t.answer!.proposal!)} onExecute={() => void execute(t)} />
+                    <ProposalCard turn={t} proposal={t.answer.proposal} onApprove={() => void approveAndRun(t, t.answer!.proposal!)} />
                   )}
                 </>
               )}
