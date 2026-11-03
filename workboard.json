@@ -754,11 +754,11 @@
         "tests/contracts/finance-advanced/",
         "tests/e2e/finance-advanced/"
       ],
-      "status": "pending",
-      "owner": null,
-      "session": null,
-      "branch": null,
-      "lease_until": null,
+      "status": "in_progress",
+      "owner": "fffalleiros",
+      "session": "claude-int-p31",
+      "branch": "task/p31/claude-int-p31",
+      "lease_until": "2026-11-03T03:08:30.674940Z",
       "pr": null,
       "block_reason": null
     },
@@ -789,7 +789,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T01:08:26.445949Z",
+  "updated_at": "2026-11-03T01:08:30.674940Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1517,6 +1517,16 @@
       "session": null,
       "pr": null,
       "reason": "Liberado pelo integrador na expansao-1 a pedido do dono (03/11). P29 sem a dependência do P25: a parte de marketplace fica fora."
+    },
+    {
+      "id": "edcc79fa-bf13-4f84-a979-ffe3e5f2c501",
+      "at": "2026-11-03T01:08:30.674940Z",
+      "action": "claim",
+      "task": "P31",
+      "actor": "fffalleiros",
+      "session": "claude-int-p31",
+      "pr": null,
+      "reason": null
     }
   ]
 }
