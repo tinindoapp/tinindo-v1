@@ -1,6 +1,6 @@
 // Módulo Canal · P12 (tasks/P12.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 // Sem Supabase (demonstração offline) usa a emulação local, sempre rotulada; com Supabase, a função `messaging`.
-import { useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
@@ -44,10 +44,18 @@ function NoTenant({ title }: { title: string }) {
   );
 }
 
+/**
+ * Bloco do dono acima das conversas, fornecido pelo app (módulo não importa módulo). P45: o resumo semanal da Tinindo
+ * por modelo fixo chega aqui, na caixa de Mensagens do dono.
+ */
+const InboxExtraContext = createContext<ReactNode>(null);
+export const InboxExtraProvider = InboxExtraContext.Provider;
+
 function InboxLayout() {
   const { port, timezone, tenantId } = usePort();
+  const extra = useContext(InboxExtraContext);
   if (!port) return <NoTenant title="Mensagens" />;
-  return <InboxPage key={`${port.kind}:${tenantId ?? ""}`} port={port} timezone={timezone} />;
+  return <InboxPage key={`${port.kind}:${tenantId ?? ""}`} port={port} timezone={timezone} extra={extra} />;
 }
 
 function ConversationLayout() {

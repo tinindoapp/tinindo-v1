@@ -4,7 +4,8 @@
 import { z } from "zod";
 import { IsoDateTime, Uuid } from "./common.ts";
 
-export const LifecycleRule = z.enum(["confirmation", "reminder", "quote_followup", "receivable_reminder", "reactivation"]);
+// `package_expiry` (P45, aditivo): aviso de pacote perto de vencer, sempre rascunho manual criado a pedido do dono.
+export const LifecycleRule = z.enum(["confirmation", "reminder", "quote_followup", "receivable_reminder", "reactivation", "package_expiry"]);
 export type LifecycleRule = z.infer<typeof LifecycleRule>;
 export const LifecycleStepStatus = z.enum(["scheduled", "deferred", "sent", "manual", "shared", "skipped", "cancelled"]);
 export type LifecycleStepStatus = z.infer<typeof LifecycleStepStatus>;
@@ -35,7 +36,7 @@ export const LifecycleStep = z.object({
   id: Uuid,
   rule: LifecycleRule,
   step_key: z.string(),
-  aggregate_type: z.enum(["booking", "quote", "receivable", "customer"]),
+  aggregate_type: z.enum(["booking", "quote", "receivable", "customer", "package"]),
   aggregate_id: Uuid,
   customer_id: Uuid.nullable(),
   customer_name: z.string().nullable(),

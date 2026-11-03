@@ -1,7 +1,7 @@
 // Canal (P12): conexão do número e caixa de entrada (/app/mensagens), conversa (/app/mensagens/:id). O que a tela promete é o que o banco garante:
 // enviado, entregue, lido, falhou e desconhecido são estados diferentes; nada é reenviado sozinho; fora da janela
 // de 24 h só modelo aprovado; a cliente que pediu SAIR não recebe nada; humano assume quando você pede.
-import { type FormEvent, useEffect, useId, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
@@ -270,7 +270,8 @@ function ConnectionActions({ port, status, conn, actions }: {
   );
 }
 
-export function InboxPage({ port }: { port: MessagingPort; timezone?: string }) {
+/** `extra`: bloco do dono acima das conversas (P45: o resumo semanal da Tinindo). */
+export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: string; extra?: ReactNode }) {
   const [status, setStatus] = useState<ChannelStatus | null>(null);
   const [inbox, setInbox] = useState<Inbox | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -301,6 +302,7 @@ export function InboxPage({ port }: { port: MessagingPort; timezone?: string }) 
         <DemoNotice port={port} />
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       </div>
+      {extra}
       {!status && !error ? <p role="status" className="tn-muted">Carregando…</p> : null}
 
       {/* Sem número: estado vazio guiado, com o que é e o passo para conectar. */}

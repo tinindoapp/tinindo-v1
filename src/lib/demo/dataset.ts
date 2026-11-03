@@ -12,6 +12,8 @@ import { FIXED_NOW, FX } from "@contracts/fixtures.ts";
 import { DEMO_BLOCKS, DEMO_WEEKLY_HOURS, demoBookings } from "../../features/scheduling/demoData.ts";
 
 export const DEMO_TZ = "America/Sao_Paulo";
+/** Expediente da agenda de exemplo (usado também pelo motor de insights emulado, P45). */
+export { DEMO_WEEKLY_HOURS };
 const OFFSET = "-03:00";
 const DAY = 86_400_000;
 const at = (date: string, time: string) => new Date(`${date}T${time}:00${OFFSET}`).toISOString();

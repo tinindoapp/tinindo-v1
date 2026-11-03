@@ -3,7 +3,7 @@
 // (sem LLM), com decisão do dono e acompanhamento observacional; conteúdo pré-aprovado por profissão, publicado só
 // pelo escopo autorizado do P09 (perfil publicado com o campo `bio` escolhido).
 import { z } from "zod";
-import { IsoDateTime, Uuid } from "./common.ts";
+import { IsoDateTime, LocalDate, Uuid } from "./common.ts";
 import { Profession } from "./context.ts";
 
 export const GoalMetricKey = z.enum(["occupancy", "no_show", "cancellation", "waitlist_acceptance", "quote_acceptance", "received", "expenses", "charge_coverage", "reminders"]);
@@ -106,3 +106,106 @@ export const ContentListOutput = z.object({
 export const ContentPublishInput = z.object({ template_code: z.string().regex(/^[a-z0-9_]{3,40}$/) });
 export const ContentPublishOutput = z.object({ published: PublishedContent.nullable() });
 export const ContentUnpublishInput = z.object({ expected_version: z.int().min(1) });
+
+// ---------------------------------------------------------------------------
+// P45 · Insights proativos (aditivo; ADR-0036). Motor diário de nove regras fixas (sem LLM) no worker `jobs`.
+// Cada insight traz período, número e denominador; a ação cria PROPOSTA no fluxo dono (P05/P13) ou abre a tela do
+// fluxo (P06/P07/P13/P44); nunca executa. "Agora não" silencia a regra por 30 dias. Acompanhamento pelo P22.
+// ---------------------------------------------------------------------------
+export const InsightRuleCode = z.enum([
+  "uncharged_bookings", "waitlist_opening", "no_show_concentration", "package_expiring", "lapsed_customers",
+  "idle_slot", "low_margin_service", "profile_incomplete", "month_closing",
+]);
+export type InsightRuleCode = z.infer<typeof InsightRuleCode>;
+export const InsightState = z.enum(["open", "snoozed", "acted", "resolved"]);
+/** Fluxo dono da ação (pacote). */
+export const InsightFlow = z.enum(["P05", "P06", "P07", "P13", "P31", "P44"]);
+export const InsightAction = z.object({
+  /** proposal: cria proposta no fluxo (aprovação lá); open: abre a tela do fluxo; none: só informa. */
+  kind: z.enum(["proposal", "open", "none"]),
+  flow: InsightFlow,
+  label: z.string().min(1).max(60),
+  route: z.string().startsWith("/app/"),
+  operation: z.enum(["pricing.propose_rule", "lifecycle.draft_return", "lifecycle.draft_package"]).optional(),
+});
+/** Evidência: sempre período (datas locais), número e denominador; o resto são contagens e taxas, nunca nomes de clientes. */
+export const InsightEvidence = z.object({
+  period_start: LocalDate,
+  period_end: LocalDate,
+  numerator: z.number(),
+  denominator: z.number(),
+}).catchall(z.unknown());
+export const InsightMeasure = z.object({
+  value: z.number().nullable(),
+  numerator: z.number().nullable(),
+  denominator: z.number().nullable(),
+  status: z.enum(["ok", "insufficient", "unavailable"]),
+  direction: z.enum(["up", "down"]).optional(),
+});
+export const InsightActResult = z.object({
+  kind: z.enum(["pricing_proposal", "lifecycle_drafts", "open", "none"]),
+  /** Quantas propostas/rascunhos foram criados no fluxo dono (0 para open/none). */
+  created: z.int().min(0),
+  /** Clientes puladas por falta de consentimento ou oposição registrada. */
+  skipped: z.int().min(0),
+  skip_reason: z.string().nullable().optional(),
+  route: z.string().startsWith("/app/"),
+  ref: Uuid.nullable().optional(),
+});
+export const Insight = z.object({
+  id: Uuid,
+  rule_code: InsightRuleCode,
+  rule_title: z.string(),
+  subject_key: z.string(),
+  state: InsightState,
+  priority: z.int().min(1).max(100),
+  title: z.string(),
+  body: z.string(),
+  evidence: InsightEvidence,
+  action: InsightAction,
+  first_seen_on: LocalDate,
+  last_seen_on: LocalDate,
+  valid_until: IsoDateTime,
+  quiet_until: IsoDateTime.nullable(),
+  acted_at: IsoDateTime.nullable(),
+  result: InsightActResult.nullable(),
+  /** Decisão no P22 (acompanhamento em 30 dias); variação observada, nunca efeito. */
+  decision: z.object({
+    id: Uuid,
+    decision: z.enum(["accepted", "dismissed"]),
+    outcome: AdviceOutcome.nullable(),
+    follow_up_at: IsoDateTime,
+    metric_before: z.record(z.string(), z.unknown()).nullable(),
+    metric_after: z.record(z.string(), z.unknown()).nullable(),
+  }).nullable(),
+  version: z.int().min(1),
+});
+export type Insight = z.infer<typeof Insight>;
+export const InsightRuleStatus = z.object({
+  code: InsightRuleCode,
+  title: z.string(),
+  flow: InsightFlow,
+  /** null = o motor ainda não rodou para este negócio. insufficient ≠ zero. */
+  status: z.enum(["fire", "quiet", "insufficient"]).nullable(),
+  reason: z.string().nullable(),
+});
+export const InsightListInput = z.object({ scope: z.enum(["home", "all"]).default("all") });
+export const InsightListOutput = z.object({
+  run: z.object({ run_date: LocalDate, finished_at: IsoDateTime.nullable() }).nullable(),
+  /** home: até 3 abertos por prioridade; all: abertos e os recentes (silenciados, preparados, resolvidos). */
+  insights: z.array(Insight).max(50),
+  rules: z.array(InsightRuleStatus).max(20),
+});
+export const InsightCommandInput = z.object({ insight_id: Uuid, expected_version: z.int().min(1) });
+export const InsightCommandOutput = z.object({ insight: Insight, result: InsightActResult.nullable() });
+export const WeeklyDigest = z.object({
+  id: Uuid,
+  /** Segunda-feira da semana resumida (fuso do negócio). */
+  week_start: LocalDate,
+  /** Texto por modelo fixo (sem LLM). */
+  body: z.string(),
+  facts: z.record(z.string(), z.unknown()),
+  created_at: IsoDateTime,
+});
+export const DigestListInput = z.object({});
+export const DigestListOutput = z.object({ digests: z.array(WeeklyDigest).max(8) });

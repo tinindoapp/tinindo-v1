@@ -7,6 +7,7 @@ export const RULE_LABEL: Record<LifecycleRule, string> = {
   quote_followup: "Acompanhamento do orçamento",
   receivable_reminder: "Lembrete de cobrança",
   reactivation: "Reativação (campanha)",
+  package_expiry: "Aviso de pacote perto de vencer",
 };
 export const STEP_STATUS: Record<LifecycleStepStatus, string> = {
   scheduled: "Agendado",

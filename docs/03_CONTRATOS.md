@@ -173,6 +173,10 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `content.list` | — | Conteúdo pré-aprovado da profissão (com prévia), escopo do perfil (P09) e o que está publicado |
 | `content.publish` | template_code, key | Publica um texto aprovado como `bio` do perfil; só com perfil publicado e campo `bio` escolhido |
 | `content.unpublish` | expected_version, key | Remove o texto publicado |
+| `insight.list` | scope? (`home` · `all`) | P45 · insights do motor diário: `home` até 3 abertos por prioridade; `all` abertos, recentes e o status de cada regra (`fire` · `quiet` · `insufficient` com motivo). Cada insight traz período, número e denominador |
+| `insight.snooze` | insight_id, expected_version, key | "Agora não": silencia a regra por 30 dias e registra a dispensa (acompanhamento do P22) |
+| `insight.act` | insight_id, expected_version, key | "Ver"/"Preparar": reavalia a regra agora (mudou → 422 `stale`); cria PROPOSTA no fluxo dono (regra de preço inativa no P05; rascunhos manuais no P13) ou devolve a tela do fluxo. Nunca executa |
+| `digest.list` | — | P45 · resumos semanais por modelo fixo (os 8 mais recentes) |
 | `presence.get` | — | Rascunho do site, prévia com hash (só dados públicos do perfil P09 e serviços marcados), versão publicada, histórico, domínio, acesso ao Google e entregas |
 | `site.save` | expected_version, headline?, sections, theme, service_ids, key | Salva o rascunho do site (nada vai ao ar) |
 | `site.publish` | expected_hash, key | Publica exatamente a prévia vista (hash); mudou desde a prévia → 409; cria versão append-only |
