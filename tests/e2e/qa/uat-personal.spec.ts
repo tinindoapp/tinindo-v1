@@ -14,7 +14,9 @@ test.describe("UAT personal", () => {
     await page.goto("/app/conta/novo-negocio");
     await expect(page.getByRole("heading", { name: "Criar meu negócio" })).toBeVisible();
     await expect(page.getByRole("group", { name: "Profissão" }).getByRole("radio", { name: "Personal trainer" })).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: /Não cadastro dados de saúde de ninguém/ })).toBeVisible();
+    // E8: o aceite dos termos e o aviso de saúde ficam separados.
+    await expect(page.getByRole("checkbox", { name: /Li e aceito os termos de uso/ })).toBeVisible();
+    await expect(page.getByText(/Não cadastre dados de saúde de ninguém/)).toBeVisible();
     // Demonstração não cria negócio de verdade.
     await expect(page.getByRole("button", { name: "Criar negócio" })).toBeDisabled();
     await noHorizontalScroll(page);

@@ -4,9 +4,10 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors, Wordmark } from "../../components/ui/index.tsx";
-import { messageFor } from "./errors.ts";
-import { MIN_PASSWORD_LENGTH } from "./presets.ts";
-import { IdentityServicesProvider, useIdentityServices } from "./services.tsx";
+import { EMAIL_UNAVAILABLE, messageFor } from "./errors.ts";
+import { PasswordToggle, usePasswordVisibility } from "./PasswordToggle.tsx";
+import { MIN_PASSWORD_LENGTH, PASSWORD_HINT } from "./presets.ts";
+import { AuthFlowError, IdentityServicesProvider, useIdentityServices } from "./services.tsx";
 
 /** Erros de senha por campo: o tamanho fica na senha; a diferença, na repetição. */
 function passwordErrors(password: string, confirm: string) {
@@ -15,7 +16,9 @@ function passwordErrors(password: string, confirm: string) {
       ? "Crie uma senha."
       : password.length < MIN_PASSWORD_LENGTH
         ? `Use pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`
-        : null,
+        : !/\p{L}/u.test(password) || !/\d/.test(password)
+          ? "Use letras e números na senha."
+          : null,
     confirm: !confirm ? "Repita a senha." : password && confirm !== password ? "As senhas não são iguais." : null,
   };
 }
@@ -29,6 +32,7 @@ export function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<null | "confirm" | "signed_in">(null);
   const { formRef, errors, show, clear } = useFormErrors<"email" | "password" | "confirm">();
+  const password = usePasswordVisibility();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -42,7 +46,7 @@ export function SignUpPage() {
       const { needsConfirmation } = await services.signUp(email, password);
       setDone(needsConfirmation ? "confirm" : "signed_in");
     } catch (err) {
-      setError(messageFor(err, "auth"));
+      setError(err instanceof AuthFlowError && err.kind === "email_unavailable" ? EMAIL_UNAVAILABLE : messageFor(err, "auth"));
     } finally {
       setPending(false);
     }
@@ -53,6 +57,9 @@ export function SignUpPage() {
       <Card aria-labelledby="signup-title">
         <Wordmark width={144} />
         <h1 id="signup-title" className="tn-auth__title">Criar conta</h1>
+        <p className="tn-auth__subtitle">
+          Para quem atende com hora marcada: agenda, clientes, preços e recebimentos num lugar só.
+        </p>
         {done === "confirm" ? (
           <StatusBanner tone="success">
             Se o e-mail puder ser usado, enviamos um link de confirmação. Abra o link para continuar.
@@ -65,18 +72,35 @@ export function SignUpPage() {
           <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate>
             <Field label="E-mail" name="email" type="email" autoComplete="email" required error={errors.email} onChange={() => clear("email")} />
             <Field
+              id="signup-password"
               label="Senha"
               name="password"
-              type="password"
+              type={password.type}
               autoComplete="new-password"
               minLength={MIN_PASSWORD_LENGTH}
               required
-              hint={`Pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`}
+              hint={PASSWORD_HINT}
               error={errors.password}
               onChange={() => clear("password")}
             />
-            <Field label="Repita a senha" name="confirm" type="password" autoComplete="new-password" required error={errors.confirm} onChange={() => clear("confirm")} />
-            {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+            <Field
+              id="signup-confirm"
+              label="Repita a senha"
+              name="confirm"
+              type={password.type}
+              autoComplete="new-password"
+              required
+              error={errors.confirm}
+              onChange={() => clear("confirm")}
+            />
+            <PasswordToggle visible={password.visible} onToggle={password.toggle} controls="signup-password signup-confirm" />
+            {error === EMAIL_UNAVAILABLE ? (
+              <StatusBanner tone="danger">
+                {error} <Link to="/entrar">Entrar</Link> · <Link to="/recuperar-senha">Recuperar a senha</Link>
+              </StatusBanner>
+            ) : error ? (
+              <StatusBanner tone="danger">{error}</StatusBanner>
+            ) : null}
             <Button type="submit" loading={pending} loadingText="Criando…" disabled={!services.online}>
               Criar conta
             </Button>
@@ -143,6 +167,7 @@ export function NewPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { formRef, errors, show, clear } = useFormErrors<"password" | "confirm">();
+  const password = usePasswordVisibility();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -168,17 +193,28 @@ export function NewPasswordPage() {
       <Card aria-labelledby="new-password-title">
         <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate>
           <Field
+            id="new-password"
             label="Nova senha"
             name="password"
-            type="password"
+            type={password.type}
             autoComplete="new-password"
             minLength={MIN_PASSWORD_LENGTH}
             required
-            hint={`Pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`}
+            hint={PASSWORD_HINT}
             error={errors.password}
             onChange={() => clear("password")}
           />
-          <Field label="Repita a nova senha" name="confirm" type="password" autoComplete="new-password" required error={errors.confirm} onChange={() => clear("confirm")} />
+          <Field
+            id="new-password-confirm"
+            label="Repita a nova senha"
+            name="confirm"
+            type={password.type}
+            autoComplete="new-password"
+            required
+            error={errors.confirm}
+            onChange={() => clear("confirm")}
+          />
+          <PasswordToggle visible={password.visible} onToggle={password.toggle} controls="new-password new-password-confirm" />
           {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
           <div className="tn-actions">
             <Button type="submit" loading={pending} loadingText="Salvando…" disabled={!services.online}>

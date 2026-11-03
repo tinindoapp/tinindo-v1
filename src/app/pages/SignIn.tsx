@@ -2,6 +2,7 @@
 import { type FormEvent, useState } from "react";
 import { Link, Navigate } from "react-router";
 import { Button, Card, Field, StatusBanner, useFormErrors, Wordmark } from "../../components/ui/index.tsx";
+import { PasswordToggle, usePasswordVisibility } from "../../features/identity/PasswordToggle.tsx";
 import { useSession } from "../session.tsx";
 import "./pages.css";
 
@@ -10,6 +11,7 @@ export function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"email" | "password">();
+  const password = usePasswordVisibility();
 
   if (state.status === "signed_in" || state.status === "offline_demo") return <Navigate to="/app" replace />;
 
@@ -36,7 +38,17 @@ export function SignIn() {
         <h1 id="signin-title" className="tn-auth__title">Entrar</h1>
         <form ref={formRef} onSubmit={onSubmit} className="tn-stack" noValidate>
           <Field label="E-mail" name="email" type="email" autoComplete="email" required error={errors.email} onChange={() => clear("email")} />
-          <Field label="Senha" name="password" type="password" autoComplete="current-password" required error={errors.password} onChange={() => clear("password")} />
+          <Field
+            id="signin-password"
+            label="Senha"
+            name="password"
+            type={password.type}
+            autoComplete="current-password"
+            required
+            error={errors.password}
+            onChange={() => clear("password")}
+          />
+          <PasswordToggle visible={password.visible} onToggle={password.toggle} controls="signin-password" />
           {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
           {/* Enquanto a sessão carrega o botão fica ocupado (não "bloqueado"); ao enviar, mostra Entrando…. */}
           <Button type="submit" loading={pending || state.status === "loading"} loadingText={pending ? "Entrando…" : undefined}>

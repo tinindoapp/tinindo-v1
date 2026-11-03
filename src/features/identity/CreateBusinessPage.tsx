@@ -6,7 +6,8 @@ import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, useFormError
 import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";
 import { useIdempotencyKey } from "./idempotency.ts";
-import { BRAZIL_TIMEZONES, POLICY_VERSIONS, PROFESSION_PRESETS, SEGMENT_LABEL, type Segment } from "./presets.ts";
+import { LegalSheet, type LegalDoc } from "./LegalSheet.tsx";
+import { BRAZIL_TIMEZONES, detectTimezone, POLICY_VERSIONS, PROFESSION_PRESETS, SEGMENT_LABEL, type Segment } from "./presets.ts";
 import { useIdentityServices } from "./services.tsx";
 
 const SEGMENTS: Segment[] = ["beleza", "personal", "outro"];
@@ -19,6 +20,10 @@ export function CreateBusinessPage() {
   const [error, setError] = useState<string | null>(null);
   const [profession, setProfession] = useState<Profession | null>(null);
   const [terms, setTerms] = useState(false);
+  const [reading, setReading] = useState<LegalDoc | null>(null);
+  // Fuso do aparelho (E9): só aparece para trocar quando a pessoa abre "Trocar o fuso".
+  const [detected] = useState(detectTimezone);
+  const [timezone, setTimezone] = useState(detected.id);
   const { formRef, errors, show, clear } = useFormErrors<"name" | "profession" | "terms">();
   const [pending, setPending] = useState(false);
 
@@ -36,7 +41,7 @@ export function CreateBusinessPage() {
     const input = {
       name,
       profession,
-      timezone: String(form.get("timezone") ?? "America/Sao_Paulo"),
+      timezone,
       accepted_policy_versions: [POLICY_VERSIONS.terms, POLICY_VERSIONS.privacy],
     };
     setPending(true);
@@ -60,7 +65,7 @@ export function CreateBusinessPage() {
         id="new-business-title"
         eyebrow="Conta"
         title="Criar meu negócio"
-        subtitle="Leva menos de um minuto. Horários, serviços e preços vêm depois, no seu ritmo."
+        subtitle="Só o nome e a profissão. Horários, serviços e preços vêm depois, no seu ritmo."
       />
       {!services.online ? (
         <StatusBanner tone="info">Demonstração sem servidor: o cadastro fica desabilitado.</StatusBanner>
@@ -80,6 +85,7 @@ export function CreateBusinessPage() {
           {/* Faltou escolher: os cartões ficam marcados como inválidos e o foco vai para o primeiro. */}
           <fieldset className="tn-id-choices">
             <legend>Profissão</legend>
+            <p className="tn-id-choices__segment">Ela também vira a categoria do seu perfil público.</p>
             {SEGMENTS.map((segment) => (
               <div key={segment} className="tn-id-choices__group">
                 <p className="tn-id-choices__segment">{SEGMENT_LABEL[segment]}</p>
@@ -109,13 +115,24 @@ export function CreateBusinessPage() {
             ) : null}
           </fieldset>
 
-          <Field as="select" label="Fuso horário" name="timezone" defaultValue="America/Sao_Paulo">
-            {BRAZIL_TIMEZONES.map((tz) => (
-              <option key={tz.id} value={tz.id}>
-                {tz.label}
-              </option>
-            ))}
-          </Field>
+          <div className="tn-id-tz">
+            <p>
+              Fuso horário: <strong>{BRAZIL_TIMEZONES.find((tz) => tz.id === timezone)?.label ?? timezone}</strong>
+              {timezone === detected.id ? (
+                <span className="tn-muted">{detected.fromDevice ? " · o mesmo do seu aparelho" : " · o mais comum"}</span>
+              ) : null}
+            </p>
+            <details>
+              <summary>Trocar o fuso</summary>
+              <Field as="select" label="Fuso horário" name="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                {BRAZIL_TIMEZONES.map((tz) => (
+                  <option key={tz.id} value={tz.id}>
+                    {tz.label}
+                  </option>
+                ))}
+              </Field>
+            </details>
+          </div>
 
           <div className="tn-id-terms">
             <label className="tn-id-check">
@@ -130,17 +147,27 @@ export function CreateBusinessPage() {
                 aria-invalid={errors.terms ? true : undefined}
                 aria-describedby={errors.terms ? "terms-error" : undefined}
               />
-              <span>
-                Li e aceito os termos de uso e a política de privacidade da fase piloto. Não cadastro dados de saúde de
-                ninguém.
-              </span>
+              <span>Li e aceito os termos de uso e a política de privacidade da fase piloto.</span>
             </label>
             {errors.terms ? (
               <span id="terms-error" className="tn-field__error">
                 {errors.terms}
               </span>
             ) : null}
+            <p className="tn-id-terms__read">
+              Ler:
+              <button type="button" className="tn-id-link" aria-haspopup="dialog" onClick={() => setReading("terms")}>
+                Termos de uso
+              </button>
+              ·
+              <button type="button" className="tn-id-link" aria-haspopup="dialog" onClick={() => setReading("privacy")}>
+                Política de privacidade
+              </button>
+            </p>
           </div>
+          <StatusBanner tone="info">
+            Não cadastre dados de saúde de ninguém (diagnósticos, lesões, prescrições), nem nas observações.
+          </StatusBanner>
 
           {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
           <div className="tn-actions">
@@ -151,6 +178,7 @@ export function CreateBusinessPage() {
           </div>
         </form>
       </Card>
+      <LegalSheet doc={reading} onClose={() => setReading(null)} />
     </div>
   );
 }

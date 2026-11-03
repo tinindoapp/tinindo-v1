@@ -47,3 +47,18 @@ describe("entrar", () => {
     expect(signInWithPassword).not.toHaveBeenCalled();
   });
 });
+
+describe("entrar: Mostrar senha (E7)", () => {
+  it("botão de alternância com aria-pressed mostra e esconde a senha", async () => {
+    renderSignIn();
+    const password = await screen.findByLabelText("Senha");
+    const toggle = screen.getByRole("button", { name: "Mostrar senha" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("aria-controls", password.id);
+    fireEvent.click(toggle);
+    expect(password).toHaveAttribute("type", "text");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(toggle);
+    expect(password).toHaveAttribute("type", "password");
+  });
+});

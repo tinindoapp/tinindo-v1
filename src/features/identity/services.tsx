@@ -26,6 +26,13 @@ export interface BusinessSummary {
   profession: Profession;
 }
 
+/** Primeiros passos do negócio (E9/E13). null = não deu para saber (a tela mostra o passo como link, sem ✓). */
+export interface SetupProgress {
+  services: boolean | null;
+  hours: boolean | null;
+  profile: boolean | null;
+}
+
 export interface IdentityServices {
   /** false = demonstração offline: nada é gravado, formulários ficam desabilitados. */
   online: boolean;
@@ -33,6 +40,8 @@ export interface IdentityServices {
   /** Nome e profissão do negócio selecionado (RLS: só membros leem). */
   loadBusiness(tenantId: string): Promise<BusinessSummary | null>;
   loadOnboarding(tenantId: string): Promise<Onboarding | null>;
+  /** Já tem serviço ativo, horário de atendimento e perfil publicado? Leituras com RLS; cada uma falha sozinha. */
+  loadSetup(tenantId: string): Promise<SetupProgress>;
   saveOnboarding(
     tenantId: string,
     input: z.input<typeof OnboardingSaveInput>,
@@ -52,7 +61,8 @@ export interface IdentityServices {
 
 /** Erro amigável vindo do Supabase Auth (mensagens próprias; não ecoa texto do servidor). */
 export class AuthFlowError extends Error {
-  constructor(readonly kind: "weak_password" | "rate_limited" | "failed") {
+  /** `email_unavailable`: o cadastro recusou o e-mail (já usado ou não aceito). A tela não diz qual dos dois. */
+  constructor(readonly kind: "weak_password" | "rate_limited" | "email_unavailable" | "failed") {
     super(kind);
     this.name = "AuthFlowError";
   }
@@ -62,6 +72,9 @@ function authError(error: { status?: number; code?: string } | null): AuthFlowEr
   if (!error) return null;
   if (error.code === "weak_password") return new AuthFlowError("weak_password");
   if (error.status === 429 || error.code === "over_email_send_rate_limit") return new AuthFlowError("rate_limited");
+  if (error.code === "user_already_exists" || error.code === "email_exists" || error.code === "email_address_invalid") {
+    return new AuthFlowError("email_unavailable");
+  }
   return new AuthFlowError("failed");
 }
 
@@ -89,6 +102,8 @@ export function createDefaultServices(
             }
           : null,
       saveOnboarding: offline,
+      // Demonstração: o progresso fica nas outras telas desta aba; aqui os passos aparecem só como atalhos.
+      loadSetup: async () => ({ services: null, hours: null, profile: null }),
       loadMyLinks: async () => [],
       // Demonstração: a cliente é a Cliente Exemplo Ana, com as reservas da Agenda desta aba.
       loadMyBookings: async () => ({ now: FIXED_NOW, bookings: MyBooking.array().parse(await customerBookings(FX.customers.abInA)) }),
@@ -126,6 +141,19 @@ export function createDefaultServices(
         .maybeSingle();
       if (error) throw new AuthFlowError("failed");
       return data ? Onboarding.parse(data) : null;
+    },
+    async loadSetup(tenantId) {
+      const exists = async (query: PromiseLike<{ count: number | null; error: unknown }>) => {
+        const { count, error } = await query;
+        return error ? null : (count ?? 0) > 0;
+      };
+      const head = { count: "exact" as const, head: true };
+      const [services, hours, profile] = await Promise.all([
+        exists(client.from("provider_services").select("id", head).eq("tenant_id", tenantId).eq("active", true)),
+        exists(client.from("availability_rules").select("id", head).eq("tenant_id", tenantId)),
+        exists(client.from("public_profiles").select("id", head).eq("tenant_id", tenantId).not("published_at", "is", null)),
+      ]);
+      return { services, hours, profile };
     },
     async saveOnboarding(tenantId, input, idempotencyKey) {
       const { data } = await call("/identity/onboarding.save", OnboardingSaveOutput, {

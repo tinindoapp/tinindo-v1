@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { inline, parseLegal } from "./legalMarkdown.tsx";
 import { Profession } from "@contracts";
 import { FX, tenantA } from "@contracts/fixtures.ts";
 import { OnboardingGoal, type Onboarding } from "@contracts";
@@ -9,13 +10,13 @@ import { SessionProvider } from "../../app/session.tsx";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
 import { AccountPage } from "./AccountPage.tsx";
-import { RecoverPasswordPage } from "./AuthPages.tsx";
+import { NewPasswordPage, RecoverPasswordPage, SignUpPage } from "./AuthPages.tsx";
 import { CreateBusinessPage } from "./CreateBusinessPage.tsx";
 import { identityModule } from "./module.tsx";
 import { MyBookingsPage } from "./MyBookingsPage.tsx";
-import { POLICY_VERSIONS, PROFESSION_PRESETS } from "./presets.ts";
+import { detectTimezone, POLICY_VERSIONS, PROFESSION_PRESETS } from "./presets.ts";
 import { RedeemLinkPage } from "./RedeemLinkPage.tsx";
-import { type IdentityServices, IdentityServicesProvider } from "./services.tsx";
+import { AuthFlowError, type IdentityServices, IdentityServicesProvider } from "./services.tsx";
 
 const NEW_TENANT = "7d3b8f30-9f5e-4c51-8a0e-2a1c3b4d5e6f";
 const empty: Onboarding = {
@@ -32,6 +33,7 @@ function fakeServices(over: Partial<IdentityServices> = {}): IdentityServices {
     })),
     loadBusiness: vi.fn(async () => ({ name: tenantA.name, profession: "barber" as const })),
     loadOnboarding: vi.fn(async () => empty),
+    loadSetup: vi.fn(async () => ({ services: true, hours: false, profile: null })),
     saveOnboarding: vi.fn(async (_t, input) => ({
       ...empty, goal: input.goal ?? null, cancellation_notice_hours: input.cancellation_notice_hours ?? null,
       completed_at: "2026-10-20T12:00:00.000Z", version: 2,
@@ -137,7 +139,7 @@ describe("criar negócio", () => {
     fireEvent.change(await screen.findByLabelText("Nome do negócio"), { target: { value: "  Salão Exemplo C " } });
     fireEvent.click(screen.getByLabelText("Cabeleireiro(a)"));
     fireEvent.change(screen.getByLabelText("Fuso horário"), { target: { value: "America/Manaus" } });
-    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Li e aceito/ }));
     fireEvent.click(screen.getByRole("button", { name: "Criar negócio" }));
     expect(await screen.findByText(/Sem conexão com o servidor/)).toBeInTheDocument();
 
@@ -162,9 +164,172 @@ describe("criar negócio", () => {
     renderPage(<CreateBusinessPage />, services, "/app/conta/novo-negocio");
     fireEvent.change(await screen.findByLabelText("Nome do negócio"), { target: { value: "Quarto" } });
     fireEvent.click(screen.getByLabelText("Barbearia"));
-    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Li e aceito/ }));
     fireEvent.click(screen.getByRole("button", { name: "Criar negócio" }));
     expect(await screen.findByText(/número máximo de negócios/)).toBeInTheDocument();
+  });
+});
+
+
+describe("criar conta (E7)", () => {
+  it("diz para quem é, mostra a regra da senha antes do erro e o botão Mostrar senha alterna as duas senhas", async () => {
+    renderPage(<SignUpPage />, fakeServices(), "/app/conta");
+    expect(await screen.findByText(/Para quem atende com hora marcada/)).toBeInTheDocument();
+    const password = screen.getByLabelText("Senha");
+    expect(password).toHaveAccessibleDescription("Pelo menos 10 caracteres, com letras e números.");
+    const toggle = screen.getByRole("button", { name: "Mostrar senha" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(password).toHaveAttribute("type", "password");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(password).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("Repita a senha")).toHaveAttribute("type", "text");
+    fireEvent.click(toggle);
+    expect(password).toHaveAttribute("type", "password");
+  });
+
+  it("senha sem número: pede letras e números sem chamar o servidor", async () => {
+    const services = fakeServices();
+    renderPage(<SignUpPage />, services, "/app/conta");
+    fireEvent.change(await screen.findByLabelText("E-mail"), { target: { value: "ana@exemplo.test" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senhasemnumero" } });
+    fireEvent.change(screen.getByLabelText("Repita a senha"), { target: { value: "senhasemnumero" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
+    expect(await screen.findByText("Use letras e números na senha.")).toBeInTheDocument();
+    expect(services.signUp).not.toHaveBeenCalled();
+  });
+
+  it("e-mail recusado: texto neutro com os caminhos de entrar e recuperar a senha", async () => {
+    const services = fakeServices({ signUp: vi.fn().mockRejectedValue(new AuthFlowError("email_unavailable")) });
+    renderPage(<SignUpPage />, services, "/app/conta");
+    fireEvent.change(await screen.findByLabelText("E-mail"), { target: { value: "ana@exemplo.test" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha12345" } });
+    fireEvent.change(screen.getByLabelText("Repita a senha"), { target: { value: "senha12345" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
+    expect(
+      await screen.findByText(/Não deu para criar a conta com esse e-mail\. Se já tem conta, entre ou recupere a senha\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/já existe|já cadastrad|está em uso/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/entrar");
+    expect(screen.getByRole("link", { name: "Recuperar a senha" })).toHaveAttribute("href", "/recuperar-senha");
+  });
+
+  it("nova senha também tem Mostrar senha", async () => {
+    renderPage(<NewPasswordPage />, fakeServices(), "/app/conta");
+    fireEvent.click(await screen.findByRole("button", { name: "Mostrar senha" }));
+    expect(screen.getByLabelText("Nova senha", { selector: "input" })).toHaveAttribute("type", "text");
+  });
+});
+
+describe("criar negócio: termos e fuso (E8, E9)", () => {
+  it("links abrem a folha com o texto do repositório; Fechar devolve o foco", async () => {
+    renderPage(<CreateBusinessPage />, fakeServices(), "/app/conta/novo-negocio");
+    const open = await screen.findByRole("button", { name: "Termos de uso" });
+    open.focus();
+    fireEvent.click(open);
+    const dialog = await screen.findByRole("dialog", { name: "Termos de uso" });
+    expect(await within(dialog).findByText(/RASCUNHO PARA REVISÃO JURÍDICA/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: /Quem somos/ })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(open).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Política de privacidade" }));
+    const privacy = await screen.findByRole("dialog", { name: "Política de privacidade" });
+    expect(await within(privacy).findByRole("heading", { name: /Seus direitos/ })).toBeInTheDocument();
+    expect(within(privacy).getAllByRole("table").length).toBeGreaterThan(0);
+  });
+
+  it("frase de saúde fica separada do aceite", async () => {
+    renderPage(<CreateBusinessPage />, fakeServices(), "/app/conta/novo-negocio");
+    const accept = await screen.findByRole("checkbox", { name: /Li e aceito/ });
+    expect(accept).not.toHaveAccessibleName(/saúde/);
+    expect(screen.getByText(/Não cadastre dados de saúde de ninguém/)).toBeInTheDocument();
+  });
+
+  it("fuso: usa o do aparelho quando é do Brasil, com a troca recolhida", async () => {
+    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      ...new Intl.DateTimeFormat().resolvedOptions(),
+      timeZone: "America/Manaus",
+    });
+    try {
+      expect(detectTimezone()).toEqual({ id: "America/Manaus", fromDevice: true });
+      const services = fakeServices();
+      renderPage(<CreateBusinessPage />, services, "/app/conta/novo-negocio");
+      expect(await screen.findByText(/Fuso horário:/)).toHaveTextContent("Amazonas (Manaus) · o mesmo do seu aparelho");
+      expect(screen.getByText("Trocar o fuso").closest("details")).not.toHaveAttribute("open");
+      fireEvent.change(screen.getByLabelText("Nome do negócio"), { target: { value: "Salão Exemplo C" } });
+      fireEvent.click(screen.getByLabelText("Cabeleireiro(a)"));
+      fireEvent.click(screen.getByRole("checkbox", { name: /Li e aceito/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Criar negócio" }));
+      await waitFor(() => expect(services.createBusiness).toHaveBeenCalled());
+      expect(vi.mocked(services.createBusiness).mock.calls[0]?.[0]).toMatchObject({ timezone: "America/Manaus" });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("fuso fora do Brasil cai no de Brasília; fuso do Nordeste vira o da lista", () => {
+    const at = (timeZone: string) => {
+      const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+        ...new Intl.DateTimeFormat().resolvedOptions(),
+        timeZone,
+      });
+      try {
+        return detectTimezone();
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    expect(at("Europe/Lisbon")).toEqual({ id: "America/Sao_Paulo", fromDevice: false });
+    expect(at("America/Recife")).toEqual({ id: "America/Sao_Paulo", fromDevice: true });
+    expect(at("America/Eirunepe")).toEqual({ id: "America/Rio_Branco", fromDevice: true });
+  });
+});
+
+describe("texto jurídico (E8)", () => {
+  it("lê títulos, aviso, listas, tabela e marcas, sem HTML cru", () => {
+    const blocks = parseLegal(
+      "> **RASCUNHO**\n> linha 2\n\n# Título\n\n## 1. Seção\n\nTexto `[a definir]` <b>x</b>.\n\n- um\n- dois\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
+    );
+    expect(blocks.map((b) => b.kind)).toEqual(["notice", "title", "heading", "paragraph", "list", "table"]);
+    expect(blocks[3]).toEqual({ kind: "paragraph", text: "Texto `[a definir]` <b>x</b>." });
+    expect(blocks[5]).toEqual({ kind: "table", head: ["A", "B"], rows: [["1", "2"]] });
+    render(<p data-testid="p">{inline("Texto **forte** e `marca` <b>x</b>")}</p>);
+    const p = screen.getByTestId("p");
+    expect(p.querySelector("strong")).toHaveTextContent("forte");
+    expect(p.querySelector("code")).toHaveTextContent("marca");
+    expect(p.querySelector("b")).toBeNull();
+  });
+});
+
+describe("Sua conta (E13)", () => {
+  it("primeiros passos no topo para quem acabou de entrar, sem texto técnico; criar outro negócio sem destaque", async () => {
+    renderPage(<AccountPage />, fakeServices());
+    const steps = await screen.findByRole("region", { name: /Primeiros passos/ });
+    expect(screen.queryByText(/O servidor confere/)).not.toBeInTheDocument();
+    expect(within(steps).getByText("Criar o negócio")).toHaveTextContent("(feito)");
+    expect(within(steps).getByText(/Cadastrar seus serviços/)).toHaveTextContent("(feito)");
+    expect(within(steps).getByRole("link", { name: "Definir seus horários de atendimento" })).toHaveAttribute("href", "/app/agenda/horarios");
+    expect(within(steps).getByRole("link", { name: "Publicar seu perfil e mandar o link" })).toHaveAttribute("href", "/app/perfil");
+    // Um passo sem resposta do servidor (perfil): sem contagem, para não dizer número errado.
+    expect(steps).not.toHaveTextContent(/de 5/);
+    // A lista vem antes do formulário do objetivo.
+    const form = screen.getByRole("form", { name: "Objetivo e política de cancelamento" });
+    expect(steps.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const other = screen.getByRole("link", { name: "Criar outro negócio" });
+    expect(other).not.toHaveClass("tn-button");
+    expect(other.closest("p")).toHaveClass("tn-muted");
+  });
+
+  it("tudo feito: os primeiros passos saem do topo", async () => {
+    const services = fakeServices({
+      loadOnboarding: vi.fn(async () => ({ ...empty, goal: "fill_schedule" as const, completed_at: "2026-10-20T12:00:00.000Z", version: 2 })),
+      loadSetup: vi.fn(async () => ({ services: true, hours: true, profile: true })),
+    });
+    renderPage(<AccountPage />, services);
+    expect(await screen.findByRole("button", { name: "Salvar alterações" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /Primeiros passos/ })).not.toBeInTheDocument();
   });
 });
 
@@ -309,5 +474,14 @@ describe("demonstração sem servidor", () => {
     expect(await screen.findByText(/Negócio ativo:/)).toHaveTextContent("Barbearia Exemplo A");
     expect(await screen.findByText(/nada é salvo/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Concluir" })).toBeDisabled();
+  });
+});
+
+describe("mensagens de erro neutras", () => {
+  it("e-mail recusado no cadastro não diz se a conta existe", async () => {
+    const { messageFor } = await import("./errors.ts");
+    expect(messageFor(new AuthFlowError("email_unavailable"), "auth")).toBe(
+      "Não deu para criar a conta com esse e-mail. Se já tem conta, entre ou recupere a senha.",
+    );
   });
 });
