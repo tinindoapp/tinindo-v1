@@ -129,11 +129,13 @@ describe("Relacionamento: campos numéricos (item 42)", () => {
     const form = await screen.findByRole("form", { name: "Réguas" });
     const days = within(form).getByLabelText("Acompanhar orçamento sem decisão após");
     fireEvent.change(days, { target: { value: "13" } });
-    const plus = within(form).getByRole("button", { name: "Aumentar acompanhar orçamento sem decisão após" });
+    const box = within(days.closest<HTMLElement>(".tn-lc-number")!);
+    const plus = box.getByRole("button", { name: "Mais 1 dia" });
+    expect(plus).toHaveAccessibleDescription("Acompanhar orçamento sem decisão após");
     fireEvent.click(plus);
     expect(days).toHaveValue("14");
     expect(plus).toBeDisabled();
-    fireEvent.click(within(form).getByRole("button", { name: "Diminuir acompanhar orçamento sem decisão após" }));
+    fireEvent.click(box.getByRole("button", { name: "Menos 1 dia" }));
     expect(days).toHaveValue("13");
     expect(days.parentElement).toHaveTextContent("dias");
     fireEvent.click(within(form).getByRole("button", { name: "Salvar réguas" }));

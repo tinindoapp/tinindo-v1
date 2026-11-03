@@ -60,11 +60,12 @@ test("relacionamento: número apagado não vira 0, faixa embaixo do campo e − 
   await settings.getByRole("button", { name: "Salvar réguas" }).click();
   await expect(settings.getByText("Informe há quantos dias sem visita, de 14 a 365 dias.")).toBeVisible();
   await expect(days).toBeFocused();
-  const plus = settings.getByRole("button", { name: "Aumentar reativação: sem visita há" });
+  const field = settings.locator(".tn-lc-number").filter({ hasText: "Reativação: sem visita há" });
+  const plus = field.getByRole("button", { name: "Mais 1 dia" });
   await plus.click();
   await expect(days).toHaveValue("14");
-  await expect(settings.getByRole("button", { name: "Diminuir reativação: sem visita há" })).toBeDisabled();
-  for (const b of [plus, settings.getByRole("button", { name: /^Diminuir teto/ })]) {
+  await expect(field.getByRole("button", { name: "Menos 1 dia" })).toBeDisabled();
+  for (const b of [plus, settings.locator(".tn-lc-number").filter({ hasText: "Teto de envios por dia" }).getByRole("button", { name: "Menos 1 envio" })]) {
     const box = (await b.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(44);
     expect(box.width).toBeGreaterThanOrEqual(44);
