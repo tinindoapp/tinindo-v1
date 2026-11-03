@@ -807,16 +807,16 @@
         "tests/agent-evals/",
         "release/LLM.md"
       ],
-      "status": "pending",
-      "owner": null,
-      "session": null,
-      "branch": null,
-      "lease_until": null,
+      "status": "in_progress",
+      "owner": "fffalleiros",
+      "session": "claude-int-p46",
+      "branch": "task/p46/claude-int-p46",
+      "lease_until": "2026-11-03T15:27:22.863970Z",
       "pr": null,
       "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T13:27:19.102767Z",
+  "updated_at": "2026-11-03T13:27:22.863970Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1684,6 +1684,16 @@
       "session": null,
       "pr": null,
       "reason": "Liberado por @fffalleiros em 03/11 (tasks/P46.md). Dependências P44/P45 fora do quadro: ponto de integração preparado."
+    },
+    {
+      "id": "cb0ffcd2-f776-4f24-ab4a-d00190911daf",
+      "at": "2026-11-03T13:27:22.863970Z",
+      "action": "claim",
+      "task": "P46",
+      "actor": "fffalleiros",
+      "session": "claude-int-p46",
+      "pr": null,
+      "reason": null
     }
   ]
 }
