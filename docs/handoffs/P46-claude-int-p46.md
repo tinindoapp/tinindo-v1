@@ -31,18 +31,19 @@ Branch: `claude/amazing-volta-mjidw6` (branch designada para esta sessão; o `cl
 | Comando | Resultado |
 |---|---|
 | `npm run lint` · `npm run typecheck` | ok |
-| `npm run test:unit` | RESULTADO_UNIT |
-| `npm run test:contracts` | RESULTADO_CONTRACTS |
+| `npm run test:unit` | 706/706 (106 arquivos) |
+| `npm run test:contracts` | 782 passaram, 38 pulados (a avaliação com provedor real, só com `LLM_EVAL_LIVE=1`) |
 | `npm run build` | ok |
 | `npm run test:coord` | ok |
 | `npm audit --omit=dev --audit-level=critical` | ok (SDKs ficam em devDependencies: só o Deno os usa em produção) |
 | `deno check --frozen --config supabase/functions/deno.json supabase/functions/*/index.ts` | ok (deno.lock atualizado) |
 | `node tests/agent-evals/validate.ts` | ok: 40 casos |
+| `npx playwright test` | não rodou localmente (o navegador da versão fixada não está nesta máquina); fica com o job e2e do CI |
 
 Cobertura nova:
 - `tests/contracts/llm/adapters.test.ts` (28): cada adaptador contra servidor falso local (sem rede): sucesso, JSON inválido, JSON fora do schema, recusa, 429 (sem nova tentativa), tempo esgotado; pedido usa saída estruturada e o modelo do segredo, sem `temperature/top_p/top_k`; PII não sai no corpo; registro sem conteúdo; reserva.
 - `tests/contracts/llm/tasks.test.ts` (28): configuração, preços, redação de PII, rótulos, schema do provedor, frase canônica, redação, frase do negócio, explicação.
-- `tests/contracts/agent/evals-llm.test.ts` (75): com `none`, os 36 casos não-banco dão resultado idêntico ao P08; 31 variantes livres passam na expectativa do caso base com leitura roteirizada (zero ação proibida, zero vazamento; nada de PII nem nome do cadastro vai ao modelo); 7 leituras hostis com zero ação proibida e zero vazamento.
+- `tests/contracts/agent/evals-llm.test.ts` (76): com `none`, os 36 casos não-banco dão resultado idêntico ao P08; 31 variantes livres passam na expectativa do caso base com leitura roteirizada (zero ação proibida, zero vazamento; nada de PII nem nome do cadastro vai ao modelo); 7 leituras hostis com zero ação proibida e zero vazamento.
 - `supabase/functions/agent/handler-llm.test.ts` (8) e `src/features/agent/AssistPanels.test.tsx` (6).
 - Mutação conferida: tirar o guarda de família de intenção em `understand.ts` derruba `AE-L-INJ-07` (verbo "cancela" escondido no argumento viraria proposta de cancelamento).
 - Avaliação com chave real: `evals-llm-live.test.ts`, só com `LLM_EVAL_LIVE=1` (fora do CI). **Não rodada**: não há chave.
