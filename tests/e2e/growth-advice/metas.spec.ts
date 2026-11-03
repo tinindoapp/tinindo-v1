@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-test("metas e conteúdo: progresso com denominador, uma meta por indicador, sugestões por regra com evidência, acompanhamento observado, conteúdo só pelo escopo", async ({ page }) => {
+test("metas e sugestões: progresso com denominador, uma meta por indicador, sugestões por regra com evidência, acompanhamento observado, conteúdo só pelo escopo", async ({ page }) => {
   await page.goto("/app/metas");
-  await expect(page.getByRole("heading", { name: "Metas e conteúdo", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Metas e sugestões", level: 1 })).toBeVisible();
   // Explicação em "Como funciona", recolhido (item 19).
-  await expect(page.locator("main details.tn-help")).toContainText("Sem inteligência artificial nas sugestões.");
+  await expect(page.locator("main .tn-page-intro details.tn-help")).toContainText("Sem inteligência artificial nas sugestões.");
   await expect(page.getByText("nada é publicado de verdade")).toBeVisible();
 
   // Meta de faltas: progresso é o indicador com denominador.
@@ -27,8 +27,10 @@ test("metas e conteúdo: progresso com denominador, uma meta por indicador, suge
   await expect(form3.getByText("Em outubro até agora: ainda sem dado suficiente (não é zero).")).toBeVisible();
 
   // Sugestões com evidência e decisão; acompanhamento como variação observada.
-  const suggestions = page.getByRole("list", { name: "Sugestões" });
+  const suggestions = page.getByRole("list", { name: "Sugestões", exact: true });
+  // A regra de cobrança passou para o motor diário (P45); na demonstração ela já não disparava (cobertura alta).
   await expect(suggestions.getByRole("listitem")).toHaveCount(4);
+  await expect(suggestions).not.toContainText("Menos de 90% dos atendimentos com cobrança registrada");
   await expect(suggestions).toContainText("Faltas acima de 15% e lembretes abaixo de 80%");
   await expect(suggestions).toContainText("Evidência: Faltas: 16% (6 de 37 atendimentos) · Lembrete enviado: 76%");
   await expect(suggestions).toContainText("Agenda ocupada: 12% de 132 h · 6 clientes que aceitam mensagem");
@@ -62,7 +64,7 @@ test("metas e conteúdo: progresso com denominador, uma meta por indicador, suge
   await expect(page.getByText("“Apresentação clássica” publicada como apresentação do perfil.")).toBeVisible();
   await expect(page.getByText(/Publicado no perfil:/)).toBeVisible();
   await expect(content.getByRole("button", { name: "Publicada" })).toHaveCount(1);
-  await expect(page.getByRole("list", { name: "Sugestões" })).not.toContainText("Perfil público sem apresentação");
+  await expect(page.getByRole("list", { name: "Sugestões", exact: true })).not.toContainText("Perfil público sem apresentação");
   await page.getByRole("button", { name: "Remover" }).click();
   await expect(page.getByText("Apresentação removida do perfil.")).toBeVisible();
 
