@@ -228,6 +228,19 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `materials.bookings` | período | Atendimentos concluídos com o consumo registrado |
 | `materials.margin` | período | Receita, custo de materiais e margem real por serviço, com cobertura |
 | `materials.quote_cost` | quote_id | Custo estimado de materiais e margem da versão atual do orçamento (P11) |
+| `accounts.categories` | — | Categorias próprias de receita e despesa |
+| `accounts.category_save` | categoria (nova ou id + versão), tipo, nome, categoria do Caixa (despesa), ativa, key | Nome único por tipo |
+| `accounts.classify` | recebimento ou despesa, categoria (null tira), key | Categoria própria de um lançamento do Caixa |
+| `accounts.payables` | de, até (datas locais) | Contas da janela, vencidas em aberto e séries mensais |
+| `accounts.payable_save` | conta (nova ou id + versão), descrição, valor, vencimento, categorias, fornecedor, mensal, key | Mensal gera 12 meses; conta paga não muda |
+| `accounts.payable_pay` | payable_id, versão, data do pagamento, key | Uma despesa no Caixa; pagar de novo é recusado |
+| `accounts.payable_reverse` | payable_id, versão, key | Estorno da despesa no Caixa, uma vez; a conta volta a ficar em aberto |
+| `accounts.payable_cancel` | payable_id, versão, key | Cancela conta não paga |
+| `accounts.series_update` | series_id, versão, estender ou encerrar, key | Estende 12 meses ou encerra e cancela as futuras em aberto |
+| `accounts.reconciliation` | dia | Registrado por meio e origem (manual/PSP), pago segundo o PSP e última conferência |
+| `accounts.reconcile_save` | dia, meio, origem, valor do extrato, key | Guarda a conferência e a diferença; a última vale |
+| `accounts.entries` | mês (AAAA-MM) | Recebimentos e despesas vivos do mês com a categoria própria, para classificar |
+| `accounts.statement` | mês (AAAA-MM) | Demonstrativo de caixa do mês: entrou, saiu, sobrou, por categoria, período e cobertura (não é DRE) |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 
