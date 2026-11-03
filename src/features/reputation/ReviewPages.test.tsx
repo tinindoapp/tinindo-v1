@@ -28,18 +28,72 @@ const wrap = (ui: React.ReactNode) =>
   );
 
 describe("avaliações", () => {
-  it("dono: Denunciar pede confirmação e só denuncia no “Sim”", async () => {
+  it("dono: Denunciar fica no “⋯”, pede o motivo e só denuncia no “Sim”; Voltar devolve o foco ao “⋯”", async () => {
     const port = createDemoOwnerPort();
     const report = vi.spyOn(port, "report");
     wrap(<OwnerReviewsPage port={port} />);
-    const first = (await screen.findAllByRole("button", { name: /^Denunciar a avaliação/ }))[0]!;
-    fireEvent.click(first);
+    expect(await screen.findAllByRole("button", { name: /^Responder$/ })).not.toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /^Denunciar/ })).not.toBeInTheDocument();
+    const more = screen.getAllByRole("button", { name: /^Mais ações para a avaliação/ })[0]!;
+    more.focus();
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Denunciar…" }));
     const confirm = screen.getByRole("group", { name: "Denunciar esta avaliação?" });
     expect(confirm).toHaveTextContent(/continua visível/);
-    expect(report).not.toHaveBeenCalled();
+    await waitFor(() => expect(within(confirm).getByText("Denunciar esta avaliação?")).toHaveFocus());
     fireEvent.click(within(confirm).getByRole("button", { name: "Sim, denunciar" }));
+    expect(await within(confirm).findByText("Escolha o motivo da denúncia.")).toBeInTheDocument();
+    expect(within(confirm).getByLabelText("Motivo")).toHaveFocus();
+    expect(report).not.toHaveBeenCalled();
+    fireEvent.click(within(confirm).getByRole("button", { name: "Voltar" }));
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /^Mais ações para a avaliação/ })[0]).toHaveFocus());
+
+    fireEvent.click(screen.getAllByRole("button", { name: /^Mais ações para a avaliação/ })[0]!);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Denunciar…" }));
+    const again = screen.getByRole("group", { name: "Denunciar esta avaliação?" });
+    fireEvent.change(within(again).getByLabelText("Motivo"), { target: { value: "personal_data" } });
+    fireEvent.click(within(again).getByRole("button", { name: "Sim, denunciar" }));
     await waitFor(() => expect(report).toHaveBeenCalledTimes(1));
+    expect(report.mock.calls[0]![1]).toBe("personal_data");
     expect(await screen.findByText(/Denúncia enviada/)).toBeInTheDocument();
+  });
+
+  it("dono: resumo “4,7 ★ · 3 avaliações”, selos só positivos e “Verifique sua identidade” como tarefa", async () => {
+    const port = createDemoOwnerPort();
+    await createDemoCustomerPort().submit("60000000-0000-4000-8000-000000000101", 5, null, "k-3");
+    wrap(<OwnerReviewsPage port={port} />);
+    const profile = await screen.findByRole("region", { name: "Seu perfil" });
+    await waitFor(() => expect(profile).toHaveTextContent("4,7 ★ · 3 avaliações"));
+    const badges = within(profile).getByRole("list", { name: "Selos" });
+    expect(badges).not.toHaveTextContent(/não verificada|Competência|não/);
+    expect(badges).toHaveTextContent("12 atendimentos concluídos na Tinindo");
+    expect(within(profile).getByText("Verifique sua identidade")).toBeInTheDocument();
+  });
+
+  it("dono: sem 3 avaliações, diz quando a média aparece", async () => {
+    wrap(<OwnerReviewsPage port={createDemoOwnerPort()} />);
+    const profile = await screen.findByRole("region", { name: "Seu perfil" });
+    expect(profile).toHaveTextContent("2 avaliações · a média aparece a partir de 3");
+  });
+
+  it("dono: responder foca o campo, conta 0/600, oferece inícios rápidos e mostra a prévia pública", async () => {
+    const port = createDemoOwnerPort();
+    const reply = vi.spyOn(port, "reply");
+    wrap(<OwnerReviewsPage port={port} />);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Responder" }))[0]!);
+    const form = screen.getByRole("form", { name: "Responder avaliação" });
+    const field = within(form).getByLabelText("Sua resposta (pública)");
+    await waitFor(() => expect(field).toHaveFocus());
+    expect(form).toHaveTextContent("0/600");
+    expect(within(form).queryByRole("region", { name: "Prévia pública" })).not.toBeInTheDocument();
+    fireEvent.click(within(within(form).getByRole("group", { name: "Começar com" })).getByRole("button", { name: "Obrigado pela avaliação!" }));
+    expect(field).toHaveValue("Obrigado pela avaliação! ");
+    expect(field).toHaveFocus();
+    fireEvent.change(field, { target: { value: "Obrigado pela avaliação! Volte sempre." } });
+    expect(form).toHaveTextContent(`${"Obrigado pela avaliação! Volte sempre.".length}/600`);
+    expect(within(form).getByRole("region", { name: "Prévia pública" })).toHaveTextContent("Resposta do profissional: Obrigado pela avaliação! Volte sempre.");
+    fireEvent.click(within(form).getByRole("button", { name: "Publicar resposta" }));
+    await waitFor(() => expect(reply).toHaveBeenCalledTimes(1));
   });
 
   it("cliente: sem nota explica e foca a nota; publicar e retirar (com confirmação)", async () => {
