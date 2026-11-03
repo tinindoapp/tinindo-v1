@@ -17,6 +17,8 @@ import { createServerPort as createAdviceServerPort } from "../../features/growt
 import { getDemoPort as getSchedulingDemoPort } from "../../features/scheduling/SchedulingLayout.tsx";
 import type { SchedulingPort } from "../../features/scheduling/port.ts";
 import { createServerPort as createSchedulingServerPort } from "../../features/scheduling/serverPort.ts";
+import { formatCents as formatSchedulingCents, formatMinutes, whatsAppDigits } from "../../features/scheduling/agenda.ts";
+import { ListStatusBadge } from "../../features/scheduling/parts.tsx";
 import { dayWindow, formatDayLong, formatTime, localParts } from "../../features/scheduling/time.ts";
 import { appEnv } from "../env.ts";
 import { useSession } from "../session.tsx";
@@ -28,16 +30,35 @@ interface Ports {
   advice: GrowthAdvicePort;
 }
 
+/** Atendimento de hoje como a tela mostra: nomes já resolvidos e se o horário já passou. */
+type DayItem = Booking & { serviceName: string; customerName: string | null; phone: string | null; past: boolean };
+
 interface Today {
   tenantName: string;
   timezone: string;
   dateLabel: string;
-  agenda: { upcoming: (Booking & { serviceName: string; customerName: string | null })[]; confirmed: number; held: (Booking & { serviceName: string })[] } | null;
+  now: number;
+  agenda: { day: DayItem[]; next: DayItem | null; confirmed: number; held: (Booking & { serviceName: string })[] } | null;
   money: { unchargedCount: number; unchargedCents: number; receivedCents: number } | null;
   advice: { count: number; first: string | null } | null;
 }
 
-const STATUS: Partial<Record<Booking["status"], string>> = { held: "Provisória", confirmed: "Confirmado", completed: "Concluído", no_show: "Faltou" };
+/** Quantos itens do dia a lista mostra; o resto fica em "Ver os N de hoje". */
+const DAY_LIMIT = 6;
+
+/** "agora" (já começou), "em 20 min", "em 1 h 5 min". */
+function startsIn(startsAt: string, now: number): string {
+  const min = Math.ceil((Date.parse(startsAt) - now) / 60_000);
+  return min <= 0 ? "agora" : `em ${formatMinutes(min)}`;
+}
+
+/** Janela da lista do dia: com mais de DAY_LIMIT itens, começa um antes do próximo (o que acabou de passar). */
+function dayWindowAround(day: DayItem[], next: DayItem | null): DayItem[] {
+  if (day.length <= DAY_LIMIT) return day;
+  const at = next ? day.indexOf(next) : day.length;
+  const start = Math.max(0, Math.min(at - 1, day.length - DAY_LIMIT));
+  return day.slice(start, start + DAY_LIMIT);
+}
 
 async function loadToday(p: Ports): Promise<Today> {
   const ctx = await p.scheduling.context();
@@ -49,18 +70,24 @@ async function loadToday(p: Ports): Promise<Today> {
     (async () => {
       const [bookings, services, customers] = await Promise.all([p.scheduling.listBookings(dayWindow(today, tz)), p.scheduling.listServices(), p.scheduling.listCustomers()]);
       const svc = new Map(services.map((s) => [s.id, s.name]));
-      const cus = new Map(customers.map((c) => [c.id, c.name]));
+      const cus = new Map(customers.map((c) => [c.id, c]));
       const live = bookings.filter((b) => b.status === "confirmed" || b.status === "held");
-      const upcoming = live
-        .filter((b) => Date.parse(b.ends_at) > now.getTime())
-        .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
-        .map((b) => ({ ...b, serviceName: svc.get(b.service_id) ?? "Atendimento", customerName: b.customer_id ? (cus.get(b.customer_id) ?? null) : null }));
+      // O dia inteiro (sem as reservas vencidas), em ordem; o que já terminou fica em cinza.
+      const day: DayItem[] = bookings
+        .filter((b) => b.status !== "expired")
+        .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))
+        .map((b) => {
+          const c = b.customer_id ? cus.get(b.customer_id) : undefined;
+          return { ...b, serviceName: svc.get(b.service_id) ?? "Atendimento", customerName: c?.name ?? null, phone: c?.phone ?? null, past: Date.parse(b.ends_at) <= now.getTime() };
+        });
+      // Próximo: o primeiro confirmado ou provisório que ainda não terminou (o que está acontecendo conta como "agora").
+      const next = day.find((b) => (b.status === "confirmed" || b.status === "held") && !b.past) ?? null;
       // Reservas provisórias, a que vence primeiro antes: cada pendência leva direto à reserva.
       const held = live
         .filter((b) => b.status === "held")
         .sort((a, b) => (a.hold_expires_at ?? a.starts_at).localeCompare(b.hold_expires_at ?? b.starts_at))
         .map((b) => ({ ...b, serviceName: svc.get(b.service_id) ?? "Atendimento" }));
-      return { upcoming, confirmed: live.filter((b) => b.status === "confirmed").length, held };
+      return { day, next, confirmed: live.filter((b) => b.status === "confirmed").length, held };
     })(),
     (async () => {
       const period = monthPeriod(month, tz);
@@ -76,6 +103,7 @@ async function loadToday(p: Ports): Promise<Today> {
     tenantName: ctx.tenantName,
     timezone: tz,
     dateLabel: formatDayLong(today),
+    now: now.getTime(),
     agenda: agenda.status === "fulfilled" ? agenda.value : null,
     money: money.status === "fulfilled" ? money.value : null,
     advice: advice.status === "fulfilled" ? advice.value : null,
@@ -109,7 +137,9 @@ export function Home() {
 
   const current = data && data.ports === ports ? data : null;
   const t = current?.value;
-  const upcoming = t?.agenda?.upcoming ?? [];
+  const day = t?.agenda?.day ?? [];
+  const next = t?.agenda?.next ?? null;
+  const shown = dayWindowAround(day, next).filter((b) => b !== next);
 
   return (
     <div className="tn-today">
@@ -131,25 +161,40 @@ export function Home() {
             <li><Link to="/app/assistente" className="tn-quick__item"><span className="tn-quick__icon"><Icon name="assistente" /></span>Perguntar ao assistente</Link></li>
           </ul>
 
-          <Section title="Próximos atendimentos" id="home-next" action={<Link to="/app/agenda">Ver agenda</Link>}>
+          <Section title="Atendimentos de hoje" id="home-next">
             {!t.agenda ? (
               <StatusBanner tone="warning">A agenda não respondeu agora.</StatusBanner>
-            ) : upcoming.length === 0 ? (
-              <p className="tn-today__empty">Nenhum atendimento até o fim do dia.</p>
+            ) : day.length === 0 ? (
+              <p className="tn-today__empty">Nenhum atendimento hoje.</p>
             ) : (
-              <List label="Próximos atendimentos">
-                {upcoming.slice(0, 5).map((b) => (
-                  <ListItem
-                    key={b.id}
-                    to={`/app/agenda/atendimento/${b.id}`}
-                    title={<><span className="tn-num">{formatTime(b.starts_at, t.timezone)}</span> · {b.serviceName}</>}
-                    meta={b.customerName ?? "Sem cliente vinculado"}
-                    trailing={STATUS[b.status] ?? b.status}
-                  />
-                ))}
-              </List>
+              <>
+                {next ? <NextCard item={next} timezone={t.timezone} now={t.now} /> : <p className="tn-today__empty">Nenhum atendimento até o fim do dia.</p>}
+                {shown.length ? (
+                  <List label="Outros atendimentos de hoje">
+                    {shown.map((b) => (
+                      <li key={b.id} className="tn-today__row" data-past={b.past ? "true" : undefined}>
+                        <Link to={`/app/agenda/atendimento/${b.id}`} className="tn-list__row">
+                          <span className="tn-list__text">
+                            <span className="tn-list__title">
+                              <span className="tn-num">{formatTime(b.starts_at, t.timezone)}</span> · {b.serviceName}
+                            </span>
+                            <span className="tn-list__meta">
+                              {b.customerName ?? "Sem cliente vinculado"}
+                              {b.past ? <span className="tn-visually-hidden"> · já passou</span> : null}
+                            </span>
+                          </span>
+                          <span className="tn-list__trailing"><ListStatusBadge status={b.status} /></span>
+                          <Icon name="seta" size={18} className="tn-list__chevron" />
+                        </Link>
+                      </li>
+                    ))}
+                  </List>
+                ) : null}
+                <p className="tn-today__more">
+                  <Link to="/app/agenda">{day.length === 1 ? "Ver o atendimento de hoje na agenda" : `Ver os ${day.length} de hoje`}</Link>
+                </p>
+              </>
             )}
-            {upcoming.length > 5 ? <p className="tn-today__more">E mais {upcoming.length - 5} hoje.</p> : null}
           </Section>
 
           <Section title="Pendências" id="home-pending">
@@ -174,5 +219,33 @@ export function Home() {
         </>
       ) : null}
     </div>
+  );
+}
+
+/** Destaque do próximo atendimento: hora, cliente e quanto falta, com "Abrir" e "WhatsApp" (auditoria de UX, item 31). */
+function NextCard({ item, timezone, now }: { item: DayItem; timezone: string; now: number }) {
+  const digits = whatsAppDigits(item.phone);
+  const who = item.customerName ?? "Sem cliente vinculado";
+  return (
+    <section className="tn-today__next" aria-labelledby="home-next-title">
+      <h3 id="home-next-title" className="tn-today__next-title">
+        Próximo: <span className="tn-num">{formatTime(item.starts_at, timezone)}</span> · {who} · {startsIn(item.starts_at, now)}
+      </h3>
+      <p className="tn-today__next-meta">
+        {item.serviceName}
+        {item.agreed_price_cents !== null ? <> · <span className="tn-num">{formatSchedulingCents(item.agreed_price_cents)}</span></> : null}
+        {" "}<ListStatusBadge status={item.status} />
+      </p>
+      <div className="tn-actions">
+        <Link className="tn-button" data-variant="primary" to={`/app/agenda/atendimento/${item.id}`}>
+          Abrir<span className="tn-visually-hidden"> o atendimento das {formatTime(item.starts_at, timezone)}</span>
+        </Link>
+        {digits ? (
+          <a className="tn-button" data-variant="secondary" href={`https://wa.me/${digits}`} target="_blank" rel="noreferrer noopener">
+            WhatsApp<span className="tn-visually-hidden"> de {who}</span>
+          </a>
+        ) : null}
+      </div>
+    </section>
   );
 }

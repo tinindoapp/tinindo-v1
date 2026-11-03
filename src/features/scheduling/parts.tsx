@@ -1,11 +1,11 @@
 // Peças visuais do módulo de agenda. Estado nunca só por cor: ícone + texto.
 import { createContext, type ReactNode, useContext } from "react";
 import type { Booking, TimeRange } from "@contracts";
-import { Button, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Help, StatusBanner } from "../../components/ui/index.tsx";
 import { DEMO_CANCELLATION_POLICY } from "./demoData.ts";
-import { STATUS_LABEL, STATUS_TONE } from "./agenda.ts";
+import { listStatus, STATUS_LABEL, STATUS_TONE } from "./agenda.ts";
 import { explainError, type ErrorExplanation } from "./errors.ts";
-import { formatUtcOffset } from "./time.ts";
+import { deviceZoneDiffers, formatUtcOffset, friendlyZone } from "./time.ts";
 
 const ICON_PATH: Record<string, string> = {
   success: "M4.5 8.2l2.2 2.2 4.8-4.9",
@@ -28,22 +28,50 @@ export function StatusBadge({ status }: { status: Booking["status"] }) {
   );
 }
 
-/** Identifica a emulação sobre fixtures (demonstração sem servidor; aceite do P04). */
-export function DemoNotice({ kind }: { kind: "fixture" | "server" }) {
-  if (kind !== "fixture") return null;
-  return (
-    <StatusBanner tone="info">
-      <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no
-      servidor; as mudanças valem só nesta aba.
-    </StatusBanner>
-  );
+/** Selo nas listas (Hoje e Agenda): só as exceções; "Confirmado" é o normal e não leva selo (item 30). */
+export function ListStatusBadge({ status }: { status: Booking["status"] }) {
+  return listStatus(status) ? <StatusBadge status={status} /> : null;
 }
 
-export function TimezoneNote({ timezone, at }: { timezone: string; at: string | Date }) {
+/**
+ * Avisos da tela numa linha só (auditoria de UX, itens 19 e 34): "Dados de exemplo" na demonstração e o fuso, só quando o
+ * aparelho está noutro fuso ("Horários de Brasília"). A explicação longa fica recolhida em "Como funciona".
+ * A faixa global "Demonstração" do shell continua; esta linha diz o que vale nesta tela.
+ */
+export function ScreenNotes({ demo, timezone, at }: { demo: boolean; timezone: string; at: string | Date }) {
+  const otherZone = deviceZoneDiffers(at, timezone);
+  if (!demo && !otherZone) return null;
+  const zone = friendlyZone(at, timezone);
   return (
-    <p className="tn-sched-tz">
-      Horários no fuso do negócio: {timezone.replace("_", " ")} ({formatUtcOffset(at, timezone)})
-    </p>
+    <div className="tn-sched-notes">
+      <p className="tn-sched-notes__line">
+        {demo ? (
+          <>
+            <strong>Dados de exemplo.</strong> As mudanças valem só nesta aba.
+          </>
+        ) : null}
+        {demo && otherZone ? " · " : null}
+        {otherZone ? (
+          <span className="tn-num">
+            Horários {zone} ({formatUtcOffset(at, timezone)})
+          </span>
+        ) : null}
+      </p>
+      <Help>
+        {demo ? (
+          <p>
+            Esta é uma demonstração sem servidor: a tela ainda não guarda nem altera dados no servidor. O que você muda vale
+            só nesta aba e volta ao exemplo inicial quando a página é recarregada.
+          </p>
+        ) : null}
+        {otherZone ? (
+          <p>
+            Os horários seguem o fuso do negócio ({zone.replace(/^d[aeo]s? (fuso de )?/, "")}), não o do seu aparelho, que
+            está em outro fuso.
+          </p>
+        ) : null}
+      </Help>
+    </div>
   );
 }
 

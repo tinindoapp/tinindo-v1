@@ -11,24 +11,25 @@ test("preços: simulador real, piso bloqueia e regra só vale depois de aprovar"
   await sim.getByLabel("Margem alvo (%)").fill("80");
   await expect(sim.getByText(/acima do preço base/)).toBeVisible();
 
-  // Regra ativa de exemplo (v3); nova regra fica inativa até aprovar.
+  // Regra ativa de exemplo (terça à tarde, 15%), sem número de versão na tela; nova regra fica inativa até aprovar.
   const active = page.getByRole("region", { name: "Regras ativas" });
-  await expect(active.getByText(/regra v3/)).toBeVisible();
+  await expect(active).toContainText("Terça 13:00–17:00");
+  await expect(active).not.toContainText(/regra v\d/);
   const form = page.getByRole("form", { name: "Nova regra" });
   await form.getByLabel("Terça").uncheck();
   await form.getByLabel("Quarta").check();
   await form.getByLabel("Das", { exact: true }).fill("09:00");
   await form.getByLabel("Até", { exact: true }).fill("12:00");
   await form.getByLabel("Desconto pedido (%)").fill("20");
-  await form.getByLabel("Teto aprovado (%)").fill("10");
+  await form.getByLabel("Desconto máximo (%)").fill("10");
   await form.getByRole("button", { name: "Ver prévia" }).click();
   const proposals = page.getByRole("list", { name: "Propostas aguardando aprovação" });
   await expect(proposals).toContainText("R$ 54,00");
-  await expect(proposals).toContainText("desconto efetivo 10%");
-  await expect(active.getByText(/regra v3/)).toBeVisible();
+  await expect(proposals).toContainText("desconto aplicado 10%");
+  await expect(active).toContainText("Terça 13:00–17:00");
 
   await proposals.getByRole("button", { name: "Aprovar e publicar" }).click();
-  await expect(page.getByText(/Regra v4 publicada/)).toBeVisible();
+  await expect(page.getByText(/Regra publicada para Corte/)).toBeVisible();
   await expect(active.getByRole("listitem")).toHaveCount(1);
   await expect(active).toContainText("Quarta 09:00–12:00");
 

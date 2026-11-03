@@ -60,7 +60,7 @@ export async function bookFromAgenda(
   await page.getByRole("radio", { name: opts.service }).check();
   for (let i = 0; i < (opts.nextDays ?? 0); i++) await page.getByRole("button", { name: "Próximo dia" }).click();
   await page.getByRole("button", { name: opts.slot, exact: true }).click();
-  await page.getByLabel("Cliente").selectOption({ label: opts.customer });
+  await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: opts.customer }).check();
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
 }

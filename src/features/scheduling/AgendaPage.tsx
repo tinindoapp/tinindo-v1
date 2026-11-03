@@ -13,10 +13,11 @@ import {
   occupancy,
   serviceName,
 } from "./agenda.ts";
-import { addDays, dayWindow, formatDayLong, formatDayShort, isCivilDate, localParts, weekStart } from "./time.ts";
-import { DemoNotice, ErrorPanel, StatusBadge, TimezoneNote, useSchedulingExtensions } from "./parts.tsx";
+import { addDays, dayWindow, formatDayLong, formatDayShort, formatWeekdayDay, isCivilDate, localParts, weekStart } from "./time.ts";
+import { ErrorPanel, ListStatusBadge, ScreenNotes, useSchedulingExtensions } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
 import { AttendanceActions } from "./attendance.tsx";
+import { pluralWord } from "../../lib/text/plural.ts";
 
 type View = "dia" | "semana";
 
@@ -41,7 +42,7 @@ export function AgendaPage() {
   return (
     <section aria-labelledby="agenda-title" className="tn-sched">
       <PageHeader id="agenda-title" title="Agenda" />
-      <DemoNotice kind={port.kind} />
+      <ScreenNotes demo={port.kind === "fixture"} timezone={tz} at={dayWindow(first, tz).starts_at} />
 
       <div className="tn-sched-toolbar">
         <Segmented
@@ -75,7 +76,6 @@ export function AgendaPage() {
       ) : (
         <WeekView first={first} today={today} onPick={(d) => go({ data: d, visao: "dia" })} />
       )}
-      <TimezoneNote timezone={tz} at={dayWindow(first, tz).starts_at} />
     </section>
   );
 }
@@ -156,7 +156,7 @@ function OccupancyLine({ plans, bookings, label, more }: { plans: DayPlan[] | nu
         <summary>{more}</summary>
         <ul className="tn-sched-occ-details">
           {o.percent !== null ? (
-            <li>Confirmados: {formatMinutes(o.confirmedMinutes)} de {formatMinutes(o.sellableMinutes)} vendáveis</li>
+            <li>Confirmados: {formatMinutes(o.confirmedMinutes)} de {formatMinutes(o.sellableMinutes)} livres para agendar</li>
           ) : null}
           <li>Bloqueios: {formatMinutes(o.blockedMinutes)}</li>
           <li>Reservas provisórias (não contam): {o.holds}</li>
@@ -211,7 +211,7 @@ function DayList({
                   <span className="tn-muted">{customerOf(b.customer_id)}</span>
                 </span>
                 <span className="tn-sched-item__side">
-                  <StatusBadge status={b.status} />
+                  <ListStatusBadge status={b.status} />
                   {b.agreed_price_cents !== null ? <span className="tn-num">{formatCents(b.agreed_price_cents)}</span> : null}
                 </span>
               </Link>
@@ -279,17 +279,34 @@ function WeekView({ first, today, onPick }: { first: string; today: string; onPi
           const plan = plans?.find((p) => p.date === d);
           const o = plan ? occupancy([plan], list) : null;
           const active = list.filter((b) => b.status === "confirmed" || b.status === "held" || b.status === "completed").length;
+          const closed = plan ? plan.open.length === 0 : false;
           return (
             <li key={d}>
+              {/* "Seg 19" sem quebra à esquerda; "2 · 9%" e a seta à direita (auditoria de UX, item 32). */}
               <button type="button" className="tn-sched-weekday" onClick={() => onPick(d)} aria-current={d === today ? "date" : undefined}>
-                <span className="tn-sched-item__title">
-                  {formatDayShort(d)}
-                  {d === today ? " · hoje" : ""}
-                </span>
-                <span className="tn-muted tn-num">
-                  {plan && plan.open.length === 0
-                    ? "Fechado"
-                    : `${active} ${active === 1 ? "atendimento" : "atendimentos"}${o?.percent != null ? ` · ${o.percent}% ocupado` : ""}`}
+                <span className="tn-sched-weekday__day">
+                  <span className="tn-sched-item__title tn-num" aria-hidden="true">{formatWeekdayDay(d)}</span>
+                  <span className="tn-visually-hidden">{formatDayLong(d)}</span>{" "}
+                  {d === today ? <span className="tn-sched-weekday__today">Hoje</span> : null}
+                </span>{" "}
+                <span className="tn-sched-weekday__side tn-num" data-quiet={closed || active === 0 ? "true" : undefined}>
+                  {closed ? (
+                    "Fechado"
+                  ) : active === 0 ? (
+                    "Livre"
+                  ) : (
+                    <>
+                      {active}{" "}
+                      <span className="tn-visually-hidden">{pluralWord(active, "atendimento")}</span>
+                      {o?.percent != null ? (
+                        <>
+                          {" · "}
+                          {o.percent}%{" "}<span className="tn-visually-hidden">ocupado</span>
+                        </>
+                      ) : null}
+                    </>
+                  )}
+                  <Icon name="seta" size={18} className="tn-sched-weekday__chevron" />
                 </span>
               </button>
             </li>

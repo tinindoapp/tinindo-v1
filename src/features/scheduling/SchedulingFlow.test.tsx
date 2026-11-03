@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { routes } from "../../app/router.tsx";
 import { SessionProvider } from "../../app/session.tsx";
 import { dismissToast } from "../../components/ui/index.tsx";
@@ -44,7 +44,7 @@ describe("agenda (demonstração sobre fixtures)", () => {
     // Ocupação compacta acima da lista; detalhes recolhidos em "Ver números do dia".
     expect(screen.getByText(/% ocupado/)).toBeInTheDocument();
     expect(screen.getByText("Ver números do dia")).toBeInTheDocument();
-    expect(screen.getByText(/de 9 h vendáveis/)).toBeInTheDocument();
+    expect(screen.getByText(/de 9 h livres para agendar/)).toBeInTheDocument();
     const occ = screen.getByRole("group", { name: "Ocupação do dia" });
     expect(occ.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText(/Reservas provisórias \(não contam\): 1/)).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe("agenda (demonstração sobre fixtures)", () => {
   it("novo agendamento: 409 explicado, horário some e segunda tentativa confirma", async () => {
     const router = renderAt("/app/agenda/novo?data=2026-10-20", "conflito");
     fireEvent.click(await screen.findByRole("button", { name: "15:45" }, SLOW));
-    fireEvent.change(screen.getByLabelText("Cliente"), { target: { value: "30000000-0000-4000-8000-0000000000a1" } });
+    fireEvent.click(screen.getByRole("radio", { name: /Cliente Exemplo Ana/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
 
     expect(await screen.findByText("Esse horário acabou de ser ocupado")).toBeInTheDocument();
@@ -110,7 +110,8 @@ describe("agenda (demonstração sobre fixtures)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sim, cancelar" }));
     const next = await screen.findByRole("region", { name: "Atendimento cancelado" }, SLOW);
     const offer = await within(next).findByRole("link", { name: "Oferecer à lista de espera (1 pessoa)" });
-    expect(offer).toHaveAttribute("href", "/app/lista-de-espera");
+    // O horário vai na URL: a lista de espera abre com a vaga em destaque.
+    expect(offer).toHaveAttribute("href", `/app/lista-de-espera?vaga=${encodeURIComponent(slot.starts_at)}`);
 
     fireEvent.click(within(next).getByRole("button", { name: "Desfazer" }));
     expect(await within(toaster()).findByText(/Cancelamento desfeito: o atendimento foi refeito no mesmo horário/, undefined, SLOW)).toBeInTheDocument();
@@ -193,10 +194,11 @@ describe("agenda (demonstração sobre fixtures)", () => {
     const router = renderAt("/app/agenda/novo?data=2026-10-20");
     fireEvent.click(await screen.findByRole("button", { name: "15:45" }, SLOW));
     fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
-    const select = screen.getByLabelText("Cliente");
-    expect(await screen.findByText("Escolha o cliente.")).toBeInTheDocument();
-    expect(select).toHaveAttribute("aria-invalid", "true");
-    expect(select).toHaveFocus();
+    const customer = screen.getByRole("group", { name: "Cliente" });
+    expect(await within(customer).findByText("Escolha o cliente, cadastre um novo ou marque Sem cadastro.")).toBeInTheDocument();
+    const first = within(customer).getAllByRole("radio")[0]!;
+    expect(first).toHaveAttribute("aria-invalid", "true");
+    await waitFor(() => expect(first).toHaveFocus());
     expect(router.state.location.pathname).toBe("/app/agenda/novo");
   });
 
@@ -236,10 +238,170 @@ describe("horários (demonstração)", () => {
   it("expediente com fim antes do início: erro embaixo da faixa e foco no campo", async () => {
     renderAt("/app/agenda/horarios");
     const monday = await screen.findByRole("group", { name: "Segunda" }, SLOW);
+    // O dia abre fechado, como cartão-resumo; "Editar" mostra as faixas.
+    expect(within(monday).getByText("09:00–12:00 e 13:00–19:00")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Salvar expediente" })).not.toBeInTheDocument();
+    fireEvent.click(within(monday).getByRole("button", { name: "Editar Segunda" }));
     const end = within(monday).getAllByLabelText("Fim")[0]!;
     fireEvent.change(end, { target: { value: "08:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar expediente" }));
     expect(await within(monday).findByText("O fim deve ser depois do início.")).toBeInTheDocument();
     expect(end).toHaveFocus();
+  });
+});
+
+describe("onda 3 da auditoria de UX (itens 19, 28, 29, 30, 32 e 34)", () => {
+  it("avisos da tela numa linha, com a explicação em \"Como funciona\"; o fuso só aparece se o aparelho estiver noutro", async () => {
+    const spy = vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(180); // aparelho em -03:00
+    renderAt("/app/agenda");
+    await screen.findByRole("list", { name: /Linha do tempo/ }, SLOW);
+    const line = screen.getByText(/As mudanças valem só nesta aba/);
+    expect(line).toHaveTextContent("Dados de exemplo. As mudanças valem só nesta aba.");
+    expect(screen.queryByText(/Horários de Brasília/)).not.toBeInTheDocument();
+    expect(screen.getByText("Como funciona").closest("details")).not.toHaveAttribute("open");
+    spy.mockRestore();
+  });
+
+  it("aparelho noutro fuso: \"Horários de Brasília\" na mesma linha", async () => {
+    const spy = vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(-540); // Tóquio
+    renderAt("/app/agenda");
+    await screen.findByRole("list", { name: /Linha do tempo/ }, SLOW);
+    expect(screen.getByText(/As mudanças valem só nesta aba/)).toHaveTextContent("Horários de Brasília (UTC−03:00)");
+    spy.mockRestore();
+  });
+
+  it("linha do dia: Confirmado sem selo; só as exceções (provisória) levam selo", async () => {
+    renderAt("/app/agenda");
+    const list = await screen.findByRole("list", { name: /Linha do tempo/ }, SLOW);
+    expect(within(list).queryByText("Confirmado")).not.toBeInTheDocument();
+    expect(within(list).getByRole("link", { name: /10:45–11:15.*Corte.*Reserva provisória/ })).toBeInTheDocument();
+  });
+
+  it("semana: \"Ter 20\" com selo Hoje, contagem e seta; dia sem atendimento é Livre e domingo é Fechado", async () => {
+    renderAt("/app/agenda?visao=semana");
+    const today = await screen.findByRole("button", { name: /terça-feira, 20 de outubro/ }, SLOW);
+    expect(today).toHaveAttribute("aria-current", "date");
+    expect(within(today).getByText("Ter 20")).toBeInTheDocument();
+    expect(within(today).getByText("Hoje")).toBeInTheDocument();
+    expect(today).toHaveTextContent(/6 atendimentos · \d+% ocupado/);
+    expect(today.querySelector(".tn-sched-weekday__chevron")).not.toBeNull();
+    expect(screen.getByRole("button", { name: /sexta-feira, 23 de outubro/ })).toHaveTextContent("Livre");
+    expect(screen.getByRole("button", { name: /domingo, 25 de outubro/ })).toHaveTextContent("Fechado");
+  });
+
+  it("novo agendamento: Cliente → Serviço → Horário, busca e barra \"Confirmar · Corte · 13:00 · R$ 51,00\"", async () => {
+    renderAt("/app/agenda/novo?data=2026-10-20");
+    const customer = await screen.findByRole("group", { name: "Cliente" }, SLOW);
+    const service = screen.getByRole("group", { name: "Serviço" });
+    const when = screen.getByRole("group", { name: "Dia e horário" });
+    expect(customer.compareDocumentPosition(service) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(service.compareDocumentPosition(when) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.change(within(customer).getByLabelText("Buscar cliente"), { target: { value: "bru" } });
+    expect(within(customer).getByRole("radio", { name: /Cliente Exemplo Bruno/ })).toBeInTheDocument();
+    expect(within(customer).queryByRole("radio", { name: /Cliente Exemplo Ana/ })).not.toBeInTheDocument();
+    expect(within(customer).getByRole("radio", { name: /Sem cadastro/ })).toBeInTheDocument();
+    fireEvent.click(within(customer).getByRole("radio", { name: /Cliente Exemplo Bruno/ }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "13:00" }, SLOW));
+    const bar = screen.getByRole("region", { name: "Resumo do agendamento" });
+    await waitFor(() => expect(bar).toHaveTextContent(/Corte · 13:00 · R\$\s51,00/));
+    expect(within(bar).getByRole("button", { name: "Confirmar agendamento" })).toBeInTheDocument();
+  });
+
+  it("sem cadastro: o atendimento é criado sem cliente vinculado", async () => {
+    const port = createFixturePort();
+    const router = renderAt("/app/agenda/novo?data=2026-10-20", null, port);
+    fireEvent.click(await screen.findByRole("radio", { name: /Sem cadastro/ }, SLOW));
+    fireEvent.click(await screen.findByRole("button", { name: "13:00" }, SLOW));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/app\/agenda\/atendimento\//), SLOW);
+    const id = router.state.location.pathname.split("/").pop()!;
+    expect((await port.getBooking(id)).customer_id).toBeNull();
+    expect(await screen.findByText("Sem cliente cadastrado", undefined, SLOW)).toBeInTheDocument();
+  });
+
+  it("+ Novo: cadastra nome e WhatsApp, já escolhe e agenda para o cliente novo", async () => {
+    const port = createFixturePort();
+    const create = vi.spyOn(port, "createCustomer");
+    const router = renderAt("/app/agenda/novo?data=2026-10-20", null, port);
+    const customer = await screen.findByRole("group", { name: "Cliente" }, SLOW);
+    fireEvent.change(within(customer).getByLabelText("Buscar cliente"), { target: { value: "Carla Teste" } });
+    expect(within(customer).getByText(/Nenhum cliente com “Carla Teste”/)).toBeInTheDocument();
+    fireEvent.click(within(customer).getByRole("button", { name: "+ Novo cliente" }));
+    const form = within(customer).getByRole("form", { name: "Novo cliente" });
+    expect(within(form).getByLabelText("Nome")).toHaveValue("Carla Teste");
+    fireEvent.change(within(form).getByLabelText("WhatsApp"), { target: { value: "123" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Cadastrar e escolher" }));
+    expect(await within(form).findByText(/WhatsApp inválido/)).toBeInTheDocument();
+    expect(create).not.toHaveBeenCalled();
+    fireEvent.change(within(form).getByLabelText("WhatsApp"), { target: { value: "(11) 98888-7777" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Cadastrar e escolher" }));
+    expect(await within(customer).findByText("Carla Teste foi cadastrado e escolhido.", undefined, SLOW)).toBeInTheDocument();
+    expect(create).toHaveBeenCalledWith({ name: "Carla Teste", phone: "+5511988887777" }, expect.any(String));
+    expect(within(customer).getByRole("radio", { name: /Carla Teste/ })).toBeChecked();
+
+    fireEvent.click(await screen.findByRole("button", { name: "13:00" }, SLOW));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/app\/agenda\/atendimento\//), SLOW);
+    expect(await screen.findByText("Carla Teste", undefined, SLOW)).toBeInTheDocument();
+  });
+
+  it("horário não escolhido: erro embaixo dos horários e foco no primeiro", async () => {
+    renderAt("/app/agenda/novo?data=2026-10-20");
+    fireEvent.click(await screen.findByRole("radio", { name: /Cliente Exemplo Ana/ }, SLOW));
+    await screen.findByRole("button", { name: "13:00" }, SLOW);
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar agendamento" }));
+    expect(await screen.findByText("Escolha um horário.")).toBeInTheDocument();
+    const slots = screen.getByRole("group", { name: "Horários livres" });
+    await waitFor(() => expect(within(slots).getAllByRole("button")[0]).toHaveFocus());
+  });
+});
+
+describe("horários: resumo por dia, copiar a segunda e aviso ao sair (item 28)", () => {
+  it("copia a segunda para os dias úteis; Salvar só aparece com alteração e some depois de salvar", async () => {
+    renderAt("/app/agenda/horarios");
+    const monday = await screen.findByRole("group", { name: "Segunda" }, SLOW);
+    fireEvent.click(within(monday).getByRole("button", { name: "Editar Segunda" }));
+    fireEvent.change(within(monday).getAllByLabelText("Fim")[1]!, { target: { value: "17:00" } });
+    expect(within(monday).getByText("09:00–12:00 e 13:00–17:00")).toBeInTheDocument();
+    const bar = screen.getByRole("region", { name: "Alterações no expediente" });
+    expect(bar).toHaveTextContent("Há alterações não salvas no expediente.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Usar o horário de segunda nos dias úteis" }));
+    expect(bar).toHaveTextContent("Horário de segunda (09:00–12:00 e 13:00–17:00) copiado para terça a sexta.");
+    for (const day of ["Terça", "Quarta", "Quinta", "Sexta"]) {
+      expect(within(screen.getByRole("group", { name: day })).getByText("09:00–12:00 e 13:00–17:00")).toBeInTheDocument();
+    }
+    expect(within(screen.getByRole("group", { name: "Sábado" })).getByText("09:00–14:00")).toBeInTheDocument();
+
+    fireEvent.click(within(bar).getByRole("button", { name: "Salvar expediente" }));
+    expect(await within(toaster()).findByText("Expediente salvo.", undefined, SLOW)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Alterações no expediente" })).not.toBeInTheDocument());
+    expect(await within(await screen.findByRole("group", { name: "Sexta" }, SLOW)).findByText("09:00–12:00 e 13:00–17:00")).toBeInTheDocument();
+  });
+
+  it("sair com alteração não salva pergunta antes; Continuar editando fica, Sair sem salvar sai", async () => {
+    const router = renderAt("/app/agenda/horarios");
+    const monday = await screen.findByRole("group", { name: "Segunda" }, SLOW);
+    fireEvent.click(within(monday).getByRole("button", { name: "Editar Segunda" }));
+    fireEvent.click(within(monday).getAllByRole("button", { name: /^Remover/ })[1]!);
+    act(() => void router.navigate("/app/agenda"));
+    const question = await screen.findByText("Sair sem salvar?");
+    await waitFor(() => expect(question.closest("p")).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Continuar editando" }));
+    expect(router.state.location.pathname).toBe("/app/agenda/horarios");
+    expect(within(monday).getByText("09:00–12:00")).toBeInTheDocument();
+
+    act(() => void router.navigate("/app/agenda"));
+    fireEvent.click(await screen.findByRole("button", { name: "Sair sem salvar" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/app/agenda"));
+  });
+
+  it("sem alteração, sair não pergunta nada", async () => {
+    const router = renderAt("/app/agenda/horarios");
+    await screen.findByRole("group", { name: "Segunda" }, SLOW);
+    act(() => void router.navigate("/app/agenda"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/app/agenda"));
   });
 });

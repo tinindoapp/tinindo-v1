@@ -177,3 +177,35 @@ export function formatDayShort(date: CivilDate): string {
 export function formatUtcOffset(value: Date | string, timeZone: string): string {
   return `UTC${formatOffset(offsetMinutes(value, timeZone)).replace("-", "−")}`;
 }
+
+/** O aparelho está num fuso com outro horário que o do negócio naquele instante (só então vale avisar). */
+export function deviceZoneDiffers(value: Date | string, timeZone: string): boolean {
+  const instant = toDate(value);
+  return -instant.getTimezoneOffset() !== offsetMinutes(instant, timeZone);
+}
+
+/**
+ * Nome amigável do fuso para a frase "Horários de Brasília": usa o nome que o navegador dá ao fuso em português
+ * ("Horário Padrão de Brasília" → "de Brasília"). Sem nome conhecido, cai no identificador legível.
+ */
+export function friendlyZone(value: Date | string, timeZone: string): string {
+  let name: string;
+  try {
+    name =
+      new Intl.DateTimeFormat("pt-BR", { timeZone, timeZoneName: "longGeneric" })
+        .formatToParts(toDate(value))
+        .find((p) => p.type === "timeZoneName")?.value ?? "";
+  } catch {
+    name = "";
+  }
+  const m = /^Horário(?: Padrão)? (d[aeo]s? .+)$/.exec(name);
+  if (m) return m[1]!;
+  const city = timeZone.split("/").pop()?.replaceAll("_", " ") ?? timeZone;
+  return `do fuso de ${city}`;
+}
+
+/** "Seg 19": dia da semana curto, sem ponto, e o dia do mês (cabe numa linha na visão Semana). */
+export function formatWeekdayDay(date: CivilDate): string {
+  const wd = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", weekday: "short" }).format(civilToDate(date)).replace(".", "");
+  return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${Number(date.slice(8, 10))}`;
+}
