@@ -13,14 +13,14 @@ const usePort = () => useContext(PortContext)!;
 
 const REASON: Record<string, string> = {
   BASE_PRICE: "Sem desconto: preço base.",
-  OFF_PEAK_APPROVED: "Desconto de horário dentro do teto.",
-  FLOOR_APPLIED: "Desconto limitado ao preço mínimo (piso).",
+  OFF_PEAK_APPROVED: "Desconto de horário dentro do máximo.",
+  FLOOR_APPLIED: "Desconto limitado ao menor preço que você aceita.",
 };
 
 function explain(err: unknown): string {
   const e = err as { code?: string; field?: string } | null;
   if (e?.code === "POLICY_REJECTED") {
-    if (e.field === "floor") return "O piso deste serviço fica acima do preço base com essa margem. Revise custos ou margem; nada foi criado.";
+    if (e.field === "floor") return "Com essa margem, o menor preço que você aceita neste serviço fica acima do preço base. Revise custos ou margem; nada foi criado.";
     if (e.field === "target_margin_bps") return "Taxa + margem chegam a 100% ou mais: configuração inválida. Nada foi criado.";
     if (e.field === "approval_id" || e.field === "payload_hash") return "A aprovação não vale mais para esta proposta (mudou, venceu ou já foi usada). Gere a prévia de novo.";
     if (e.field === "preview") return "O serviço mudou depois da prévia. Gere uma nova proposta.";
@@ -59,7 +59,7 @@ export function PricingPage() {
 
   return (
     <section aria-labelledby="pr-title" className="tn-pr">
-      <PageHeader id="pr-title" title="Preços" subtitle="Regras de preço por horário com piso e aprovação. Ver o valor não segura horário." />
+      <PageHeader id="pr-title" title="Preços" subtitle="Descontos por horário, sem passar do menor preço que você aceita e só com a sua aprovação. Ver o valor não segura horário." />
       {port.kind === "demo" ? (
         <StatusBanner tone="info">
           <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no servidor;
@@ -96,7 +96,7 @@ function Simulator({ services }: { services: ProviderService[] }) {
   return (
     <Card aria-labelledby="pr-sim-title">
       <h2 id="pr-sim-title">Simulador de desconto</h2>
-      <p className="tn-muted">Cálculo real com os dados do serviço (base, piso, custo e taxa). Não publica nada.</p>
+      <p className="tn-muted">Cálculo real com os dados do serviço (preço base, menor preço que você aceita, custo e taxa). Não publica nada.</p>
       <div className="tn-form-grid">
         <Field as="select" label="Serviço" id="sim-svc" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
           {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -109,22 +109,24 @@ function Simulator({ services }: { services: ProviderService[] }) {
       ) : !r.ok ? (
         <StatusBanner tone="warning">
           {r.error === "FLOOR_ABOVE_BASE"
-            ? `Com essa margem o piso seria ${formatCents(r.floor_cents)}, acima do preço base (${formatCents(svc.base_price_cents)}). A oferta fica bloqueada até revisar custos ou margem.`
+            ? `Com essa margem, o menor preço que você aceita seria ${formatCents(r.floor_cents)}, acima do preço base (${formatCents(svc.base_price_cents)}). A oferta fica bloqueada até revisar custos ou margem.`
             : "Taxa + margem chegam a 100% ou mais: não existe preço que cubra isso."}
         </StatusBanner>
       ) : (
         <dl className="tn-pr-dl" aria-label="Resultado da simulação">
           <dt>Preço base</dt><dd className="tn-num">{formatCents(svc.base_price_cents)}</dd>
-          <dt>Piso</dt>
+          <dt>Menor preço que você aceita</dt>
           <dd className="tn-num">
             {formatCents(r.floor_cents)}{" "}
             <span className="tn-muted">
-              {r.floor_is_manual_only ? "(manual; sem custo informado, não prova rentabilidade)" : `(econômico ${formatCents(r.economic_floor_cents)})`}
+              {r.floor_is_manual_only
+                ? "(o que você definiu; sem o custo do serviço, não dá para saber se cobre os custos)"
+                : `(para cobrir custos e margem: ${formatCents(r.economic_floor_cents)})`}
             </span>
           </dd>
           <dt>Valor final</dt><dd className="tn-num"><strong>{formatCents(r.final_cents)}</strong> <span className="tn-muted">{REASON[r.reason]}</span></dd>
-          <dt>Contribuição estimada</dt>
-          <dd className="tn-num">{r.contribution_cents === null ? "Informe o custo do serviço" : `${formatCents(r.contribution_cents)} (não é lucro)`}</dd>
+          <dt>Sobra depois dos custos</dt>
+          <dd className="tn-num">{r.contribution_cents === null ? "Informe o custo do serviço" : `${formatCents(r.contribution_cents)} (estimativa; não é lucro)`}</dd>
         </dl>
       )}
     </Card>
@@ -143,7 +145,7 @@ function Rules({ rules, name, tz, onChange }: {
   async function deactivate(r: PricingRule) {
     try {
       await port.deactivate({ rule_id: r.rule_id, expected_version: r.version }, newKey());
-      toast(`Regra v${r.rule_version} desativada. Novas cotações usam o preço base. Reservas já feitas não mudam.`);
+      toast(`Regra de ${name(r.service_id)} desativada. Novos valores usam o preço base. Reservas já feitas não mudam.`);
     } catch (err) {
       toast({ tone: "danger", message: explain(err) });
     } finally {
@@ -162,7 +164,7 @@ function Rules({ rules, name, tz, onChange }: {
               <div>
                 <strong>{name(r.service_id)}</strong> · {windowsText(r.windows)}
                 <div className="tn-muted">
-                  Desconto {formatBps(Math.min(r.discount_bps, r.max_discount_bps))} (teto {formatBps(r.max_discount_bps)}) · regra v{r.rule_version}
+                  Desconto {formatBps(Math.min(r.discount_bps, r.max_discount_bps))} (máximo {formatBps(r.max_discount_bps)})
                   {" "}· válida até {formatDate(new Date(Date.parse(r.valid.ends_at) - 1000).toISOString(), tz)}
                 </div>
               </div>
@@ -170,8 +172,8 @@ function Rules({ rules, name, tz, onChange }: {
               <ConfirmAction
                 trigger="Desativar"
                 triggerLabel={`Desativar regra de ${name(r.service_id)}`}
-                title={`Desativar a regra v${r.rule_version} de ${name(r.service_id)}?`}
-                consequence={`Novas cotações de ${name(r.service_id)} voltam ao preço base. Reservas já feitas não mudam. Para voltar, é preciso criar e aprovar a regra de novo.`}
+                title={`Desativar a regra de ${name(r.service_id)}?`}
+                consequence={`Novos valores de ${name(r.service_id)} voltam ao preço base. Reservas já feitas não mudam. Para voltar, é preciso criar e aprovar a regra de novo.`}
                 confirmLabel="Sim, desativar"
                 onConfirm={() => deactivate(r)}
               />
@@ -243,7 +245,7 @@ function NewRule({ services, tz, proposals, name, onChange }: {
     try {
       const approval = await port.approve({ proposal_id: p.proposal_id, payload_hash: p.payload_hash!, expected_version: p.version }, newKey());
       const rule = await port.publish({ proposal_id: p.proposal_id, approval_id: approval.approval_id, expected_version: p.version }, newKey());
-      toast(`Regra v${rule.rule_version} publicada para ${name(rule.service_id)}. Vale para novas cotações; reservas já feitas mantêm o preço.`);
+      toast(`Regra publicada para ${name(rule.service_id)}. Vale para os próximos agendamentos; reservas já feitas mantêm o preço.`);
       setPreview(null);
     } catch (err) {
       toast({ tone: "danger", message: explain(err) });
@@ -269,7 +271,7 @@ function NewRule({ services, tz, proposals, name, onChange }: {
         <Field label="Das" id="nr-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} />
         <Field label="Até" id="nr-to" type="time" step={900} value={to} error={errors.to} onChange={(e) => setTo(e.target.value)} />
         <Field label="Desconto pedido (%)" id="nr-disc" inputMode="decimal" value={discount} error={errors.discount} onChange={(e) => setDiscount(e.target.value)} />
-        <Field label="Teto aprovado (%)" id="nr-cap" inputMode="decimal" value={cap} error={errors.cap} onChange={(e) => setCap(e.target.value)} />
+        <Field label="Desconto máximo (%)" id="nr-cap" hint="O desconto nunca passa disso, nem do menor preço que você aceita." inputMode="decimal" value={cap} error={errors.cap} onChange={(e) => setCap(e.target.value)} />
         <Field label="Margem alvo da regra (%)" id="nr-margin" inputMode="decimal" value={margin} error={errors.margin} onChange={(e) => setMargin(e.target.value)} />
         <Field label="Válida até" id="nr-until" type="date" min={today} value={until} error={errors.until} onChange={(e) => setUntil(e.target.value)} />
         {error ? <div data-span="full"><StatusBanner tone="danger">{error}</StatusBanner></div> : null}
@@ -285,12 +287,12 @@ function NewRule({ services, tz, proposals, name, onChange }: {
                 <strong>Prévia · {name(p.service_id)}</strong> · {windowsText(p.windows ?? [])}
                 <p className="tn-num">
                   {formatCents(p.preview.example_base_cents)} → <strong>{formatCents(p.preview.example_final_cents)}</strong>
-                  {" "}(desconto efetivo {formatBps(p.preview.effective_discount_bps ?? Math.min(p.discount_bps, p.max_discount_bps ?? p.discount_bps))}).
-                  {" "}Piso {formatCents(p.preview.floor_cents)}{p.preview.floor_is_manual_only ? " (manual)" : ""}.
+                  {" "}(desconto aplicado {formatBps(p.preview.effective_discount_bps ?? Math.min(p.discount_bps, p.max_discount_bps ?? p.discount_bps))}).
+                  {" "}Menor preço que você aceita: {formatCents(p.preview.floor_cents)}.
                   {p.preview.reason ? ` ${REASON[p.preview.reason]}` : ""}
                 </p>
                 <p className="tn-muted">
-                  Ainda inativa. Ao aprovar, você aprova exatamente este conteúdo (código {p.payload_hash?.slice(0, 8)}). A aprovação vale 15 minutos.
+                  Ainda não vale. Ao aprovar, você aprova exatamente esta prévia; a aprovação vale 15 minutos.
                 </p>
               </div>
               <Button loading={publishing === p.proposal_id} disabled={publishing !== null} onClick={() => void approveAndPublish(p)}>Aprovar e publicar</Button>

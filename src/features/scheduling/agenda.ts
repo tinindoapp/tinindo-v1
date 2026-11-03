@@ -22,6 +22,14 @@ export const STATUS_LABEL: Record<BookingStatus, string> = {
   no_show: "Faltou",
 };
 
+/**
+ * Nas listas (Hoje e Agenda) o selo aparece só quando o estado foge do normal: confirmado não leva selo (auditoria de UX,
+ * item 30). O rótulo é sempre o de STATUS_LABEL, o mesmo mapa nas duas telas e no detalhe.
+ */
+export function listStatus(status: BookingStatus): string | null {
+  return status === "confirmed" ? null : STATUS_LABEL[status];
+}
+
 export type StatusTone = "success" | "warning" | "info" | "danger" | "neutral";
 
 export const STATUS_TONE: Record<BookingStatus, StatusTone> = {
@@ -76,6 +84,14 @@ export function waitlistMatches(entries: WaitlistEntry[], startsAt: string, time
       Date.parse(e.valid_until) > start &&
       (e.acceptable_windows ?? []).some((w) => w.weekday === local.weekday && local.time >= w.local_start && local.time < w.local_end),
   ).length;
+}
+
+/**
+ * Lista de espera com a vaga liberada em destaque: `?vaga=<início ISO>`. A tela da lista lê o parâmetro, põe a vaga no
+ * topo de "Vagas para oferecer" e foca "Preparar oferta" (ou diz que ninguém aceita aquele horário).
+ */
+export function waitlistHref(startsAt: string): string {
+  return `/app/lista-de-espera?vaga=${encodeURIComponent(startsAt)}`;
 }
 
 function overlapMinutes(a: TimeRange, b: TimeRange): number {
@@ -216,6 +232,28 @@ export function formatCents(cents: number): string {
 
 export function serviceName(services: ProviderService[], id: string): string {
   return services.find((s) => s.id === id)?.name ?? "Serviço";
+}
+
+/**
+ * WhatsApp digitado no cadastro rápido → E.164 (o contrato pede `PhoneE164`). Vazio → null; inválido → undefined.
+ * "(11) 98765-4321" → "+5511987654321". Número de fora do Brasil precisa vir com "+". (O módulo não importa o CRM.)
+ */
+export function phoneToE164(raw: string): string | null | undefined {
+  const text = raw.trim();
+  if (!text) return null;
+  if (/[^\d\s()+.-]/.test(text)) return undefined;
+  let digits = text.replace(/\D/g, "");
+  if (text.startsWith("+")) return /^[1-9]\d{7,14}$/.test(digits) ? `+${digits}` : undefined;
+  if (digits.length === 12 && digits.startsWith("0")) digits = digits.slice(1);
+  if (digits.length === 10 || digits.length === 11) return `+55${digits}`;
+  if ((digits.length === 12 || digits.length === 13) && digits.startsWith("55")) return `+${digits}`;
+  return undefined;
+}
+
+/** "+5511987654321" → "(11) 98765-4321"; outros países ficam em E.164. */
+export function formatPhoneBR(e164: string): string {
+  const m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164);
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
 }
 
 /** Só os dígitos do E.164, como o wa.me pede. null quando não há telefone com que abrir a conversa. */

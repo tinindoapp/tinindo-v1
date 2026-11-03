@@ -3,7 +3,12 @@
 .tn-sched h1 { margin-bottom: 0; }
 .tn-sched-loading,
 .tn-sched-empty { color: var(--tn-text-muted); padding: var(--tn-space-4) 0; }
-.tn-sched-tz { font-size: var(--tn-text-label); color: var(--tn-text-muted); margin: 0; }
+/* Avisos da tela numa linha (itens 19 e 34): dados de exemplo e fuso; a explicação fica em "Como funciona". */
+.tn-sched-notes { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--tn-space-2); min-width: 0; font-size: var(--tn-text-support); color: var(--tn-text-muted); }
+.tn-sched-notes__line { margin: 0; min-width: 0; }
+.tn-sched-notes__line strong { color: var(--tn-text); }
+.tn-sched-notes .tn-help { margin: 0; }
+.tn-sched-notes .tn-help[open] { flex-basis: 100%; }
 .tn-sched-back { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
 
 .tn-sched-toolbar { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
@@ -169,12 +174,24 @@
   border-radius: var(--tn-radius-md);
   background: var(--tn-surface);
   color: var(--tn-text);
- 
   text-align: left;
   cursor: pointer;
 }
 @media (hover: hover) { .tn-sched-weekday:hover { background: var(--tn-action-subtle); } }
 .tn-sched-weekday[aria-current="date"] { border-color: var(--tn-border-control); box-shadow: inset 3px 0 0 var(--tn-selected-border); }
+/* "Seg 19" nunca quebra; o selo "Hoje" vai ao lado. */
+.tn-sched-weekday__day { display: inline-flex; align-items: center; gap: var(--tn-space-2); white-space: nowrap; }
+.tn-sched-weekday__today {
+  padding: 2px var(--tn-space-2);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-selected-bg);
+  color: var(--tn-selected-text);
+  font-size: var(--tn-text-label);
+  font-weight: var(--tn-font-weight-semibold);
+}
+.tn-sched-weekday__side { display: inline-flex; align-items: center; gap: var(--tn-space-1); white-space: nowrap; }
+.tn-sched-weekday__side[data-quiet="true"] { color: var(--tn-text-muted); }
+.tn-sched-weekday__chevron { color: var(--tn-text-muted); flex: none; }
 
 .tn-sched-detail__head { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: center; justify-content: space-between; }
 .tn-sched-detail__head h2 { margin: 0; font-size: var(--tn-text-section); }
@@ -241,3 +258,79 @@
 .tn-sched-hours__row .tn-field { min-width: 0; flex: 1 1 8rem; }
 .tn-sched-hours__row input { min-height: 44px; width: 100%; }
 .tn-sched-hours__form { margin-bottom: var(--tn-space-3); }
+/* Expediente (item 28): um cartão-resumo por dia, que abre para editar. */
+.tn-sched-days { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
+.tn-sched-hours__day {
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface);
+  padding: var(--tn-space-2) var(--tn-space-3);
+}
+.tn-sched-hours__day[data-open="true"] { border-color: var(--tn-border-control); }
+.tn-sched-hours__summary { display: flex; align-items: center; justify-content: space-between; gap: var(--tn-space-3); min-width: 0; }
+.tn-sched-hours__summary-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--tn-space-3); min-width: 0; }
+.tn-sched-hours__summary-text strong { min-width: 4.5rem; }
+.tn-sched-hours__summary-text [data-closed="true"] { color: var(--tn-text-muted); }
+.tn-sched-hours__changed { font-size: var(--tn-text-label); color: var(--tn-warning-text); font-weight: var(--tn-font-weight-medium); }
+.tn-sched-hours__panel { display: grid; gap: var(--tn-space-2); padding-top: var(--tn-space-2); }
+.tn-sched-hours__panel[hidden] { display: none; }
+/*
+ * Barra "Salvar" só quando algo mudou. Fica presa ao pé da tela enquanto o formulário rola (sticky, não fixa): no fim do
+ * formulário volta ao fluxo e não cobre "Bloqueios". No celular para acima da barra de abas, onde também sai o Toast;
+ * por isso a barra não usa Toast (o texto da mudança fica nela) e some antes do aviso "Expediente salvo".
+ */
+.tn-sched-savebar {
+  position: sticky;
+  bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-2));
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tn-space-2) var(--tn-space-3);
+  padding: var(--tn-space-3);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-lg);
+  background: var(--tn-surface);
+  box-shadow: var(--tn-shadow-lg);
+}
+.tn-sched-savebar__text { margin: 0; font-size: var(--tn-text-support); min-width: 0; }
+.tn-sched-savebar .tn-actions { margin: 0; }
+
+/* Novo agendamento (item 29): busca de cliente com "+ Novo" e barra de resumo presa ao pé. */
+.tn-sched-customer__search { display: flex; align-items: flex-end; gap: var(--tn-space-2); min-width: 0; }
+.tn-sched-customer__search .tn-field { flex: 1; min-width: 0; }
+.tn-sched-customer__search input { width: 100%; }
+.tn-sched-customer__search > .tn-button { flex: none; }
+.tn-sched-customer__help { margin: 0; font-size: var(--tn-text-support); }
+.tn-sched-newcustomer {
+  display: grid;
+  gap: var(--tn-space-3);
+  padding: var(--tn-space-3);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface);
+}
+.tn-sched-newcustomer .tn-actions { margin: 0; }
+/*
+ * Sticky, não fixa: enquanto o fluxo rola, fica acima da barra de abas (celular) ou do pé da tela; no fim do fluxo volta
+ * ao lugar e não cobre nada. O Toast desta tela só sai depois de trocar de tela (aviso no atendimento).
+ */
+.tn-sched-confirmbar {
+  position: sticky;
+  bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-2));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--tn-space-3);
+  padding: var(--tn-space-2) var(--tn-space-3);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-lg);
+  background: var(--tn-surface);
+  box-shadow: var(--tn-shadow-lg);
+  min-width: 0;
+}
+.tn-sched-confirmbar .tn-button { flex: none; }
+.tn-sched-confirmbar__summary { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--tn-font-weight-medium); }
+/* O foco que cai atrás das barras presas sobe para cima delas (WCAG 2.4.11). */
+html:has(.tn-sched-confirmbar, .tn-sched-savebar) { scroll-padding-bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + 96px); }

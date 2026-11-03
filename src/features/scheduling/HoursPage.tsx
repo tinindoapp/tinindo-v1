@@ -1,11 +1,12 @@
 // Expediente semanal e bloqueios pessoais (P03 · schedule.*). Sem expediente não há horário livre.
 // Bloqueio é indisponibilidade, não cliente fictício; não pode cobrir atendimento já marcado.
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { useBlocker } from "react-router";
 import type { ScheduleSettings } from "@contracts";
 import { Button, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { formatRange } from "./agenda.ts";
 import { isErrorLike } from "./errors.ts";
-import { DemoNotice, ErrorPanel, TimezoneNote } from "./parts.tsx";
+import { ErrorPanel, ScreenNotes } from "./parts.tsx";
 import { newIdempotencyKey } from "./port.ts";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
 import { dayWindow, formatDayLong, isCivilDate, localParts, toZonedIso, zonedInstant } from "./time.ts";
@@ -64,7 +65,7 @@ export function HoursPage() {
   return (
     <section aria-labelledby="hours-title" className="tn-sched">
       <PageHeader id="hours-title" title="Horários de atendimento" />
-      <DemoNotice kind={port.kind} />
+      <ScreenNotes demo={port.kind === "fixture"} timezone={ctx.timezone} at={port.now()} />
       {settings.error ? (
         <ErrorPanel error={settings.error} operation="load" onRetry={settings.reload} />
       ) : !settings.data ? (
@@ -77,27 +78,93 @@ export function HoursPage() {
           <Blocks resourceId={settings.data.resource_id} />
         </>
       )}
-      <TimezoneNote timezone={ctx.timezone} at={port.now()} />
     </section>
   );
 }
 
+const WEEKDAYS_WORK = [2, 3, 4, 5];
+
+function sameDraft(a: Draft, b: Draft): boolean {
+  return WEEK.every(({ day }) => JSON.stringify(a[day] ?? []) === JSON.stringify(b[day] ?? []));
+}
+
+/** "09:00–12:00 e 13:00–19:00" ou "Fechado". */
+function daySummary(list: Interval[]): string {
+  if (list.length === 0) return "Fechado";
+  return list.map((i) => `${i.start || "--:--"}–${i.end || "--:--"}`).join(" e ");
+}
+
+/**
+ * Expediente semanal (auditoria de UX, item 28): um cartão-resumo por dia, que abre para editar; copiar a segunda para os
+ * dias úteis; a barra "Salvar" só aparece quando algo mudou; sair com alteração não salva pede confirmação.
+ */
 function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSaved: () => void }) {
   const port = usePort();
   const keyFor = useAttemptKey();
-  const [draft, setDraft] = useState<Draft>(() => toDraft(settings));
+  const [baseline, setBaseline] = useState<Draft>(() => toDraft(settings));
+  const [draft, setDraft] = useState<Draft>(baseline);
+  const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set());
+  const [note, setNote] = useState<string | null>(null);
   const { formRef, errors, show, clear } = useFormErrors();
   const [failure, setFailure] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
+  const dirty = !sameDraft(draft, baseline);
+
+  // Aviso ao sair: navegação dentro do app (bloqueio do roteador) e fechar ou recarregar a aba (beforeunload).
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  const leaveRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (blocker.state === "blocked") leaveRef.current?.focus();
+  }, [blocker.state]);
 
   const edit = (day: number, next: Interval[]) => {
     setDraft((d) => ({ ...d, [day]: next }));
+    setNote(null);
     clear();
   };
+  const toggle = (day: number) =>
+    setOpen((o) => {
+      const n = new Set(o);
+      if (n.has(day)) n.delete(day);
+      else n.add(day);
+      return n;
+    });
+
+  function copyMonday() {
+    const monday = draft[1] ?? [];
+    setDraft((d) => {
+      const next = { ...d };
+      for (const day of WEEKDAYS_WORK) next[day] = monday.map((i) => ({ ...i }));
+      return next;
+    });
+    setNote(`Horário de segunda (${daySummary(monday)}) copiado para terça a sexta.`);
+    clear();
+  }
+
+  function discard() {
+    setDraft(baseline);
+    setNote(null);
+    setFailure(null);
+    clear();
+  }
 
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!show(draftErrors(draft))) return;
+    const found = draftErrors(draft);
+    if (Object.keys(found).length) {
+      // Abre os dias com erro antes de focar o primeiro campo errado.
+      setOpen((o) => new Set([...o, ...Object.keys(found).map((k) => Number(k.split("-")[0]))]));
+    }
+    if (!show(found)) return;
     const payload = {
       resource_id: settings.resource_id,
       expected_version: settings.resource_version,
@@ -107,6 +174,8 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
     setFailure(null);
     try {
       await port.saveRules(payload, keyFor(payload));
+      setBaseline(draft);
+      setNote(null);
       toast("Expediente salvo.");
       onSaved();
     } catch (err) {
@@ -124,35 +193,87 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
         Faixas em que você atende. O intervalo entre duas faixas do mesmo dia vira pausa. Mudar o expediente não mexe nos
         atendimentos já marcados.
       </p>
-      {WEEK.map(({ day, label }) => {
-        const list = draft[day] ?? [];
-        return (
-          <fieldset key={day} className="tn-sched-fieldset tn-sched-hours__day">
-            <legend>{label}</legend>
-            {list.length === 0 ? <p className="tn-muted">Fechado</p> : null}
-            {list.map((it, i) => (
-              <div key={i} className="tn-sched-hours__row">
-                <Field label="Início" id={`h-${day}-${i}-s`} type="time" step={900} value={it.start} error={errors[`${day}-${i}-s`]}
-                  onChange={(e) => edit(day, list.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))} />
-                <Field label="Fim" id={`h-${day}-${i}-e`} type="time" step={900} value={it.end} error={errors[`${day}-${i}-e`]}
-                  onChange={(e) => edit(day, list.map((x, j) => (j === i ? { ...x, end: e.target.value } : x)))} />
-                <Button variant="ghost" onClick={() => edit(day, list.filter((_, j) => j !== i))}>
-                  Remover<span className="tn-visually-hidden"> faixa de {label}</span>
-                </Button>
-              </div>
-            ))}
-            <Button variant="secondary" onClick={() => edit(day, [...list, list.length ? { start: "13:00", end: "18:00" } : { start: "09:00", end: "12:00" }])}>
-              Adicionar faixa<span className="tn-visually-hidden"> em {label}</span>
-            </Button>
-          </fieldset>
-        );
-      })}
-      {failure ? <ErrorPanel error={failure} operation="load" /> : null}
       <div className="tn-actions">
-        <Button type="submit" loading={pending} loadingText="Salvando…">
-          Salvar expediente
+        <Button variant="secondary" onClick={copyMonday}>
+          Usar o horário de segunda nos dias úteis
         </Button>
       </div>
+      <ul className="tn-sched-days">
+        {WEEK.map(({ day, label }) => {
+          const list = draft[day] ?? [];
+          const expanded = open.has(day);
+          const changed = JSON.stringify(list) !== JSON.stringify(baseline[day] ?? []);
+          const panel = `h-${day}-panel`;
+          return (
+            <li key={day}>
+              <fieldset className="tn-sched-fieldset tn-sched-hours__day" data-open={expanded ? "true" : undefined}>
+                <legend className="tn-visually-hidden">{label}</legend>
+                <div className="tn-sched-hours__summary">
+                  <span className="tn-sched-hours__summary-text">
+                    <strong aria-hidden="true">{label}</strong>
+                    <span className="tn-num" data-closed={list.length === 0 ? "true" : undefined}>{daySummary(list)}</span>
+                    {changed ? <span className="tn-sched-hours__changed">Alterado</span> : null}
+                  </span>
+                  <Button variant="ghost" aria-expanded={expanded} aria-controls={panel} onClick={() => toggle(day)}>
+                    {expanded ? "Fechar" : "Editar"}{" "}<span className="tn-visually-hidden">{label}</span>
+                  </Button>
+                </div>
+                <div id={panel} className="tn-sched-hours__panel" hidden={!expanded}>
+                  {list.length === 0 ? <p className="tn-muted">Fechado</p> : null}
+                  {list.map((it, i) => (
+                    <div key={i} className="tn-sched-hours__row">
+                      <Field label="Início" id={`h-${day}-${i}-s`} type="time" step={900} value={it.start} error={errors[`${day}-${i}-s`]}
+                        onChange={(e) => edit(day, list.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))} />
+                      <Field label="Fim" id={`h-${day}-${i}-e`} type="time" step={900} value={it.end} error={errors[`${day}-${i}-e`]}
+                        onChange={(e) => edit(day, list.map((x, j) => (j === i ? { ...x, end: e.target.value } : x)))} />
+                      <Button variant="ghost" onClick={() => edit(day, list.filter((_, j) => j !== i))}>
+                        Remover<span className="tn-visually-hidden"> faixa de {label}</span>
+                      </Button>
+                    </div>
+                  ))}
+                  <Button variant="secondary" onClick={() => edit(day, [...list, list.length ? { start: "13:00", end: "18:00" } : { start: "09:00", end: "12:00" }])}>
+                    Adicionar faixa<span className="tn-visually-hidden"> em {label}</span>
+                  </Button>
+                </div>
+              </fieldset>
+            </li>
+          );
+        })}
+      </ul>
+      {failure ? <ErrorPanel error={failure} operation="load" /> : null}
+      {dirty || blocker.state === "blocked" ? (
+        <div className="tn-sched-savebar" role="region" aria-label="Alterações no expediente">
+          {blocker.state === "blocked" ? (
+            <>
+              <p ref={leaveRef} tabIndex={-1} className="tn-sched-savebar__text">
+                <strong>Sair sem salvar?</strong> As mudanças no expediente se perdem.
+              </p>
+              <div className="tn-actions">
+                <Button variant="danger" onClick={() => blocker.proceed?.()}>
+                  Sair sem salvar
+                </Button>
+                <Button variant="secondary" onClick={() => blocker.reset?.()}>
+                  Continuar editando
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="tn-sched-savebar__text" role="status">
+                {note ?? "Há alterações não salvas no expediente."}
+              </p>
+              <div className="tn-actions">
+                <Button type="submit" loading={pending} loadingText="Salvando…">
+                  Salvar expediente
+                </Button>
+                <Button variant="ghost" onClick={discard} disabled={pending}>
+                  Descartar
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
     </form>
   );
 }

@@ -51,6 +51,24 @@
   text-align: center;
 }
 .tn-today__more { margin: var(--tn-space-2) 0 0; font-size: var(--tn-text-support); }
+.tn-today__more a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
+/* Próximo atendimento em destaque (item 31); passados em cinza na lista. */
+.tn-today__next {
+  display: grid;
+  gap: var(--tn-space-2);
+  margin-bottom: var(--tn-space-3);
+  padding: var(--tn-space-4);
+  border: 1px solid var(--tn-border-control);
+  border-left: 4px solid var(--tn-selected-border);
+  border-radius: var(--tn-radius-lg);
+  background: var(--tn-surface);
+}
+.tn-today__next-title { margin: 0; font-size: var(--tn-text-group); }
+.tn-today__next-meta { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-today__next .tn-actions { margin: 0; }
+.tn-today__row[data-past="true"] .tn-list__title,
+.tn-today__row[data-past="true"] .tn-list__meta { color: var(--tn-text-muted); }
+.tn-today__row[data-past="true"] .tn-list__title { font-weight: var(--tn-font-weight-regular); }
 @media (min-width: 900px) {
   .tn-today .tn-stat { padding: var(--tn-space-4); }
   .tn-today .tn-stat__value { font-size: var(--tn-text-number); }

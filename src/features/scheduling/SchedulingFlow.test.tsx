@@ -44,7 +44,7 @@ describe("agenda (demonstração sobre fixtures)", () => {
     // Ocupação compacta acima da lista; detalhes recolhidos em "Ver números do dia".
     expect(screen.getByText(/% ocupado/)).toBeInTheDocument();
     expect(screen.getByText("Ver números do dia")).toBeInTheDocument();
-    expect(screen.getByText(/de 9 h vendáveis/)).toBeInTheDocument();
+    expect(screen.getByText(/de 9 h livres para agendar/)).toBeInTheDocument();
     const occ = screen.getByRole("group", { name: "Ocupação do dia" });
     expect(occ.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText(/Reservas provisórias \(não contam\): 1/)).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe("agenda (demonstração sobre fixtures)", () => {
   it("novo agendamento: 409 explicado, horário some e segunda tentativa confirma", async () => {
     const router = renderAt("/app/agenda/novo?data=2026-10-20", "conflito");
     fireEvent.click(await screen.findByRole("button", { name: "15:45" }, SLOW));
-    fireEvent.change(screen.getByLabelText("Cliente"), { target: { value: "30000000-0000-4000-8000-0000000000a1" } });
+    fireEvent.click(screen.getByRole("radio", { name: /Cliente Exemplo Ana/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
 
     expect(await screen.findByText("Esse horário acabou de ser ocupado")).toBeInTheDocument();
@@ -110,7 +110,8 @@ describe("agenda (demonstração sobre fixtures)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sim, cancelar" }));
     const next = await screen.findByRole("region", { name: "Atendimento cancelado" }, SLOW);
     const offer = await within(next).findByRole("link", { name: "Oferecer à lista de espera (1 pessoa)" });
-    expect(offer).toHaveAttribute("href", "/app/lista-de-espera");
+    // O horário vai na URL: a lista de espera abre com a vaga em destaque.
+    expect(offer).toHaveAttribute("href", `/app/lista-de-espera?vaga=${encodeURIComponent(slot.starts_at)}`);
 
     fireEvent.click(within(next).getByRole("button", { name: "Desfazer" }));
     expect(await within(toaster()).findByText(/Cancelamento desfeito: o atendimento foi refeito no mesmo horário/, undefined, SLOW)).toBeInTheDocument();
@@ -193,10 +194,11 @@ describe("agenda (demonstração sobre fixtures)", () => {
     const router = renderAt("/app/agenda/novo?data=2026-10-20");
     fireEvent.click(await screen.findByRole("button", { name: "15:45" }, SLOW));
     fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
-    const select = screen.getByLabelText("Cliente");
-    expect(await screen.findByText("Escolha o cliente.")).toBeInTheDocument();
-    expect(select).toHaveAttribute("aria-invalid", "true");
-    expect(select).toHaveFocus();
+    const customer = screen.getByRole("group", { name: "Cliente" });
+    expect(await within(customer).findByText("Escolha o cliente, cadastre um novo ou marque Sem cadastro.")).toBeInTheDocument();
+    const first = within(customer).getAllByRole("radio")[0]!;
+    expect(first).toHaveAttribute("aria-invalid", "true");
+    await waitFor(() => expect(first).toHaveFocus());
     expect(router.state.location.pathname).toBe("/app/agenda/novo");
   });
 
@@ -236,6 +238,10 @@ describe("horários (demonstração)", () => {
   it("expediente com fim antes do início: erro embaixo da faixa e foco no campo", async () => {
     renderAt("/app/agenda/horarios");
     const monday = await screen.findByRole("group", { name: "Segunda" }, SLOW);
+    // O dia abre fechado, como cartão-resumo; "Editar" mostra as faixas.
+    expect(within(monday).getByText("09:00–12:00 e 13:00–19:00")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Salvar expediente" })).not.toBeInTheDocument();
+    fireEvent.click(within(monday).getByRole("button", { name: "Editar Segunda" }));
     const end = within(monday).getAllByLabelText("Fim")[0]!;
     fireEvent.change(end, { target: { value: "08:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar expediente" }));
