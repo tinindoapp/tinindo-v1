@@ -13,8 +13,8 @@ function fail(code: ErrorCode, field?: string): never {
 }
 
 const CUSTOMERS = [
-  { id: FX.customers.abInA, name: "Cliente Exemplo Ana" },
-  { id: FX.customers.guestInA, name: "Cliente Exemplo Bruno" },
+  { id: FX.customers.abInA, name: "Cliente Exemplo Ana", phone: "+5511988887777" },
+  { id: FX.customers.guestInA, name: "Cliente Exemplo Bruno", phone: null },
 ];
 const SERVICES = fixtureServices.filter((s) => s.tenant_id === FX.tenants.A);
 const now = () => new Date(FIXED_NOW);

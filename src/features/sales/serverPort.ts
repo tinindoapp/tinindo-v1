@@ -29,12 +29,12 @@ export function createServerPort(call: Call, tenantId: string): SalesPort {
         call("/context", ContextResponse, { tenantId }),
         call(`/crm/${CRM_ROUTES.listServices}?limit=100`, ServiceListOutput, { tenantId }),
       ]);
-      const customers: { id: string; name: string }[] = [];
+      const customers: { id: string; name: string; phone: string | null }[] = [];
       let cursor: string | null = null;
       for (let page = 0; page < 10; page++) {
         const qs: string = new URLSearchParams({ limit: "100", ...(cursor ? { cursor } : {}) }).toString();
         const { data }: { data: z.infer<typeof CustomerListOutput> } = await call(`/crm/${CRM_ROUTES.listCustomers}?${qs}`, CustomerListOutput, { tenantId });
-        customers.push(...data.items.map((c) => ({ id: c.id, name: c.name })));
+        customers.push(...data.items.map((c) => ({ id: c.id, name: c.name, phone: c.phone })));
         cursor = data.next_cursor;
         if (!cursor) break;
       }

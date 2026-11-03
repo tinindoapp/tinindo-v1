@@ -170,6 +170,10 @@ export function createDemoPort(): MessagingPort {
         return { ...contactView(k), last_message: last ? { direction: last.direction, body: last.body, status: last.status } : null };
       }) };
     },
+    async unreadCount() {
+      const withUnread = state().contacts.filter((k) => k.unread_count > 0);
+      return { unread: withUnread.reduce((n, k) => n + k.unread_count, 0), contacts: withUnread.length };
+    },
     async conversation(contactId): Promise<Conversation> {
       const k = findContact(contactId);
       k.unread_count = 0;

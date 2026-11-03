@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { advanceDemoClock, createDemoPort, DEMO_BUSINESS_PHONE, DEMO_CUSTOMERS, resetDemoState } from "./demoPort.ts";
+import { unreadTotal } from "./unread.ts";
 
 const code = (p: Promise<unknown>) => p.then(() => "ok", (e: { code: string; field?: string }) => `${e.code}/${e.field ?? "-"}`);
 const ANA = DEMO_CUSTOMERS[0]!.phone;
@@ -15,6 +16,19 @@ async function connected() {
 
 describe("demonstração do Canal (mesmas regras do banco)", () => {
   beforeEach(() => resetDemoState());
+  it("recado #89: inbox.unread_count dá o mesmo total do inbox, sem dados do contato, e zera ao abrir a conversa", async () => {
+    const port = await connected();
+    const [ana, bruno] = DEMO_CUSTOMERS;
+    await port.simInbound({ kind: "inbound", phone_e164: ana!.phone, text: "Oi" }, "u1");
+    await port.simInbound({ kind: "inbound", phone_e164: ana!.phone, text: "Tem horário?" }, "u2");
+    await port.simInbound({ kind: "inbound", phone_e164: bruno!.phone, text: "Bom dia" }, "u3");
+    const count = await port.unreadCount();
+    expect(count).toEqual({ unread: 3, contacts: 2 });
+    expect(count.unread).toBe(unreadTotal(await port.inbox()));
+    const anaContact = (await port.inbox()).contacts.find((k) => k.phone_e164 === ana!.phone)!;
+    await port.conversation(anaContact.id);
+    expect(await port.unreadCount()).toEqual({ unread: 1, contacts: 1 });
+  });
 
   it("conectar: código só pelo canal, errado conta tentativa, provedor oficial indisponível na demonstração", async () => {
     const port = createDemoPort();

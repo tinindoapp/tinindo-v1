@@ -37,7 +37,9 @@ export function quoteMessage(title: string | null, link: string): string {
 }
 
 /** O telefone vem quando a base de clientes trouxer (hoje só id e nome). */
-const phoneOf = (c: { id: string; phone?: string | null }) => c.phone ?? null;
+const phoneOf = (c: { phone: string | null }) => c.phone;
+/** Só os dígitos, para achar o cliente pelo telefone com ou sem +55, espaço ou traço. */
+const digits = (s: string) => s.replace(/\D/g, "");
 
 interface ItemRow { key: string; service_id: string; description: string; quantity: string; price: string }
 interface FormState {
@@ -488,7 +490,11 @@ function CustomerPicker({ customers, value, query, onQuery, error, onChange }: {
   onChange: (id: string) => void;
 }) {
   const q = fold(query.trim());
-  const matches = q ? customers.filter((c) => fold(c.name).includes(q)) : customers;
+  const qDigits = digits(query);
+  // Nome ou telefone (recado #89). Pelo telefone, a partir de 4 dígitos, para não casar tudo com "1".
+  const matches = q
+    ? customers.filter((c) => fold(c.name).includes(q) || (qDigits.length >= 4 && c.phone !== null && digits(c.phone).includes(qDigits)))
+    : customers;
   const shown = matches.slice(0, CUSTOMER_LIMIT);
   const chosen = customers.find((c) => c.id === value) ?? null;
   // O escolhido continua à vista mesmo quando a busca mudou.
@@ -496,7 +502,7 @@ function CustomerPicker({ customers, value, query, onQuery, error, onChange }: {
   return (
     <fieldset className="tn-qt-customer">
       <legend>Escolha o cliente</legend>
-      <Field label="Buscar cliente" type="search" value={query} maxLength={120} error={error} onChange={(e) => onQuery(e.target.value)} />
+      <Field label="Buscar cliente" type="search" placeholder="Nome ou telefone" value={query} maxLength={120} error={error} onChange={(e) => onQuery(e.target.value)} />
       {shown.length ? (
         <div className="tn-qt-customer__list">
           {shown.map((c) => (

@@ -47,8 +47,27 @@ export const ReviewReportInput = z.object({
 });
 export const ReviewReportOutput = z.object({ report: z.object({ id: Uuid, status: z.enum(["open", "upheld", "dismissed"]), reason: z.string(), created_at: IsoDateTime }) });
 export const ReviewOwnerListInput = z.object({});
-export const ReviewOwnerListOutput = z.object({ rules: ReputationRules, summary: ReputationSummary, reviews: z.array(OwnerReview).max(100) });
+/** Recado #89: meio que o dono prefere para a equipe conferir a identidade. Nenhum documento passa pelo app. */
+export const IdentityVerificationMethod = z.enum(["document_video_call", "gov_br"]);
+/** Pedido aberto de verificação de identidade (só o aberto aparece; ao verificar, a equipe fecha). */
+export const IdentityRequest = z.object({
+  id: Uuid,
+  status: z.literal("open"),
+  preferred_method: IdentityVerificationMethod,
+  requested_at: IsoDateTime,
+});
+export type IdentityRequest = z.infer<typeof IdentityRequest>;
+export const ReviewOwnerListOutput = z.object({
+  rules: ReputationRules,
+  summary: ReputationSummary,
+  /** Recado #89: pedido de verificação aberto; null sem pedido ou já verificado. Ausente (servidor antigo) = null. */
+  identity_request: IdentityRequest.nullable().default(null),
+  reviews: z.array(OwnerReview).max(100),
+});
 export type ReviewOwnerList = z.infer<typeof ReviewOwnerListOutput>;
+/** identity.request: um pedido aberto por negócio (pedir de novo devolve o mesmo). Já verificado → POLICY_REJECTED. */
+export const IdentityRequestInput = z.object({ preferred_method: IdentityVerificationMethod });
+export const IdentityRequestOutput = z.object({ identity_request: IdentityRequest });
 export const ReviewReplyInput = z.object({ review_id: Uuid, expected_version: z.int().min(1), body: z.string().trim().min(2).max(600) });
 export const ReviewReplyOutput = z.object({ review: OwnerReview });
 export const ReviewPublicListInput = z.object({ slug: z.string().trim().toLowerCase().regex(/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/) });

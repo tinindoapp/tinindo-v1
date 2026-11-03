@@ -4,7 +4,7 @@
 // perfil publicado (anon). O autor nunca sai em nenhuma resposta.
 import type { z } from "zod";
 import {
-  IdempotencyKey, MyReviewOutput, ReviewOwnerListInput, ReviewOwnerListOutput, ReviewPendingInput, ReviewPendingOutput, ReviewPublicListInput, ReviewPublicListOutput,
+  IdempotencyKey, IdentityRequestInput, IdentityRequestOutput, MyReviewOutput, ReviewOwnerListInput, ReviewOwnerListOutput, ReviewPendingInput, ReviewPendingOutput, ReviewPublicListInput, ReviewPublicListOutput,
   ReviewReplyInput, ReviewReplyOutput, ReviewReportInput, ReviewReportOutput, ReviewSubmitInput, ReviewWithdrawInput, IDEMPOTENCY_HEADER,
 } from "../_shared/contracts/index.ts";
 import { mapDbError } from "../_shared/http/errors.ts";
@@ -20,6 +20,10 @@ export const REPUTATION_OWNER_ROUTES: Record<string, Route> = {
   "review.reply": route({
     rpc: "review_reply", input: ReviewReplyInput, output: ReviewReplyOutput, command: true,
     args: (i) => ({ p_review_id: i.review_id, p_expected_version: i.expected_version, p_body: i.body }),
+  }),
+  "identity.request": route({
+    rpc: "identity_request", input: IdentityRequestInput, output: IdentityRequestOutput, command: true,
+    args: (i) => ({ p_preferred_method: i.preferred_method }),
   }),
 };
 
