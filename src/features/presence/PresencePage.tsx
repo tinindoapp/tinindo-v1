@@ -2,7 +2,7 @@
 // (hash), versionado e reversível; domínio do cliente verificado por DNS; Perfil da Empresa no Google por acesso de
 // gerente que o dono concede e revoga; entregas com evidência. Sem promessa de posição no Google.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, ConfirmAction, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { ACTOR_LABEL, CHECK_LABEL, DELIVERY_LABEL, explain, formatCents, formatDateTime, SECTION_LABEL } from "./labels.ts";
 import { newKey, type PresenceOverview, type PresencePort, type SiteSection } from "./port.ts";
 import { SitePreview } from "./SitePreview.tsx";
@@ -40,10 +40,9 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
         <Field label="Frase de apresentação (opcional)" maxLength={o.rules.headline_max} value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Ex.: Corte na hora marcada, no centro" />
         <fieldset>
           <legend>O que aparece</legend>
+          {/* Linha inteira tocável, de 44 px (E14), como nas outras telas. */}
           {SECTIONS.map((s) => (
-            <label key={s} className="tn-prs-check">
-              <input type="checkbox" checked={sections.includes(s)} onChange={() => setSections(toggle(sections, s))} /> {SECTION_LABEL[s]}
-            </label>
+            <ChoiceCard key={s} type="checkbox" name="secao" value={s} checked={sections.includes(s)} onChange={() => setSections(toggle(sections, s))} title={SECTION_LABEL[s]} />
           ))}
         </fieldset>
         {sections.includes("services") ? (
@@ -51,10 +50,16 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
             <legend>Serviços no site</legend>
             {o.catalog.length === 0 ? <p className="tn-muted">Cadastre serviços em Clientes → Serviços.</p> : null}
             {o.catalog.map((c) => (
-              <label key={c.id} className="tn-prs-check">
-                <input type="checkbox" checked={ids.includes(c.id)} onChange={() => setIds(toggle(ids, c.id))} /> {c.name}
-                <span className="tn-muted"> · {c.duration_min} min{sections.includes("prices") ? ` · ${formatCents(c.base_price_cents)}` : ""}</span>
-              </label>
+              <ChoiceCard
+                key={c.id}
+                type="checkbox"
+                name="servico-site"
+                value={c.id}
+                checked={ids.includes(c.id)}
+                onChange={() => setIds(toggle(ids, c.id))}
+                title={c.name}
+                description={`${c.duration_min} min${sections.includes("prices") ? ` · ${formatCents(c.base_price_cents)}` : ""}`}
+              />
             ))}
           </fieldset>
         ) : null}
@@ -224,16 +229,16 @@ function GoogleCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Pre
           <Field label="Nome do perfil no Google" value={name} maxLength={120} error={errors.name} onChange={(e) => { setName(e.target.value); clear("name"); }} />
           <Field label="Link no Google Maps (opcional)" value={url} maxLength={300} inputMode="url" onChange={(e) => setUrl(e.target.value)} placeholder="https://maps.app.goo.gl/…" />
           <div>
-            <label className="tn-prs-check">
-              <input
-                type="checkbox"
-                checked={declared}
-                aria-invalid={errors.declared ? true : undefined}
-                aria-describedby={errors.declared ? "prs-declared-error" : undefined}
-                onChange={(e) => { setDeclared(e.target.checked); clear("declared"); }}
-              />{" "}
-              Adicionei a Tinindo como gerente e posso revogar quando quiser
-            </label>
+            <ChoiceCard
+              type="checkbox"
+              name="google-gerente"
+              value="declared"
+              checked={declared}
+              invalid={!!errors.declared}
+              describedBy={errors.declared ? "prs-declared-error" : undefined}
+              onChange={(on) => { setDeclared(on); clear("declared"); }}
+              title="Adicionei a Tinindo como gerente e posso revogar quando quiser"
+            />
             {errors.declared ? <span id="prs-declared-error" className="tn-field__error">{errors.declared}</span> : null}
           </div>
           <div className="tn-actions"><Button type="submit">Registrar acesso</Button></div>

@@ -35,3 +35,98 @@
   border-bottom: 1px solid var(--tn-border);
 }
 .tn-id-list li span { min-width: 0; overflow-wrap: anywhere; }
+
+/* "Mostrar senha" (E7): botão de alternância com a aparência de uma caixa de seleção, linha de 44 px. */
+.tn-password-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tn-space-2);
+  justify-self: start;
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-1);
+  border: 0;
+  background: transparent;
+  color: var(--tn-text);
+  font-size: var(--tn-text-support);
+  cursor: pointer;
+}
+.tn-password-toggle__box {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-sm);
+  font-size: var(--tn-text-label);
+}
+.tn-password-toggle[aria-pressed="true"] .tn-password-toggle__box { background: var(--tn-action); border-color: var(--tn-action); color: var(--tn-text-on-action); }
+.tn-auth__subtitle { margin: var(--tn-space-2) 0 var(--tn-space-4); color: var(--tn-text-muted); }
+
+/* Aceite dos termos (E8): links que abrem a folha com o texto; botão com cara de link e alvo de 44 px. */
+.tn-id-terms__read { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--tn-space-2); color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-id-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tn-size-touch);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tn-link);
+  font-size: var(--tn-text-support);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Fuso detectado (E9): uma linha, com a troca recolhida. */
+.tn-id-tz { display: grid; gap: var(--tn-space-1); }
+.tn-id-tz p { margin: 0; }
+.tn-id-tz summary { display: flex; align-items: center; min-height: var(--tn-size-touch); cursor: pointer; color: var(--tn-link); font-size: var(--tn-text-support); }
+.tn-id-tz details[open] summary { margin-bottom: var(--tn-space-2); }
+
+/* Folha (E8): sobe de baixo no celular, no centro no computador. Só o conteúdo rola. */
+.tn-id-sheet {
+  width: 100%;
+  max-width: 100%;
+  max-height: 88dvh;
+  margin: auto 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tn-radius-lg) var(--tn-radius-lg) 0 0;
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  box-shadow: var(--tn-shadow-lg);
+  overflow: hidden;
+}
+.tn-id-sheet::backdrop { background: color-mix(in srgb, var(--tn-color-tinta-950) 55%, transparent); }
+.tn-id-sheet__panel { display: flex; flex-direction: column; max-height: 88dvh; }
+.tn-id-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tn-space-3);
+  padding: var(--tn-space-3) var(--tn-space-4);
+  border-bottom: 1px solid var(--tn-border);
+}
+.tn-id-sheet__head h2 { margin: 0; font-size: var(--tn-text-section); }
+.tn-id-sheet__body { overflow-y: auto; overscroll-behavior: contain; padding: var(--tn-space-4) var(--tn-space-4) calc(var(--tn-space-6) + env(safe-area-inset-bottom)); }
+@media (min-width: 720px) {
+  .tn-id-sheet { width: min(100% - 2 * var(--tn-space-6), 720px); margin: auto; border-radius: var(--tn-radius-lg); }
+}
+
+
+/* Primeiros passos (E9/E13): uma lista só, no topo da Conta. */
+.tn-id-steps h2 { margin: 0; }
+.tn-id-steps ol { list-style: none; margin: var(--tn-space-3) 0 0; padding: 0; display: grid; gap: var(--tn-space-1); }
+.tn-id-steps li { display: flex; align-items: center; gap: var(--tn-space-3); min-height: var(--tn-size-touch); }
+.tn-id-steps li a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }
+.tn-id-steps__mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--tn-border-control);
+  border-radius: 50%;
+  font-size: var(--tn-text-support);
+}
+.tn-id-steps li[data-done] .tn-id-steps__mark { background: var(--tn-success-bg); color: var(--tn-success-text); border-color: currentColor; }

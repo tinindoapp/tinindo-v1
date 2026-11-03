@@ -2,12 +2,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { MyCustomerLink, Onboarding } from "@contracts";
-import { Card, ConfirmAction, PageHeader, StatusBanner, toast } from "../../components/ui/index.tsx";
+import { Card, ConfirmAction, LinkButton, PageHeader, StatusBanner, toast } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";
 import { OnboardingForm } from "./OnboardingForm.tsx";
 import { PROFESSION_PRESETS } from "./presets.ts";
-import { type BusinessSummary, useIdentityServices } from "./services.tsx";
+import { type BusinessSummary, type SetupProgress, useIdentityServices } from "./services.tsx";
 
 const ROLE_LABEL = { owner: "dono(a)", staff: "equipe" } as const;
 
@@ -43,15 +43,16 @@ export function AccountPage() {
         <PageHeader id="account-title" title="Sua conta" eyebrow="Conta" />
         {active ? (
           <p>
-            Negócio ativo: <strong>{active.tenant_name}</strong>, como {ROLE_LABEL[active.role]}. O servidor confere este
-            acesso em cada ação.
+            Negócio ativo: <strong>{active.tenant_name}</strong>, como {ROLE_LABEL[active.role]}.
           </p>
         ) : (
-          <p>Você ainda não tem um negócio na Tinindo.</p>
+          <>
+            <p>Você ainda não tem um negócio na Tinindo.</p>
+            <div className="tn-actions">
+              <LinkButton to="novo-negocio">Criar meu negócio</LinkButton>
+            </div>
+          </>
         )}
-        <div className="tn-actions">
-          <Link to="novo-negocio">{active ? "Criar outro negócio" : "Criar meu negócio"}</Link>
-        </div>
       </div>
 
       {active?.role === "owner" ? <BusinessOnboarding key={active.tenant_id} tenantId={active.tenant_id} /> : null}
@@ -64,21 +65,82 @@ export function AccountPage() {
           <Link to="nova-senha">Trocar senha</Link>
         </div>
       </Card>
+
+      {/* Outro negócio é raro: fica no fim, sem destaque (E13). */}
+      {active ? (
+        <p className="tn-muted">
+          Atende em outro lugar com outro nome? <Link to="novo-negocio">Criar outro negócio</Link>
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+/** Um único "Primeiros passos" (E9/E13), no topo da Conta enquanto falta algo. Cada passo leva à tela dele. */
+function FirstSteps({ onboarded, setup }: { onboarded: boolean; setup: SetupProgress }) {
+  const steps: { label: string; done: boolean | null; to?: string; href?: string }[] = [
+    { label: "Criar o negócio", done: true },
+    { label: "Dizer o que você quer resolver primeiro", done: onboarded, href: "#onboarding-title" },
+    { label: "Cadastrar seus serviços", done: setup.services, to: "/app/clientes/servicos" },
+    { label: "Definir seus horários de atendimento", done: setup.hours, to: "/app/agenda/horarios" },
+    { label: "Publicar seu perfil e mandar o link", done: setup.profile, to: "/app/perfil" },
+  ];
+  const known = steps.every((s) => s.done !== null);
+  const doneCount = steps.filter((s) => s.done).length;
+  return (
+    <Card aria-labelledby="first-steps-title">
+      <div className="tn-id-steps">
+        <h2 id="first-steps-title">
+          Primeiros passos
+          {known ? (
+            <span className="tn-num tn-muted">
+              {" "}
+              · {doneCount} de {steps.length}
+            </span>
+          ) : null}
+        </h2>
+        <ol>
+          {steps.map((s) => (
+            <li key={s.label} data-done={s.done || undefined}>
+              <span aria-hidden="true" className="tn-id-steps__mark">
+                {s.done ? "✓" : ""}
+              </span>
+              {s.done ? (
+                <span>
+                  {s.label}
+                  <span className="tn-visually-hidden"> (feito)</span>
+                </span>
+              ) : s.to ? (
+                <Link to={s.to}>{s.label}</Link>
+              ) : (
+                <a href={s.href} onClick={() => document.querySelector<HTMLElement>(s.href!)?.focus()}>
+                  {s.label}
+                </a>
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </Card>
   );
 }
 
 function BusinessOnboarding({ tenantId }: { tenantId: string }) {
   const services = useIdentityServices();
-  const [state, setState] = useState<Load<{ business: BusinessSummary; onboarding: Onboarding }>>({ kind: "loading" });
+  const [state, setState] = useState<Load<{ business: BusinessSummary; onboarding: Onboarding; setup: SetupProgress }>>({ kind: "loading" });
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([services.loadBusiness(tenantId), services.loadOnboarding(tenantId)])
-      .then(([business, onboarding]) => {
+    const unknown: SetupProgress = { services: null, hours: null, profile: null };
+    Promise.all([
+      services.loadBusiness(tenantId),
+      services.loadOnboarding(tenantId),
+      services.loadSetup(tenantId).catch(() => unknown),
+    ])
+      .then(([business, onboarding, setup]) => {
         if (cancelled) return;
         if (!business) setState({ kind: "error", message: "Não foi possível carregar o negócio." });
-        else setState({ kind: "ready", value: { business, onboarding: onboarding ?? emptyOnboarding(tenantId) } });
+        else setState({ kind: "ready", value: { business, onboarding: onboarding ?? emptyOnboarding(tenantId), setup } });
       })
       .catch((e: unknown) => {
         if (!cancelled) setState({ kind: "error", message: messageFor(e, "onboarding") });
@@ -88,27 +150,34 @@ function BusinessOnboarding({ tenantId }: { tenantId: string }) {
     };
   }, [services, tenantId]);
 
+  const ready = state.kind === "ready" ? state.value : null;
+  // Mostra os passos para quem acabou de entrar: enquanto falta o objetivo ou um passo que sabemos não feito.
+  const showSteps =
+    ready !== null && (ready.onboarding.completed_at === null || Object.values(ready.setup).some((done) => done === false));
   return (
-    <Card aria-labelledby="business-title">
-      <p className="tn-caps" id="business-title">
-        {state.kind === "ready" ? PROFESSION_PRESETS[state.value.business.profession].label : "Negócio"}
-      </p>
-      {state.kind === "loading" ? <p role="status">Carregando…</p> : null}
-      {state.kind === "error" ? <StatusBanner tone="danger">{state.message}</StatusBanner> : null}
-      {state.kind === "ready" ? (
-        <>
-          {!services.online ? (
-            <StatusBanner tone="info">Demonstração sem servidor: você pode ver as opções, mas nada é salvo.</StatusBanner>
-          ) : null}
-          <OnboardingForm
-            tenantId={tenantId}
-            profession={state.value.business.profession}
-            onboarding={state.value.onboarding}
-            onSaved={(onboarding) => setState({ kind: "ready", value: { ...state.value, onboarding } })}
-          />
-        </>
-      ) : null}
-    </Card>
+    <>
+      {showSteps && ready ? <FirstSteps onboarded={ready.onboarding.completed_at !== null} setup={ready.setup} /> : null}
+      <Card aria-labelledby="business-title">
+        <p className="tn-caps" id="business-title">
+          {state.kind === "ready" ? PROFESSION_PRESETS[state.value.business.profession].label : "Negócio"}
+        </p>
+        {state.kind === "loading" ? <p role="status">Carregando…</p> : null}
+        {state.kind === "error" ? <StatusBanner tone="danger">{state.message}</StatusBanner> : null}
+        {state.kind === "ready" ? (
+          <>
+            {!services.online ? (
+              <StatusBanner tone="info">Demonstração sem servidor: você pode ver as opções, mas nada é salvo.</StatusBanner>
+            ) : null}
+            <OnboardingForm
+              tenantId={tenantId}
+              profession={state.value.business.profession}
+              onboarding={state.value.onboarding}
+              onSaved={(onboarding) => setState({ kind: "ready", value: { ...state.value, onboarding } })}
+            />
+          </>
+        ) : null}
+      </Card>
+    </>
   );
 }
 

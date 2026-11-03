@@ -9,6 +9,7 @@ import {
   PublicConfirmOutput,
   PublicProfile,
   PublicServicesOutput,
+  type Profession,
   type ReferralCreateInput,
   ReferralLink,
 } from "@contracts";
@@ -56,9 +57,17 @@ export type BookRequest = z.infer<typeof PublicBookOutput> & {
 };
 export type BookConfirmed = z.infer<typeof PublicConfirmOutput>;
 
+/** Nome e profissão do negócio, para sugerir o endereço e a categoria do perfil (E9). */
+export interface BusinessBasics {
+  name: string;
+  profession: Profession;
+}
+
 export interface NetworkApi {
   /** `true` quando os dados são de demonstração (sem servidor): a UI exibe o rótulo. */
   readonly demo: boolean;
+  /** Nome e profissão já informados ao criar o negócio; null se não deu para ler (a tela pede como antes). */
+  getBusiness(): Promise<BusinessBasics | null>;
   getOwnProfile(): Promise<OwnerProfile | null>;
   publishProfile(input: z.input<typeof ProfilePublishInput>, idempotencyKey: string): Promise<PublicProfileData>;
   unpublishProfile(idempotencyKey: string): Promise<void>;
@@ -88,10 +97,18 @@ type Call = <T extends z.ZodType>(
   opts?: CallOptions,
 ) => Promise<{ data: z.infer<T> }>;
 
-export function createHttpNetworkApi(call: Call, tenantId: string | null, storage: PhotoStorage | null = null): NetworkApi {
+export function createHttpNetworkApi(
+  call: Call,
+  tenantId: string | null,
+  storage: PhotoStorage | null = null,
+  readBusiness: (tenantId: string) => Promise<BusinessBasics | null> = async () => null,
+): NetworkApi {
   const tenant = tenantId ?? undefined;
   return {
     demo: false,
+    async getBusiness() {
+      return tenantId ? readBusiness(tenantId).catch(() => null) : null;
+    },
     async getOwnProfile() {
       return (await call("/network/profile.get", OwnerProfileOutput, { tenantId: tenant })).data.profile;
     },
@@ -244,6 +261,9 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
   const now = () => new Date().toISOString();
   return {
     demo: true,
+    async getBusiness() {
+      return { name: tenantA.name, profession: tenantA.profession };
+    },
     async getOwnProfile() {
       return demoState.profile;
     },
