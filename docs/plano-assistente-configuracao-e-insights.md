@@ -66,7 +66,26 @@ Aceite: nenhuma regra dispara sem dado suficiente (`insufficient` ≠ zero); nen
 
 Liga o provedor nos pontos que o ADR-0012 §1 deixou prontos. Depende da decisão de provedor, chave e termos de dados (pendência D do jurídico).
 
-- **Adaptador de provedor** em `_shared/llm/` com uma interface só (`complete({system, input, schema})`), saída estruturada validada por zod, tempo máximo, retentativa única e `provider: none` como padrão. Chave no secret store do Supabase; nunca no bundle.
+- **Adaptador de vários provedores** em `supabase/functions/_shared/llm/`, decisão do Felipe (03/11): trocar de provedor é mudar segredo, não código.
+  - **Uma interface só** para o resto do sistema: `llm.extract({task, system, input, schema})` devolve um objeto validado pelo schema zod da tarefa, ou `null`. Ninguém fora de `_shared/llm/` sabe qual provedor está ligado.
+  - **Três adaptadores**, cada um com o SDK oficial do provedor importado por `npm:` no Deno: `anthropic.ts` (`@anthropic-ai/sdk`), `openai.ts` (`openai`) e `gemini.ts` (`@google/genai`). Mais `none.ts`, o padrão, que devolve `null` e deixa o fluxo determinístico seguir.
+  - **Saída estruturada em todos**: o schema zod vira JSON Schema e vai pelo recurso de saída estruturada de cada provedor. A resposta sempre passa de novo pelo zod antes de ser usada; inválida conta como falha.
+  - **Configuração só por segredos do Supabase** (`npx supabase secrets set …`), nunca no bundle:
+
+    | Segredo | Exemplo | Para quê |
+    |---|---|---|
+    | `LLM_PROVIDER` | `none` · `anthropic` · `openai` · `gemini` | Qual adaptador usar. Ausente = `none`. |
+    | `LLM_MODEL` | `claude-haiku-5-5` | Modelo do provedor escolhido. Sem padrão para OpenAI e Gemini: o nome vem do segredo, para não fixar modelo no código. |
+    | `LLM_MODEL_<TAREFA>` | `LLM_MODEL_DRAFT=…` | Opcional: modelo diferente por tarefa (`INTENT`, `SETUP`, `DRAFT`, `EXPLAIN`). |
+    | `ANTHROPIC_API_KEY` · `OPENAI_API_KEY` · `GEMINI_API_KEY` | — | Chave do provedor ligado. Só a do ativo precisa existir. |
+    | `LLM_TIMEOUT_MS` | `8000` | Tempo máximo por chamada. |
+    | `LLM_FALLBACK_PROVIDER` | `none` | Opcional: segundo provedor se o primeiro falhar. Padrão `none` (cai no determinístico). |
+
+    Trocar de provedor = mudar `LLM_PROVIDER`, `LLM_MODEL` e a chave, e reiniciar as funções. Nenhum deploy de código.
+  - **Padrão recomendado para começar:** `anthropic` com `claude-haiku-5-5` (US$ 0,10 por milhão de tokens de entrada e US$ 0,50 de saída), com esforço `low` para extração. É o mais barato da família Anthropic e suficiente para entender pedidos, ler a frase do negócio e redigir.
+  - **Sem `temperature`, `top_p` nem `top_k`** nas chamadas à Anthropic (a API passa a recusar esses campos); controlar pelo esforço e pelo schema.
+  - **Registro por chamada sem conteúdo**: tarefa, provedor, modelo, tokens de entrada e saída, custo estimado, tempo e resultado (`ok`, `invalid`, `timeout`, `error`). Tabela de preço por modelo num arquivo de configuração versionado, para o custo do mês aparecer por negócio.
+  - **Teste de contrato dos adaptadores**: cada um roda contra um servidor falso que imita a resposta do provedor (sem rede no CI), cobrindo sucesso, JSON inválido, recusa, limite (429) e tempo esgotado. Um teste opcional, fora do CI, roda com chave real quando a variável estiver definida.
 - **Onde o modelo entra**, nesta ordem de valor:
   1. **P08**: entender pedidos livres ("marca a Maria quinta de manhã que nem da outra vez") → intenção e argumentos → as mesmas ferramentas e propostas. O texto de resposta continua vindo dos modelos fixos com os números das ferramentas.
   2. **P44**: a frase do negócio em linguagem livre → rascunho estruturado.
@@ -74,7 +93,7 @@ Liga o provedor nos pontos que o ADR-0012 §1 deixou prontos. Depende da decisã
   4. **Explicação de insight** em uma frase simples, a partir da evidência calculada.
 - **Configuração em conversa**: no `/app/assistente`, "Me ajuda a configurar" conduz pelos passos do P44 (o estado vem de `setup.progress`), um por vez, e cada confirmação grava pelas operações normais.
 - **Segurança e custo**: para o modelo vão só os campos necessários; nomes de clientes viram rótulos ("cliente 1") quando a tarefa permite; nunca telefone, e-mail ou documento. A franquia do P08 cobre as chamadas. Os 40 casos de avaliação ganham variantes em linguagem livre e os critérios fortes continuam (zero ação proibida, zero vazamento, valores corretos em 100% dos casos determinísticos). Registro sem texto da conversa.
-- **Decisões do fundador antes de começar**: provedor e modelo; orçamento mensal; DPA e cláusula de não treinamento; texto na política de privacidade (pendência D); região e retenção do provedor.
+- **Decisões do fundador antes de ligar (o código pode ser feito antes, com `LLM_PROVIDER=none`)**: qual provedor ligar primeiro (sugestão: Anthropic, Haiku 5.5); orçamento mensal; termos de dados e não treinamento do provedor escolhido; texto na política de privacidade (pendência D); região e retenção.
 
 Aceite: com `provider: none`, tudo do P44 e do P45 funciona igual; com provedor, as avaliações passam; um provedor fora do ar devolve a resposta determinística, não erro.
 
@@ -84,7 +103,7 @@ Aceite: com `provider: none`, tudo do P44 e do P45 funciona igual; com provedor,
 |---|---|---|---|
 | 1 | P44 | nada | 1 sessão longa (6 h) |
 | 2 | P45 | P44 (passo "perfil incompleto"), P22 | 1 sessão longa (6 h) |
-| 3 | P46 | decisão de provedor + chave | 1 sessão longa, depois de P44 e P45 |
+| 3 | P46 | nada para o código (`LLM_PROVIDER=none`); chave e termos só para ligar | 1 sessão longa, em paralelo ou depois de P44 e P45 |
 
 P44 e P45 podem rodar em paralelo se as áreas ficarem separadas: P44 em `src/features/setup/` e `supabase/functions/setup/`; P45 em `src/features/growth-advice/` (estende o P22) e no `jobs`. A Home é do integrador; cada pacote entrega o cartão como componente e o integrador liga.
 
