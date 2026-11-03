@@ -195,7 +195,7 @@ O Playwright passou a aceitar `E2E_PORT`, para rodar duas cópias do repositóri
 
 ## O que ficou em parte (depende do Felipe)
 
-Os pedidos foram publicados como issues `[recado]` com a etiqueta `para-felipe`.
+Os pedidos foram publicados como issues `[recado]` com a etiqueta `para-felipe`: #87 (termos), #88 (equipe Tinindo), #89 (telefone em Orçamentos, não lidas e verificação de identidade) e #90 (decisões).
 
 - **E8:** texto final dos termos e da política e as versões que o aceite grava.
 - **60:** sinal de "equipe Tinindo" na sessão, para bloquear a rota no cliente. Hoje quem bloqueia é a resposta FORBIDDEN do servidor.
