@@ -8,6 +8,8 @@
 # Uso: PGHOST=/tmp PGPORT=54329 PGUSER=postgres npm run db:test:concurrency
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
+# Pasta própria: o $TMP do runner é o mesmo para todos os scripts (arquivos p.*, k.* de outros não entram na contagem).
+TMP=$(mktemp -d "${TMP:-/tmp}/conc.XXXXXX")
 
 OWNER_A=a0000000-0000-4000-8000-00000000000a
 TENANT_A=10000000-0000-4000-8000-00000000000a
