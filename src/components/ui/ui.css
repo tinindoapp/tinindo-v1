@@ -76,7 +76,7 @@
   border: 1px solid var(--tn-border);
   border-radius: var(--tn-radius-lg);
   padding: var(--tn-space-4);
-  box-shadow: var(--tn-shadow-sm);
+  box-shadow: var(--tn-elevation-1);
 }
 @media (min-width: 900px) { .tn-card { padding: var(--tn-space-6); } }
 
@@ -166,9 +166,9 @@
   border-radius: var(--tn-radius-md);
   border: 1px solid var(--tn-border);
   border-left: 4px solid var(--tn-tone);
-  background: var(--tn-surface);
+  background: var(--tn-surface-float);
   color: var(--tn-text);
-  box-shadow: var(--tn-shadow-lg);
+  box-shadow: var(--tn-elevation-2);
   font-size: var(--tn-text-support);
   /* O aviso não bloqueia a tela: o toque no texto atravessa para o que está embaixo (ex.: "Cobrar no Caixa" logo
      acima da barra de abas). Só "Desfazer" e "Fechar" recebem toque. */
@@ -340,6 +340,7 @@
   background: var(--tn-surface);
   border: 1px solid var(--tn-border);
   border-radius: var(--tn-radius-lg);
+  box-shadow: var(--tn-elevation-1);
   overflow: hidden;
 }
 .tn-list > li + li { border-top: 1px solid var(--tn-border); }
