@@ -22,7 +22,9 @@ test("dono publica o perfil, vê a prévia e gera convite sem envio automático"
   await page.getByLabel("Bairro ou região").fill("Centro");
   await page.getByRole("button", { name: "Publicar perfil" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Perfil publicado." })).toBeVisible();
-  await expect(page.getByRole("region", { name: /Primeiros passos/ })).toContainText("2 de 3");
+  // Os primeiros passos ficam numa lista só, em Conta (E9); aqui o perfil no ar já mostra o link para mandar.
+  await expect(page.getByRole("region", { name: /Primeiros passos/ })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Seu perfil está no ar!" })).toBeVisible();
   await noHorizontalScroll(page);
 
   await page.getByRole("link", { name: "Ver como o cliente vê" }).click();
@@ -48,7 +50,7 @@ test("dono publica o perfil, vê a prévia e gera convite sem envio automático"
   expect(link).toMatch(/\/convite#t=[A-Za-z0-9_-]{43}$/);
   expect(link).not.toContain("Colega");
   await expect(page.getByText("A Tinindo não manda mensagem para ninguém.", { exact: false })).toBeVisible();
-  await expect(page.getByRole("region", { name: /Primeiros passos/ })).toContainText("3 de 3");
+  await expect(page.getByRole("heading", { name: "Convites gerados" })).toBeVisible();
   await noHorizontalScroll(page);
 });
 

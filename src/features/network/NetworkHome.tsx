@@ -4,8 +4,8 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { Profession, PublicProfileField as PublicProfileFieldSchema } from "@contracts";
 import type { z } from "zod";
-import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import type { NetworkApi, OwnerProfile, ReferralLinkData, ReferralSummary } from "./api.ts";
+import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import type { BusinessBasics, NetworkApi, OwnerProfile, ReferralLinkData, ReferralSummary } from "./api.ts";
 import { ProfileMediaEditor } from "./ProfileMedia.tsx";
 import { ShareActions, ShareLink } from "./ShareLink.tsx";
 import { CATEGORY_LABEL, errorMessage, formatDateTime, newIdempotencyKey, useNetworkApi } from "./useNetworkApi.ts";
@@ -24,6 +24,19 @@ export function NetworkHome() {
   const [profile, setProfile] = useState<OwnerProfile | null | undefined>(undefined);
   const [referrals, setReferrals] = useState<ReferralSummary[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Nome e profissão dados ao criar o negócio (E9): sugerem o endereço e a categoria, sem perguntar de novo.
+  const [business, setBusiness] = useState<BusinessBasics | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getBusiness().then(
+      (b) => !cancelled && setBusiness(b),
+      () => !cancelled && setBusiness(null),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
 
   const reload = useCallback(
     () =>
@@ -62,7 +75,6 @@ export function NetworkHome() {
 
   const published = !!profile?.published_at;
   const bookingOn = published && !!profile?.public_fields.includes("booking_link");
-  const invited = referrals.some((r) => r.kind === "professional_invites_peer");
 
   return (
     <div className="tn-stack">
@@ -75,9 +87,13 @@ export function NetworkHome() {
           <StatusBanner tone="info">Demonstração: nada é salvo e nenhum link funciona fora desta aba.</StatusBanner>
         ) : null}
         {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
-        <Onboarding published={published} bookingOn={bookingOn} invited={invited} />
       </div>
-      {profile !== undefined ? <ProfileEditor api={api} profile={profile} onSaved={reload} /> : <p role="status">Carregando…</p>}
+      {/* Os primeiros passos do negócio ficam numa lista só, em Conta (E9); aqui, só o perfil. */}
+      {profile !== undefined && business !== undefined ? (
+        <ProfileEditor api={api} profile={profile} business={business} onSaved={reload} />
+      ) : (
+        <p role="status">Carregando…</p>
+      )}
       {/* Depois de salvar, a versão muda e o formulário recomeça do que está gravado. */}
       {profile ? <ProfileMediaEditor key={profile.version} api={api} profile={profile} onSaved={reload} /> : null}
       {published && profile ? <ProfileLive slug={profile.slug} bookingOn={bookingOn} demo={api.demo} /> : null}
@@ -102,36 +118,6 @@ function ProfileLive({ slug, bookingOn, demo }: { slug: string; bookingOn: boole
   );
 }
 
-function Onboarding({ published, bookingOn, invited }: { published: boolean; bookingOn: boolean; invited: boolean }) {
-  // Progressivo: o convite a colega só aparece depois do primeiro valor (perfil no ar).
-  const steps = [
-    { done: published, label: "Publicar seu perfil" },
-    { done: bookingOn, label: "Mostrar o link de horários no perfil" },
-    ...(published ? [{ done: invited, label: "Convidar um colega (opcional)" }] : []),
-  ];
-  const doneCount = steps.filter((s) => s.done).length;
-  return (
-    <section aria-labelledby="passos-titulo" className="tn-net-steps">
-      <h2 id="passos-titulo">
-        Primeiros passos <span className="tn-num tn-muted">· {doneCount} de {steps.length}</span>
-      </h2>
-      <ol>
-        {steps.map((s) => (
-          <li key={s.label} data-done={s.done}>
-            <span aria-hidden="true" className="tn-net-check">
-              {s.done ? "✓" : ""}
-            </span>
-            <span>
-              {s.label}
-              <span className="tn-visually-hidden">{s.done ? " (feito)" : " (pendente)"}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/;
 
 function slugify(text: string) {
@@ -144,9 +130,21 @@ function slugify(text: string) {
     .slice(0, 50);
 }
 
-function ProfileEditor({ api, profile, onSaved }: { api: NetworkApi; profile: OwnerProfile | null; onSaved: () => Promise<void> }) {
-  const [slug, setSlug] = useState(profile?.slug ?? "");
-  const [category, setCategory] = useState<Profession>(profile?.category ?? "barber");
+function ProfileEditor({
+  api,
+  profile,
+  business,
+  onSaved,
+}: {
+  api: NetworkApi;
+  profile: OwnerProfile | null;
+  business: BusinessBasics | null;
+  onSaved: () => Promise<void>;
+}) {
+  // Endereço sugerido pelo nome do negócio; a pessoa pode trocar.
+  const [slug, setSlug] = useState(profile?.slug ?? (business ? slugify(business.name) : ""));
+  // O contrato pede a categoria: vem da profissão do negócio (a pessoa já disse), com a troca recolhida.
+  const [category, setCategory] = useState<Profession>(profile?.category ?? business?.profession ?? "barber");
   const [area, setArea] = useState(profile?.area ?? "");
   const [fields, setFields] = useState<PublicProfileField[]>(
     profile?.public_fields.filter((f) => f !== "area" && f !== "category") ?? ["display_name", "booking_link"],
@@ -230,25 +228,41 @@ function ProfileEditor({ api, profile, onSaved }: { api: NetworkApi; profile: Ow
             touch();
           }}
           placeholder="ex.: barbearia-do-centro"
-          hint="Letras minúsculas, números e hífen."
+          hint={
+            <>
+              Seu link: <span className="tn-net-url">{`${window.location.host}/p/${slug || "…"}`}</span>. Letras minúsculas,
+              números e hífen.
+            </>
+          }
           error={errors.slug}
           required
         />
-        <Field
-          as="select"
-          label="Categoria"
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value as Profession);
-            touch();
-          }}
-        >
-          {(Object.keys(CATEGORY_LABEL) as Profession[]).map((p) => (
-            <option key={p} value={p}>
-              {CATEGORY_LABEL[p]}
-            </option>
-          ))}
-        </Field>
+        {business ? (
+          <div className="tn-net-category">
+            <p>
+              Categoria: <strong>{CATEGORY_LABEL[category]}</strong>
+              {category === business.profession ? <span className="tn-muted"> · a profissão do seu negócio</span> : null}
+            </p>
+            <details>
+              <summary>Trocar a categoria do perfil</summary>
+              <CategorySelect
+                value={category}
+                onChange={(p) => {
+                  setCategory(p);
+                  touch();
+                }}
+              />
+            </details>
+          </div>
+        ) : (
+          <CategorySelect
+            value={category}
+            onChange={(p) => {
+              setCategory(p);
+              touch();
+            }}
+          />
+        )}
         <Field
           label="Bairro ou região"
           value={area}
@@ -265,17 +279,18 @@ function ProfileEditor({ api, profile, onSaved }: { api: NetworkApi; profile: Ow
         <fieldset className="tn-net-fieldset">
           <legend>O que aparece no perfil</legend>
           {SELECTABLE.map(({ field, label }) => (
-            <label key={field} className="tn-net-check-row">
-              <input
-                type="checkbox"
-                checked={fields.includes(field)}
-                onChange={(e) => {
-                  setFields((cur) => (e.target.checked ? [...cur, field] : cur.filter((f) => f !== field)));
-                  touch();
-                }}
-              />
-              {label}
-            </label>
+            <ChoiceCard
+              key={field}
+              type="checkbox"
+              name="campos-perfil"
+              value={field}
+              checked={fields.includes(field)}
+              onChange={(on) => {
+                setFields((cur) => (on ? [...cur, field] : cur.filter((f) => f !== field)));
+                touch();
+              }}
+              title={label}
+            />
           ))}
           <p className="tn-muted">
             Categoria e região sempre aparecem no perfil publicado. Não use endereço residencial nem telefone pessoal.
@@ -294,6 +309,18 @@ function ProfileEditor({ api, profile, onSaved }: { api: NetworkApi; profile: Ow
         </div>
       </form>
     </Card>
+  );
+}
+
+function CategorySelect({ value, onChange }: { value: Profession; onChange: (p: Profession) => void }) {
+  return (
+    <Field as="select" label="Categoria" value={value} onChange={(e) => onChange(e.target.value as Profession)}>
+      {(Object.keys(CATEGORY_LABEL) as Profession[]).map((p) => (
+        <option key={p} value={p}>
+          {CATEGORY_LABEL[p]}
+        </option>
+      ))}
+    </Field>
   );
 }
 

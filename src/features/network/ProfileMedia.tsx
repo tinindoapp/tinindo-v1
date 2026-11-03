@@ -5,13 +5,9 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ChoiceCard, Field, StatusBanner, toast } from "../../components/ui/index.tsx";
 import type { NetworkApi, OwnerProfile } from "./api.ts";
 import { PhotoError, type ProcessedPhoto, processPhoto } from "./photo.ts";
-import { errorMessage, newIdempotencyKey } from "./useNetworkApi.ts";
+import { errorMessage, formatPhoneBr, newIdempotencyKey } from "./useNetworkApi.ts";
 
 /** "+5511999990001" → "(11) 99999-0001". */
-function formatBrPhone(e164: string): string {
-  const m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
-}
 
 export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi; profile: OwnerProfile; onSaved: () => Promise<void> }) {
   const m = profile.media;
@@ -154,7 +150,7 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
             title="Mostrar botão do WhatsApp"
             description={
               m.whatsapp_e164
-                ? `Abre uma conversa com o número do negócio, ${formatBrPhone(m.whatsapp_e164)}.`
+                ? `Abre uma conversa com o número do negócio, ${formatPhoneBr(m.whatsapp_e164)}.`
                 : "Conecte o WhatsApp do negócio em Mensagens para o botão aparecer."
             }
           />

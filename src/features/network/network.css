@@ -15,20 +15,6 @@
   color: var(--tn-text-muted);
 }
 
-.tn-net-steps ol { list-style: none; margin: var(--tn-space-3) 0 0; padding: 0; display: grid; gap: var(--tn-space-2); }
-.tn-net-steps li { display: flex; align-items: center; gap: var(--tn-space-3); min-height: var(--tn-size-touch-min); }
-.tn-net-check {
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1.5px solid var(--tn-border-control);
-  border-radius: 50%;
-  font-size: var(--tn-text-support);
-}
-.tn-net-steps li[data-done="true"] .tn-net-check { background: var(--tn-success-bg); color: var(--tn-success-text); border-color: currentColor; }
-
 .tn-net-fieldset {
   display: grid;
   gap: var(--tn-space-2);
@@ -39,8 +25,6 @@
   min-width: 0;
 }
 .tn-net-fieldset legend { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); padding: 0 var(--tn-space-1); }
-.tn-net-check-row { display: flex; align-items: center; gap: var(--tn-space-3); min-height: var(--tn-size-touch); }
-.tn-net-check-row input { width: 20px; height: 20px; accent-color: var(--tn-action); }
 
 .tn-net-share { margin-top: var(--tn-space-4); }
 .tn-net-share input {
@@ -143,9 +127,6 @@
 @media (hover: hover) { .tn-net-day:hover { background: var(--tn-action-subtle); } }
 .tn-net-day[data-selected] { background: var(--tn-selected-bg); border-color: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
 
-.tn-net-public { min-height: 100dvh; background: var(--tn-bg); }
-.tn-net-public__header { padding: var(--tn-space-4); max-width: 720px; margin: 0 auto; }
-.tn-net-public__main { padding: 0 var(--tn-space-4) var(--tn-space-10); max-width: 720px; margin: 0 auto; }
 
 /* Foto do negócio (recado #64, item 4): ao lado do nome no perfil público e na prévia do dono. */
 .tn-net-head {
@@ -163,4 +144,31 @@
   height: 96px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+/* Endereço do perfil e categoria sugeridos (E9): prévia do link e troca recolhida. */
+.tn-net-url { font-family: var(--tn-font-mono); overflow-wrap: anywhere; }
+.tn-net-category { display: grid; gap: var(--tn-space-1); }
+.tn-net-category p { margin: 0; }
+.tn-net-category summary { display: flex; align-items: center; min-height: var(--tn-size-touch); cursor: pointer; color: var(--tn-link); font-size: var(--tn-text-support); }
+.tn-net-category details[open] summary { margin-bottom: var(--tn-space-2); }
+
+/* Perfil (E12): reserva primeiro; links de quem já é cliente e o aviso no rodapé. */
+.tn-net-booking { scroll-margin-top: var(--tn-space-4); }
+.tn-net-foot { display: grid; gap: var(--tn-space-2); padding-top: var(--tn-space-4); border-top: 1px solid var(--tn-border); font-size: var(--tn-text-support); }
+.tn-net-foot p { margin: 0; }
+.tn-net-foot a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }
+
+/* "Número errado? Corrigir" (E10): botão com cara de link e alvo de 44 px. */
+.tn-net-fix { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-1); }
+.tn-net-linkbutton {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-1);
+  border: 0;
+  background: transparent;
+  color: var(--tn-link);
+  text-decoration: underline;
+  cursor: pointer;
 }

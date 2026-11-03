@@ -1,0 +1,4 @@
+/* Moldura das páginas públicas (PublicLayout). Só tokens. */
+.tn-net-public { min-height: 100dvh; background: var(--tn-bg); }
+.tn-net-public__header { padding: var(--tn-space-4); max-width: 720px; margin: 0 auto; }
+.tn-net-public__main { padding: 0 var(--tn-space-4) var(--tn-space-10); max-width: 720px; margin: 0 auto; }
