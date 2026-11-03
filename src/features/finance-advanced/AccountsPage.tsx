@@ -4,6 +4,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, Stat, Stats, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
+import { plural, pluralWord } from "../../lib/text/plural.ts";
 import {
   addDays, BASE_LABEL, EXPENSE_BASES, explain, formatCents, formatDay, METHOD_LABEL, monthLabel, parseBRL, periodLabel, SOURCE_LABEL, STATUS_LABEL,
 } from "./labels.ts";
@@ -85,7 +86,7 @@ function PayableRow({ p, port, onChange }: { p: AccPayable; port: AccountsPort; 
     <li className="tn-acc-item" data-status={p.status}>
       <div>
         <strong>{p.description}</strong>{p.supplier ? ` · ${p.supplier}` : ""}
-        <div className="tn-muted">vence {formatDay(p.due_on)} · {p.category_name ?? BASE_LABEL[p.base_category]}{p.series_id ? " · todo mês" : ""}{p.reversals ? ` · ${p.reversals} estorno(s)` : ""}</div>
+        <div className="tn-muted">vence {formatDay(p.due_on)} · {p.category_name ?? BASE_LABEL[p.base_category]}{p.series_id ? " · todo mês" : ""}{p.reversals ? ` · ${plural(p.reversals, "estorno")}` : ""}</div>
       </div>
       <div className="tn-acc-right">
         <span className="tn-num">{formatCents(p.amount_cents)}</span>
@@ -124,7 +125,7 @@ function SeriesRow({ s, port, onChange }: { s: AccSeries; port: AccountsPort; on
           </Button>
           <ConfirmAction trigger="Encerrar" triggerLabel={`Encerrar ${s.description}`} title={`Encerrar “${s.description}”?`}
             consequence={<p>As contas futuras ainda não pagas são canceladas. As já pagas ficam como estão.</p>} confirmLabel="Sim, encerrar"
-            onConfirm={async () => { try { const r = await port.updateSeries(s, "end", newKey()); toast(`Encerrada: ${r.affected} conta(s) futura(s) cancelada(s).`); onChange(); } catch (err) { fail(err); throw err; } }} />
+            onConfirm={async () => { try { const r = await port.updateSeries(s, "end", newKey()); toast(`Encerrada: ${plural(r.affected, "conta futura cancelada", "contas futuras canceladas")}.`); onChange(); } catch (err) { fail(err); throw err; } }} />
         </div>
       ) : null}
     </li>
@@ -134,11 +135,11 @@ function SeriesRow({ s, port, onChange }: { s: AccSeries; port: AccountsPort; on
 function StatementView({ st, entries, categories, port, onChange }: { st: AccStatement; entries: AccEntry[]; categories: AccCategory[]; port: AccountsPort; onChange: () => void }) {
   const c = st.coverage;
   const gaps = [
-    c.uncharged_bookings ? `${c.uncharged_bookings} atendimento(s) concluído(s) sem cobrança (${formatCents(c.uncharged_cents)})` : null,
-    c.payables_unpaid ? `${c.payables_unpaid} conta(s) do mês ainda não paga(s) (${formatCents(c.payables_unpaid_cents)})` : null,
+    c.uncharged_bookings ? `${plural(c.uncharged_bookings, "atendimento concluído", "atendimentos concluídos")} sem cobrança (${formatCents(c.uncharged_cents)})` : null,
+    c.payables_unpaid ? `${plural(c.payables_unpaid, "conta do mês ainda não paga", "contas do mês ainda não pagas")} (${formatCents(c.payables_unpaid_cents)})` : null,
     c.receivables_open_cents ? `${formatCents(c.receivables_open_cents)} a receber já vencido (não entrou)` : null,
-    c.days_unreconciled ? `${c.days_unreconciled} dia(s) com recebimento sem conferir o extrato` : null,
-    c.unclassified_entries ? `${c.unclassified_entries} lançamento(s) sem categoria própria (ficam na categoria de origem)` : null,
+    c.days_unreconciled ? `${plural(c.days_unreconciled, "dia")} com recebimento sem conferir o extrato` : null,
+    c.unclassified_entries ? `${plural(c.unclassified_entries, "lançamento")} sem categoria própria (${pluralWord(c.unclassified_entries, "fica", "ficam")} na categoria de origem)` : null,
   ].filter(Boolean);
   return (
     <>
@@ -217,9 +218,9 @@ function ReconcileRow({ r, day, port, onChange }: { r: AccReconciliationRow; day
     <li className="tn-acc-item">
       <div>
         <strong>{label}</strong>
-        <div className="tn-muted">registrado {formatCents(r.ledger_cents)} em {r.entries} recebimento(s)
+        <div className="tn-muted">registrado {formatCents(r.ledger_cents)} em {plural(r.entries, "recebimento")}
           {r.partner_paid_cents !== null ? ` · o provedor diz ${formatCents(r.partner_paid_cents)}` : ""}
-          {r.partner_differences ? ` · ${r.partner_differences} diferença(s) na conciliação do provedor` : ""}</div>
+          {r.partner_differences ? ` · ${plural(r.partner_differences, "diferença")} na conciliação do provedor` : ""}</div>
         {r.statement ? <div className={r.statement.difference_cents === 0 ? "tn-acc-ok" : "tn-acc-diff"}>
           {r.statement.difference_cents === 0 ? "Conferido: bate com o extrato" : `Conferido com diferença de ${formatCents(r.statement.difference_cents)}`} ({formatCents(r.statement.statement_cents)} no extrato)
         </div> : <div className="tn-muted">Ainda não conferido.</div>}

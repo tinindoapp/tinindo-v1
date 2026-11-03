@@ -34,7 +34,7 @@ Reserva: `coord.py claim P31 --session claude-int-p31` · branch `task/p31/claud
 
 ## Comandos e resultados (local, Postgres 16 + pgTAP)
 
-Bateria completa local: unit 584 · contratos 593 (com os do P31) · pgTAP 29 arquivos ok · concorrência 24 scripts ok · integração 124 · deno 27 funções · e2e 217 passaram, 33 fixme preexistentes. Resultados do pacote:
+Bateria completa local (com a main de 03/11, onda 3): unit 593 · contratos 626 · pgTAP 29 arquivos ok · concorrência 24 scripts ok · integração 124 · deno 27 funções · e2e 217 passaram, 33 fixme preexistentes. Resultados do pacote:
 
 | Comando | Resultado |
 |---|---|

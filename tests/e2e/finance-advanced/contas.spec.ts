@@ -15,8 +15,8 @@ test("contas: caixa do mês com período e cobertura, categoria própria, pagar 
   await expect(summary).toContainText(/Saiu\s*R\$\s1\.535,00/);
   await expect(summary).toContainText(/Sobrou\s*-R\$\s1\.235,00/);
   const gaps = page.getByRole("region", { name: "O que falta lançar" });
-  await expect(gaps).toContainText("1 atendimento(s) concluído(s) sem cobrança");
-  await expect(gaps).toContainText("dia(s) com recebimento sem conferir o extrato");
+  await expect(gaps).toContainText("1 atendimento concluído sem cobrança");
+  await expect(gaps).toContainText(/dias? com recebimento sem conferir o extrato/);
   await expect(page.getByText(/Não é DRE/)).toBeVisible();
 
   // Categoria própria de receita e classificação da assinatura.
@@ -41,7 +41,7 @@ test("contas: caixa do mês com período e cobertura, categoria própria, pagar 
   await expect(page.getByText("“Conta de luz” paga: R$ 180,00 saiu no Caixa.")).toBeVisible();
   await page.getByRole("button", { name: "Desfazer" }).click();
   await expect(page.getByText("Pagamento desfeito: a despesa foi estornada no Caixa.")).toBeVisible();
-  await expect(luz).toContainText("1 estorno(s)");
+  await expect(luz).toContainText("1 estorno");
   await luz.getByRole("button", { name: /^Pagar Conta de luz/ }).click();
   await expect(luz).toContainText("Paga");
   await expect(luz.getByRole("button", { name: /^Pagar/ })).toHaveCount(0);
@@ -49,7 +49,7 @@ test("contas: caixa do mês com período e cobertura, categoria própria, pagar 
   await expect(luz.getByRole("group", { name: "Estornar o pagamento?" })).toContainText("volta a ficar a pagar");
   await luz.getByRole("button", { name: "Sim, estornar" }).click();
   await expect(page.getByText("Pagamento estornado no Caixa.")).toBeVisible();
-  await expect(luz).toContainText("2 estorno(s)");
+  await expect(luz).toContainText("2 estornos");
 
   // Nova conta: erros embaixo dos campos; conta mensal cria 12.
   await page.getByRole("button", { name: "Nova conta" }).click();
