@@ -20,13 +20,16 @@ test("Home: até 3 sugestões com evidência; Agora não silencia; Ver leva à p
     await expect(item.getByRole("button", { name: /^Agora não/ })).toBeVisible();
     await expect(item.getByRole("button", { name: /^Ver/ }).or(item.getByRole("link", { name: /^Ver/ }))).toHaveCount(1);
   }
-  // O cartão fica logo abaixo do cartão de configuração (P44), antes do resumo e da agenda do dia.
+  // O cartão fica logo abaixo do cartão de configuração (P44), antes do resumo e da agenda do dia (espera os dois carregarem).
+  await expect(page.getByRole("heading", { name: "Atendimentos de hoje" })).toBeVisible();
+  await expect(page.locator("[aria-labelledby='setup-card-title']")).toBeVisible();
   const order = await page.locator("main").evaluate((m) => [...m.querySelectorAll("[aria-labelledby], .tn-stats, #home-insights, #home-next")]
     .map((e) => (e.id || e.getAttribute("aria-labelledby") || e.className) as string));
   const setupAt = order.findIndex((x) => /setup/i.test(x));
   const insightsAt = order.indexOf("home-insights");
   expect(insightsAt).toBeGreaterThan(-1);
-  if (setupAt >= 0) expect(insightsAt).toBeGreaterThan(setupAt);
+  expect(insightsAt).toBeGreaterThan(setupAt);
+  expect(setupAt).toBeGreaterThan(-1);
   expect(insightsAt).toBeLessThan(order.findIndex((x) => /home-next/.test(x)));
 
   // "Agora não": sai da Home por 30 dias.
