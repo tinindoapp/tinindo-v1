@@ -844,12 +844,12 @@
       "owner": "fffalleiros",
       "session": "claude-int-p45",
       "branch": "task/p45/claude-int-p45",
-      "lease_until": "2026-11-03T16:11:32.187738Z",
+      "lease_until": "2026-11-03T16:17:04.657321Z",
       "pr": null,
       "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T14:11:32.187738Z",
+  "updated_at": "2026-11-03T14:17:04.657321Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1851,6 +1851,16 @@
     {
       "id": "f2688b0e-ee43-4926-8039-5b819306b331",
       "at": "2026-11-03T14:11:32.187738Z",
+      "action": "heartbeat",
+      "task": "P45",
+      "actor": "fffalleiros",
+      "session": "claude-int-p45",
+      "pr": null,
+      "reason": null
+    },
+    {
+      "id": "bb0146ab-3f5d-45ed-9d2f-2cb50e1dd691",
+      "at": "2026-11-03T14:17:04.657321Z",
       "action": "heartbeat",
       "task": "P45",
       "actor": "fffalleiros",
