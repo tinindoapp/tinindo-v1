@@ -22,6 +22,7 @@ import { createReputationHandler } from "../../supabase/functions/reputation/han
 import { createResourcesHandler } from "../../supabase/functions/resources/handler.ts";
 import { createMaterialsHandler } from "../../supabase/functions/materials/handler.ts";
 import { createFinanceAdvancedHandler } from "../../supabase/functions/finance-advanced/handler.ts";
+import { createFieldServiceHandler } from "../../supabase/functions/field-service/handler.ts";
 import { createFiscalHandler, SYNC_SECRET_HEADER as FISCAL_SYNC_HEADER } from "../../supabase/functions/fiscal/handler.ts";
 import { createSimulatedFiscalProvider, type FiscalProviderPort } from "../../supabase/functions/_shared/domain/fiscal/providers.ts";
 import { createMessagingHandler, DISPATCH_SECRET_HEADER } from "../../supabase/functions/messaging/handler.ts";
@@ -156,6 +157,7 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   resources: createResourcesHandler({ ...deps, rpc: userRpc }),
   materials: createMaterialsHandler({ ...deps, rpc: userRpc }),
   "finance-advanced": createFinanceAdvancedHandler({ ...deps, rpc: userRpc }),
+  "field-service": createFieldServiceHandler({ ...deps, rpc: userRpc }),
   fiscal: createFiscalHandler({ ...deps, rpc: userRpc, serviceRpc: (fn, args) => rpc("worker", fn, args), syncSecret: FISCAL_SYNC_SECRET, providers: FISCAL }),
   messaging: createMessagingHandler({ ...deps, rpc: userRpc, dispatchSecret: DISPATCH_SECRET, simulatedSecret: SIM_SECRET, verifyToken: null,
     serviceRpc: (fn, args) => rpc("worker", fn, args),

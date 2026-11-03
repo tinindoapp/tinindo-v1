@@ -24,6 +24,7 @@ import * as discovery from "./discovery.ts";
 import * as materials from "./materials.ts";
 import * as reputation from "./reputation.ts";
 import * as accounts from "./finance-advanced.ts";
+import * as field from "./field-service.ts";
 import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
@@ -53,7 +54,8 @@ export type ModuleId =
   | "reputation"
   | "resources"
   | "materials"
-  | "finance-advanced";
+  | "finance-advanced"
+  | "field-service";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -739,6 +741,15 @@ export const OPERATIONS = {
   "accounts.reconcile_save": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccReconcileSaveInput, output: accounts.AccReconcileSaveOutput },
   "accounts.entries": { module: "finance-advanced", owner: "P31", kind: "query", idempotent: false, input: accounts.AccEntriesInput, output: accounts.AccEntriesOutput },
   "accounts.statement": { module: "finance-advanced", owner: "P31", kind: "query", idempotent: false, input: accounts.AccStatementInput, output: accounts.AccStatementOutput },
+  "field.settings": { module: "field-service", owner: "P29", kind: "query", idempotent: false, input: field.FieldSettingsGetInput, output: field.FieldSettingsGetOutput },
+  "field.settings_save": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldSettingsSaveInput, output: field.FieldSettingsOutput },
+  "field.zone_save": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldZoneSaveInput, output: field.FieldZoneOutput },
+  "field.travel_save": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldTravelSaveInput, output: field.FieldTravelOutput },
+  "field.zone_for": { module: "field-service", owner: "P29", kind: "query", idempotent: false, input: field.FieldZoneForInput, output: field.FieldZoneForOutput },
+  "field.visit_attach": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldVisitAttachInput, output: field.FieldVisitOutput },
+  "field.visit_detach": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldVisitDetachInput, output: field.FieldVisitDetachOutput },
+  "field.route_rebuild": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldDayInput, output: field.FieldRebuildOutput },
+  "field.route": { module: "field-service", owner: "P29", kind: "query", idempotent: false, input: field.FieldDayInput, output: field.FieldRouteOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
