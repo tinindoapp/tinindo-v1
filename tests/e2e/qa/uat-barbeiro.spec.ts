@@ -7,17 +7,19 @@ import { bookFromAgenda, expectDemoLabel, noHorizontalScroll, openFromNav, PENDI
 // O que a demonstração já cobre roda; o resto fica em test.fixme com o motivo.
 
 test.describe("UAT barbeiro", () => {
-  test("1a · catálogo mostra Corte de 30 min com preço base e piso", async ({ page }) => {
+  test("1a · catálogo mostra Corte de 30 min com o preço em destaque (piso fica na edição)", async ({ page }) => {
     await page.goto("/app");
     await openFromNav(page, "Clientes");
     await openFromNav(page, "Serviços");
     await expect(page.getByRole("heading", { name: "Serviços", level: 1 })).toBeVisible();
     const corte = page.getByRole("list").getByRole("listitem").filter({ hasText: "Corte" }).first();
     await expect(corte).toContainText("30 min");
-    await expect(corte).toContainText("R$ 60,00");
-    await expect(corte).toContainText("piso R$ 45,00");
-    // Modelos da profissão aparecem, mas a demonstração não grava.
-    await expect(page.getByRole("button", { name: "Modelo: Corte (30 min)" })).toBeDisabled();
+    await expect(corte.locator(".crm-price")).toHaveText("R$ 60,00");
+    // Auditoria de UX, item 45: piso e custo só na edição; modelos só na lista vazia ou dentro de "Novo serviço".
+    await expect(corte).not.toContainText("piso");
+    await expect(page.getByRole("button", { name: "Modelo: Corte (30 min)" })).toHaveCount(0);
+    // A demonstração não grava.
+    await expect(page.getByRole("button", { name: "Novo serviço" })).toBeDisabled();
     await expectDemoLabel(page);
     await noHorizontalScroll(page);
   });
@@ -25,6 +27,7 @@ test.describe("UAT barbeiro", () => {
   test("1b · barbeiro cria o serviço Corte de 30 min", async ({ page }) => {
     test.fixme(true, PENDING.crmWrite);
     await page.goto("/app/clientes/servicos");
+    await page.getByRole("button", { name: "Novo serviço" }).click();
     await page.getByRole("button", { name: "Modelo: Corte (30 min)" }).click();
     await page.getByLabel("Preço base (R$)").fill("60,00");
     await page.getByLabel("Piso (R$)").fill("45,00");
