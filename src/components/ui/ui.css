@@ -427,3 +427,56 @@
 .tn-help[open] summary { color: var(--tn-text); }
 .tn-help__body { padding: var(--tn-space-2) var(--tn-space-4) var(--tn-space-1); border-left: 2px solid var(--tn-border); color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-help__body p { margin: 0 0 var(--tn-space-2); }
+
+/* Compartilhar e copiar (onda 3): ShareActions e CopyButton. O retorno fica escrito ao lado, nunca só na cor. */
+.tn-share { display: grid; gap: var(--tn-space-1); min-width: 0; }
+.tn-share__status { margin: 0; min-height: 1.5em; font-size: var(--tn-text-support); color: var(--tn-text-muted); }
+.tn-share__status[data-ok="true"] { color: var(--tn-success-text); font-weight: var(--tn-font-weight-medium); }
+.tn-share__status[data-ok="false"] { color: var(--tn-danger-text); }
+.tn-copy { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
+.tn-copy__fail { color: var(--tn-text); font-size: var(--tn-text-support); }
+
+/* ChipGroup (item 18): chip de 44 px, texto sem quebra ("1 h"), ✓ quando marcado. A caixa nativa cobre o chip. */
+.tn-chips { border: 0 !important; padding: 0 !important; margin: 0; min-width: 0; display: grid; gap: var(--tn-space-2); }
+.tn-chips__legend { padding: 0; margin-bottom: var(--tn-space-1); font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
+.tn-chips__hint { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-chips__list, .tn-chips__shortcuts { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+.tn-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tn-space-1);
+  min-height: var(--tn-size-touch);
+  min-width: var(--tn-size-touch);
+  justify-content: center;
+  padding: 0 var(--tn-space-3);
+  border: 1px solid var(--tn-border-control);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  font-size: var(--tn-text-support);
+  font-weight: var(--tn-font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tn-chip input { position: absolute; z-index: 1; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.tn-chip:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
+.tn-chip:has(input[aria-invalid="true"]) { border-color: var(--tn-danger-text); }
+.tn-chip__check { display: none; flex: none; }
+.tn-chip[data-selected] { background: var(--tn-selected-bg); border-color: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
+.tn-chip[data-selected] .tn-chip__check { display: block; }
+.tn-chips__shortcut {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-3);
+  border: 1px dashed var(--tn-border-control);
+  border-radius: var(--tn-radius-pill);
+  background: transparent;
+  color: var(--tn-text);
+  font-size: var(--tn-text-support);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tn-chips__shortcut[aria-pressed="true"] { border-style: solid; border-color: var(--tn-selected-border); font-weight: var(--tn-selected-weight); }
+.tn-chip:active, .tn-chips__shortcut:active { transform: scale(.98); }

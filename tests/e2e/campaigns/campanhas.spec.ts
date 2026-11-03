@@ -9,9 +9,9 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   await expect(page.getByRole("form", { name: "Nova campanha" })).toHaveCount(0);
   await page.getByRole("button", { name: "Nova campanha" }).click();
   const form = page.getByRole("form", { name: "Nova campanha" });
-  await expect(form.getByText(/Público autorizado agora: 6 cliente\(s\)/)).toBeVisible();
+  await expect(form.getByText(/Público autorizado agora: 6 clientes/)).toBeVisible();
   await form.getByRole("combobox", { name: "Segmento" }).selectOption("marketing_all");
-  await expect(form.getByText(/Público autorizado agora: 8 cliente\(s\)/)).toBeVisible();
+  await expect(form.getByText(/Público autorizado agora: 8 clientes/)).toBeVisible();
   // Botão sempre ativo: sem nome, explica embaixo do campo e leva o foco até ele.
   await form.getByRole("button", { name: "Aprovar campanha" }).click();
   await expect(form.getByText("Informe o nome da campanha.")).toBeVisible();
@@ -22,7 +22,7 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   await form.getByRole("combobox", { name: "Oferta", exact: true }).selectOption("discount_pct");
   await form.getByLabel("Desconto (%)").fill("10");
   await form.getByRole("button", { name: "Aprovar campanha" }).click();
-  await expect(page.getByText(/Campanha “Volta pro corte” aprovada: 3 cliente\(s\) recebem a oferta, 4 no grupo de controle\. Janela de 14 dias; com grupo de controle sorteado\./)).toBeVisible();
+  await expect(page.getByText(/Campanha “Volta pro corte” aprovada: 3 clientes recebem a oferta, 4 no grupo de controle\. Janela de 14 dias; com grupo de controle sorteado\./)).toBeVisible();
   const list = page.getByRole("list", { name: "Campanhas" });
   await expect(list).toContainText("Em curso · todas com consentimento de marketing · 10% de desconto · público 8: 3 recebem, 4 controle · teto 3 envios");
   await expect(list).toContainText("Resultado parcial");
@@ -30,7 +30,7 @@ test("campanhas: público autorizado, aprovação com controle sorteado e tetos,
   // Quem entrou saiu do público da próxima campanha.
   await expect(form).toHaveCount(0);
   await page.getByRole("button", { name: "Nova campanha" }).click();
-  await expect(page.getByRole("form", { name: "Nova campanha" }).getByText(/Público autorizado agora: 1 cliente\(s\)/)).toBeVisible();
+  await expect(page.getByRole("form", { name: "Nova campanha" }).getByText(/Público autorizado agora: 1 cliente/)).toBeVisible();
 
   await page.getByRole("button", { name: "Fechar", exact: true }).click();
   await list.getByRole("button", { name: "Ver participantes" }).click();

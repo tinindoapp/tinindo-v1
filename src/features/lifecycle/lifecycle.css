@@ -3,8 +3,6 @@
 .tn-lc-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; min-width: 0; }
 .tn-lc-form > .tn-field { flex: 1 1 10rem; }
 .tn-lc-form > :is(p, .tn-banner) { flex-basis: 100%; margin: 0; }
-.tn-lc-hours { border: 0; padding: 0; margin: 0; min-width: 0; }
-.tn-lc-hours legend { padding: 0; font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
 .tn-lc-filter { max-width: 20rem; }
 .tn-lc-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
 .tn-lc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
@@ -15,9 +13,3 @@
 .tn-lc-counts li { padding: var(--tn-space-1) var(--tn-space-2); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-sm); font-size: var(--tn-text-support); }
 @media (max-width: 30rem) { .tn-lc-form { display: grid; grid-template-columns: minmax(0, 1fr); } }
 
-/* Compartilhar (WhatsApp, folha do sistema, copiar) com retorno visível; mesmo bloco nos dois módulos. */
-.tn-share { display: grid; gap: var(--tn-space-1); min-width: 0; }
-.tn-share__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
-.tn-share__status { margin: 0; min-height: 1.5em; font-size: var(--tn-text-support); color: var(--tn-text-muted); }
-.tn-share__status[data-ok="true"] { color: var(--tn-success-text); font-weight: var(--tn-font-weight-medium); }
-.tn-share__status[data-ok="false"] { color: var(--tn-danger-text); }

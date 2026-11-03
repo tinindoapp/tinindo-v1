@@ -6,6 +6,7 @@ import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toa
 import { Icon } from "../../components/ui/icons.tsx";
 import { cycleLabel, explain, formatCents, formatDate, RECEIVABLE_STATUS } from "./labels.ts";
 import { newKey, type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 const centsToInput = (c: number) => (c / 100).toFixed(2).replace(".", ",");
 const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
@@ -250,7 +251,7 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
     setTicking(true);
     try {
       const r = await port.tick!();
-      toast({ tone: "info", message: `Renovação (simulação): ${r.renewed} ciclo(s) aberto(s), ${r.closed} assinatura(s) encerrada(s).` });
+      toast({ tone: "info", message: `Renovação (simulação): ${plural(r.renewed, "ciclo aberto", "ciclos abertos")}, ${plural(r.closed, "assinatura encerrada", "assinaturas encerradas")}.` });
     } catch (err) {
       fail(err);
     } finally {
@@ -300,7 +301,7 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
           {plans.map((p) => (
             <li key={p.id} className="tn-rc-item">
               <h3>{p.name}{p.active ? "" : " (inativo)"}</h3>
-              <p>{p.sessions_per_cycle} × {p.service_name ?? "sessão"} {cycleLabel(p.cycle_days)} · {formatCents(p.price_cents)} · {p.subscribers} assinante(s)</p>
+              <p>{p.sessions_per_cycle} × {p.service_name ?? "sessão"} {cycleLabel(p.cycle_days)} · {formatCents(p.price_cents)} · {plural(p.subscribers, "assinante")}</p>
               <div className="tn-actions"><Button variant="ghost" onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? "Fechar" : "Editar"}</Button></div>
               {editing === p.id && base ? <PlanForm port={port} base={base} plan={p} onDone={saved} /> : null}
             </li>

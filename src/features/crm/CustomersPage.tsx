@@ -14,6 +14,7 @@ import { ActionsMenu, ContactButtons } from "./contact.tsx";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
 import { CrmDemoNotice, fieldErrors, Tag } from "./shared.tsx";
+import { plural } from "../../lib/text/plural.ts";
 
 type Draft = { id?: string; version?: number; name: string; phone: string; email: string; source: string };
 const EMPTY: Draft = { name: "", phone: "", email: "", source: "" };
@@ -263,7 +264,7 @@ function CustomerForm({
       keys.reset();
       if (out.possible_duplicates.length > 0) {
         await onSaved(
-          `${out.customer.name} foi salvo. Há ${out.possible_duplicates.length} cadastro(s) parecido(s) neste negócio; nada foi mesclado. Confira na lista.`,
+          `${out.customer.name} foi salvo. Há ${plural(out.possible_duplicates.length, "cadastro parecido", "cadastros parecidos")} neste negócio; nada foi mesclado. Confira na lista.`,
           "warning",
         );
       } else await onSaved(`${out.customer.name} foi salvo.`, "success");

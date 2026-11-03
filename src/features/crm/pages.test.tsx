@@ -130,7 +130,7 @@ describe("clientes", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Novo cliente" }));
     type("Nome", "Ana E.");
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText(/1 cadastro\(s\) parecido\(s\).*nada foi mesclado/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 cadastro parecido.*nada foi mesclado/)).toBeInTheDocument();
   });
 
   it("edita com a versão carregada e mostra conflito de versão do servidor", async () => {
@@ -273,14 +273,14 @@ describe("importação", () => {
     type("Ou cole o conteúdo", csv);
     fireEvent.click(screen.getByRole("button", { name: "Ver prévia" }));
     expect(await screen.findByText(/Parecido com: Ana Exemplo \(telefone, nome\)/)).toBeInTheDocument();
-    expect(screen.getByText(/2 linha\(s\) prontas, 1 com problema/)).toBeInTheDocument();
+    expect(screen.getByText(/2 linhas prontas, 1 com problema/)).toBeInTheDocument();
     expect(screen.getByText("Problema: Telefone inválido")).toBeInTheDocument();
     // Preview só consulta linhas sem problema.
     expect(vi.mocked(api.importPreview).mock.calls[0]![0].map((r) => r.line)).toEqual([2, 3]);
     expect(screen.getByLabelText("Linha 3")).toHaveValue("skip");
 
     fireEvent.click(screen.getByRole("button", { name: "Importar" }));
-    expect(await screen.findByText(/1 criado\(s\), 1 pulado\(s\).*1 rejeitado\(s\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 criado, 1 pulado.*1 rejeitado/)).toBeInTheDocument();
     const [rows, key] = vi.mocked(api.importCustomers).mock.calls[0]!;
     expect(rows.map((r) => [r.line, r.on_duplicate])).toEqual([
       [2, "skip"],

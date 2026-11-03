@@ -2,7 +2,7 @@
 // explícita do dono (presa ao conteúdo e à versão) e publicação. Cotação não segura horário.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { PricingRule, PricingRuleProposal, ProviderService } from "@contracts";
-import { Button, Card, ConfirmAction, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ChipGroup, ConfirmAction, Field, PageHeader, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { computePrice } from "../../../supabase/functions/_shared/domain/pricing/price.ts";
 import { endOfLocalDayExclusive, formatBps, formatCents, formatDate, localDate, parsePercent, WEEKDAYS } from "./format.ts";
 import { newKey, type PricingPort } from "./port.ts";
@@ -262,17 +262,10 @@ function NewRule({ services, tz, proposals, name, onChange }: {
         <Field as="select" label="Serviço da regra" id="nr-svc" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
           {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Field>
-        <fieldset className="tn-pr-days" data-span="full" aria-describedby={errors.days ? "nr-days-error" : undefined}>
-          <legend>Dias</legend>
-          {[1, 2, 3, 4, 5, 6, 0].map((d, i) => (
-            <label key={d} className="tn-pr-check">
-              <input type="checkbox" checked={days.includes(d)} aria-invalid={errors.days && i === 0 ? true : undefined}
-                onChange={(e) => setDays(e.target.checked ? [...days, d] : days.filter((x) => x !== d))} />
-              {WEEKDAYS[d]}
-            </label>
-          ))}
-          {errors.days ? <span id="nr-days-error" className="tn-field__error">{errors.days}</span> : null}
-        </fieldset>
+        <div data-span="full">
+          <ChipGroup label="Dias" options={WEEKDAY_CHIPS} shortcuts={WEEKDAY_SHORTCUTS} value={days} onChange={setDays}
+            error={errors.days} errorId="nr-days-error" />
+        </div>
         <Field label="Das" id="nr-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} />
         <Field label="Até" id="nr-to" type="time" step={900} value={to} error={errors.to} onChange={(e) => setTo(e.target.value)} />
         <Field label="Desconto pedido (%)" id="nr-disc" inputMode="decimal" value={discount} error={errors.discount} onChange={(e) => setDiscount(e.target.value)} />

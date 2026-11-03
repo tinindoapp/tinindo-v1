@@ -1,6 +1,6 @@
 // Componentes visuais base (dono: integrador; propostas de novos componentes via PR pequeno). ADR-0024: linguagem de app
 // (cabeçalho de página, seções com título, listas agrupadas, indicadores) sobre os mesmos tokens da marca.
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import symbolColor from "@brand/assets/logo/tinindo-symbol-color.svg";
 import symbolNegative from "@brand/assets/logo/tinindo-symbol-negativo-cor.svg";
@@ -13,7 +13,8 @@ import "./ui.css";
 export { IconButton } from "./IconButton.tsx";
 export { ConfirmAction, dismissToast, toast, Toaster, type ToastInput } from "./feedback.tsx";
 export { Field, focusFirstInvalid, useFormErrors, type FieldProps } from "./form.tsx";
-export { ChipNav, ChoiceCard, Segmented } from "./selection.tsx";
+export { ChipGroup, ChipNav, ChoiceCard, Segmented, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "./selection.tsx";
+export { COPY_FAILED, CopyButton, copyText, ShareActions, type ShareHow, whatsappHref } from "./share.tsx";
 export { ToneIcon, type Tone } from "./tone.tsx";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
@@ -47,6 +48,36 @@ export function Button({
       {loading && loadingText ? loadingText : children}
     </button>
   );
+}
+
+/**
+ * Botão de ação de um toque que chama o servidor (onda 3): fica em "carregando" enquanto a promessa de `onAct` roda e
+ * volta sozinho, deu certo ou não. O retorno (Toast, erro) é de quem chama. Um segundo toque durante a ação é ignorado.
+ */
+export function ActionButton({
+  onAct,
+  ...props
+}: Omit<ComponentProps<typeof Button>, "onClick" | "loading"> & { onAct: () => Promise<unknown> | unknown }) {
+  const [busy, setBusy] = useState(false);
+  const running = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
+  function run() {
+    if (running.current) return;
+    running.current = true;
+    setBusy(true);
+    void Promise.resolve()
+      .then(onAct)
+      .catch(() => undefined)
+      .finally(() => {
+        running.current = false;
+        if (alive.current) setBusy(false);
+      });
+  }
+  return <Button {...props} loading={busy} onClick={run} />;
 }
 
 /** Link com aparência de botão (navegação, nunca ação com efeito). */

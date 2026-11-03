@@ -6,9 +6,6 @@
 .tn-wl-item > div { min-width: 0; overflow-wrap: anywhere; }
 .tn-wl-item > .tn-confirm { flex: 1 1 100%; }
 .tn-wl-link code { overflow-wrap: anywhere; word-break: break-all; }
-.tn-wl-days { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); border: 0; padding: 0; margin: 0; min-width: 0; }
-.tn-wl-days legend { font-size: var(--tn-text-support); margin-bottom: var(--tn-space-1); }
-.tn-wl-days > .tn-field__error { flex-basis: 100%; }
 .tn-wl-check { display: inline-flex; align-items: center; gap: var(--tn-space-2); min-height: var(--tn-size-touch); }
 .tn-wl-check input { width: 20px; height: 20px; flex: none; }
 .tn-wl-consent { display: grid; gap: var(--tn-space-1); }

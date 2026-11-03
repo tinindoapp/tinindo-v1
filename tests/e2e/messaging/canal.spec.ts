@@ -131,7 +131,7 @@ test("canal: número inválido falha com motivo e entrega desconhecida é consul
   await expect(conn).toContainText("2 na fila");
   await conn.getByRole("button", { name: "Gerenciar" }).click();
   await conn.getByRole("button", { name: "Rodar o despacho (simulação)" }).click();
-  await expect(page.getByText("0 enviada(s), 1 falhou(aram), 1 desconhecida(s), 0 resolvida(s)")).toBeVisible();
+  await expect(page.getByText("0 enviadas, 1 falhou, 1 desconhecida, 0 resolvidas")).toBeVisible();
   await expect(conn).toContainText("Entrega desconhecida: 1");
   await expect(inbox.getByRole("listitem").filter({ hasText: "+5511988880000" })).toContainText("Falhou");
   await expect(inbox.getByRole("listitem").filter({ hasText: "+5511988889999" })).toContainText("Entrega desconhecida");
@@ -140,7 +140,7 @@ test("canal: número inválido falha com motivo e entrega desconhecida é consul
   await soft(page, "/app/mensagens");
   await conn.getByRole("button", { name: "Gerenciar" }).click();
   await conn.getByRole("button", { name: "Rodar o despacho (simulação)" }).click();
-  await expect(page.getByText("0 enviada(s), 0 falhou(aram), 0 desconhecida(s), 1 resolvida(s)")).toBeVisible();
+  await expect(page.getByText("0 enviadas, 0 falharam, 0 desconhecidas, 1 resolvida")).toBeVisible();
   await expect(inbox.getByRole("listitem").filter({ hasText: "+5511988889999" })).toContainText("(Enviada)");
   await expect(conn).toContainText("Entrega desconhecida: 0");
 });
