@@ -170,8 +170,12 @@ export function PaymentsPage({ port, timezone }: { port: PaymentsPort; timezone:
     <div className="tn-pay">
       <div className="tn-page-intro">
         <PageHeader id="pay-title" title="Pagamentos" />
-        <Help><p>Cobrança por Pix. Só aparece como pago quando o banco confirma; o mesmo aviso nunca entra duas vezes; sem resposta, nada é presumido. A Tinindo não guarda dinheiro: o banco repassa ao seu negócio.</p></Help>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> O recebimento é simulado: nenhum dinheiro existe. Abra o link da cobrança para "pagar" como a cliente.</StatusBanner> : null}
+        {/* Um aviso só, em uma linha (item 19); o passo a passo fica em "Como funciona". */}
+        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> O recebimento é simulado: nenhum dinheiro existe.</StatusBanner> : null}
+        <Help>
+          <p>Cobrança por Pix. Só aparece como pago quando o banco confirma; o mesmo aviso nunca entra duas vezes; sem resposta, nada é presumido. A Tinindo não guarda dinheiro: o banco repassa ao seu negócio.</p>
+          {port.kind === "demo" ? <p>Na demonstração, abra o link da cobrança para “pagar” como a cliente.</p> : null}
+        </Help>
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {created ? (
           <ShareCharge description={created.description} amountCents={created.amount_cents} pix={created.pix_code} url={created.url}

@@ -195,7 +195,7 @@ test.describe("UAT barbeiro", () => {
     await openFromNav(page, "Caixa");
     const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
     const item = pending.getByRole("listitem").filter({ hasText: "Bruno" });
-    await item.getByRole("button", { name: /Marcar como recebido/ }).click();
+    await item.getByRole("button", { name: /^Recebi R\$/ }).click();
     await expect(page.getByText(/Recebido R\$\s?40,00/)).toBeVisible();
     await expect(pending.getByRole("listitem").filter({ hasText: "Bruno" })).toHaveCount(0);
     const payments = page.getByRole("region", { name: "Recebimentos no mês" });
@@ -216,6 +216,8 @@ test.describe("UAT barbeiro", () => {
     await page.getByRole("textbox").fill("o que tenho amanhã?");
     await page.keyboard.press("Enter");
     await expect(page.getByText(/quarta-feira, 21 de outubro/)).toBeVisible();
+    // A cobertura fica em "Detalhes" (item 57), a um toque.
+    await page.getByRole("region", { name: "Conversa" }).locator("details.tn-ag-details summary").last().click();
     await expect(page.getByText(/registros lançados na Tinindo/)).toBeVisible();
   });
 });

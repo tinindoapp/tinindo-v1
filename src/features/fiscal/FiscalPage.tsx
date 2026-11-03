@@ -3,7 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
+import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, formatMonthName, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
 import { type FiscalDocument, type FiscalFolder, type FiscalOverview, type FiscalPort, newKey } from "./port.ts";
 import { plural } from "../../lib/text/plural.ts";
 
@@ -271,7 +271,7 @@ function Folder({ port }: { port: FiscalPort }) {
       </div>
       {err ? <StatusBanner tone="danger">{err}</StatusBanner> : null}
       {f ? (
-        <div className="tn-fsc-folder" aria-label={`Pasta de ${f.month}`} role="region">
+        <div className="tn-fsc-folder" aria-label={`Pasta de ${formatMonthName(f.month)}`} role="region">
           <p><strong>{plural(f.totals.authorized_count, "nota válida", "notas válidas")}</strong> · <span className="tn-num">{formatCents(f.totals.authorized_cents)}</span> · {plural(f.totals.cancelled_count, "cancelada")}{f.totals.homologacao_count ? ` · ${f.totals.homologacao_count} de homologação (sem valor fiscal)` : ""}</p>
           <Button variant="ghost" disabled={f.documents.length === 0} onClick={() => download(f)}>Baixar planilha (CSV)</Button>
         </div>
@@ -308,9 +308,12 @@ export function FiscalPage({ port }: { port: FiscalPort }) {
     <div className="tn-fsc">
       <PageHeader id="fsc-title" title="Notas fiscais" subtitle="Emitir a nota não é receber: o recebimento continua no Caixa."
         actions={o?.eligibility.eligible && !composing ? <Button onClick={() => setComposing(true)}><Icon name="mais" size={20} />Nova nota</Button> : null} />
-      <Help><p>A Tinindo emite a NFS-e no padrão nacional pelo provedor fiscal, em seu nome, quando você pedir. No piloto, só para MEI. As primeiras notas saem em homologação (teste, sem valor fiscal); produção é liberada depois de um caso homologado.</p></Help>
+      {/* Um aviso só (item 19): a faixa "Demonstração" do topo identifica a demonstração; o resto fica em "Como funciona". */}
       {env === "homologacao" ? <StatusBanner tone="info"><strong>Homologação.</strong> As notas daqui são de teste e não têm valor fiscal.</StatusBanner> : null}
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Provedor fiscal simulado; nada é enviado à prefeitura.</StatusBanner> : null}
+      <Help>
+        <p>A Tinindo emite a NFS-e no padrão nacional pelo provedor fiscal, em seu nome, quando você pedir. No piloto, só para MEI. As primeiras notas saem em homologação (teste, sem valor fiscal); produção é liberada depois de um caso homologado.</p>
+        {port.kind === "demo" ? <p>Na demonstração, o provedor fiscal é simulado: nada é enviado à prefeitura.</p> : null}
+      </Help>
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {o ? (
         <>

@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 test("metas e conteúdo: progresso com denominador, uma meta por indicador, sugestões por regra com evidência, acompanhamento observado, conteúdo só pelo escopo", async ({ page }) => {
   await page.goto("/app/metas");
   await expect(page.getByRole("heading", { name: "Metas e conteúdo", level: 1 })).toBeVisible();
-  await expect(page.getByText("Sem inteligência artificial nas sugestões.")).toBeVisible();
+  // Explicação em "Como funciona", recolhido (item 19).
+  await expect(page.locator("main details.tn-help")).toContainText("Sem inteligência artificial nas sugestões.");
   await expect(page.getByText("nada é publicado de verdade")).toBeVisible();
 
   // Meta de faltas: progresso é o indicador com denominador.

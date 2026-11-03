@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deltaText, localDayStart, metricMath, metricValue, ratioMetric } from "./format.ts";
+import { deltaText, localDayStart, metricMath, metricValue, ratioMetric, trend, trendText } from "./format.ts";
 
 describe("resultado · apresentação", () => {
   it("insuficiente e indisponível nunca viram zero", () => {
@@ -21,5 +21,15 @@ describe("resultado · apresentação", () => {
   it("dias civis no fuso do negócio", () => {
     expect(localDayStart(new Date("2026-10-20T12:00:00Z"), 0, "America/Sao_Paulo")).toBe("2026-10-20T03:00:00.000Z");
     expect(localDayStart(new Date("2026-10-20T12:00:00Z"), -7, "America/Sao_Paulo")).toBe("2026-10-13T03:00:00.000Z");
+  });
+  it("diferença com seta e palavra, sabendo quando subir é bom ou ruim (item 54)", () => {
+    expect(trendText(trend("no_show", "ratio", -0.012))).toBe("▼ 1,2 p.p. · melhorou");
+    expect(trendText(trend("occupancy", "ratio", -0.012))).toBe("▼ 1,2 p.p. · piorou");
+    expect(trendText(trend("expenses", "cents", 6000))).toMatch(/^▲ R\$\s60,00 · piorou$/);
+    expect(trendText(trend("received", "cents", 6000))).toMatch(/^▲ R\$\s60,00 · melhorou$/);
+    expect(trendText(trend("leftover", "cents", 0))).toMatch(/^= R\$\s0,00 · sem mudança$/);
+    expect(trendText(trend("human_minutes", "minutes", 5))).toBe("▲ 5 min");
+    expect(trend("reminders", "ratio", null)).toBeNull();
+    expect(trend("cancellation", "ratio", 0.05)?.spoken).toBe("subiu");
   });
 });

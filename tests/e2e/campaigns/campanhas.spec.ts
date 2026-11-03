@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 test("campanhas: público autorizado, aprovação com controle sorteado e tetos, resultado por braço com intervalo, sem efeito presumido, cancelar", async ({ page }) => {
   await page.goto("/app/campanhas");
   await expect(page.getByRole("heading", { name: "Campanhas", level: 1 })).toBeVisible();
-  await expect(page.getByText("Medição honesta.")).toBeVisible();
+  // Explicação em "Como funciona", recolhido (item 19).
+  await expect(page.locator("main details.tn-help")).toContainText("Medição honesta.");
   await expect(page.getByText("nada é enviado")).toBeVisible();
   // Lista primeiro: o formulário abre pelo botão.
   await expect(page.getByRole("form", { name: "Nova campanha" })).toHaveCount(0);

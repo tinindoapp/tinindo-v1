@@ -36,10 +36,14 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
   await expect(pending.getByRole("listitem")).toHaveCount(2);
 
-  // Barba do Bruno paga em dinheiro: entra no caixa uma vez.
+  // Barba do Bruno paga em dinheiro: o atalho "Recebi R$ 40,00 no Pix ▾" troca a forma e entra no caixa uma vez.
   const bruno = pending.getByRole("listitem").filter({ hasText: "Bruno" });
-  await bruno.getByLabel("Forma").selectOption("cash");
-  await bruno.getByRole("button", { name: /Marcar como recebido/ }).click();
+  await expect(bruno.getByRole("button", { name: /^Recebi R\$\s?40,00 no Pix/ })).toBeVisible();
+  const more = bruno.getByRole("button", { name: /Outra forma de pagamento/ });
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  await more.click();
+  await bruno.getByRole("radio", { name: "Dinheiro" }).check();
+  await bruno.getByRole("button", { name: /^Recebi R\$\s?40,00 em dinheiro/ }).click();
   await expect(page.getByText(/Recebido R\$\s?40,00 \(Dinheiro\)/)).toBeVisible();
   await expect(received(page)).toHaveText("R$ 1.780,00");
   await expect(pending.getByRole("listitem")).toHaveCount(1);
@@ -57,7 +61,9 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   await expect(page.getByText(/Saldo: 3 sessões de 4/)).toBeVisible();
   await expect(received(page)).toHaveText("R$ 1.740,00");
 
-  // Despesa registrada entra em "Gasto".
+  // Despesa registrada entra em "Gasto" (o formulário abre pelo "+ Registrar").
+  await page.getByRole("button", { name: "Registrar", exact: true }).click();
+  await expect(page.getByLabel("Valor da despesa (R$)")).toBeFocused();
   await page.getByLabel("Valor da despesa (R$)").fill("20,00");
   await page.getByRole("button", { name: "Registrar despesa" }).click();
   await expect(spent(page)).toHaveText("R$ 335,00");
@@ -80,6 +86,8 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
 
 test("caixa: recebimento acima do que falta é explicado e nada é registrado", async ({ page }) => {
   await page.goto("/app/caixa");
+  await page.getByRole("button", { name: "Registrar", exact: true }).click();
+  await page.getByRole("radio", { name: "Cobrança avulsa" }).check();
   await page.getByLabel("Descrição", { exact: true }).fill("Pomada");
   await page.getByLabel("Valor (R$)", { exact: true }).fill("30,00");
   await page.getByRole("button", { name: "Criar cobrança" }).click();
@@ -89,4 +97,54 @@ test("caixa: recebimento acima do que falta é explicado e nada é registrado", 
   await open.getByRole("button", { name: "Registrar pagamento" }).click();
   await expect(open.getByText(/passa do que falta receber/)).toBeVisible();
   await expect(received(page)).toHaveText("R$ 1.740,00");
+});
+
+test("caixa: pendências primeiro, formulários fechados até tocar em Registrar, com foco no primeiro campo", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/app/caixa");
+  const main = page.getByRole("main");
+  await expect(main.getByRole("region", { name: "Atendimentos concluídos sem cobrança" })).toBeVisible();
+  // Ordem: pendências → resumo → histórico.
+  const order = await main.locator("section[aria-labelledby] > h2").allInnerTexts();
+  const at = (t: string | RegExp) => order.findIndex((h) => (typeof t === "string" ? h === t : t.test(h)));
+  expect(at("Atendimentos concluídos sem cobrança")).toBeLessThan(at("A receber"));
+  expect(at("A receber")).toBeLessThan(at(/^Caixa registrado/));
+  expect(at(/^Caixa registrado/)).toBeLessThan(at("Recebimentos no mês"));
+  expect(at("Recebimentos no mês")).toBeLessThan(at("Despesas"));
+  // Nenhum formulário aberto ao chegar.
+  await expect(main.getByRole("form")).toHaveCount(0);
+  // Histórico: os 5 mais recentes à vista; o resto a um toque.
+  const history = main.getByRole("region", { name: "Recebimentos no mês" });
+  await expect(history.getByRole("listitem")).toHaveCount(5);
+  await history.getByRole("button", { name: /^Ver mais \d+ recebimentos$/ }).click();
+  expect(await history.getByRole("listitem").count()).toBeGreaterThan(5);
+
+  const open = page.getByRole("button", { name: "Registrar", exact: true });
+  await expect(open).toHaveAttribute("aria-expanded", "false");
+  await open.click();
+  await expect(open).toHaveAttribute("aria-expanded", "true");
+  const panel = page.getByRole("region", { name: "Registrar" });
+  await expect(panel.getByRole("form", { name: "Nova despesa" })).toBeVisible();
+  await expect(panel.getByLabel("Valor da despesa (R$)")).toBeFocused();
+  await panel.getByRole("radio", { name: "Venda de pacote" }).check();
+  await expect(panel.getByRole("form", { name: "Vender pacote" })).toBeVisible();
+  await panel.getByRole("radio", { name: "Cobrança avulsa" }).check();
+  await panel.getByLabel("Descrição", { exact: true }).fill("Pomada");
+  await panel.getByLabel("Valor (R$)", { exact: true }).fill("30,00");
+  await panel.getByRole("button", { name: "Criar cobrança" }).click();
+  await expect(page.getByRole("status").getByText(/Cobrança de R\$\s?30,00 criada/)).toBeVisible();
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "A receber" })).toContainText("Pomada");
+
+  // Atalho de um toque: recebido no Pix, sem abrir formulário.
+  const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
+  const bruno = pending.getByRole("listitem").filter({ hasText: "Bruno" });
+  const quick = bruno.getByRole("button", { name: /^Recebi R\$\s?40,00 no Pix/ });
+  expect((await quick.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await quick.click();
+  await expect(page.getByText(/Recebido R\$\s?40,00 \(Pix\)/)).toBeVisible();
+  await expect(pending.getByRole("listitem").filter({ hasText: "Bruno" })).toHaveCount(0);
+
+  const width = page.viewportSize()!.width;
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 });

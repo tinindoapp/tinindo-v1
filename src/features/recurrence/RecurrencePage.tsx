@@ -273,8 +273,12 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
           </Button>
         ) : null}
       />
-      <Help><p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (por Pix ou registro manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p></Help>
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é cobrado. "Avançar o ciclo" simula a renovação que o sistema faz sozinho.</StatusBanner> : null}
+      {/* Um aviso só, em uma linha (item 19); as explicações ficam em "Como funciona". */}
+      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Nada é cobrado.</StatusBanner> : null}
+      <Help>
+        <p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (por Pix ou registro manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p>
+        {port.kind === "demo" ? <p>“Avançar o ciclo” simula agora a renovação que o sistema faz sozinho.</p> : null}
+      </Help>
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
 
       {open === "sub" && base ? (

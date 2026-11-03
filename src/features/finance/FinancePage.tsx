@@ -3,7 +3,8 @@
 import { createContext, type FormEvent, type MouseEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { ExpenseCategory, PackageDetail, PaymentRecord, Receivable, TimeRange, UnchargedBooking } from "@contracts";
-import { Button, Card, ConfirmAction, Field, Help, IconButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, Help, IconButton, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Icon } from "../../components/ui/icons.tsx";
 import {
   capitalizeFirst,
   centsToInput,
@@ -19,6 +20,7 @@ import {
   shiftMonth,
   unchargedTotal,
 } from "./money.ts";
+import { plural } from "../../lib/text/plural.ts";
 import { type FinanceBase, type FinancePort, newKey } from "./port.ts";
 
 const PortContext = createContext<FinancePort | null>(null);
@@ -31,6 +33,15 @@ function usePort(): FinancePort {
 
 const METHOD_LABEL = { pix: "Pix", cash: "Dinheiro", card: "Cartão", transfer: "Transferência", other: "Outro" } as const;
 type Method = keyof typeof METHOD_LABEL;
+/** Como a forma entra na frase do atalho: "Recebi R$ 60,00 no Pix". */
+const METHOD_PHRASE: Record<Method, string> = { pix: "no Pix", cash: "em dinheiro", card: "no cartão", transfer: "por transferência", other: "de outra forma" };
+const METHOD_OPTIONS = (Object.keys(METHOD_LABEL) as Method[]).map((m) => ({ value: m, label: METHOD_LABEL[m] }));
+type RegisterKind = "expense" | "receivable" | "package";
+const REGISTER_OPTIONS: readonly { value: RegisterKind; label: string }[] = [
+  { value: "expense", label: "Despesa" },
+  { value: "receivable", label: "Cobrança avulsa" },
+  { value: "package", label: "Venda de pacote" },
+];
 const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   supplies: "Material", rent: "Aluguel", utilities: "Contas (luz, água, internet)", fees: "Taxas",
   transport: "Transporte", marketing: "Divulgação", other: "Outro",
@@ -104,6 +115,8 @@ export function FinancePage() {
   const [data, setData] = useState<{ month: string; nonce: number; value?: MonthData; error?: unknown } | null>(null);
   const [nonce, setNonce] = useState(0);
   const [baseError, setBaseError] = useState<unknown>(null);
+  // "+ Registrar" (item 56): os formulários ficam fechados e abrem num painel no lugar, com foco no primeiro campo.
+  const [register, setRegister] = useState<RegisterKind | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -165,10 +178,17 @@ export function FinancePage() {
     serviceName: (id) => base.services.find((s) => s.id === id)?.name ?? "Serviço",
   };
   const current = data && data.month === month && data.nonce === nonce ? data : null;
+  const registerButton = (
+    <Button aria-expanded={register !== null} aria-controls="fin-register" onClick={() => setRegister(register ? null : "expense")}>
+      <Icon name="mais" size={20} />
+      Registrar
+    </Button>
+  );
 
   return (
     <PageContext.Provider value={ctx}>
-      <Shell demo={port.kind === "demo"}>
+      <Shell demo={port.kind === "demo"} actions={registerButton}>
+        {register ? <RegisterPanel kind={register} onKind={setRegister} onClose={() => setRegister(null)} /> : null}
         <div className="tn-fin-period" role="group" aria-label="Período">
           {/* Não há ícone de seta para a esquerda: a mesma seta, espelhada. */}
           <IconButton icon="voltar" label="Mês anterior" variant="secondary" onClick={() => go(shiftMonth(month, -1))} />
@@ -181,13 +201,13 @@ export function FinancePage() {
           <p role="status">Carregando o mês…</p>
         ) : (
           <>
-            <Summary s={current.value.summary} month={month} uncharged={current.value.uncharged} />
+            {/* Ordem (item 56): o que pede ação (pendências), depois o resumo do mês e por fim o histórico. */}
             <Uncharged list={current.value.uncharged} packages={current.value.packages} />
             <Receivables list={current.value.ledger.receivables.filter((r) => r.status === "open" || r.status === "partially_paid")} />
+            <Summary s={current.value.summary} month={month} uncharged={current.value.uncharged} />
             <Payments list={current.value.ledger.payments} />
             <Expenses list={current.value.ledger.expenses} />
             <Packages list={current.value.packages} />
-            <NewReceivable />
           </>
         )}
       </Shell>
@@ -195,17 +215,31 @@ export function FinancePage() {
   );
 }
 
-function Shell({ demo, children }: { demo: boolean; children: ReactNode }) {
+function Shell({ demo, actions, children }: { demo: boolean; actions?: ReactNode; children: ReactNode }) {
   return (
     <section aria-labelledby="fin-title" className="tn-fin">
-      <PageHeader id="fin-title" title="Caixa" subtitle="Recebíveis, recebimentos manuais e pacotes de sessões." />
-      {demo ? (
-        <StatusBanner tone="info">
-          <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no servidor;
-          as mudanças valem só nesta aba.
-        </StatusBanner>
-      ) : null}
+      <PageHeader id="fin-title" title="Caixa" subtitle="Recebíveis, recebimentos manuais e pacotes de sessões." actions={actions} />
+      {/* Um aviso só, em uma linha (item 19): a faixa "Demonstração" do topo já identifica a demonstração. */}
+      {demo ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> As mudanças valem só nesta aba.</StatusBanner> : null}
       {children}
+    </section>
+  );
+}
+
+/** Painel "Registrar": escolhe o que lançar e abre o formulário no lugar, com o foco no primeiro campo. */
+function RegisterPanel({ kind, onKind, onClose }: { kind: RegisterKind; onKind: (k: RegisterKind) => void; onClose: () => void }) {
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    panel.current?.querySelector<HTMLElement>("form input, form select, form textarea")?.focus();
+  }, []);
+  return (
+    <section ref={panel} id="fin-register" className="tn-card tn-fin-register" aria-labelledby="fin-reg-title">
+      <h2 id="fin-reg-title">Registrar</h2>
+      <Segmented label="O que registrar" value={kind} options={REGISTER_OPTIONS} onChange={onKind} />
+      {kind === "expense" ? <ExpenseForm onDone={onClose} /> : kind === "receivable" ? <ReceivableForm onDone={onClose} /> : <PackageForm onDone={onClose} />}
+      <div className="tn-actions">
+        <Button variant="ghost" onClick={onClose}>Fechar</Button>
+      </div>
     </section>
   );
 }
@@ -299,6 +333,7 @@ function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: Pa
   // Instante do recebimento fixado na tela: a repetição envia exatamente o mesmo pedido.
   const [receivedAt] = useState(() => port.now().toISOString());
   const [method, setMethod] = useState<Method>("pix");
+  const [choosing, setChoosing] = useState(false);
   // Qual ação está rodando: o carregando aparece só no botão tocado; os outros esperam.
   const [pending, setPending] = useState<string | null>(null);
   const label = `${ctx.serviceName(b.service_id)} · ${ctx.customerName(b.customer_id)}`;
@@ -347,10 +382,17 @@ function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: Pa
       <div className="tn-actions">
         {b.agreed_price_cents ? (
           <>
-            <MethodField id={`m-${b.booking_id}`} className="tn-fin-inline" value={method} onChange={setMethod} />
-            <Button loading={pending === "paid"} disabled={!!pending} onClick={() => void markPaid()}>
-              Marcar como recebido<span className="tn-visually-hidden"> {label}</span>
-            </Button>
+            {/* Atalho de um toque (item 56): "Recebi R$ 60,00 no Pix"; ▾ troca a forma antes de tocar. */}
+            <span className="tn-fin-split">
+              <Button loading={pending === "paid"} disabled={!!pending} onClick={() => void markPaid()}>
+                {/* Um texto só: o botão tem espaço (gap) entre filhos. */}
+                <span>Recebi <span className="tn-num">{formatCents(b.agreed_price_cents)}</span> {METHOD_PHRASE[method]}<span className="tn-visually-hidden"> · {label}</span></span>
+              </Button>
+              <Button variant="secondary" aria-expanded={choosing} aria-controls={`m-${b.booking_id}`}
+                aria-label={`Outra forma de pagamento · ${label}`} title="Outra forma de pagamento" disabled={!!pending} onClick={() => setChoosing((c) => !c)}>
+                <span aria-hidden="true">▾</span>
+              </Button>
+            </span>
             <Button variant="secondary" loading={pending === "later"} disabled={!!pending} onClick={() => void chargeLater()}>
               Cobrar depois<span className="tn-visually-hidden"> {label}</span>
             </Button>
@@ -358,10 +400,15 @@ function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: Pa
         ) : null}
         {packages.map((p) => (
           <Button key={p.package_id} variant="secondary" loading={pending === p.package_id} disabled={!!pending} onClick={() => void consumeCredit(p.package_id)}>
-            Usar crédito do pacote ({p.remaining_credits} restantes)
+            Usar crédito do pacote ({plural(p.remaining_credits, "restante")})
           </Button>
         ))}
       </div>
+      {choosing ? (
+        <div id={`m-${b.booking_id}`} className="tn-fin-methods">
+          <Segmented label={`Forma de pagamento · ${label}`} hideLabel value={method} options={METHOD_OPTIONS} onChange={setMethod} />
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -492,9 +539,19 @@ function ReverseButton({ label, consequence, withReason = true, onReverse }: {
   );
 }
 
+/** Histórico do mês (item 56): os mais recentes à vista; o resto a um toque, sem esticar a página. */
+const HISTORY_SHOWN = 5;
+function MoreButton({ total, all, onAll, one, many }: { total: number; all: boolean; onAll: () => void; one: string; many: string }) {
+  const rest = total - HISTORY_SHOWN;
+  if (all || rest <= 0) return null;
+  return <Button variant="ghost" onClick={onAll}>Ver mais {plural(rest, one, many)}</Button>;
+}
+
 function Payments({ list }: { list: PaymentRecord[] }) {
   const ctx = usePage();
   const port = usePort();
+  const [all, setAll] = useState(false);
+  const recent = [...list].sort((a, b) => b.received_at.localeCompare(a.received_at));
   const reverse = (p: PaymentRecord) => async (reason: string) => {
     try {
       await port.reversePayment({ payment_id: p.id, reason }, newKey());
@@ -512,7 +569,7 @@ function Payments({ list }: { list: PaymentRecord[] }) {
         <p className="tn-muted">Nenhum recebimento registrado.</p>
       ) : (
         <ul className="tn-fin-list">
-          {list.map((p) => (
+          {(all ? recent : recent.slice(0, HISTORY_SHOWN)).map((p) => (
             <li key={p.id} className="tn-fin-item">
               <div className="tn-num">
                 {p.reversal_of ? <strong>Estorno de {formatCents(p.amount_cents)}</strong> : <strong>{formatCents(p.amount_cents)}</strong>}
@@ -530,11 +587,13 @@ function Payments({ list }: { list: PaymentRecord[] }) {
           ))}
         </ul>
       )}
+      <MoreButton total={list.length} all={all} onAll={() => setAll(true)} one="recebimento" many="recebimentos" />
     </section>
   );
 }
 
-function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["expenses"] }) {
+/** Despesa (abre pelo "+ Registrar"). */
+function ExpenseForm({ onDone }: { onDone: () => void }) {
   const ctx = usePage();
   const port = usePort();
   const keyFor = useKeyFor();
@@ -559,15 +618,35 @@ function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["
     try {
       await port.recordExpense(payload, keyFor(payload));
       ctx.notify("success", `Despesa de ${formatCents(cents)} registrada.`);
-      setAmount("");
-      setDescription("");
+      onDone();
       ctx.reload();
     } catch (err) {
       setError(explain(err));
-    } finally {
       setPending(false);
     }
   }
+
+  return (
+    <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Nova despesa">
+      <Field label="Valor da despesa (R$)" id="exp-amount" inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
+      <Field as="select" label="Categoria" id="exp-cat" value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
+        {(Object.keys(CATEGORY_LABEL) as ExpenseCategory[]).map((c) => (
+          <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
+        ))}
+      </Field>
+      <Field label="Data da despesa" id="exp-date" type="date" max={ctx.today} value={date} onChange={(e) => setDate(e.target.value)} />
+      <Field label="Descrição (opcional)" id="exp-desc" maxLength={120} value={description} onChange={(e) => setDescription(e.target.value)} />
+      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+      <Button type="submit" loading={pending}>Registrar despesa</Button>
+    </form>
+  );
+}
+
+function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["expenses"] }) {
+  const ctx = usePage();
+  const port = usePort();
+  const [all, setAll] = useState(false);
+  const recent = [...list].sort((a, b) => b.paid_at.localeCompare(a.paid_at));
 
   const reverse = (id: string) => async (_reason: string) => {
     try {
@@ -583,23 +662,11 @@ function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["
   return (
     <section aria-labelledby="fin-exp-title" className="tn-fin-section">
       <h2 id="fin-exp-title">Despesas</h2>
-      <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Nova despesa">
-        <Field label="Valor da despesa (R$)" id="exp-amount" inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
-        <Field as="select" label="Categoria" id="exp-cat" value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
-          {(Object.keys(CATEGORY_LABEL) as ExpenseCategory[]).map((c) => (
-            <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
-          ))}
-        </Field>
-        <Field label="Data da despesa" id="exp-date" type="date" max={ctx.today} value={date} onChange={(e) => setDate(e.target.value)} />
-        <Field label="Descrição (opcional)" id="exp-desc" maxLength={120} value={description} onChange={(e) => setDescription(e.target.value)} />
-        {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-        <Button type="submit" loading={pending}>Registrar despesa</Button>
-      </form>
       {list.length === 0 ? (
         <p className="tn-muted">Nenhuma despesa no mês.</p>
       ) : (
         <ul className="tn-fin-list">
-          {list.map((x) => (
+          {(all ? recent : recent.slice(0, HISTORY_SHOWN)).map((x) => (
             <li key={x.id} className="tn-fin-item">
               <div className="tn-num">
                 <strong>{x.reversal_of ? `Estorno de ${formatCents(x.amount_cents)}` : formatCents(x.amount_cents)}</strong>
@@ -618,16 +685,17 @@ function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["
           ))}
         </ul>
       )}
+      <MoreButton total={list.length} all={all} onAll={() => setAll(true)} one="despesa" many="despesas" />
     </section>
   );
 }
 
-function Packages({ list }: { list: PackageDetail[] }) {
+/** Venda de pacote: no "+ Registrar" e no botão da seção de pacotes. */
+function PackageForm({ onDone }: { onDone: () => void }) {
   const ctx = usePage();
   const port = usePort();
   const keyFor = useKeyFor();
   const active = ctx.base.services.filter((s) => s.active);
-  const [selling, setSelling] = useState(false);
   const [customer, setCustomer] = useState("");
   const [service, setService] = useState(active[0]?.id ?? "");
   const [credits, setCredits] = useState("10");
@@ -656,14 +724,45 @@ function Packages({ list }: { list: PackageDetail[] }) {
     try {
       await port.sellPackage(payload, keyFor(payload));
       ctx.notify("success", `Pacote de ${n} sessões vendido. Um único valor de ${formatCents(cents)} ficou em "A receber".`);
-      setSelling(false);
+      onDone();
       ctx.reload();
     } catch (err) {
       setError(explain(err));
-    } finally {
       setPending(false);
     }
   }
+
+  return (
+    <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void sell(e)} noValidate aria-label="Vender pacote">
+      <Field as="select" label="Cliente" id="pkg-customer" value={customer} error={errors.customer} onChange={(e) => setCustomer(e.target.value)}>
+        <option value="">Escolha…</option>
+        {ctx.base.customers.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </Field>
+      <Field as="select" label="Serviço" id="pkg-service" value={service} onChange={(e) => setService(e.target.value)}>
+        {active.map((s) => (
+          <option key={s.id} value={s.id}>{s.name}</option>
+        ))}
+      </Field>
+      <Field label="Sessões" id="pkg-credits" inputMode="numeric" value={credits} error={errors.credits} onChange={(e) => setCredits(e.target.value)} />
+      <Field label="Valor total (R$)" id="pkg-total" inputMode="decimal" value={total} error={errors.total} onChange={(e) => setTotal(e.target.value)} />
+      <Field label="Validade (opcional)" id="pkg-exp" type="date" min={ctx.today} value={expires} onChange={(e) => setExpires(e.target.value)} />
+      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+      <Button type="submit" loading={pending}>Confirmar venda</Button>
+    </form>
+  );
+}
+
+function Packages({ list }: { list: PackageDetail[] }) {
+  const ctx = usePage();
+  const port = usePort();
+  const [selling, setSelling] = useState(false);
+  const formBox = useRef<HTMLDivElement>(null);
+  // Abre no lugar e leva o foco ao primeiro campo.
+  useEffect(() => {
+    if (selling) formBox.current?.querySelector<HTMLElement>("select, input")?.focus();
+  }, [selling]);
 
   const reverse = (entryId: string) => async (reason: string) => {
     try {
@@ -681,27 +780,12 @@ function Packages({ list }: { list: PackageDetail[] }) {
       <h2 id="fin-pkg-title">Pacotes de sessões</h2>
       <p className="tn-muted">Vender o pacote gera um único valor a receber. Usar uma sessão debita crédito, não gera caixa.</p>
       {selling ? (
-        <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void sell(e)} noValidate aria-label="Vender pacote">
-          <Field as="select" label="Cliente" id="pkg-customer" value={customer} error={errors.customer} onChange={(e) => setCustomer(e.target.value)}>
-            <option value="">Escolha…</option>
-            {ctx.base.customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Field>
-          <Field as="select" label="Serviço" id="pkg-service" value={service} onChange={(e) => setService(e.target.value)}>
-            {active.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </Field>
-          <Field label="Sessões" id="pkg-credits" inputMode="numeric" value={credits} error={errors.credits} onChange={(e) => setCredits(e.target.value)} />
-          <Field label="Valor total (R$)" id="pkg-total" inputMode="decimal" value={total} error={errors.total} onChange={(e) => setTotal(e.target.value)} />
-          <Field label="Validade (opcional)" id="pkg-exp" type="date" min={ctx.today} value={expires} onChange={(e) => setExpires(e.target.value)} />
-          {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+        <div ref={formBox} className="tn-stack">
+          <PackageForm onDone={() => setSelling(false)} />
           <div className="tn-actions">
-            <Button type="submit" loading={pending}>Confirmar venda</Button>
             <Button variant="ghost" onClick={() => setSelling(false)}>Fechar</Button>
           </div>
-        </form>
+        </div>
       ) : (
         <Button variant="secondary" onClick={() => setSelling(true)}>Vender pacote</Button>
       )}
@@ -745,7 +829,8 @@ function Packages({ list }: { list: PackageDetail[] }) {
   );
 }
 
-function NewReceivable() {
+/** Cobrança avulsa (abre pelo "+ Registrar"): produto vendido, sinal ou valor combinado fora da agenda. */
+function ReceivableForm({ onDone }: { onDone: () => void }) {
   const ctx = usePage();
   const port = usePort();
   const keyFor = useKeyFor();
@@ -767,32 +852,27 @@ function NewReceivable() {
     try {
       await port.createReceivable(payload, keyFor(payload));
       ctx.notify("success", `Cobrança de ${formatCents(cents)} criada em "A receber".`);
-      setDescription("");
-      setAmount("");
+      onDone();
       ctx.reload();
     } catch (err) {
       setError(explain(err));
-    } finally {
       setPending(false);
     }
   }
 
   return (
-    <section aria-labelledby="fin-new-title" className="tn-fin-section">
-      <h2 id="fin-new-title">Outra cobrança</h2>
-      <p className="tn-muted">Produto vendido, sinal ou valor combinado fora da agenda.</p>
-      <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Nova cobrança">
-        <Field label="Descrição" id="rec-desc" maxLength={120} value={description} error={errors.description} onChange={(e) => setDescription(e.target.value)} />
-        <Field label="Valor (R$)" id="rec-amount" inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
-        <Field as="select" label="Cliente (opcional)" id="rec-customer" value={customer} onChange={(e) => setCustomer(e.target.value)}>
-          <option value="">Sem cliente</option>
-          {ctx.base.customers.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </Field>
-        {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-        <Button type="submit" loading={pending}>Criar cobrança</Button>
-      </form>
-    </section>
+    <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Nova cobrança">
+      <p className="tn-muted tn-fin-form__note">Produto vendido, sinal ou valor combinado fora da agenda.</p>
+      <Field label="Descrição" id="rec-desc" maxLength={120} value={description} error={errors.description} onChange={(e) => setDescription(e.target.value)} />
+      <Field label="Valor (R$)" id="rec-amount" inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
+      <Field as="select" label="Cliente (opcional)" id="rec-customer" value={customer} onChange={(e) => setCustomer(e.target.value)}>
+        <option value="">Sem cliente</option>
+        {ctx.base.customers.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </Field>
+      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+      <Button type="submit" loading={pending}>Criar cobrança</Button>
+    </form>
   );
 }

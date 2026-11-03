@@ -33,3 +33,12 @@
 .tn-fin-alert a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); font-weight: var(--tn-font-weight-medium); }
 .tn-fin-section h2:focus { outline: none; }
 .tn-fin-section h2:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: 2px; }
+/* "+ Registrar" (item 56): painel que abre no lugar, logo abaixo do cabeçalho. */
+.tn-fin-register { display: grid; gap: var(--tn-space-3); min-width: 0; }
+.tn-fin-register h2 { margin: 0; }
+.tn-fin-form__note { flex-basis: 100%; margin: 0; }
+/* Atalho "Recebi R$ 60,00 no Pix ▾": botão principal e ▾ colados, como um botão dividido. */
+.tn-fin-split { display: inline-flex; align-items: stretch; min-width: 0; max-width: 100%; }
+.tn-fin-split > .tn-button:first-child { border-start-end-radius: 0; border-end-end-radius: 0; min-width: 0; }
+.tn-fin-split > .tn-button:last-child { border-start-start-radius: 0; border-end-start-radius: 0; margin-inline-start: -1px; min-width: var(--tn-size-touch); padding-inline: var(--tn-space-2); }
+.tn-fin-methods { flex: 1 1 100%; min-width: 0; }
