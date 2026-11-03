@@ -11,6 +11,7 @@ import { canonicalJson, sha256Hex } from "../../../supabase/functions/_shared/ht
 import { ApiError } from "../../lib/api/client.ts";
 import { DEMO_EXPENSES, DEMO_OPEN_RECEIVABLES, demoPayments, demoVisits } from "../../lib/demo/dataset.ts";
 import type { AgentPort, Approval, Proposal, Receipt } from "./port.ts";
+import { DEMO_SETUP } from "./setupGuide.ts";
 
 const TZ = "America/Sao_Paulo";
 const TENANT = { id: FX.tenants.A, name: "Barbearia Exemplo A", timezone: TZ };
@@ -217,5 +218,8 @@ export function createDemoPort(): AgentPort {
       s.receipts.set(approvalId, receipt);
       return receipt;
     }),
+    // A demonstração não tem provedor de linguagem (LLM_PROVIDER=none): o dono segue com o próprio rascunho.
+    draft: () => Promise.resolve({ available: false, suggestion: null }),
+    setupProgress: () => Promise.resolve(structuredClone(DEMO_SETUP)),
   };
 }

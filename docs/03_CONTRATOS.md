@@ -76,6 +76,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `package.reverse` | entry_id, motivo, key | Devolve 1 crédito, vinculado ao débito; uma vez |
 | `package.list` | — | Pacotes com saldo e movimentos |
 | `agent.ask` | texto, contexto de UI opcional | Resposta referenciada ou action_proposal |
+| `agent.draft` | tipo (mensagem, apresentação, campanha), tom, rascunho do dono | Sugestão editável ou null (P46; nada é salvo nem enviado) |
 | `action.approve` | proposal, hash/version, key | Aprovação do payload; não sucesso de execução |
 | `action.execute` | approval_ref, key | Checagem atual de política, execução e recibo |
 | `profile.publish` | whitelist dos campos públicos | Perfil público sem vazamento do CRM |
