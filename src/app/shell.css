@@ -38,7 +38,7 @@
   text-overflow: ellipsis;
   white-space: pre;
 }
-@media (max-width: 599.98px) {
+@media (max-width: 899.98px) {
   .tn-demo-banner__long { display: none; }
 }
 

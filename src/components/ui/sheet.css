@@ -13,7 +13,7 @@ body[data-sheet-open] { overflow: hidden; }
   border-radius: var(--tn-radius-lg) var(--tn-radius-lg) 0 0;
   background: var(--tn-surface);
   color: var(--tn-text);
-  box-shadow: var(--tn-shadow-lg);
+  box-shadow: var(--tn-elevation-2);
   overflow: hidden;
 }
 .tn-sheet[open] { display: flex; flex-direction: column; animation: tn-sheet-up var(--tn-motion-slow) var(--tn-motion-ease); }
