@@ -25,7 +25,7 @@
     min-height: 56px;
     padding: 0;
     border-radius: var(--tn-radius-pill);
-    box-shadow: var(--tn-shadow-lg);
+    box-shadow: var(--tn-elevation-2);
   }
   /* Só o +: o botão redondo cobre menos do cartão (Atendido e Faltou ficam à esquerda). O nome continua no leitor de tela. */
   .tn-sched-new__label {
@@ -292,7 +292,7 @@
   border: 1px solid var(--tn-border-control);
   border-radius: var(--tn-radius-lg);
   background: var(--tn-surface);
-  box-shadow: var(--tn-shadow-lg);
+  box-shadow: var(--tn-elevation-2);
 }
 /*
  * "Sair sem salvar?": a pergunta sobe acima de tudo, até da folha do menu do celular (z-index 50), que continua aberta
@@ -340,7 +340,7 @@
   border: 1px solid var(--tn-border-control);
   border-radius: var(--tn-radius-lg);
   background: var(--tn-surface);
-  box-shadow: var(--tn-shadow-lg);
+  box-shadow: var(--tn-elevation-2);
   min-width: 0;
 }
 .tn-sched-confirmbar .tn-button { flex: none; }

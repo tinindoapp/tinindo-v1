@@ -46,6 +46,11 @@
   :root:not([data-theme="light"]) { --tn-surface-sunken: var(--tn-color-tinta-800); --tn-surface-float: var(--tn-surface-raised); }
 }
 :root[data-theme="dark"] { --tn-surface-sunken: var(--tn-color-tinta-800); --tn-surface-float: var(--tn-surface-raised); }
+/* Pontos de quebra (item 23): só dois, com nome. CSS não aceita variável em @media, então o nome fica aqui e o teste
+   src/app/css-system.test.ts recusa qualquer outra largura.
+   - compacto: (max-width: 30rem), 480 px. Formulário em uma coluna.
+   - largo: (min-width: 900px), com o complemento (max-width: 899.98px). Menu lateral no lugar da barra de abas.
+   Entre os dois, o layout se ajusta sozinho (grid auto-fit do .tn-form-grid, flex com quebra). */
 @media (min-width: 900px) {
   :root { --tn-text-title: var(--tn-font-size-3xl); --tn-text-section: var(--tn-font-size-2xl); }
 }

@@ -85,4 +85,27 @@ describe("sistema visual", () => {
     }
     expect(bad).toEqual([]);
   });
+
+  it("item 23: só os dois pontos de quebra com nome (compacto 30rem, largo 900px)", () => {
+    const allowed = new Set(["(max-width: 30rem)", "(min-width: 900px)", "(max-width: 899.98px)"]);
+    const bad: string[] = [];
+    for (const [file, css] of Object.entries(FILES)) {
+      for (const m of css.matchAll(/\((?:min|max)-width:\s*[^)]+\)/g)) {
+        if (!allowed.has(m[0].replace(/\s+/g, " "))) bad.push(`${file}:${lineOf(css, m.index)} ${m[0]}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("item 21: sombra só pelos níveis de elevação (--tn-elevation-1 e -2), fora o realce inset", () => {
+    const bad: string[] = [];
+    for (const [file, css] of Object.entries(FILES)) {
+      if (file === "src/styles/global.css") continue;
+      for (const m of css.matchAll(/box-shadow:\s*([^;}]+)/g)) {
+        const v = m[1]!.trim();
+        if (v !== "none" && !/^var\(--tn-elevation-[12]\)$/.test(v) && !v.startsWith("inset")) bad.push(`${file}:${lineOf(css, m.index)} ${v}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
 });

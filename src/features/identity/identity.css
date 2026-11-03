@@ -94,7 +94,7 @@
   border-radius: var(--tn-radius-lg) var(--tn-radius-lg) 0 0;
   background: var(--tn-surface);
   color: var(--tn-text);
-  box-shadow: var(--tn-shadow-lg);
+  box-shadow: var(--tn-elevation-2);
   overflow: hidden;
 }
 .tn-id-sheet::backdrop { background: color-mix(in srgb, var(--tn-color-tinta-950) 55%, transparent); }
@@ -109,7 +109,7 @@
 }
 .tn-id-sheet__head h2 { margin: 0; font-size: var(--tn-text-section); }
 .tn-id-sheet__body { overflow-y: auto; overscroll-behavior: contain; padding: var(--tn-space-4) var(--tn-space-4) calc(var(--tn-space-6) + env(safe-area-inset-bottom)); }
-@media (min-width: 720px) {
+@media (min-width: 900px) {
   .tn-id-sheet { width: min(100% - 2 * var(--tn-space-6), 720px); margin: auto; border-radius: var(--tn-radius-lg); }
 }
 

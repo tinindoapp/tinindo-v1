@@ -12,7 +12,7 @@
   border: 1px solid var(--tn-border);
   border-radius: var(--tn-radius-md);
   background: var(--tn-surface);
-  box-shadow: var(--tn-shadow-md);
+  box-shadow: var(--tn-elevation-2);
 }
 .tn-menu__item {
   min-height: var(--tn-size-touch);

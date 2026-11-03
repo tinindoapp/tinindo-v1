@@ -23,7 +23,7 @@
 .tn-an-gap > span { flex: 1 1 16rem; min-width: 0; }
 .tn-an-link { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); font-weight: var(--tn-font-weight-medium); }
 /* Custo por cliente (item 60): no celular, cada linha da tabela vira um cartão com o rótulo ao lado do valor. */
-@media (max-width: 40rem) {
+@media (max-width: 899.98px) {
   .tn-an-cards, .tn-an-cards tbody, .tn-an-cards tfoot, .tn-an-cards tr, .tn-an-cards th, .tn-an-cards td { display: block; }
   .tn-an-cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .tn-an-cards tr { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3); margin-bottom: var(--tn-space-3); }
