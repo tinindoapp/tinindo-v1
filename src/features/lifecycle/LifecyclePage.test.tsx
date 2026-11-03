@@ -102,3 +102,43 @@ describe("Relacionamento: ações que não voltam atrás pedem confirmação", (
     expect(approve).not.toHaveBeenCalled();
   });
 });
+
+describe("Relacionamento: campos numéricos (item 42)", () => {
+  it("apagar deixa o campo vazio (não vira 0); salvar aponta a faixa embaixo do campo e não grava", async () => {
+    const port = createDemoPort();
+    const save = vi.spyOn(port, "saveSettings");
+    renderPage(port);
+    const form = await screen.findByRole("form", { name: "Réguas" });
+    const days = within(form).getByLabelText("Acompanhar orçamento sem decisão após");
+    fireEvent.change(days, { target: { value: "" } });
+    expect(days).toHaveValue("");
+    const budget = within(form).getByLabelText("Teto de envios por dia");
+    fireEvent.change(budget, { target: { value: "900" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Salvar réguas" }));
+    expect(await within(form).findByText("Informe em quantos dias, de 1 a 14 dias.")).toBeInTheDocument();
+    expect(within(form).getByText("Escolha de 0 a 500 envios.")).toBeInTheDocument();
+    await waitFor(() => expect(days).toHaveFocus());
+    expect(days).toHaveAttribute("aria-invalid", "true");
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("− / + andam dentro da faixa, com a unidade como sufixo, e salvar converte o texto em número", async () => {
+    const port = createDemoPort();
+    const save = vi.spyOn(port, "saveSettings");
+    renderPage(port);
+    const form = await screen.findByRole("form", { name: "Réguas" });
+    const days = within(form).getByLabelText("Acompanhar orçamento sem decisão após");
+    fireEvent.change(days, { target: { value: "13" } });
+    const plus = within(form).getByRole("button", { name: "Aumentar acompanhar orçamento sem decisão após" });
+    fireEvent.click(plus);
+    expect(days).toHaveValue("14");
+    expect(plus).toBeDisabled();
+    fireEvent.click(within(form).getByRole("button", { name: "Diminuir acompanhar orçamento sem decisão após" }));
+    expect(days).toHaveValue("13");
+    expect(days.parentElement).toHaveTextContent("dias");
+    fireEvent.click(within(form).getByRole("button", { name: "Salvar réguas" }));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    expect(save.mock.calls[0]![0]).toMatchObject({ quote_followup_days: 13 });
+    expect(typeof save.mock.calls[0]![0].daily_budget).toBe("number");
+  });
+});

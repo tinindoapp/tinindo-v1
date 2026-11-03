@@ -49,3 +49,28 @@ test("relacionamento: se a cópia falha, o passo não é marcado como compartilh
   const wa = carlos.getByRole("link", { name: "Enviar pelo WhatsApp" });
   expect(await wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/\?text=/);
 });
+
+test("relacionamento: número apagado não vira 0, faixa embaixo do campo e − / + de 44 px com a unidade", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/app/relacionamento");
+  const settings = page.getByRole("form", { name: "Réguas" });
+  const days = settings.getByLabel("Reativação: sem visita há");
+  await days.fill("");
+  await expect(days).toHaveValue("");
+  await settings.getByRole("button", { name: "Salvar réguas" }).click();
+  await expect(settings.getByText("Informe há quantos dias sem visita, de 14 a 365 dias.")).toBeVisible();
+  await expect(days).toBeFocused();
+  const plus = settings.getByRole("button", { name: "Aumentar reativação: sem visita há" });
+  await plus.click();
+  await expect(days).toHaveValue("14");
+  await expect(settings.getByRole("button", { name: "Diminuir reativação: sem visita há" })).toBeDisabled();
+  for (const b of [plus, settings.getByRole("button", { name: /^Diminuir teto/ })]) {
+    const box = (await b.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+  }
+  await expect(days.locator("..")).toContainText("dias");
+  await settings.getByRole("button", { name: "Salvar réguas" }).click();
+  await expect(page.getByText("Réguas salvas.")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
+});
