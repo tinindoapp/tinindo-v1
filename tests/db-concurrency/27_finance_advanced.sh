@@ -34,7 +34,9 @@ for i in $(seq 1 10); do pay "conc-fa-pay-race-$(printf '%05d' "$i")" "$P" "$V" 
 wait
 check "uma despesa no Caixa" "$(psql -qXtA -c "select count(*) from public.expense_entries where description = 'Aluguel corrida'")" 1
 check "um pagamento vivo" "$(psql -qXtA -c "select count(*) from public.fin_payable_payments where payable_id = '$P' and reversal_expense_id is null")" 1
-check "9 recusas (já paga ou versão vista)" "$(cat "$TMP"/p.* | grep -cE 'POLICY_REJECTED|STALE_VERSION' || true)" 9
+# Conta conexões (arquivos), não linhas: uma recusa pode imprimir o código mais de uma vez (ERROR e CONTEXT).
+check "9 conexões recusadas (já paga ou versão vista)" "$(grep -lE 'POLICY_REJECTED|STALE_VERSION' "$TMP"/p.* | wc -l | tr -d ' ')" 9
+check "1 conexão aceita" "$(grep -l status_code "$TMP"/p.* | wc -l | tr -d ' ')" 1
 
 # 2 · mesma chave
 Q=$(payable conc-fa-payable-0000002 'Luz mesma chave')
