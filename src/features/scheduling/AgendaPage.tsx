@@ -1,6 +1,6 @@
 // Tela principal da agenda: Hoje/dia e semana, ocupação e horários livres.
 import { Icon } from "../../components/ui/icons.tsx";
-import { Button, IconButton, PageHeader, Segmented } from "../../components/ui/index.tsx";
+import { Button, IconButton, PageHeader, Segmented, SetupHint } from "../../components/ui/index.tsx";
 import { Link, useSearchParams } from "react-router";
 import type { Booking, ProviderService } from "@contracts";
 import {
@@ -193,7 +193,14 @@ function DayList({
 }) {
   const items = dayTimeline(plan, bookings, 20, services);
   if (plan && plan.open.length === 0 && bookings.length === 0) {
-    return <p className="tn-sched-empty">Sem expediente neste dia.</p>;
+    return (
+      <>
+        <p className="tn-sched-empty">Sem expediente neste dia.</p>
+        <SetupHint to="/app/agenda/horarios" action="Definir horários">
+          Se você atende neste dia, defina o expediente: ele abre a agenda e os horários do link público.
+        </SetupHint>
+      </>
+    );
   }
   if (items.length === 0) return <p className="tn-sched-empty">Nenhum atendimento neste dia.</p>;
   return (

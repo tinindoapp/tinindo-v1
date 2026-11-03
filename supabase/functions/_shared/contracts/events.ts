@@ -24,6 +24,7 @@ export const EventType = z.enum([
   "presence.domain.verified.v1",
   "fiscal.document.authorized.v1",
   "review.published.v1",
+  "setup.step_completed.v1",
 ]);
 export type EventType = z.infer<typeof EventType>;
 

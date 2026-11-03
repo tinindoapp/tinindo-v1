@@ -107,6 +107,7 @@ export function ConfirmAction({
   children,
   canConfirm = true,
   missingHint = "Preencha o que falta acima para confirmar.",
+  beforeOpen,
 }: {
   /** Texto do botão que abre a confirmação. */
   trigger: ReactNode;
@@ -125,6 +126,8 @@ export function ConfirmAction({
   canConfirm?: boolean;
   /** O que falta, quando `canConfirm` é falso ("Escreva o motivo com pelo menos 15 letras."). */
   missingHint?: string;
+  /** Validação do formulário de origem ao tocar no botão: devolvendo false (erros já mostrados nos campos), a confirmação não abre. */
+  beforeOpen?: () => boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -144,7 +147,7 @@ export function ConfirmAction({
 
   if (!open) {
     return (
-      <Button ref={triggerRef} variant={triggerVariant} aria-label={triggerLabel} disabled={disabled} onClick={() => setOpen(true)}>
+      <Button ref={triggerRef} variant={triggerVariant} aria-label={triggerLabel} disabled={disabled} onClick={() => { if (beforeOpen && !beforeOpen()) return; setOpen(true); }}>
         {trigger}
       </Button>
     );

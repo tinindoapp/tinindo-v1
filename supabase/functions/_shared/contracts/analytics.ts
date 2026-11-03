@@ -79,5 +79,7 @@ export const CostToServeOutput = z.object({
     services_contracted_cents: Cents,
   })),
   totals: z.object({ human_minutes: z.int(), automation_minutes: z.int(), reprocess_minutes: z.int(), estimated_cost_cents: Cents }),
+  /** P44: negócios criados no período e quantos ficaram prontos (obrigatórios feitos) em até 24 h do cadastro. */
+  setup_ready_24h: z.object({ businesses: z.int().min(0), ready: z.int().min(0), ready_in_24h: z.int().min(0), note: z.string() }),
   note: z.string(),
 });

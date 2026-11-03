@@ -27,6 +27,7 @@ import { resourcesModule } from "../features/resources/module.tsx";
 import { materialsModule } from "../features/materials/module.tsx";
 import { financeAdvancedModule } from "../features/finance-advanced/module.tsx";
 import { fieldServiceModule } from "../features/field-service/module.tsx";
+import { setupModule } from "../features/setup/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
@@ -54,5 +55,6 @@ export const MODULES: readonly ModuleDefinition[] = [
   resourcesModule,
   materialsModule,
   fieldServiceModule,
+  setupModule,
   identityModule,
 ];

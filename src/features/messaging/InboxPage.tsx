@@ -3,7 +3,7 @@
 // de 24 h só modelo aprovado; a cliente que pediu SAIR não recebe nada; humano assume quando você pede.
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, formatTime, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, templateInfo, unreadLabel } from "./labels.ts";
 import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort, newKey } from "./port.ts";
@@ -316,6 +316,9 @@ export function InboxPage({ port }: { port: MessagingPort; timezone?: string }) 
               <li>Digite o código aqui para concluir.</li>
             </ol>
             <ConnectForm port={port} onDone={actions.done} />
+            <SetupHint to="/app/configurar" action="Ver os passos">
+              Passo opcional de “Deixe seu negócio pronto”: sem provedor contratado, conecte o número simulado para testar o fluxo.
+            </SetupHint>
           </div>
         </Card>
       ) : null}
