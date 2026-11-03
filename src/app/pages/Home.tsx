@@ -20,6 +20,7 @@ import { createServerPort as createSchedulingServerPort } from "../../features/s
 import { dayWindow, formatDayLong, formatTime, localParts } from "../../features/scheduling/time.ts";
 import { appEnv } from "../env.ts";
 import { useSession } from "../session.tsx";
+import { plural } from "../../lib/text/plural.ts";
 
 interface Ports {
   scheduling: SchedulingPort;
@@ -154,7 +155,7 @@ export function Home() {
           <Section title="Pendências" id="home-pending">
             {(() => {
               const rows = [
-                t.money && t.money.unchargedCount > 0 ? <ListItem key="charge" to="/app/caixa" icon="receber" title={`${t.money.unchargedCount} atendimento(s) sem cobrança`} meta={`${formatCents(t.money.unchargedCents)} a registrar no Caixa`} /> : null,
+                t.money && t.money.unchargedCount > 0 ? <ListItem key="charge" to="/app/caixa" icon="receber" title={`${plural(t.money.unchargedCount, "atendimento")} sem cobrança`} meta={`${formatCents(t.money.unchargedCents)} a registrar no Caixa`} /> : null,
                 ...(t.agenda?.held ?? []).slice(0, 3).map((b) => (
                   <ListItem
                     key={`held-${b.id}`}
@@ -165,7 +166,7 @@ export function Home() {
                   />
                 )),
                 t.agenda && t.agenda.held.length > 3 ? <ListItem key="held-more" to="/app/agenda" icon="agenda" title={`Mais ${t.agenda.held.length - 3} reservas provisórias`} meta="Ver na agenda" /> : null,
-                t.advice && t.advice.count > 0 ? <ListItem key="advice" to="/app/metas" icon="metas" title={`${t.advice.count} sugestão(ões) com base nos seus números`} meta={t.advice.first ?? undefined} /> : null,
+                t.advice && t.advice.count > 0 ? <ListItem key="advice" to="/app/metas" icon="metas" title={`${plural(t.advice.count, "sugestão", "sugestões")} com base nos seus números`} meta={t.advice.first ?? undefined} /> : null,
               ].filter(Boolean);
               return rows.length ? <List label="Pendências">{rows}</List> : <p className="tn-today__empty">Nada pendente agora.</p>;
             })()}

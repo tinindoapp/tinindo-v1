@@ -93,13 +93,12 @@ describe("perfil do dono (demonstração)", () => {
     const card = await screen.findByRole("region", { name: "Seu perfil está no ar!" });
     const url = `${window.location.origin}/p/barbearia-exemplo`;
     expect(within(card).getByLabelText("Endereço do seu perfil")).toHaveValue(url);
-    const wa = within(card).getByRole("link", { name: "Mandar no WhatsApp" });
+    const wa = within(card).getByRole("link", { name: "Enviar pelo WhatsApp" });
     expect(wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/\?text=/);
     expect(decodeURIComponent(new URL(wa.getAttribute("href")!).search.slice(6))).toContain(url);
     fireEvent.click(within(card).getByRole("button", { name: "Copiar link" }));
-    expect(await within(card).findByRole("button", { name: "Copiado" })).toBeInTheDocument();
+    expect(await within(card).findByText("Copiado ✓")).toBeInTheDocument();
     expect(writeText).toHaveBeenCalledWith(url);
-    expect(await screen.findByText(/Link copiado/)).toBeInTheDocument();
     // "Ver como o cliente vê" continua no cartão do perfil.
     expect(screen.getByRole("link", { name: "Ver como o cliente vê" })).toBeInTheDocument();
   });
@@ -109,7 +108,7 @@ describe("perfil do dono (demonstração)", () => {
     await publishDemoProfile();
     const card = await screen.findByRole("region", { name: "Seu perfil está no ar!" });
     fireEvent.click(within(card).getByRole("button", { name: "Copiar link" }));
-    expect(await screen.findByText(/Não foi possível copiar/)).toBeInTheDocument();
+    expect(await within(card).findByText(/Não deu para copiar/)).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Copiar link" })).toBeInTheDocument();
   });
 

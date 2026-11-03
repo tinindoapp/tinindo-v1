@@ -6,7 +6,7 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await expect(page.getByText("nada é cobrado")).toBeVisible();
   const plans = page.getByRole("list", { name: "Planos cadastrados" });
   await expect(plans).toContainText("Corte mensal");
-  await expect(plans).toContainText("4 × Corte por mês · R$ 200,00 · 0 assinante(s)");
+  await expect(plans).toContainText("4 × Corte por mês · R$ 200,00 · 0 assinantes");
 
   // Lista primeiro: a adesão abre pelo botão; exige a declaração de aceite.
   await expect(page.getByRole("form", { name: "Nova assinatura" })).toHaveCount(0);
@@ -23,7 +23,7 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await expect(subs).toContainText("Ativa");
   await expect(subs).toContainText("Ciclo 1:");
   await expect(subs).toContainText("4 de 4 sessões restantes · cobrança em aberto (R$ 200,00)");
-  await expect(plans).toContainText("1 assinante(s)");
+  await expect(plans).toContainText("1 assinante");
   await expect(form).toHaveCount(0);
   await page.getByRole("button", { name: "Nova assinatura" }).click();
   await form.getByLabel(/A cliente aceitou estes termos/).check();
@@ -53,7 +53,7 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
 
   // Antes de vencer, a renovação não abre ciclo (a renovação ao vencer está provada na integração e no pgTAP).
   await page.getByRole("button", { name: "Avançar o ciclo (simulação)" }).click();
-  await expect(page.getByText("Renovação (simulação): 0 ciclo(s) aberto(s)")).toBeVisible();
+  await expect(page.getByText("Renovação (simulação): 0 ciclos abertos")).toBeVisible();
 
   // Cancelar no fim do ciclo volta atrás: o aviso oferece Desfazer. Depois, "Manter assinatura" também desfaz.
   await subs.getByRole("button", { name: "Cancelar no fim do ciclo" }).click();

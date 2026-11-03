@@ -1,20 +1,17 @@
 // Metas e conteúdo (P22): metas por indicador do Resultado (progresso = o indicador, com denominador), sugestões por
 // regras sobre dado existente (sem LLM) com decisão registrada e acompanhamento observacional, e conteúdo aprovado
 // por profissão publicado só pelo escopo autorizado do Perfil (P09). O que a tela promete é o que o banco garante.
-import { type ComponentProps, type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
+import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { actionLabel, DECISION, DIRECTION, explain, formatDate, formatEvidence, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS, RULE_LABEL } from "./labels.ts";
 import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort, newKey } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 /** Retorno de uma ação: aviso curto (Toast), sempre à vista; `null` só atualiza a tela. */
 type Notice = ToastInput | string | null;
 
 /** Botão de ação de um toque: mostra o carregando enquanto a ação roda. */
-function ActButton({ onAct, ...props }: Omit<ComponentProps<typeof Button>, "onClick" | "loading"> & { onAct: () => Promise<unknown> }) {
-  const [busy, setBusy] = useState(false);
-  return <Button {...props} loading={busy} onClick={() => { setBusy(true); void onAct().finally(() => setBusy(false)); }} />;
-}
 const failed = (e: unknown): Notice => ({ tone: "danger", message: explain(e) });
 const KEYS = Object.keys(METRIC_LABEL) as GoalMetricKey[];
 const isCents = (k: GoalMetricKey) => k === "received" || k === "expenses";
@@ -112,8 +109,8 @@ function Suggestions({ advice, port, onDone }: { advice: Advice; port: GrowthAdv
               {s.route === "/app/metas"
                 ? <a className="tn-ga-link tn-ga-action-link" href="#ga-content-title">{actionLabel(s.rule_code, s.route)}</a>
                 : <Link className="tn-ga-link tn-ga-action-link" to={s.route}>{actionLabel(s.rule_code, s.route)}</Link>}
-              <ActButton variant="secondary" onAct={() => act(s.rule_code, "accepted")}>Vou fazer</ActButton>
-              <ActButton variant="ghost" onAct={() => act(s.rule_code, "dismissed")}>Agora não</ActButton>
+              <ActionButton variant="secondary" onAct={() => act(s.rule_code, "accepted")}>Vou fazer</ActionButton>
+              <ActionButton variant="ghost" onAct={() => act(s.rule_code, "dismissed")}>Agora não</ActionButton>
             </div>
           </li>
         ))}
@@ -144,14 +141,14 @@ function ContentSection({ content, port, onDone }: { content: Content; port: Gro
       <p className="tn-muted">Textos aprovados pela Tinindo para a sua profissão, preenchidos com os dados que você já tornou públicos. A apresentação vai para o perfil público só se ele estiver publicado com o campo “apresentação” escolhido (<Link to="/app/perfil">Perfil</Link>). Posts são para você copiar e postar onde quiser.</p>
       {!canPublish ? <StatusBanner tone="warning">Publicação bloqueada: {content.scope.profile_published ? "o campo “apresentação” não está entre os campos públicos escolhidos." : "o perfil público não está publicado."}</StatusBanner> : null}
       {content.published ? (
-        <p><strong>Publicado no perfil:</strong> {content.published.body} <ActButton variant="ghost" aria-label="Remover a apresentação do perfil" onAct={() => unpublish(content.published!)}>Remover</ActButton></p>
+        <p><strong>Publicado no perfil:</strong> {content.published.body} <ActionButton variant="ghost" aria-label="Remover a apresentação do perfil" onAct={() => unpublish(content.published!)}>Remover</ActionButton></p>
       ) : <p className="tn-muted">Nenhuma apresentação publicada.</p>}
       <ul className="tn-ga-list" aria-label="Conteúdo aprovado">
         {content.templates.map((t) => (
           <li key={t.code} className="tn-ga-item">
             <h3>{t.title} <span className="tn-muted">({t.kind === "bio" ? "apresentação" : "post"} · aprovado por {t.approved_by})</span></h3>
             <p>{t.preview}</p>
-            {t.kind === "bio" ? <div className="tn-actions"><ActButton variant="secondary" disabled={!canPublish || content.published?.template_code === t.code} onAct={() => publish(t.code, t.title)}>{content.published?.template_code === t.code ? "Publicada" : "Publicar no perfil"}</ActButton></div> : null}
+            {t.kind === "bio" ? <div className="tn-actions"><ActionButton variant="secondary" disabled={!canPublish || content.published?.template_code === t.code} onAct={() => publish(t.code, t.title)}>{content.published?.template_code === t.code ? "Publicada" : "Publicar no perfil"}</ActionButton></div> : null}
           </li>
         ))}
       </ul>
@@ -185,7 +182,7 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
     setFollowing(true);
     try {
       const r = await port.followUp!();
-      done({ tone: "info", message: `Acompanhamento (simulação): ${r.followed_up} decisão(ões) medida(s) de novo.` });
+      done({ tone: "info", message: `Acompanhamento (simulação): ${plural(r.followed_up, "decisão medida", "decisões medidas")} de novo.` });
     } catch (e) {
       done(failed(e));
     } finally {

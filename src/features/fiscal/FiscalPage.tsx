@@ -1,10 +1,11 @@
 // Notas fiscais (P16): NFS-e no caso elegível (MEI), com representação autorizada pelo dono e credencial no provedor.
 // Lista primeiro; "Nova nota" abre o formulário. Emitir não é receber: o recebimento continua no Caixa.
-import { type ComponentProps, type FormEvent, useEffect, useState } from "react";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { type FormEvent, useEffect, useState } from "react";
+import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
 import { type FiscalDocument, type FiscalFolder, type FiscalOverview, type FiscalPort, newKey } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 /**
  * Roda uma ação, confirma num aviso curto (Toast) e atualiza a tela. Erro: vai para `onError` (formulário, perto dos
@@ -13,10 +14,6 @@ import { type FiscalDocument, type FiscalFolder, type FiscalOverview, type Fisca
 type Run = (action: () => Promise<unknown>, ok: string, onError?: (err: unknown) => void) => Promise<boolean>;
 
 /** Botão de ação de um toque: mostra o carregando enquanto a ação roda. */
-function ActButton({ onAct, ...props }: Omit<ComponentProps<typeof Button>, "onClick" | "loading"> & { onAct: () => Promise<unknown> }) {
-  const [busy, setBusy] = useState(false);
-  return <Button {...props} loading={busy} onClick={() => { setBusy(true); void onAct().finally(() => setBusy(false)); }} />;
-}
 
 const digits = (v: string) => v.replace(/\D/g, "");
 
@@ -109,14 +106,14 @@ function Setup({ o, port, run }: { o: FiscalOverview; port: FiscalPort; run: Run
               onConfirm={() => run(() => port.revoke(newKey()), "Autorização revogada. Notas já emitidas continuam valendo.")}
             />
           </div>
-        ) : <ActButton variant="secondary" onAct={() => run(() => port.grant(o.terms.hash, newKey()), "Autorização registrada por um ano.")}>Autorizo nestes termos</ActButton>}
+        ) : <ActionButton variant="secondary" onAct={() => run(() => port.grant(o.terms.hash, newKey()), "Autorização registrada por um ano.")}>Autorizo nestes termos</ActionButton>}
       </section>
       <section className="tn-fsc-step" aria-labelledby="fsc-step-cred">
         <h3 id="fsc-step-cred">3 · Credencial no provedor fiscal</h3>
         <p className="tn-muted">Seu certificado digital (ou procuração) é cadastrado por você direto no provedor fiscal. A Tinindo nunca recebe o certificado nem a senha: só confere com o provedor se a credencial está válida.</p>
         <div className="tn-fsc-row">
           <span>{o.credential ? `Credencial ${o.credential.status === "valid" ? "válida" : o.credential.status === "expired" ? "vencida" : "não encontrada"}${o.credential.valid_until ? ` até ${formatDate(o.credential.valid_until)}` : ""} · conferida em ${formatDate(o.credential.checked_at)}` : "Ainda não conferida."}</span>
-          <ActButton variant="secondary" disabled={!o.profile} onAct={() => run(() => port.checkCredential(), "Credencial conferida no provedor.")}>Conferir credencial</ActButton>
+          <ActionButton variant="secondary" disabled={!o.profile} onAct={() => run(() => port.checkCredential(), "Credencial conferida no provedor.")}>Conferir credencial</ActionButton>
         </div>
       </section>
     </Card>
@@ -270,12 +267,12 @@ function Folder({ port }: { port: FiscalPort }) {
       <p className="tn-muted">Notas do mês por data do serviço, para enviar ao seu contador. Canceladas aparecem, mas não somam.</p>
       <div className="tn-fsc-inline">
         <Field label="Mês" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-        <ActButton variant="secondary" onAct={() => port.folder(month).then((x) => { setF(x); setErr(null); }, (e: unknown) => setErr(explain(e)))}>Ver pasta</ActButton>
+        <ActionButton variant="secondary" onAct={() => port.folder(month).then((x) => { setF(x); setErr(null); }, (e: unknown) => setErr(explain(e)))}>Ver pasta</ActionButton>
       </div>
       {err ? <StatusBanner tone="danger">{err}</StatusBanner> : null}
       {f ? (
         <div className="tn-fsc-folder" aria-label={`Pasta de ${f.month}`} role="region">
-          <p><strong>{f.totals.authorized_count} nota(s) válida(s)</strong> · <span className="tn-num">{formatCents(f.totals.authorized_cents)}</span> · {f.totals.cancelled_count} cancelada(s){f.totals.homologacao_count ? ` · ${f.totals.homologacao_count} de homologação (sem valor fiscal)` : ""}</p>
+          <p><strong>{plural(f.totals.authorized_count, "nota válida", "notas válidas")}</strong> · <span className="tn-num">{formatCents(f.totals.authorized_cents)}</span> · {plural(f.totals.cancelled_count, "cancelada")}{f.totals.homologacao_count ? ` · ${f.totals.homologacao_count} de homologação (sem valor fiscal)` : ""}</p>
           <Button variant="ghost" disabled={f.documents.length === 0} onClick={() => download(f)}>Baixar planilha (CSV)</Button>
         </div>
       ) : null}

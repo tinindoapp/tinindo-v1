@@ -48,7 +48,7 @@ test("metas e conteúdo: progresso com denominador, uma meta por indicador, suge
   await expect(page.getByRole("list", { name: "Decisões" })).toContainText("Lembretes para reduzir faltas");
   await expect(page.getByRole("list", { name: "Decisões" })).not.toContainText("no_show_reminders");
   await page.getByRole("button", { name: "Avançar 30 dias (simulação)" }).click();
-  await expect(page.getByText("Acompanhamento (simulação): 1 decisão(ões) medida(s) de novo.")).toBeVisible();
+  await expect(page.getByText("Acompanhamento (simulação): 1 decisão medida de novo.")).toBeVisible();
   await expect(page.getByRole("list", { name: "Decisões" })).toContainText("melhorou 30 dias depois (variação observada, não efeito)");
   await expect(page.getByRole("list", { name: "Decisões" })).not.toContainText(/causou|efeito da/);
 

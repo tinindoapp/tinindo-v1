@@ -5,6 +5,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { type CustomerReviewsPort, newKey, type OwnerReviewsPort, type PublicReviewsPort, type ReviewOwnerList, type ReviewPending, type ReviewPublicList } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 const MONTH = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 const monthLabel = (ym: string) => MONTH.format(new Date(`${ym}-15T12:00:00Z`));
@@ -25,8 +26,8 @@ export function Badges({ s }: { s: ReviewPublicList["summary"] }) {
   return (
     <ul className="tn-rev-badges" aria-label="Selos">
       <li data-on={s.identity_verified || undefined}>{s.identity_verified ? "Identidade verificada pela equipe" : "Identidade não verificada"}</li>
-      <li>{s.completed_bookings} atendimento(s) concluído(s) na Tinindo</li>
-      <li>{s.reviews_count} avaliação(ões) de clientes atendidos{s.rating_average != null ? ` · média ${s.rating_average.toFixed(1).replace(".", ",")}` : " · média só a partir de 3"}</li>
+      <li>{plural(s.completed_bookings, "atendimento concluído", "atendimentos concluídos")} na Tinindo</li>
+      <li>{plural(s.reviews_count, "avaliação", "avaliações")} de clientes atendidos{s.rating_average != null ? ` · média ${s.rating_average.toFixed(1).replace(".", ",")}` : " · média só a partir de 3"}</li>
       <li>Competência certificada: não (ainda não existe certificação na Tinindo)</li>
     </ul>
   );
@@ -73,7 +74,7 @@ function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number];
         {r.status === "published" && !r.open_reports ? (
           <ConfirmAction
             trigger="Denunciar"
-            triggerLabel={`Denunciar a avaliação de ${r.rating} estrela(s) sobre ${r.service_name}`}
+            triggerLabel={`Denunciar a avaliação de ${plural(r.rating, "estrela")} sobre ${r.service_name}`}
             title="Denunciar esta avaliação?"
             consequence={<p>A moderação analisa e decide se oculta. Até lá ela continua visível, e a denúncia não pode ser retirada.</p>}
             confirmLabel="Sim, denunciar"

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { quoteMessage } from "./QuotesPage.tsx";
-import { COPY_FAILED, ShareActions, whatsappHref } from "./share.tsx";
+import { quoteMessage } from "../../features/sales/QuotesPage.tsx";
+import { COPY_FAILED, CopyButton, ShareActions, whatsappHref } from "./share.tsx";
 
 const link = "https://app.tinindo.test/orcamento#t=abc";
 
@@ -15,7 +15,7 @@ afterEach(() => {
   Reflect.deleteProperty(navigator, "share");
 });
 
-describe("compartilhar link do orçamento", () => {
+describe("ShareActions (compartilhar um texto pronto)", () => {
   it("wa.me com o telefone (só dígitos) ou sem número, e a mensagem pronta leva o link", () => {
     const msg = quoteMessage("Corte e barba", link);
     expect(msg).toContain(link);
@@ -68,5 +68,27 @@ describe("compartilhar link do orçamento", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Compartilhar…" })); });
     expect(onShared).toHaveBeenCalledWith("share");
     expect(screen.getByRole("status")).toHaveTextContent("Compartilhado ✓");
+  });
+});
+
+describe("CopyButton", () => {
+  it("troca o texto do botão por 'Copiado ✓' e anuncia o que foi copiado", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    setClipboard(writeText);
+    const onCopied = vi.fn();
+    render(<CopyButton text="000201pix" label="Copiar Pix" what="Pix" onCopied={onCopied} />);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Copiar Pix" })); });
+    expect(writeText).toHaveBeenCalledWith("000201pix");
+    expect(screen.getByRole("button", { name: "Copiado ✓" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Pix copiado.");
+    expect(onCopied).toHaveBeenCalledOnce();
+  });
+
+  it("sem área de transferência: explica onde copiar à mão e não chama onCopied", async () => {
+    const onCopied = vi.fn();
+    render(<CopyButton text="x" label="Copiar Pix" what="Pix" failHint='Abra "Ver código" e copie à mão.' onCopied={onCopied} />);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Copiar Pix" })); });
+    expect(screen.getByRole("status")).toHaveTextContent('Não deu para copiar. Abra "Ver código" e copie à mão.');
+    expect(onCopied).not.toHaveBeenCalled();
   });
 });
