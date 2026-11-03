@@ -23,6 +23,7 @@ import * as fiscal from "./fiscal.ts";
 import * as discovery from "./discovery.ts";
 import * as materials from "./materials.ts";
 import * as reputation from "./reputation.ts";
+import * as accounts from "./finance-advanced.ts";
 import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
@@ -51,7 +52,8 @@ export type ModuleId =
   | "discovery"
   | "reputation"
   | "resources"
-  | "materials";
+  | "materials"
+  | "finance-advanced";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -724,6 +726,19 @@ export const OPERATIONS = {
   "materials.bookings": { module: "materials", owner: "P30", kind: "query", idempotent: false, input: materials.MaterialBookingsInput, output: materials.MaterialBookingsOutput },
   "materials.margin": { module: "materials", owner: "P30", kind: "query", idempotent: false, input: materials.MaterialMarginInput, output: materials.MaterialMarginOutput },
   "materials.quote_cost": { module: "materials", owner: "P30", kind: "query", idempotent: false, input: materials.MaterialQuoteCostInput, output: materials.MaterialQuoteCostOutput },
+  "accounts.categories": { module: "finance-advanced", owner: "P31", kind: "query", idempotent: false, input: accounts.AccCategoriesInput, output: accounts.AccCategoriesOutput },
+  "accounts.category_save": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccCategorySaveInput, output: accounts.AccCategoryOutput },
+  "accounts.classify": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccClassifyInput, output: accounts.AccClassifyOutput },
+  "accounts.payables": { module: "finance-advanced", owner: "P31", kind: "query", idempotent: false, input: accounts.AccPayablesInput, output: accounts.AccPayablesOutput },
+  "accounts.payable_save": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccPayableSaveInput, output: accounts.AccPayableSaveOutput },
+  "accounts.payable_pay": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccPayablePayInput, output: accounts.AccPayableOutput },
+  "accounts.payable_reverse": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccPayableRefInput, output: accounts.AccPayableOutput },
+  "accounts.payable_cancel": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccPayableRefInput, output: accounts.AccPayableOutput },
+  "accounts.series_update": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccSeriesUpdateInput, output: accounts.AccSeriesUpdateOutput },
+  "accounts.reconciliation": { module: "finance-advanced", owner: "P31", kind: "query", idempotent: false, input: accounts.AccReconciliationInput, output: accounts.AccReconciliationOutput },
+  "accounts.reconcile_save": { module: "finance-advanced", owner: "P31", kind: "command", idempotent: true, input: accounts.AccReconcileSaveInput, output: accounts.AccReconcileSaveOutput },
+  "accounts.entries": { module: "finance-advanced", owner: "P31", kind: "query", idempotent: false, input: accounts.AccEntriesInput, output: accounts.AccEntriesOutput },
+  "accounts.statement": { module: "finance-advanced", owner: "P31", kind: "query", idempotent: false, input: accounts.AccStatementInput, output: accounts.AccStatementOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
