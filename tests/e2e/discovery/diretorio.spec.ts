@@ -22,6 +22,12 @@ test("diretório: dono entra com cidade e dias, cartão só com o que o perfil m
   await expect(page.getByText(/ordem alfabética do nome exibido · sem destaque pago/)).toBeVisible();
   // Ordem alfabética: "Barbearia Exemplo A" antes do perfil sem nome público (mostra a área "Moema").
   await expect(results.getByRole("listitem").first()).toContainText("Barbearia Exemplo A");
+  // E11: moldura pública com a marca, cartão sem repetir a cidade e "Ver horários" de 44 px.
+  await expect(page.getByRole("banner").getByRole("img", { name: "Tinindo" })).toBeVisible();
+  await expect(page.getByText(/^2 profissionais · /)).toBeVisible();
+  await expect(results.getByRole("listitem").first()).not.toContainText("São Paulo/SP");
+  const book = results.getByRole("link", { name: "Ver horários" }).first();
+  expect((await book.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await page.getByLabel("Atende no dia").selectOption("6");
   await expect(results.getByRole("listitem")).toHaveCount(1);
   await expect(results).not.toContainText("Barbearia Exemplo A");
@@ -36,4 +42,7 @@ test("diretório público: índice de cidades", async ({ page }) => {
   await page.goto("/diretorio");
   await expect(page.getByRole("heading", { name: "Encontre um profissional", level: 1 })).toBeVisible();
   await expect(page.getByRole("list", { name: "Cidades" })).toContainText("São Paulo/SP");
+  await expect(page.getByRole("list", { name: "Cidades" })).not.toContainText("(is)");
+  await expect(page.getByRole("list", { name: "Cidades" })).toContainText(/\d+ profissionai?s?/);
+  await expect(page.getByRole("banner").getByRole("img", { name: "Tinindo" })).toBeVisible();
 });
