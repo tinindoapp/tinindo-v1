@@ -1,7 +1,7 @@
 // Hoje (doc 12): próximos atendimentos, pendências e até três ações úteis. Lê as mesmas portas da Agenda, do Caixa e das
 // Metas (na demonstração, as mesmas instâncias: o que muda numa tela aparece aqui). Cada bloco falha sozinho; conta vazia
 // mostra a lacuna e a próxima ação, nunca número inventado. P45: "Para você esta semana" traz até 3 insights do motor
-// diário, com "Ver" e "Agora não"; o cartão de configuração do P44, quando entrar, fica ACIMA dele.
+// diário, com "Ver" e "Agora não", logo ABAIXO do cartão de configuração do P44.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { Booking } from "@contracts";
@@ -144,6 +144,8 @@ export function Home() {
     <div className="tn-today">
       <PageHeader eyebrow={t ? t.dateLabel : "Hoje"} title="Hoje" id="home-title" />
       {setupPort ? <SetupCard port={setupPort} /> : null}
+      {/* P45: sugestões do motor diário, logo abaixo do cartão de configuração (P44). */}
+      {ports ? <InsightsCard port={ports.advice} /> : null}
       {current?.error ? <StatusBanner tone="danger">Não foi possível carregar o resumo agora. As telas de Agenda e Caixa continuam disponíveis.</StatusBanner> : null}
       {!current && ports ? <p role="status" className="tn-today__loading">Carregando o seu dia…</p> : null}
 
@@ -160,9 +162,6 @@ export function Home() {
             <li><Link to="/app/caixa" className="tn-quick__item"><span className="tn-quick__icon"><Icon name="receber" /></span>Registrar recebimento</Link></li>
             <li><Link to="/app/assistente" className="tn-quick__item"><span className="tn-quick__icon"><Icon name="assistente" /></span>Perguntar ao assistente</Link></li>
           </ul>
-
-          {/* P44 (configuração guiada): o cartão "Deixe seu negócio pronto" entra aqui, acima das sugestões. */}
-          <InsightsCard port={ports!.advice} />
 
           <Section title="Atendimentos de hoje" id="home-next">
             {!t.agenda ? (
