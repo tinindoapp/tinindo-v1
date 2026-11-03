@@ -781,16 +781,16 @@
         "tests/contracts/field-service/",
         "tests/e2e/field-service/"
       ],
-      "status": "in_progress",
+      "status": "review",
       "owner": "fffalleiros",
       "session": "claude-int-p29",
       "branch": "task/p29/claude-int-p29",
       "lease_until": "2026-11-03T04:12:55.234295Z",
-      "pr": null,
+      "pr": 83,
       "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T02:12:55.234295Z",
+  "updated_at": "2026-11-03T02:23:35.308698Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1627,6 +1627,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p29",
       "pr": null,
+      "reason": null
+    },
+    {
+      "id": "b18c2597-20de-4e42-bc65-11cd2d102342",
+      "at": "2026-11-03T02:23:35.308698Z",
+      "action": "review",
+      "task": "P29",
+      "actor": "fffalleiros",
+      "session": "claude-int-p29",
+      "pr": 83,
       "reason": null
     }
   ]
