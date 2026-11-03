@@ -69,6 +69,7 @@ export function createDemoCostPort(): CostPort {
         tenants: [{ tenant_id: tenantA.id, tenant_name: tenantA.name, human_minutes: human, automation_minutes: 20, reprocess_minutes: 15,
           estimated_cost_cents: Math.round((human * hourly) / 60), plan_monthly_cents: 7900, services_contracted_cents: 50000 }],
         totals: { human_minutes: human, automation_minutes: 20, reprocess_minutes: 15, estimated_cost_cents: Math.round((human * hourly) / 60) },
+        setup_ready_24h: { businesses: 1, ready: 1, ready_in_24h: 1, note: "Pronto = expediente, serviço com preço, antecedência de cancelamento e perfil publicado, pela data real de cada dado. Conta só negócios criados no período." },
         note: "Custo estimado = minutos humanos medidos × custo-hora informado; não inclui infraestrutura, canal, impostos nem aquisição. Valores contratados têm cobrança manual: não são pagamentos confirmados.",
       };
     },

@@ -86,6 +86,10 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
               </tr>
             </tfoot>
           </table>
+          <p className="tn-an-setup">
+            Negócios criados no período: <span className="tn-num">{data.setup_ready_24h.businesses}</span> · prontos em 24 h: <span className="tn-num">{data.setup_ready_24h.ready_in_24h}</span>
+            {" "}(prontos até hoje: <span className="tn-num">{data.setup_ready_24h.ready}</span>). <span className="tn-muted">{data.setup_ready_24h.note}</span>
+          </p>
           <p className="tn-muted">{data.note}</p>
         </Card>
       ) : !error ? <p role="status">Carregando…</p> : null}

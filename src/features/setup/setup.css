@@ -1,0 +1,37 @@
+/* Configuração guiada (P44): cartão da Home e a tela dos passos. Tokens de ui.css; nada de cor fixa. */
+.tn-setup-card { display: grid; gap: var(--tn-space-3); margin-top: var(--tn-space-4); }
+.tn-setup-card__head { display: grid; gap: var(--tn-space-2); }
+.tn-setup-card__title { margin: 0; font-size: var(--tn-text-group); }
+.tn-setup-card__bar { height: 8px; border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); overflow: hidden; }
+.tn-setup-card__bar > span { display: block; height: 100%; background: var(--tn-action); border-radius: inherit; transition: width 240ms ease; }
+@media (prefers-reduced-motion: reduce) { .tn-setup-card__bar > span { transition: none; } }
+.tn-setup-card__ready { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-setup-card__next { display: grid; grid-template-columns: auto 1fr; gap: var(--tn-space-3); align-items: start; }
+.tn-setup-card__icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--tn-radius-pill); background: var(--tn-action-subtle); color: var(--tn-action); }
+.tn-setup-card__step { margin: 0; font-weight: var(--tn-font-weight-semibold); }
+.tn-setup-card__why { margin: var(--tn-space-1) 0 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-setup-card__all { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
+.tn-setup-card__describe { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+
+.tn-setup { display: grid; gap: var(--tn-space-4); }
+.tn-setup-steps { list-style: none; margin: var(--tn-space-3) 0 0; padding: 0; display: grid; gap: var(--tn-space-2); }
+.tn-setup-step { display: grid; grid-template-columns: auto 1fr; gap: var(--tn-space-3); padding: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); background: var(--tn-surface); }
+.tn-setup-step[data-next] { border-color: var(--tn-selected-border); background: var(--tn-selected-bg); }
+.tn-setup-step[data-done] { opacity: 0.8; }
+.tn-setup-step[data-dismissed] .tn-setup-step__title { color: var(--tn-text-muted); }
+.tn-setup-step__mark { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); font-weight: var(--tn-font-weight-semibold); font-size: var(--tn-text-support); }
+.tn-setup-step[data-done] .tn-setup-step__mark { background: var(--tn-action); color: var(--tn-text-on-action); }
+.tn-setup-step__body { display: grid; gap: var(--tn-space-1); min-width: 0; }
+.tn-setup-step__title { margin: 0; font-weight: var(--tn-font-weight-semibold); }
+.tn-setup-step__tag { margin-left: var(--tn-space-2); padding: 0 var(--tn-space-2); border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); color: var(--tn-text-muted); font-size: var(--tn-text-label); font-weight: var(--tn-font-weight-medium); }
+.tn-setup-step__why { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-setup-step__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
+.tn-setup-step__go { display: inline-flex; align-items: center; gap: var(--tn-space-1); min-height: var(--tn-size-touch); color: var(--tn-link); font-weight: var(--tn-font-weight-medium); }
+
+.tn-setup-draft { display: grid; gap: var(--tn-space-3); margin-top: var(--tn-space-4); padding-top: var(--tn-space-4); border-top: 1px solid var(--tn-border); }
+.tn-setup-services { margin: 0; padding: 0; border: 0; display: grid; gap: var(--tn-space-2); }
+.tn-setup-services > legend { font-weight: var(--tn-font-weight-semibold); margin-bottom: var(--tn-space-2); }
+.tn-setup-services__row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--tn-space-2); align-items: end; }
+@media (max-width: 30rem) { .tn-setup-services__row { grid-template-columns: 1fr 1fr; } .tn-setup-services__row > :first-child { grid-column: 1 / -1; } }
+.tn-setup-templates { display: grid; gap: var(--tn-space-2); margin: var(--tn-space-3) 0; }
+.tn-setup-template { display: grid; gap: var(--tn-space-2); }

@@ -8,7 +8,7 @@ import {
   CrmCustomerUpsertInput,
   DeclaredSource,
 } from "@contracts";
-import { ActionsMenu, Button, Card, Field, FormPanel, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { ActionsMenu, Button, Card, Field, FormPanel, LinkButton, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { ContactButtons } from "./contact.tsx";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
@@ -191,6 +191,11 @@ export function CustomersPage() {
           >
             Cadastre o primeiro ou traga a lista que você já tem numa planilha.
           </EmptyState>
+        ) : null}
+        {!loadError && items?.length === 0 && !shownQuery && !showArchived ? (
+          <SetupHint to="/app/configurar" action="Ver os passos">
+            Ainda não configurado: com o link público no ar, {noun.one === "aluno" ? "o primeiro aluno" : "o primeiro cliente"} pode chegar sozinho. Veja o que falta para o seu negócio ficar pronto.
+          </SetupHint>
         ) : null}
         <ul className="tn-item-list">
           {items?.map((c) => (

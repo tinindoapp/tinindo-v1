@@ -1,7 +1,7 @@
 // Catálogo do prestador: duração, intervalos, preço base, piso e custos. Arquivar = inativo.
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { type ProviderService, ServiceSaveInput } from "@contracts";
-import { Button, Card, Field, FormPanel, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, Field, FormPanel, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { useProfession } from "./CustomersPage.tsx";
 import { centsToInput, formatCents, parseBRL, parsePercentToBps } from "./format.ts";
@@ -189,6 +189,11 @@ export function ServicesPage() {
         ) : null}
         {!loadError && items?.length === 0 && profession ? (
           <TemplateButtons templates={config.templates} disabled={api.readOnly} onPick={(t) => setDraft(fromTemplate(t))} />
+        ) : null}
+        {!loadError && items?.length === 0 && !showInactive ? (
+          <SetupHint to="/app/configurar#modelos" action="Usar modelos com preço">
+            Ainda não configurado: os modelos da sua profissão trazem duração e faixa de preço, e você confirma cada um antes de criar.
+          </SetupHint>
         ) : null}
         <ul className="tn-item-list">
           {items?.map((s) => (

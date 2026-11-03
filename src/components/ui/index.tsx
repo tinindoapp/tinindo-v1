@@ -18,6 +18,7 @@ export { COMPACT_QUERY, FormPanel, Sheet, useCompact } from "./sheet.tsx";
 export { ChipGroup, ChipNav, ChoiceCard, Segmented, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "./selection.tsx";
 export { COPY_FAILED, CopyButton, copyText, ShareActions, type ShareHow, whatsappHref } from "./share.tsx";
 export { ToneIcon, type Tone } from "./tone.tsx";
+export { SetupHint } from "./SetupHint.tsx";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 

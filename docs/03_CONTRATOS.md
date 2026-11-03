@@ -250,6 +250,11 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `field.visit_detach` | booking_id, key | Tira a marca e solta o deslocamento |
 | `field.route_rebuild` | dia, key | Refaz os deslocamentos do dia, tudo ou nada |
 | `field.route` | dia | Roteiro em ordem: saída, deslocamento, janela de chegada, atendimento |
+| `setup.progress` | — | Estado de configuração calculado pelos dados reais: 8 passos com done, por quê e link; próximo passo; pronto (grava a primeira conclusão de cada passo e emite `setup.step_completed.v1`) |
+| `setup.dismiss` | passo, dispensado, key | Dispensa ("agora não") ou volta a mostrar um passo opcional; obrigatório → 400 |
+| `setup.templates` | — | Modelos de serviço da profissão (só por migration), com faixa de preço e se já existe no catálogo |
+| `setup.services_apply` | serviços confirmados (modelo opcional, nome, duração, preço), key | Cria pela RPC do P02, tudo ou nada; devolve criados e o progresso |
+| `setup.draft_apply` | profissão (opcional), expediente (opcional, substitui), serviços, key | Aplica o rascunho "descreva seu negócio" revisado: profissão, regras da agenda principal (P03) e serviços (P02), tudo ou nada |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 

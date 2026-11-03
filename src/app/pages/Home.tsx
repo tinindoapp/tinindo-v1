@@ -17,6 +17,7 @@ import { createServerPort as createAdviceServerPort } from "../../features/growt
 import { getDemoPort as getSchedulingDemoPort } from "../../features/scheduling/SchedulingLayout.tsx";
 import type { SchedulingPort } from "../../features/scheduling/port.ts";
 import { createServerPort as createSchedulingServerPort } from "../../features/scheduling/serverPort.ts";
+import { SetupCard, useSetupPort } from "../../features/setup/module.tsx";
 import { formatCents as formatSchedulingCents, formatMinutes, whatsAppDigits } from "../../features/scheduling/agenda.ts";
 import { ListStatusBadge } from "../../features/scheduling/parts.tsx";
 import { dayWindow, formatDayLong, formatTime, localParts } from "../../features/scheduling/time.ts";
@@ -113,6 +114,8 @@ async function loadToday(p: Ports): Promise<Today> {
 export function Home() {
   const session = useSession();
   const { state, tenantId, getAccessToken } = session;
+  // P44: "Deixe seu negócio pronto · N de 8", a mesma porta da tela Configuração. Some quando tudo está resolvido.
+  const setupPort = useSetupPort();
   const ports = useMemo<Ports | null>(() => {
     if (state.status === "offline_demo" || !appEnv.supabase) {
       return { scheduling: getSchedulingDemoPort(), finance: getFinanceDemoPort(), advice: createAdviceDemoPort() };
@@ -144,6 +147,7 @@ export function Home() {
   return (
     <div className="tn-today">
       <PageHeader eyebrow={t ? t.dateLabel : "Hoje"} title="Hoje" id="home-title" />
+      {setupPort ? <SetupCard port={setupPort} /> : null}
       {current?.error ? <StatusBanner tone="danger">Não foi possível carregar o resumo agora. As telas de Agenda e Caixa continuam disponíveis.</StatusBanner> : null}
       {!current && ports ? <p role="status" className="tn-today__loading">Carregando o seu dia…</p> : null}
 

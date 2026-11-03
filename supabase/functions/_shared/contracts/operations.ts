@@ -25,6 +25,7 @@ import * as materials from "./materials.ts";
 import * as reputation from "./reputation.ts";
 import * as accounts from "./finance-advanced.ts";
 import * as field from "./field-service.ts";
+import * as setup from "./setup.ts";
 import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
@@ -55,7 +56,8 @@ export type ModuleId =
   | "resources"
   | "materials"
   | "finance-advanced"
-  | "field-service";
+  | "field-service"
+  | "setup";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -750,6 +752,11 @@ export const OPERATIONS = {
   "field.visit_detach": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldVisitDetachInput, output: field.FieldVisitDetachOutput },
   "field.route_rebuild": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldDayInput, output: field.FieldRebuildOutput },
   "field.route": { module: "field-service", owner: "P29", kind: "query", idempotent: false, input: field.FieldDayInput, output: field.FieldRouteOutput },
+  "setup.progress": { module: "setup", owner: "P44", kind: "query", idempotent: false, input: setup.SetupProgressInput, output: setup.SetupProgressOutput },
+  "setup.dismiss": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupDismissInput, output: setup.SetupDismissOutput },
+  "setup.templates": { module: "setup", owner: "P44", kind: "query", idempotent: false, input: setup.SetupTemplatesInput, output: setup.SetupTemplatesOutput },
+  "setup.services_apply": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupServicesApplyInput, output: setup.SetupServicesApplyOutput },
+  "setup.draft_apply": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupDraftApplyInput, output: setup.SetupDraftApplyOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
