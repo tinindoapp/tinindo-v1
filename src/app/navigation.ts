@@ -24,6 +24,7 @@ export const SECTION_SPECS: readonly SectionSpec[] = [
       { module: "scheduling", sub: "horarios", label: "Horários", icon: "ajustes" },
       { module: "waitlist", icon: "espera", short: "Espera" },
       { module: "pricing", icon: "preco" },
+      { module: "field-service", icon: "local" },
     ],
   },
   {

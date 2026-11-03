@@ -228,6 +228,15 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `materials.bookings` | período | Atendimentos concluídos com o consumo registrado |
 | `materials.margin` | período | Receita, custo de materiais e margem real por serviço, com cobertura |
 | `materials.quote_cost` | quote_id | Custo estimado de materiais e margem da versão atual do orçamento (P11) |
+| `field.settings` | — | Regras do domicílio (deslocamento padrão, mesma zona, janela de chegada, distância máxima), zonas e tempos entre zonas |
+| `field.settings_save` | versão, ativo, minutos padrão e na mesma zona, janela, distância máxima, key | Regras do negócio |
+| `field.zone_save` | zona (nova ou id + versão), nome, prefixos de CEP (5 dígitos), distância declarada, minutos da base, ativa, key | Um CEP numa zona só; sem endereço nem coordenada |
+| `field.travel_save` | zona A, zona B, minutos (null tira), key | Tempo entre zonas nos dois sentidos |
+| `field.zone_for` | CEP | Zona e área pelo prefixo de 5 dígitos (não guarda o CEP consultado) |
+| `field.visit_attach` | booking_id, zona, CEP de 5 dígitos, key | Marca a reserva como domicílio e refaz os deslocamentos do dia; fora da área ou sem tempo de chegar → recusado |
+| `field.visit_detach` | booking_id, key | Tira a marca e solta o deslocamento |
+| `field.route_rebuild` | dia, key | Refaz os deslocamentos do dia, tudo ou nada |
+| `field.route` | dia | Roteiro em ordem: saída, deslocamento, janela de chegada, atendimento |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 
