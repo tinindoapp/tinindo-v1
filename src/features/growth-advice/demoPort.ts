@@ -1,4 +1,4 @@
-// EMULAÇÃO de Metas e conteúdo para a demonstração sem servidor. Mesmas regras do banco que a tela explica: progresso
+// EMULAÇÃO de Metas e sugestões (P22; os insights do P45 estão em demoInsights.ts) para a demonstração sem servidor. Mesmas regras do banco que a tela explica: progresso
 // é o indicador do mês (com denominador; insuficiente ≠ zero); uma meta ativa por indicador e mês; sugestões só por
 // regras sobre dado existente, com evidência; decisão uma vez por mês, acompanhada 30 dias depois como variação
 // observada; conteúdo aprovado por profissão, publicado só com perfil publicado e campo `bio` escolhido.
