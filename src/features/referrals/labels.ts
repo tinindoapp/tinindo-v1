@@ -18,7 +18,7 @@ export function activationLabel(inv: ReferralInvite): string {
   if (!a) return inv.state === "claimed" ? "Aceito: em avaliação na próxima rodada" : STATE[inv.state];
   switch (a.status) {
     case "awaiting_activity":
-      return `Aceito: aguardando uso real (${Number(a.checks.customers ?? 0)} cliente(s), ${Number(a.checks.completed_bookings ?? 0)} atendimento(s) concluído(s))`;
+      return "Aceito: aguardando uso real";
     case "eligible":
       return "Uso real confirmado: benefício na fila (teto do mês atingido)";
     case "rewarded":

@@ -17,7 +17,7 @@ test("dono publica e recebe o link pronto para mandar; no /p/:slug os campos tê
   await expect(card).toBeVisible();
   const url = await card.getByLabel("Endereço do seu perfil").inputValue();
   expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/p\/barbearia-ux$/);
-  const wa = card.getByRole("link", { name: "Mandar no WhatsApp" });
+  const wa = card.getByRole("link", { name: "Enviar pelo WhatsApp" });
   const href = (await wa.getAttribute("href"))!;
   expect(href.startsWith("https://wa.me/?text=")).toBe(true);
   expect(decodeURIComponent(href.slice("https://wa.me/?text=".length))).toContain(url);

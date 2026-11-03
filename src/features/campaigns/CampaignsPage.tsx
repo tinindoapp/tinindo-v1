@@ -1,21 +1,18 @@
 // Campanhas (P19): segmento por dados existentes, público autorizado (consentimento de marketing), limites de envio e
 // gasto aplicados no servidor, oferta vinculada, grupo de controle sorteado e resultado por braço com intervalo.
 // O que a tela promete é o que o banco garante; sem controle, o resultado é observação, não efeito.
-import { type ComponentProps, type FormEvent, useEffect, useState } from "react";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
+import { type FormEvent, useEffect, useState } from "react";
+import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { ci, DESIGN, explain, formatCents, formatDate, offerLabel, pct, segmentLabel, STATUS, VERDICT } from "./labels.ts";
 import { type Campaign, type CampaignDetail, type CampaignSegment, type CampaignsPort, newKey, type Preview } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 /** Retorno de uma ação: aviso curto (Toast), sempre à vista; `null` só atualiza a tela. */
 type Notice = ToastInput | string | null;
 const failed = (e: unknown): Notice => ({ tone: "danger", message: explain(e) });
 
 /** Botão de ação de um toque: mostra o carregando enquanto a ação roda. */
-function ActButton({ onAct, ...props }: Omit<ComponentProps<typeof Button>, "onClick" | "loading"> & { onAct: () => Promise<unknown> }) {
-  const [busy, setBusy] = useState(false);
-  return <Button {...props} loading={busy} onClick={() => { setBusy(true); void onAct().finally(() => setBusy(false)); }} />;
-}
 const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
 
 function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services: { id: string; name: string }[]; onDone: (n: Notice, close?: boolean) => void }) {
@@ -62,7 +59,7 @@ function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services
         offer: offerKind === "none" ? { kind: "none" } : { kind: "discount_pct", pct: Number(pctValue), service_id: serviceId || null } }, key);
       setKey(newKey());
       setName("");
-      onDone(`Campanha “${c.name}” aprovada: ${c.treatment_count} cliente(s) recebem a oferta, ${c.control_count} no grupo de controle. Janela de ${c.window_days} dias; ${DESIGN[c.result.design]}.`, true);
+      onDone(`Campanha “${c.name}” aprovada: ${plural(c.treatment_count, "cliente recebe", "clientes recebem")} a oferta, ${c.control_count} no grupo de controle. Janela de ${c.window_days} dias; ${DESIGN[c.result.design]}.`, true);
     } catch (err) {
       setKey(newKey());
       const p = await port.preview(segment).catch(() => null);
@@ -82,7 +79,7 @@ function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services
       </Field>
       {kind === "inactive_days" ? <Field label="Dias sem atendimento (14–365)" inputMode="numeric" value={days} error={errors.days} onChange={(e) => setDays(e.target.value)} /> : null}
       <p className="tn-muted tn-cp-audience" aria-live="polite">
-        {preview ? `Público autorizado agora: ${preview.audience_count} cliente(s) com consentimento de marketing, sem atendimento futuro e fora de outra campanha.` : "Calculando o público…"}
+        {preview ? `Público autorizado agora: ${plural(preview.audience_count, "cliente")} com consentimento de marketing, sem atendimento futuro e fora de outra campanha.` : "Calculando o público…"}
       </p>
       <Field label="Grupo de controle (%)" inputMode="numeric" value={control} onChange={(e) => setControl(e.target.value)} />
       <Field label="Teto de envios" inputMode="numeric" value={maxSends} onChange={(e) => setMaxSends(e.target.value)} />
@@ -143,8 +140,8 @@ function CampaignItem({ c, port, onDone }: { c: Campaign; port: CampaignsPort; o
             onConfirm={() => act(() => port.cancel(c, newKey()), "Campanha cancelada: o que ainda não saiu parou; o que saiu não muda. Resultado congelado como observação parcial.")}
           />
         ) : null}
-        {c.status === "running" && port.simulate ? <ActButton variant="ghost" onAct={() => act(() => port.simulate!(c.id), "Simulação: parte das clientes agendou e a janela fechou pelo worker.")}>Simular janela (demonstração)</ActButton> : null}
-        <ActButton variant="ghost" onAct={() => port.get(c.id).then(setDetail, (e: unknown) => onDone(failed(e)))}>Ver participantes</ActButton>
+        {c.status === "running" && port.simulate ? <ActionButton variant="ghost" onAct={() => act(() => port.simulate!(c.id), "Simulação: parte das clientes agendou e a janela fechou pelo worker.")}>Simular janela (demonstração)</ActionButton> : null}
+        <ActionButton variant="ghost" onAct={() => port.get(c.id).then(setDetail, (e: unknown) => onDone(failed(e)))}>Ver participantes</ActionButton>
       </div>
       {detail ? (
         <ul className="tn-cp-list" aria-label={`Participantes de ${c.name}`}>

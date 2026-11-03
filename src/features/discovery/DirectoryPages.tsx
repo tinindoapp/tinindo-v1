@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { Button, Card, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { CATEGORY_LABEL, CATEGORY_PLURAL, directoryPath, explain, STATUS_LABEL, UFS, WEEKDAY, WEEKDAY_SHORT } from "./labels.ts";
 import { type DirectoryCard, type DirectoryCities, type DirectoryPort, type DirectorySearch, type DiscoveryOverview, type DiscoveryPort, newKey } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 export function CardView({ c }: { c: DirectoryCard }) {
   return (
@@ -181,7 +182,7 @@ export function PublicDirectoryPage({ port }: { port: DirectoryPort }) {
           {current?.error ? <StatusBanner tone="danger">{current.error}</StatusBanner> : null}
           {current?.data ? (
             <>
-              <p className="tn-muted" aria-live="polite">{current.data.total} resultado(s) · {current.data.criteria.order} · sem destaque pago</p>
+              <p className="tn-muted" aria-live="polite">{plural(current.data.total, "resultado")} · {current.data.criteria.order} · sem destaque pago</p>
               <ul className="tn-dir-list" aria-label="Resultados">{current.data.items.map((c) => <CardView key={c.slug} c={c} />)}</ul>
               <details className="tn-dir-criteria"><summary>Como os resultados são escolhidos</summary>
                 <p>Filtros: {current.data.criteria.filters.join("; ")}.</p>

@@ -46,7 +46,6 @@ export function pixMessage(description: string, amountCents: number, link: strin
   const { service, name } = splitDescription(description);
   return `Oi${name ? `, ${name.split(" ")[0]}` : ""}! Segue o Pix de ${service} de ${formatCents(amountCents)}: ${link}`;
 }
-export const whatsappUrl = (text: string) => `https://wa.me/?text=${encodeURIComponent(text)}`;
 /** Cobranças sem confirmação: só aparece quando há alguma. */
 export const unknownNote = (n: number) => (n <= 0 ? null : `${n} ${n === 1 ? "cobrança" : "cobranças"} sem confirmação do banco`);
 export const todayIn = (timeZone: string, d = new Date()) => d.toLocaleDateString("en-CA", { timeZone });

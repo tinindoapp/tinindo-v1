@@ -46,7 +46,7 @@ test.describe("UAT barbeiro", () => {
     await page.getByLabel("Ou cole o conteúdo").fill(fiveCustomers);
     await page.getByRole("button", { name: "Ver prévia" }).click();
     await expect(page.getByRole("heading", { name: "Prévia" })).toBeVisible();
-    await expect(page.getByText(/5 linha\(s\) prontas, 0 com problema/)).toBeVisible();
+    await expect(page.getByText(/5 linhas prontas, 0 com problema/)).toBeVisible();
     await expect(page.getByText("Linha 2", { exact: false })).toBeVisible();
     await expect(page.getByText("(11) 98765-0001")).toBeVisible();
     // Sem servidor, a gravação fica bloqueada em vez de fingir sucesso.

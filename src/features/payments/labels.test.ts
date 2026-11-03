@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatDay, pixMessage, splitDescription, unknownNote, whatsappUrl } from "./labels.ts";
+import { whatsappHref } from "../../components/ui/index.tsx";
+import { formatDay, pixMessage, splitDescription, unknownNote } from "./labels.ts";
 import { missingText } from "./PayLinkPage.tsx";
 
 describe("textos de Pagamentos", () => {
@@ -16,7 +17,7 @@ describe("textos de Pagamentos", () => {
     const msg = pixMessage("Corte · Ana Beatriz (exemplo)", 6000, "https://x.test/pagar#t=abc");
     expect(msg.replace(/\s/g, " ")).toBe("Oi, Ana! Segue o Pix de Corte de R$ 60,00: https://x.test/pagar#t=abc");
     expect(pixMessage("Produto", 3098, "L").replace(/\s/g, " ")).toBe("Oi! Segue o Pix de Produto de R$ 30,98: L");
-    const url = whatsappUrl(msg);
+    const url = whatsappHref(null, msg);
     expect(url.startsWith("https://wa.me/?text=")).toBe(true);
     expect(decodeURIComponent(url.split("text=")[1]!)).toBe(msg);
   });

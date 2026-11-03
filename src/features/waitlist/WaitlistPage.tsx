@@ -2,8 +2,8 @@
 // A Tinindo não envia mensagens: o dono compartilha o link, e compartilhar não confirma entrega.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { TimeRange, WaitlistEntry, WaitlistOffer } from "@contracts";
-import { Button, Card, ConfirmAction, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { endOfLocalDay, formatDateTime, formatSlot, localDate, WEEKDAYS, windowsText } from "./format.ts";
+import { Button, Card, ChipGroup, ConfirmAction, Field, PageHeader, ShareActions, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
+import { endOfLocalDay, formatDateTime, formatSlot, localDate, windowsText } from "./format.ts";
 import { newKey, type WaitlistBase, type WaitlistPort } from "./port.ts";
 
 const PortContext = createContext<WaitlistPort | null>(null);
@@ -211,11 +211,9 @@ function ShareCard({ token, onShared, onClose }: { token: string; onShared: () =
         cliente recebeu.
       </p>
       <p className="tn-wl-link"><code>{link}</code></p>
+      {/* Só registra o compartilhamento depois que a cópia deu certo (ou ao abrir o WhatsApp). */}
+      <ShareActions message={text} copyText={link} copyLabel="Copiar link" onShared={onShared} />
       <div className="tn-actions">
-        <Button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => undefined); onShared(); }}>Copiar link</Button>
-        <a className="tn-button" data-variant="secondary" href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer noopener" onClick={onShared}>
-          Abrir no WhatsApp
-        </a>
         <Button variant="ghost" onClick={onClose}>Fechar</Button>
       </div>
     </Card>
@@ -272,17 +270,10 @@ function JoinForm({ base, onDone }: { base: WaitlistBase; onDone: (t: string) =>
         <Field as="select" label="Serviço" id="wl-service" value={service} onChange={(e) => setService(e.target.value)}>
           {base.services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Field>
-        <fieldset className="tn-wl-days" data-span="full" aria-describedby={errors.days ? "wl-days-error" : undefined}>
-          <legend>Dias que servem</legend>
-          {[1, 2, 3, 4, 5, 6, 0].map((d, i) => (
-            <label key={d} className="tn-wl-check">
-              <input type="checkbox" checked={days.includes(d)} aria-invalid={errors.days && i === 0 ? true : undefined}
-                onChange={(e) => setDays(e.target.checked ? [...days, d] : days.filter((x) => x !== d))} />
-              {WEEKDAYS[d]}
-            </label>
-          ))}
-          {errors.days ? <span id="wl-days-error" className="tn-field__error">{errors.days}</span> : null}
-        </fieldset>
+        <div data-span="full">
+          <ChipGroup label="Dias que servem" options={WEEKDAY_CHIPS} shortcuts={WEEKDAY_SHORTCUTS} value={days} onChange={setDays}
+            error={errors.days} errorId="wl-days-error" />
+        </div>
         <Field label="A partir de" id="wl-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} />
         <Field label="Até as" id="wl-to" type="time" step={900} value={to} error={errors.to} onChange={(e) => setTo(e.target.value)} />
         <Field label="Fica na lista até" id="wl-until" type="date" min={today} value={until} error={errors.until} onChange={(e) => setUntil(e.target.value)} />

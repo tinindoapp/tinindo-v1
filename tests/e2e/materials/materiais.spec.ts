@@ -17,8 +17,8 @@ test("materiais: uso pela ficha sai uma vez, estorno devolve, margem real com co
   await expect(stock).toContainText("Shampoo · Consumível · 980 ml");
   const margin = page.getByRole("list", { name: "Margem por serviço" });
   await expect(margin).toContainText("Corte: R$ 60,00 combinados − R$ 4,00 em materiais = R$ 56,00 (93,3%)");
-  await expect(margin).toContainText("Barba: sem uso registrado · 0 de 1 atendimento(s) com materiais");
-  await expect(page.getByText("1 atendimento(s) sem uso registrado ficam fora da margem real.")).toBeVisible();
+  await expect(margin).toContainText("Barba: sem uso registrado · 0 de 1 atendimento com materiais");
+  await expect(page.getByText("1 atendimento sem uso registrado fica fora da margem real.")).toBeVisible();
   // A barba não tem ficha: o botão não aparece.
   await expect(uses.getByRole("listitem").filter({ hasText: "Barba" })).toContainText("(o serviço não tem ficha)");
 

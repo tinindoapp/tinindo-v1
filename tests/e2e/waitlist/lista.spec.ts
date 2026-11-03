@@ -17,7 +17,10 @@ test("lista de espera: oferta para o primeiro da fila, link sem envio automátic
   await expect(share).toContainText("A Tinindo não envia mensagens");
   const link = (await share.locator("code").textContent()) ?? "";
   expect(link).toMatch(/\/oferta#t=[A-Za-z0-9_-]{43}$/);
+  // Copiar só registra o compartilhamento quando dá certo (clipboard simulado no navegador de teste).
+  await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true }));
   await share.getByRole("button", { name: "Copiar link" }).click();
+  await expect(share.getByRole("status")).toHaveText("Copiado ✓");
   const offers = page.getByRole("region", { name: "Ofertas" });
   await expect(offers).toContainText("Oferta aberta");
   await expect(offers).toContainText("a entrega não é confirmada");

@@ -2,9 +2,8 @@
 // A Tinindo não envia mensagens: o dono compartilha o link. Aceito não é pago: a cobrança fica no Caixa.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { SalesQuote } from "@contracts";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, Help, PageHeader, ShareActions, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { ShareActions } from "./share.tsx";
 import { newKey, type QuoteDetail, type QuoteDraft, type QuoteMaterialCost, type SalesBase, type SalesPort } from "./port.ts";
 import {
   centsToInput,

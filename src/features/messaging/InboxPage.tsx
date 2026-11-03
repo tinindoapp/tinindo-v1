@@ -7,6 +7,7 @@ import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toa
 import { Icon } from "../../components/ui/icons.tsx";
 import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, formatTime, MESSAGE_STATUS, PROVIDER_LABEL, unreadLabel } from "./labels.ts";
 import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort, newKey } from "./port.ts";
+import { plural, pluralWord } from "../../lib/text/plural.ts";
 
 /** Depois de uma ação: o aviso de sucesso sai no toast e a tela recarrega. Erro de formulário fica no formulário. */
 type Done = (message: string) => void;
@@ -198,7 +199,7 @@ function DemoNotice({ port }: { port: MessagingPort }) {
 function DispatchButton({ port, done, fail }: { port: MessagingPort; done: Done; fail: (e: unknown) => void }) {
   if (!port.dispatch) return null;
   return (
-    <Button variant="secondary" onClick={() => void port.dispatch!().then((r) => done(`Despacho (simulação): ${r.sent} enviada(s), ${r.failed} falhou(aram), ${r.unknown} desconhecida(s), ${r.reconciled} resolvida(s).`), fail)}>
+    <Button variant="secondary" onClick={() => void port.dispatch!().then((r) => done(`Despacho (simulação): ${plural(r.sent, "enviada")}, ${r.failed} ${pluralWord(r.failed, "falhou", "falharam")}, ${plural(r.unknown, "desconhecida")}, ${plural(r.reconciled, "resolvida")}.`), fail)}>
       Rodar o despacho (simulação)
     </Button>
   );
