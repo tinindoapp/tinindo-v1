@@ -734,9 +734,62 @@
       "pr": 61,
       "block_reason": null,
       "merge_sha": "7e032ffd15400fc4ae2978591fffcba59817f380"
+    },
+    "P31": {
+      "id": "P31",
+      "title": "Financeiro ampliado",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P07",
+        "P14",
+        "P16"
+      ],
+      "resources": [
+        "finance-advanced"
+      ],
+      "paths": [
+        "src/features/finance-advanced/",
+        "supabase/functions/finance-advanced/",
+        "db/proposals/P31/",
+        "tests/contracts/finance-advanced/",
+        "tests/e2e/finance-advanced/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
+    },
+    "P29": {
+      "id": "P29",
+      "title": "Serviço a domicílio",
+      "lead_hint": "A definir na reserva (sem a parte do P25)",
+      "depends_on": [
+        "P03",
+        "P11"
+      ],
+      "resources": [
+        "field-service"
+      ],
+      "paths": [
+        "src/features/field-service/",
+        "supabase/functions/field-service/",
+        "db/proposals/P29/",
+        "tests/contracts/field-service/",
+        "tests/e2e/field-service/"
+      ],
+      "status": "pending",
+      "owner": null,
+      "session": null,
+      "branch": null,
+      "lease_until": null,
+      "pr": null,
+      "block_reason": null
     }
   },
-  "updated_at": "2026-10-31T11:00:00.734155Z",
+  "updated_at": "2026-11-03T01:08:26.445949Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1444,6 +1497,26 @@
       "session": "reconcile",
       "pr": 61,
       "reason": "Entregue em PR merged fora do quadro (P28/P30 não estavam liberados); registrado pelo integrador com autorização do dono em 31/10."
+    },
+    {
+      "id": "568841e6-881f-493c-8582-e84a2ad723c9",
+      "at": "2026-11-03T01:08:26.445949Z",
+      "action": "release",
+      "task": "P31",
+      "actor": "fffalleiros",
+      "session": null,
+      "pr": null,
+      "reason": "Liberado pelo integrador na expansao-1 a pedido do dono (03/11). P29 sem a dependência do P25: a parte de marketplace fica fora."
+    },
+    {
+      "id": "7aa03b20-9ea1-410c-90e2-79026ab67e37",
+      "at": "2026-11-03T01:08:26.445949Z",
+      "action": "release",
+      "task": "P29",
+      "actor": "fffalleiros",
+      "session": null,
+      "pr": null,
+      "reason": "Liberado pelo integrador na expansao-1 a pedido do dono (03/11). P29 sem a dependência do P25: a parte de marketplace fica fora."
     }
   ]
 }
