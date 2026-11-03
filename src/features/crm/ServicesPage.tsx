@@ -1,12 +1,12 @@
 // Catálogo do prestador: duração, intervalos, preço base, piso e custos. Arquivar = inativo.
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { type ProviderService, ServiceSaveInput } from "@contracts";
-import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, Field, FormPanel, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { useProfession } from "./CustomersPage.tsx";
 import { centsToInput, formatCents, parseBRL, parsePercentToBps } from "./format.ts";
 import { PROFESSION_CONFIG, type ServiceTemplate } from "./profession.ts";
-import { CrmDemoNotice, fieldErrors, Tag } from "./shared.tsx";
+import { CrmDemoNotice, EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
 
 type Draft = {
   id?: string;
@@ -50,6 +50,27 @@ function fromService(s: ProviderService): Draft {
   };
 }
 
+const fromTemplate = (t: ServiceTemplate): Draft => ({
+  ...EMPTY,
+  name: t.name,
+  duration: String(t.duration_min),
+  before: String(t.buffer_before_min),
+  after: String(t.buffer_after_min),
+});
+
+/** Modelos da profissão (item 45): só na lista vazia e dentro de "Novo serviço", nunca para sempre na tela. */
+function TemplateButtons({ templates, disabled, onPick }: { templates: ServiceTemplate[]; disabled?: boolean; onPick: (t: ServiceTemplate) => void }) {
+  return (
+    <div className="tn-actions" role="group" aria-label="Começar de um modelo">
+      {templates.map((t) => (
+        <Button key={t.name} variant="secondary" disabled={disabled} onClick={() => onPick(t)}>
+          Modelo: {t.name} ({t.duration_min} min)
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 const intOf = (v: string) => (/^\s*\d+\s*$/.test(v) ? Number(v) : v.trim() === "" ? undefined : Number.NaN);
 
 export function ServicesPage() {
@@ -57,7 +78,8 @@ export function ServicesPage() {
   const profession = useProfession();
   const config = PROFESSION_CONFIG[profession ?? "other"];
   const [showInactive, setShowInactive] = useState(false);
-  const [items, setItems] = useState<ProviderService[]>([]);
+  // null = carregando (esqueleto, item 40), para a lista vazia não piscar antes dos dados.
+  const [items, setItems] = useState<ProviderService[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
 
@@ -109,8 +131,6 @@ export function ServicesPage() {
     }
   }
 
-  const applyTemplate = (t: ServiceTemplate) =>
-    setDraft({ ...EMPTY, name: t.name, duration: String(t.duration_min), before: String(t.buffer_before_min), after: String(t.buffer_after_min) });
 
   return (
     <div className="tn-stack">
@@ -131,28 +151,22 @@ export function ServicesPage() {
             Mostrar arquivados
           </label>
         </div>
-        {profession ? (
-          <div className="tn-actions" role="group" aria-label="Modelos para começar">
-            {config.templates.map((t) => (
-              <Button key={t.name} variant="ghost" disabled={api.readOnly} onClick={() => applyTemplate(t)}>
-                Modelo: {t.name} ({t.duration_min} min)
-              </Button>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       {draft ? (
-        <ServiceForm
-          draft={draft}
-          bufferHint={config.bufferHint}
-          onCancel={() => setDraft(null)}
-          onSaved={async (text) => {
-            setDraft(null);
-            toast(text);
-            await load();
-          }}
-        />
+        <FormPanel key={draft.id ?? "novo"} title={draft.id ? "Editar serviço" : "Novo serviço"} onClose={() => setDraft(null)}>
+          <ServiceForm
+            draft={draft}
+            bufferHint={config.bufferHint}
+            templates={draft.id || !profession ? [] : config.templates}
+            onCancel={() => setDraft(null)}
+            onSaved={async (text) => {
+              setDraft(null);
+              toast(text);
+              await load();
+            }}
+          />
+        </FormPanel>
       ) : null}
 
       <Card aria-labelledby="crm-services-list">
@@ -160,24 +174,39 @@ export function ServicesPage() {
           Lista de serviços
         </h2>
         {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
-        {!loadError && items.length === 0 ? <p className="tn-muted">Nenhum serviço ainda. Comece por um modelo.</p> : null}
+        {!loadError && items === null ? <ListSkeleton label="Carregando serviços…" /> : null}
+        {!loadError && items?.length === 0 ? (
+          <EmptyState
+            title={showInactive ? "Nenhum serviço, nem arquivado" : "Nenhum serviço ainda"}
+            actions={
+              <Button disabled={api.readOnly} onClick={() => setDraft(EMPTY)}>
+                Cadastrar serviço
+              </Button>
+            }
+          >
+            {profession ? "Comece por um modelo da sua profissão (você põe o preço) ou cadastre do zero." : "Cadastre o primeiro serviço com duração e preço."}
+          </EmptyState>
+        ) : null}
+        {!loadError && items?.length === 0 && profession ? (
+          <TemplateButtons templates={config.templates} disabled={api.readOnly} onPick={(t) => setDraft(fromTemplate(t))} />
+        ) : null}
         <ul className="tn-item-list">
-          {items.map((s) => (
-            <li key={s.id} className="crm-item">
+          {items?.map((s) => (
+            <li key={s.id} className="crm-item crm-service">
               <div className="crm-item__main">
                 <span className="crm-item__title">{s.name}</span>
                 {s.active ? null : <Tag>Arquivado</Tag>}
+                {/* Piso e custo ficam na edição (item 45): na lista, duração e intervalo. */}
                 <div className="crm-item__meta">
                   <span className="tn-num">{s.duration_min} min</span>
                   {s.buffer_before_min || s.buffer_after_min
                     ? ` · intervalo ${s.buffer_before_min} antes / ${s.buffer_after_min} depois`
                     : ""}
-                  {" · "}
-                  <span className="tn-num">{formatCents(s.base_price_cents)}</span> (piso{" "}
-                  <span className="tn-num">{formatCents(s.min_price_cents)}</span>)
-                  {s.estimated_cost_cents === null ? " · custo não informado" : ` · custo ${formatCents(s.estimated_cost_cents)}`}
                 </div>
               </div>
+              <span className="crm-price tn-num">
+                {formatCents(s.base_price_cents)}
+              </span>
               <div className="tn-actions crm-item__actions">
                 <Button variant="secondary" disabled={api.readOnly} aria-label={`Editar ${s.name}`} onClick={() => setDraft(fromService(s))}>
                   Editar
@@ -202,11 +231,14 @@ export function ServicesPage() {
 function ServiceForm({
   draft,
   bufferHint,
+  templates,
   onCancel,
   onSaved,
 }: {
   draft: Draft;
   bufferHint: string;
+  /** Modelos da profissão: só ao criar. Escolher um preenche nome, duração e intervalos. */
+  templates: ServiceTemplate[];
   onCancel: () => void;
   onSaved: (text: string) => Promise<void>;
 }) {
@@ -253,9 +285,18 @@ function ServiceForm({
   }
 
   return (
-    <Card aria-labelledby="crm-service-form">
       <form ref={formRef} className="tn-stack" onSubmit={submit} noValidate>
-        <h2 id="crm-service-form">{form.id ? "Editar serviço" : "Novo serviço"}</h2>
+        {templates.length > 0 ? (
+          <TemplateButtons
+            templates={templates}
+            onPick={(t) => {
+              const next = fromTemplate(t);
+              // Mantém o que já foi digitado de preço; o modelo traz só nome, duração e intervalos.
+              setForm((f) => ({ ...f, name: next.name, duration: next.duration, before: next.before, after: next.after }));
+              show({});
+            }}
+          />
+        ) : null}
         <div className="tn-form-grid">
           <Field label="Nome" value={form.name} onChange={set("name")} maxLength={120} required error={errors.name} />
           <Field label="Duração (min)" inputMode="numeric" value={form.duration} onChange={set("duration")} required error={errors.duration_min} />
@@ -275,7 +316,8 @@ function ServiceForm({
           </StatusBanner>
         ) : null}
         {serverError ? <StatusBanner tone="danger">{serverError}</StatusBanner> : null}
-        <div className="tn-actions">
+        {/* No celular, Salvar fica preso no rodapé da folha. */}
+        <div className="tn-actions" data-sheet-footer>
           <Button type="submit" loading={busy} loadingText="Salvando…" disabled={api.readOnly}>
             Salvar
           </Button>
@@ -284,6 +326,5 @@ function ServiceForm({
           </Button>
         </div>
       </form>
-    </Card>
   );
 }

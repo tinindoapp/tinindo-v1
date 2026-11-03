@@ -13,6 +13,8 @@ import "./ui.css";
 export { IconButton } from "./IconButton.tsx";
 export { ConfirmAction, dismissToast, toast, Toaster, type ToastInput } from "./feedback.tsx";
 export { Field, focusFirstInvalid, useFormErrors, type FieldProps } from "./form.tsx";
+export { ActionsMenu, type MenuAction } from "./menu.tsx";
+export { COMPACT_QUERY, FormPanel, Sheet, useCompact } from "./sheet.tsx";
 export { ChipGroup, ChipNav, ChoiceCard, Segmented, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "./selection.tsx";
 export { COPY_FAILED, CopyButton, copyText, ShareActions, type ShareHow, whatsappHref } from "./share.tsx";
 export { ToneIcon, type Tone } from "./tone.tsx";

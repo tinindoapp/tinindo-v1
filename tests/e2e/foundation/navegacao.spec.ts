@@ -71,3 +71,21 @@ test("2 · com o app rolado, a barra lateral começa abaixo da barra superior", 
   const padding = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop));
   expect(padding).toBeGreaterThanOrEqual(header.y + header.height);
 });
+
+test("39 · Mensagens é aba principal e o Assistente fica junto dela", async ({ page, isMobile }) => {
+  await page.goto("/app/assistente");
+  await expect(page.getByRole("heading", { name: "Assistente", level: 1 })).toBeVisible();
+  if (isMobile) {
+    const tabs = page.getByRole("navigation", { name: "Abas" }).getByRole("link");
+    await expect(tabs).toHaveText(["Hoje", "Agenda", "Clientes", "Mensagens", "Dinheiro"]);
+    await expect(page.getByRole("navigation", { name: "Abas" }).getByRole("link", { name: "Mensagens" })).toHaveAttribute("aria-current", "page");
+    const sub = page.getByRole("navigation", { name: "Telas de Mensagens" });
+    await expect(sub.getByRole("link", { name: "Assistente" })).toHaveAttribute("aria-current", "page");
+    await sub.getByRole("link", { name: "Mensagens" }).click();
+  } else {
+    const menu = page.getByRole("navigation", { name: "Principal" });
+    await expect(menu.getByRole("link", { name: "Assistente", exact: true })).toHaveAttribute("aria-current", "page");
+    await menu.getByRole("link", { name: "Mensagens", exact: true }).click();
+  }
+  await expect(page.getByRole("heading", { name: "Mensagens", level: 1 })).toBeVisible();
+});

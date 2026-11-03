@@ -63,3 +63,36 @@ export function formatPhone(e164: string): string {
   const m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164);
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
 }
+
+/** Modelo aprovado com nome legível e o nome de cada campo (item 41), no lugar do código do provedor. */
+export interface TemplateInfo {
+  name: string;
+  /** Nome de cada campo, na ordem de {{1}}, {{2}}… */
+  fields: string[];
+  /** Exemplo curto embaixo do campo. */
+  examples?: string[];
+}
+export const TEMPLATE_INFO: Record<string, TemplateInfo> = {
+  verificacao_numero: { name: "Código de verificação", fields: ["Código"] },
+  confirmacao_agendamento: { name: "Confirmação de horário", fields: ["Nome da cliente", "Serviço", "Dia e hora"], examples: ["", "Corte", "quarta, 21/10 às 10h"] },
+  lembrete_agendamento: { name: "Lembrete de horário", fields: ["Serviço", "Dia e hora"], examples: ["Corte", "amanhã às 10h"] },
+  link_orcamento: { name: "Link do orçamento", fields: ["Nome da cliente", "Link do orçamento"], examples: ["", "https://…"] },
+  oferta_vaga: { name: "Horário que abriu", fields: ["Nome da cliente", "Serviço", "Dia e hora", "Link para aceitar"], examples: ["", "Corte", "quinta às 15h", "https://…"] },
+};
+
+/** Nome e campos de um modelo; código desconhecido vira texto legível ("aviso_geral" → "Aviso geral"). */
+export function templateInfo(code: string, params: number): TemplateInfo {
+  const known = TEMPLATE_INFO[code];
+  if (known && known.fields.length === params) return known;
+  const words = code.replace(/[_-]+/g, " ").trim();
+  return { name: words ? words.charAt(0).toUpperCase() + words.slice(1) : "Modelo", fields: Array.from({ length: params }, (_, i) => known?.fields[i] ?? `Informação ${i + 1}`) };
+}
+
+/** Texto do modelo com os campos preenchidos; campo vazio aparece como [Nome do campo]. */
+export function renderTemplate(body: string, values: string[], fields: string[]): string {
+  return body.replace(/\{\{(\d+)\}\}/g, (_, n: string) => {
+    const i = Number(n) - 1;
+    const v = values[i]?.trim();
+    return v ? v : `[${fields[i] ?? `Informação ${n}`}]`;
+  });
+}

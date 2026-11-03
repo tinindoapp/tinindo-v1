@@ -1,0 +1,54 @@
+/* Folha inferior (item 20 da auditoria). <dialog> modal: fica na camada de cima, acima da barra de abas, que fica
+   inerte enquanto a folha está aberta. Rodapé fixo com o botão principal e a área segura do iPhone. */
+body[data-sheet-open] { overflow: hidden; }
+.tn-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: calc(100dvh - var(--tn-top-h));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tn-radius-lg) var(--tn-radius-lg) 0 0;
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  box-shadow: var(--tn-shadow-lg);
+  overflow: hidden;
+}
+.tn-sheet[open] { display: flex; flex-direction: column; animation: tn-sheet-up var(--tn-motion-slow) var(--tn-motion-ease); }
+.tn-sheet::backdrop { background: color-mix(in srgb, var(--tn-color-tinta-950) 45%, transparent); }
+.tn-sheet__frame { display: flex; flex-direction: column; min-height: 0; max-height: inherit; }
+.tn-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tn-space-2);
+  padding: var(--tn-space-2) var(--tn-space-2) var(--tn-space-2) var(--tn-space-4);
+  border-bottom: 1px solid var(--tn-border);
+}
+.tn-sheet__head h2 { margin: 0; min-width: 0; font-size: var(--tn-text-group); overflow-wrap: anywhere; }
+.tn-sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--tn-space-4) calc(var(--tn-space-4) + env(safe-area-inset-right)) env(safe-area-inset-bottom) calc(var(--tn-space-4) + env(safe-area-inset-left));
+}
+/* O bloco do botão principal fica preso no rodapé enquanto o formulário rola. */
+.tn-sheet [data-sheet-footer] {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0 calc(-1 * var(--tn-space-4));
+  padding: var(--tn-space-3) var(--tn-space-4) calc(var(--tn-space-3) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--tn-border);
+  background: var(--tn-surface);
+}
+/* No desktop a folha (quando usada) vira uma janela no centro. */
+@media (min-width: 900px) {
+  .tn-sheet { inset: 0; width: min(36rem, calc(100% - 2 * var(--tn-space-6))); max-height: calc(100dvh - 2 * var(--tn-space-8)); margin: auto; border-radius: var(--tn-radius-lg); }
+}
+@keyframes tn-sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.tn-form-panel { display: grid; gap: var(--tn-space-3); }
+.tn-form-panel > h2 { margin: 0; }

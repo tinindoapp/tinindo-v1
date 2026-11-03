@@ -57,3 +57,7 @@
 .tn-msg-bubble p { margin: 0; }
 .tn-msg-box { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); }
 @media (max-width: 30rem) { .tn-msg-form { display: grid; grid-template-columns: minmax(0, 1fr); } }
+/* Prévia do modelo (item 41): o texto como a cliente recebe, num balão como o da conversa. */
+.tn-msg-preview { display: grid; gap: var(--tn-space-1); padding: var(--tn-space-2) var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); background: var(--tn-surface-raised); overflow-wrap: anywhere; }
+.tn-msg-preview p { margin: 0; }
+.tn-msg-preview__label { color: var(--tn-text-muted); font-size: var(--tn-text-support); }

@@ -2,7 +2,7 @@
 // A Tinindo não envia mensagens: o dono compartilha o link. Aceito não é pago: a cobrança fica no Caixa.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { SalesQuote } from "@contracts";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, ShareActions, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, PageHeader, ShareActions, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { newKey, type QuoteDetail, type QuoteDraft, type QuoteMaterialCost, type SalesBase, type SalesPort } from "./port.ts";
 import {
@@ -43,6 +43,8 @@ interface ItemRow { key: string; service_id: string; description: string; quanti
 interface FormState {
   customer_id: string;
   title: string;
+  /** false enquanto a pessoa não mexeu no título: ele acompanha os itens (sugestão). */
+  titleTouched: boolean;
   items: ItemRow[];
   days: string;
   withSlot: boolean;
@@ -54,15 +56,30 @@ interface FormState {
 
 const emptyItem = (): ItemRow => ({ key: newKey(), service_id: "", description: "", quantity: "1", price: "" });
 
+/** Título sugerido pelos itens (item 46): "Corte", "Corte e Barba", "Corte, Barba e Hidratação", "Corte, Barba e mais 2 itens". */
+export function suggestTitle(items: readonly { description: string }[]): string {
+  const names = [...new Set(items.map((i) => i.description.trim()).filter(Boolean))];
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length <= 3) return `${names.slice(0, -1).join(", ")} e ${names.at(-1)}`;
+  const rest = names.length - 2;
+  return `${names.slice(0, 2).join(", ")} e mais ${rest} ${rest === 1 ? "item" : "itens"}`;
+}
+const titleOf = (f: FormState) => (f.titleTouched ? f.title : suggestTitle(f.items));
+
+/** Quantos clientes a busca mostra de uma vez; o resto aparece refinando a busca. */
+const CUSTOMER_LIMIT = 6;
+const fold = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
 function emptyForm(base: SalesBase, now: Date): FormState {
-  return { customer_id: base.customers[0]?.id ?? "", title: "", items: [emptyItem()], days: "7", withSlot: false, slotService: "",
+  // Sem cliente escolhido sozinho (item 46): a pessoa escolhe na busca.
+  return { customer_id: "", title: "", titleTouched: false, items: [emptyItem()], days: "7", withSlot: false, slotService: "",
     slotDate: localDate(new Date(now.getTime() + 86_400_000), base.timezone), slotTime: "10:00", notes: "" };
 }
 
 function formFromQuote(q: SalesQuote, base: SalesBase): FormState {
   const v = q.current;
   return {
-    customer_id: q.customer_id, title: v.title,
+    customer_id: q.customer_id, title: v.title, titleTouched: true,
     items: v.items.map((i) => ({ key: newKey(), service_id: i.service_id ?? "", description: i.description, quantity: String(i.quantity),
       price: centsToInput(i.unit_price_cents) })),
     days: "7", withSlot: v.slot !== null, slotService: v.slot?.service_id ?? "",
@@ -79,7 +96,8 @@ const itemErr = (key: string, field: "description" | "price" | "quantity") => `i
 function toDraft(f: FormState, base: SalesBase, now: Date): { draft: QuoteDraft } | { errors: Record<string, string> } {
   const errors: Record<string, string> = {};
   if (!f.customer_id) errors.customer = "Escolha o cliente.";
-  if (!f.title.trim()) errors.title = "Dê um título ao orçamento.";
+  const title = titleOf(f).trim();
+  if (!title) errors.title = "Dê um título ao orçamento.";
   const items: QuoteDraft["items"] = [];
   for (const row of f.items) {
     const price = parseBRL(row.price);
@@ -99,7 +117,7 @@ function toDraft(f: FormState, base: SalesBase, now: Date): { draft: QuoteDraft 
     }
   }
   if (Object.keys(errors).length) return { errors };
-  return { draft: { customer_id: f.customer_id, title: f.title.trim(), items, valid_until: validUntilInDays(now, Number(f.days), base.timezone), slot,
+  return { draft: { customer_id: f.customer_id, title: title.slice(0, 120), items, valid_until: validUntilInDays(now, Number(f.days), base.timezone), slot,
     notes: f.notes.trim() || null } };
 }
 
@@ -122,6 +140,7 @@ export function QuotesPage() {
   const [costOf, setCostOf] = useState<{ quoteId: string; value: QuoteMaterialCost | "unavailable" } | null>(null);
   const [pending, setPending] = useState(false);
   const [keys, setKeys] = useState(() => ({ save: newKey() }));
+  const [customerQuery, setCustomerQuery] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -176,6 +195,7 @@ export function QuotesPage() {
         toast("Rascunho salvo. Gere o link para o cliente quando estiver pronto.");
       }
       setForm(emptyForm(base, port.now()));
+      setCustomerQuery("");
       setEditing(null);
       setComposing(false);
       setKeys({ save: newKey() });
@@ -223,7 +243,7 @@ export function QuotesPage() {
         title="Orçamentos"
         subtitle={<><strong>Aceito não é pago:</strong> a cobrança fica no Caixa.</>}
         actions={form && base && !composing ? (
-          <Button onClick={() => { setEditing(null); setForm(emptyForm(base, port.now())); setFormError(null); show({}); setComposing(true); }}>
+          <Button onClick={() => { setEditing(null); setForm(emptyForm(base, port.now())); setCustomerQuery(""); setFormError(null); show({}); setComposing(true); }}>
             <Icon name="mais" size={20} />
             Novo orçamento
           </Button>
@@ -256,11 +276,27 @@ export function QuotesPage() {
           <form ref={formRef} aria-labelledby="qt-form-title" className="tn-stack" onSubmit={(e) => void save(e)} noValidate>
             <h2 id="qt-form-title">{editing ? `Revisar orçamento (nova versão ${editing.current_version + 1})` : "Novo orçamento"}</h2>
             <div className="tn-qt-grid">
-              <Field as="select" label="Cliente" value={form.customer_id} disabled={!!editing} error={errors.customer} onChange={(e) => update({ customer_id: e.target.value })}>
-                {base.customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Field>
-              <Field label="Título" value={form.title} maxLength={120} error={errors.title} onChange={(e) => update({ title: e.target.value })} />
+              {editing ? (
+                <p className="tn-qt-fixed"><span className="tn-muted">Cliente</span> <strong>{customer(form.customer_id)}</strong></p>
+              ) : (
+                <CustomerPicker
+                  customers={base.customers}
+                  value={form.customer_id}
+                  query={customerQuery}
+                  onQuery={setCustomerQuery}
+                  error={errors.customer}
+                  onChange={(id) => update({ customer_id: id })}
+                />
+              )}
             </div>
+            <Field
+              label="Título"
+              value={titleOf(form)}
+              maxLength={120}
+              hint={!form.titleTouched && titleOf(form) ? "Sugerido pelos itens. Você pode mudar." : undefined}
+              error={errors.title}
+              onChange={(e) => update({ title: e.target.value, titleTouched: true })}
+            />
             <fieldset className="tn-qt-items">
               <legend>Itens</legend>
               {form.items.map((row, n) => (
@@ -438,3 +474,39 @@ export function QuotesPage() {
     </div>
   );
 }
+
+/**
+ * "Escolha o cliente" (item 46): busca por nome e a lista filtrada em cartões de escolha. Nada vem escolhido sozinho;
+ * o erro fica embaixo da busca, que recebe o foco.
+ */
+function CustomerPicker({ customers, value, query, onQuery, error, onChange }: {
+  customers: SalesBase["customers"];
+  value: string;
+  query: string;
+  onQuery: (q: string) => void;
+  error?: string;
+  onChange: (id: string) => void;
+}) {
+  const q = fold(query.trim());
+  const matches = q ? customers.filter((c) => fold(c.name).includes(q)) : customers;
+  const shown = matches.slice(0, CUSTOMER_LIMIT);
+  const chosen = customers.find((c) => c.id === value) ?? null;
+  // O escolhido continua à vista mesmo quando a busca mudou.
+  if (chosen && !shown.some((c) => c.id === chosen.id)) shown.unshift(chosen);
+  return (
+    <fieldset className="tn-qt-customer">
+      <legend>Escolha o cliente</legend>
+      <Field label="Buscar cliente" type="search" value={query} maxLength={120} error={error} onChange={(e) => onQuery(e.target.value)} />
+      {shown.length ? (
+        <div className="tn-qt-customer__list">
+          {shown.map((c) => (
+            <ChoiceCard key={c.id} name="qt-customer" value={c.id} checked={c.id === value} title={c.name} onChange={(on) => on && onChange(c.id)} />
+          ))}
+        </div>
+      ) : null}
+      {q && matches.length === 0 ? <p className="tn-muted">Ninguém com “{query.trim()}”. Cadastre em Clientes e volte aqui.</p> : null}
+      {matches.length > CUSTOMER_LIMIT ? <p className="tn-muted">Mais {matches.length - CUSTOMER_LIMIT} na lista: refine a busca.</p> : null}
+    </fieldset>
+  );
+}
+

@@ -183,13 +183,76 @@ describe("clientes", () => {
   });
 });
 
+describe("clientes: três estados da lista (item 40) e formulário perto do foco (item 20)", () => {
+  it("carregando mostra o esqueleto, não “nenhum cliente”", async () => {
+    let resolve: (v: { items: CrmCustomer[]; next_cursor: null }) => void = () => {};
+    const api = fakeApi({ listCustomers: vi.fn(() => new Promise<{ items: CrmCustomer[]; next_cursor: null }>((r) => (resolve = r))) });
+    renderWith(api, <CustomersPage />);
+    expect(await screen.findByText("Carregando clientes…")).toBeInTheDocument();
+    expect(screen.queryByText(/Nenhum cliente/)).not.toBeInTheDocument();
+    await waitFor(() => expect(api.listCustomers).toHaveBeenCalled());
+    resolve({ items: [], next_cursor: null });
+    expect(await screen.findByText("Nenhum cliente ainda")).toBeInTheDocument();
+    expect(screen.queryByText("Carregando clientes…")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Importar planilha" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Cadastrar cliente" })).toBeEnabled();
+  });
+
+  it("busca sem resultado diz o que foi buscado e “Cadastrar” já traz o nome", async () => {
+    const api = fakeApi({ listCustomers: vi.fn(async (q: { q?: string }) => ({ items: q.q ? [] : [ana], next_cursor: null })) });
+    renderWith(api, <CustomersPage />);
+    expect(await screen.findByText("Ana Exemplo")).toBeInTheDocument();
+    type("Buscar por nome, e-mail ou telefone", "zzz");
+    expect(await screen.findByText("Ninguém com “zzz”")).toBeInTheDocument();
+    expect(screen.queryByText("Nenhum cliente ainda")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cadastrar" }));
+    expect(screen.getByRole("heading", { name: "Novo cliente" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Nome")).toHaveValue("zzz");
+  });
+
+  it("no desktop, Editar abre o formulário com o foco no primeiro campo; Cancelar devolve o foco ao “⋯”", async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    renderWith(fakeApi(), <CustomersPage />);
+    await menuAction("Ana Exemplo", "Editar");
+    const panel = screen.getByRole("region", { name: "Editar cliente" });
+    await waitFor(() => expect(within(panel).getByLabelText("Nome")).toHaveFocus());
+    expect(within(panel).getByLabelText("Nome")).toHaveValue("Ana Exemplo");
+    expect(scroll).toHaveBeenCalled();
+    fireEvent.click(within(panel).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Mais ações para Ana Exemplo" })).toHaveFocus());
+  });
+});
+
 describe("serviços", () => {
-  it("lista duração, intervalos, preço e piso", async () => {
+  it("item 45: lista duração, intervalos e o preço à direita; piso e custo só na edição; modelos fora da lista", async () => {
     renderWith(fakeApi(), <ServicesPage />);
     const item = (await screen.findByText("Corte")).closest("li")!;
     expect(within(item).getByText(/30 min/)).toBeInTheDocument();
     expect(item).toHaveTextContent(/intervalo 0 antes \/ 10 depois/);
-    expect(item).toHaveTextContent(/R\$\s60,00.*piso R\$\s45,00/);
+    expect(within(item).getByText(/R\$\s60,00/)).toHaveClass("crm-price");
+    expect(item).not.toHaveTextContent(/piso|custo/);
+    expect(screen.queryByRole("group", { name: "Começar de um modelo" })).not.toBeInTheDocument();
+    fireEvent.click(within(item).getByRole("button", { name: "Editar Corte" }));
+    expect(screen.getByLabelText("Piso (R$)")).toHaveValue("45,00");
+    // Editar não oferece modelos (só "Novo serviço").
+    expect(screen.queryByRole("group", { name: "Começar de um modelo" })).not.toBeInTheDocument();
+  });
+
+  it("item 40: esqueleto enquanto carrega; lista vazia de verdade mostra os modelos e o cadastrar", async () => {
+    let resolve: (v: { items: ProviderService[]; next_cursor: null }) => void = () => {};
+    const api = fakeApi({ listServices: vi.fn(() => new Promise<{ items: ProviderService[]; next_cursor: null }>((r) => (resolve = r))) });
+    renderWith(api, <ServicesPage />);
+    expect(screen.getByText("Carregando serviços…").closest('[role="status"]')).toBeInTheDocument();
+    expect(screen.queryByText(/Nenhum serviço/)).not.toBeInTheDocument();
+    await waitFor(() => expect(api.listServices).toHaveBeenCalled());
+    resolve({ items: [], next_cursor: null });
+    expect(await screen.findByText("Nenhum serviço ainda")).toBeInTheDocument();
+    expect(screen.queryByText("Carregando serviços…")).not.toBeInTheDocument();
+    const models = screen.getByRole("group", { name: "Começar de um modelo" });
+    fireEvent.click(within(models).getByRole("button", { name: "Modelo: Corte (30 min)" }));
+    expect(screen.getByLabelText("Nome")).toHaveValue("Corte");
+    expect(screen.getByLabelText("Duração (min)")).toHaveValue("30");
   });
 
   it.each(["0", "4", "1441", "30,5"])("duração %s é negada antes do servidor", async (duration) => {
@@ -208,7 +271,9 @@ describe("serviços", () => {
   it("modelo da profissão preenche duração e intervalos; preço em centavos inteiros", async () => {
     const api = fakeApi();
     renderWith(api, <ServicesPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Modelo: Corte e barba (50 min)" }));
+    // Com a lista cheia, os modelos ficam dentro de "Novo serviço".
+    fireEvent.click(await screen.findByRole("button", { name: "Novo serviço" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Começar de um modelo" })).getByRole("button", { name: "Modelo: Corte e barba (50 min)" }));
     expect(screen.getByLabelText("Duração (min)")).toHaveValue("50");
     type("Preço base (R$)", "89,90");
     type("Piso (R$)", "70");

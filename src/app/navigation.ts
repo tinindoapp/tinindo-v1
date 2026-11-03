@@ -1,6 +1,9 @@
-// Arquitetura de navegação do app (dono: integrador; ADR-0024). Segue o doc 12: abas principais Hoje, Agenda, Clientes,
-// Dinheiro e Assistente; o resto (crescimento, negócio, conta) num menu secundário, agrupado. Ofertas, preços e lista de
-// espera ficam no contexto da Agenda. Cada módulo registrado entra em exatamente um grupo (teste em AppShell.test).
+// Arquitetura de navegação do app (dono: integrador; ADR-0024). Abas principais Hoje, Agenda, Clientes, Mensagens e
+// Dinheiro; o resto (crescimento, negócio, conta) num menu secundário, agrupado. Ofertas, preços e lista de espera ficam
+// no contexto da Agenda. Cada módulo registrado entra em exatamente um grupo (teste em AppShell.test).
+// Auditoria de UX, item 39: "Mensagens" virou aba (com selo de não lidas) e juntou-se ao "Assistente", que atende
+// as mesmas conversas ("Assistente atende" / "Você está atendendo"). O Assistente continua a um toque, na sub-aba e
+// no menu. A barra segue com 5 abas, que é o que cabe em 360 px com rótulo legível.
 import type { ModuleId } from "@contracts";
 import type { IconName } from "../components/ui/icons.tsx";
 import type { ModuleDefinition } from "./module-types.ts";
@@ -11,6 +14,8 @@ interface SectionSpec {
   icon: IconName;
   /** Aparece na barra de abas do celular. */
   tab: boolean;
+  /** Selo na aba e no menu: "unread" = mensagens não lidas (o número escrito, nunca só um ponto). */
+  badge?: "unread";
   /** `sub`: tela interna do módulo promovida a item (ex.: Horários da Agenda). `short`: rótulo da sub-aba do celular,
    *  para caber mais telas na faixa (o menu e o h1 da tela continuam com o nome inteiro). */
   items: { module: ModuleId; icon: IconName; label?: string; short?: string; sub?: string }[];
@@ -32,17 +37,19 @@ export const SECTION_SPECS: readonly SectionSpec[] = [
     items: [
       { module: "crm", icon: "cliente" },
       { module: "crm", sub: "servicos", label: "Serviços", icon: "lista" },
-      { module: "messaging", icon: "mensagem" },
       { module: "sales", icon: "orcamento" },
       { module: "lifecycle", icon: "relacionamento", short: "Lembretes" },
       { module: "reputation", icon: "avaliacao" },
     ],
   },
   {
+    id: "mensagens", label: "Mensagens", icon: "mensagem", tab: true, badge: "unread",
+    items: [{ module: "messaging", icon: "mensagem" }, { module: "agent", icon: "assistente" }],
+  },
+  {
     id: "dinheiro", label: "Dinheiro", icon: "receber", tab: true,
     items: [{ module: "finance", icon: "receber" }, { module: "finance-advanced", icon: "nota", label: "Contas", short: "Contas" }, { module: "payments", icon: "pagamento" }, { module: "recurrence", icon: "assinatura" }, { module: "fiscal", icon: "nota" }],
   },
-  { id: "assistente", label: "Assistente", icon: "assistente", tab: true, items: [{ module: "agent", icon: "assistente" }] },
   {
     id: "crescer", label: "Crescer", icon: "crescer", tab: false,
     items: [{ module: "growth-advice", icon: "metas" }, { module: "campaigns", icon: "campanha" }, { module: "referrals", icon: "indicacao" }, { module: "analytics", icon: "resultado" }],
@@ -68,6 +75,7 @@ export interface NavSection {
   label: string;
   icon: IconName;
   tab: boolean;
+  badge: "unread" | null;
   items: NavItem[];
   /** Destino ao tocar no grupo (primeiro item). */
   to: string;
@@ -85,7 +93,7 @@ export function buildNavigation(modules: readonly ModuleDefinition[]): NavSectio
       const label = i.label ?? m.navLabel;
       return [{ module: m.id, sub: i.sub ?? null, label, short: i.short ?? label, icon: i.icon, to: `/app/${m.path}${i.sub ? `/${i.sub}` : ""}` }];
     });
-    return { id: s.id, label: s.label, icon: s.icon, tab: s.tab, items, to: items[0]?.to ?? HOME.to };
+    return { id: s.id, label: s.label, icon: s.icon, tab: s.tab, badge: s.badge ?? null, items, to: items[0]?.to ?? HOME.to };
   }).filter((s) => s.items.length > 0);
   return sections;
 }

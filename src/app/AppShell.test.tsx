@@ -7,6 +7,7 @@ import { buildNavigation, SECTION_SPECS, ungrouped } from "./navigation.ts";
 import { pageTitle } from "./RouteFocus.tsx";
 import { routes } from "./router.tsx";
 import { SessionProvider } from "./session.tsx";
+import { createDemoPort as createMessagingDemo, DEMO_BUSINESS_PHONE, resetDemoState as resetMessagingDemo } from "../features/messaging/demoPort.ts";
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -70,12 +71,43 @@ describe("shell do app (demonstração sem servidor)", () => {
     expect(new Set(tos).size).toBe(tos.length);
   });
 
-  it("abas do celular: Hoje, Agenda, Clientes, Dinheiro e Assistente (doc 12)", async () => {
+  it("abas do celular: Hoje, Agenda, Clientes, Mensagens e Dinheiro; Assistente junto de Mensagens (item 39)", async () => {
     renderAt("/app/caixa");
     const tabs = await screen.findByRole("navigation", { name: "Abas" });
     const names = within(tabs).getAllByRole("link").map((a) => a.textContent);
-    expect(names).toEqual(["Hoje", "Agenda", "Clientes", "Dinheiro", "Assistente"]);
+    expect(names).toEqual(["Hoje", "Agenda", "Clientes", "Mensagens", "Dinheiro"]);
     expect(within(tabs).getByRole("link", { name: "Dinheiro" })).toHaveAttribute("aria-current", "page");
+    const mensagens = buildNavigation(MODULES).find((s) => s.id === "mensagens")!;
+    expect(mensagens.items.map((i) => i.label)).toEqual(["Mensagens", "Assistente"]);
+    expect(buildNavigation(MODULES).find((s) => s.id === "clientes")!.items.map((i) => i.label)).not.toContain("Mensagens");
+  });
+
+  it("no Assistente, a aba Mensagens fica ativa e a sub-aba leva às conversas", async () => {
+    renderAt("/app/assistente");
+    const tabs = await screen.findByRole("navigation", { name: "Abas" });
+    expect(within(tabs).getByRole("link", { name: "Mensagens" })).toHaveAttribute("aria-current", "page");
+    const sub = screen.getByRole("navigation", { name: "Telas de Mensagens" });
+    expect(within(sub).getByRole("link", { name: "Assistente" })).toHaveAttribute("aria-current", "page");
+    expect(within(sub).getByRole("link", { name: "Mensagens" })).toHaveAttribute("href", "/app/mensagens");
+  });
+
+  it("selo de não lidas na aba e no menu, escrito por extenso para o leitor de tela", async () => {
+    resetMessagingDemo();
+    const port = createMessagingDemo();
+    await port.connect("simulated", DEMO_BUSINESS_PHONE, "c1");
+    await port.dispatch!();
+    const code = /([0-9]{6})/.exec((await port.simPhone(DEMO_BUSINESS_PHONE)).messages[0]!.body)![1]!;
+    await port.verify(code, "v1");
+    await port.simInbound({ kind: "inbound", phone_e164: "+5511988887777", text: "Oi" }, "e1");
+    await port.simInbound({ kind: "inbound", phone_e164: "+5511988880000", text: "Olá" }, "e2");
+    await port.simInbound({ kind: "inbound", phone_e164: "+5511988880000", text: "Tem horário?" }, "e3");
+    renderAt("/app");
+    const tabs = await screen.findByRole("navigation", { name: "Abas" });
+    const tab = await within(tabs).findByRole("link", { name: "Mensagens, 3 não lidas" });
+    expect(within(tab).getByText("3")).toHaveAttribute("aria-hidden", "true");
+    expect(tab).toHaveTextContent(/^Mensagens3$/);
+    expect(within(screen.getByRole("navigation", { name: "Principal" })).getByRole("link", { name: "Mensagens, 3 não lidas" })).toBeInTheDocument();
+    resetMessagingDemo();
   });
 
   it("botão Menu abre e fecha o menu (Esc devolve o foco ao botão)", async () => {

@@ -1,41 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
-
-const soft = (page: Page, href: string) =>
-  page.evaluate((to) => {
-    window.history.pushState(null, "", to);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, href);
-
-/** Conecta o número simulado lendo o código no telefone do negócio (só sai pelo canal, depois do despacho). */
-async function connectSimulated(page: Page) {
-  const connect = page.getByRole("form", { name: "Conectar número" });
-  await connect.getByRole("button", { name: "Conectar" }).click();
-  const conn = page.getByRole("group", { name: "Número conectado" });
-  await expect(conn).toContainText("Aguardando o código");
-  await soft(page, "/app/mensagens/simulador");
-  await page.getByLabel(/Número da cliente/).fill("+5511999990001");
-  await expect(page.getByText("Nada entregue a este número ainda")).toBeVisible();
-  await page.getByRole("button", { name: "Rodar o despacho (simulação)" }).click();
-  const delivered = page.getByRole("list", { name: "Mensagens entregues" });
-  await expect(delivered).toContainText("Seu código para conectar o número");
-  const code = /([0-9]{6})/.exec((await delivered.textContent()) ?? "")![1]!;
-  await soft(page, "/app/mensagens");
-  const verify = conn.getByRole("form", { name: "Verificar número" });
-  await verify.getByLabel("Código recebido no número").fill(code);
-  await verify.getByRole("button", { name: "Verificar" }).click();
-  await expect(page.getByText("Número verificado. O canal está conectado.")).toBeVisible();
-  // Conectado, a conexão vira uma linha de status; os detalhes abrem em "Gerenciar".
-  await expect(conn).toContainText("Número simulado conectado · (11) 99999-0001");
-  return conn;
-}
-
-async function clientWrites(page: Page, phone: string, text: string) {
-  await page.getByLabel(/Número da cliente/).fill(phone);
-  const write = page.getByRole("form", { name: "Cliente escreve" });
-  await write.getByLabel("Mensagem da cliente").fill(text);
-  await write.getByRole("button", { name: "Enviar como cliente" }).click();
-  await expect(page.getByText("Mensagem da cliente recebida pelo webhook.")).toBeVisible();
-}
+import { expect, test } from "@playwright/test";
+import { clientWrites, connectSimulated, soft } from "./helpers.ts";
 
 test("canal: número verificado pelo código entregue no canal, cliente escreve, resposta na janela, enviada → lida, opt-out e humano assume", async ({ page }) => {
   await page.goto("/app/mensagens");
@@ -74,7 +38,7 @@ test("canal: número verificado pelo código entregue no canal, cliente escreve,
     const r = (await reply.boundingBox())!;
     expect(r.y + r.height).toBeLessThanOrEqual((await tabbar.boundingBox())!.y + 1);
   }
-  await reply.getByLabel(/Resposta/).fill("Oi, Ana! Quarta às 10h?");
+  await reply.getByLabel("Sua resposta").fill("Oi, Ana! Quarta às 10h?");
   await reply.getByRole("button", { name: "Enviar" }).click();
   await expect(reply.getByText("Mensagem na fila.")).toBeVisible();
   await expect(convo).toContainText("Na fila");
@@ -123,7 +87,7 @@ test("canal: número inválido falha com motivo e entrega desconhecida é consul
     await inbox.getByRole("link", { name: new RegExp(phone.replace("+", "\\+")) }).first().click();
     const convo = page.getByRole("region", { name: `Conversa com ${phone}` });
     const reply = convo.getByRole("form", { name: "Responder" });
-    await reply.getByLabel(/Resposta/).fill("teste");
+    await reply.getByLabel("Sua resposta").fill("teste");
     await reply.getByRole("button", { name: "Enviar" }).click();
     await expect(reply.getByText("Mensagem na fila.")).toBeVisible();
     await soft(page, "/app/mensagens");
