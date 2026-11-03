@@ -1,4 +1,4 @@
--- P45 · Insights proativos (ADR-0035). Estende o P22 (ADR-0023): motor de regras diário por negócio, rodando no worker
+-- P45 · Insights proativos (ADR-0036). Estende o P22 (ADR-0023): motor de regras diário por negócio, rodando no worker
 -- `jobs`, com nove regras fixas (sem LLM) sobre dado existente. Cada regra devolve status `fire`, `quiet` ou
 -- `insufficient` (insuficiente ≠ zero), evidência com período, número e denominador, e uma ação ligada a um fluxo que
 -- já existe (P05, P06, P07, P13, P31, P44). Nenhuma ação executa sozinha: "Preparar" cria uma PROPOSTA no fluxo do

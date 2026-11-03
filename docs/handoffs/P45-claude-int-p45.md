@@ -1,11 +1,11 @@
 # Handoff · P45 Insights proativos
 
 Sessão: `claude-int-p45` (Claude Code na nuvem, para @fffalleiros) · 2026-11-03
-Reserva: `coord.py claim P45 --session claude-int-p45` · branch `task/p45/claude-int-p45` → PR para `main`. Decisões em `docs/adr/0035-insights-proativos.md`. Plano em `docs/plano-assistente-configuracao-e-insights.md` §3.
+Reserva: `coord.py claim P45 --session claude-int-p45` · branch `task/p45/claude-int-p45` → PR para `main`. Decisões em `docs/adr/0036-insights-proativos.md`. Plano em `docs/plano-assistente-configuracao-e-insights.md` §3.
 
 ## Resultado
 
-- **Banco** (`20261103050000_p45_insights.sql`, append-only):
+- **Banco** (`20261103150000_p45_insights.sql`, append-only):
   - `insight_rules` (catálogo das nove regras, só por migration), `insight_runs` (uma rodada por negócio e dia local, backend-only), `insights` (um por negócio, regra e assunto) e `insight_digests` (um resumo por negócio e semana).
   - Nove funções de regra `app.gi_<código>(tenant, now)`, cada uma com `fire`/`quiet`/`insufficient` e motivo; `app.gi_run`, `app.gi_tick` (worker) e `app.gi_digest` (resumo por modelo fixo).
   - RPCs do dono: `insight_list`, `insight_snooze`, `insight_act`, `digest_list`.
@@ -23,10 +23,10 @@ Reserva: `coord.py claim P45 --session claude-int-p45` · branch `task/p45/claud
 
 | Critério | Evidência |
 |---|---|
-| Nenhuma regra dispara sem dado suficiente (`insufficient` ≠ zero) | **pgTAP 31:** cada uma das nove regras com caso INSUFICIENTE (motivo), NEGATIVO e POSITIVO. **Integração:** `waitlist_opening` = `insufficient/no_waitlist`. **e2e:** "ainda sem dado suficiente (não é zero)" com o motivo |
-| Nenhuma ação executa sem aprovação | **pgTAP 31:** Preparar (P05) → 1 proposta `proposed` e 0 regras ativas; Preparar (P13) → passos `manual`, 0 mensagens no canal; sem consentimento de marketing → pulado. **Contrato:** a migration não chama publicação de preço, envio, aprovação de campanha nem despacho da régua. **Integração** passo 2 |
+| Nenhuma regra dispara sem dado suficiente (`insufficient` ≠ zero) | **pgTAP 32:** cada uma das nove regras com caso INSUFICIENTE (motivo), NEGATIVO e POSITIVO. **Integração:** `waitlist_opening` = `insufficient/no_waitlist`. **e2e:** "ainda sem dado suficiente (não é zero)" com o motivo |
+| Nenhuma ação executa sem aprovação | **pgTAP 32:** Preparar (P05) → 1 proposta `proposed` e 0 regras ativas; Preparar (P13) → passos `manual`, 0 mensagens no canal; sem consentimento de marketing → pulado. **Contrato:** a migration não chama publicação de preço, envio, aprovação de campanha nem despacho da régua. **Integração** passo 2 |
 | Todo insight mostra período e denominador | CHECK `evidence ?& array['period_start','period_end','numerator','denominator']`; contrato exige (handler devolve 500 sem denominador); pgTAP, integração e e2e conferem a frase |
-| Duas rodadas do job não duplicam insight | **Concorrência `29_insights`:** 3 `jobs_run` simultâneos → 1 rodada por negócio, 1 insight por (regra, assunto), nenhum erro; 2 `gi_run` em paralelo → 1 insight; 2 "Preparar" simultâneos → 1 proposta (o outro `STALE_VERSION`). **pgTAP:** segunda rodada no dia avalia 0; `gi_run` repetido mantém 1. **Integração:** `insights.tenants` = 0 na segunda chamada |
+| Duas rodadas do job não duplicam insight | **Concorrência `30_insights`:** 3 `jobs_run` simultâneos → 1 rodada por negócio, 1 insight por (regra, assunto), nenhum erro; 2 `gi_run` em paralelo → 1 insight; 2 "Preparar" simultâneos → 1 proposta (o outro `STALE_VERSION`). **pgTAP:** segunda rodada no dia avalia 0; `gi_run` repetido mantém 1. **Integração:** `insights.tenants` = 0 na segunda chamada |
 | "Agora não" silencia por 30 dias | pgTAP (não volta no dia seguinte; passado o prazo e ainda disparando, volta), integração (`quiet_until` > 29 dias), e2e |
 | Acompanhamento em 30 dias pelo `advice_decisions` | pgTAP: decisão `accepted`/`dismissed` com o número congelado; `ga_tick` mede a regra de novo → `improved` |
 | Resumo semanal por modelo fixo | pgTAP (um por semana), integração (`digest.list`), e2e (Mensagens e Metas e sugestões) |
@@ -39,17 +39,17 @@ Reserva: `coord.py claim P45 --session claude-int-p45` · branch `task/p45/claud
 | `npm run lint` · `typecheck` · `build` | ok |
 | `npm test` | unit 695 · contratos 791 (+38 opcionais do P46 pulados), com a main de 03/11 (P46) |
 | `npm run db:test:local` | 31 arquivos ok (P45: 91 asserções; P22 atualizado: a regra de cobrança saiu de lá) |
-| `npm run db:test:concurrency` | todos ok (novo `29_insights`, 11 verificações) |
-| `npm run test:integration` | 23 arquivos, 134 testes (novo `46_p45_insights`, 5 passos) |
+| `npm run db:test:concurrency` | todos ok (novo `30_insights`, 11 verificações) |
+| `npm run test:integration` | 23 arquivos, 134 testes (novo `47_p45_insights`, 5 passos) |
 | `npx playwright test` | 267 passaram + `avisos.spec` corrigido (título novo) e reexecutado ok; 33 fixme preexistentes. Novo `growth-advice/insights.spec.ts` (desktop e celular) |
-| **Regressão pega e corrigida** | o CHECK recriado de `lifecycle_steps.rule` tinha perdido `campaign` (P19); o pgTAP 18 e a concorrência do P19 acusaram; agora o pgTAP 31 guarda os valores anteriores |
+| **Regressão pega e corrigida** | o CHECK recriado de `lifecycle_steps.rule` tinha perdido `campaign` (P19); o pgTAP 18 e a concorrência do P19 acusaram; agora o pgTAP 32 guarda os valores anteriores |
 
 Não executado aqui: `supabase test db` e `db lint` no PG 17 (sem Docker); rodam no CI.
 
 ## Decisões tomadas sem consulta (pedido do dono: "não pare para perguntar")
 
 - **Quadro:** o P45 não estava no quadro; foi liberado pelo integrador no branch `coordination` (ação `release`, como P29/P31) e reservado pelo `coord.py`. Dependências registradas: P05, P06, P07, P13, P18, P22, P30, P31 (P44 ainda não está no quadro: o passo "perfil incompleto" abre a tela que resolve, e o cartão do P44 entra acima do de insights quando chegar).
-- **Limiares** na tabela da ADR-0035 §2 (mudar é migration).
+- **Limiares** na tabela da ADR-0036 §2 (mudar é migration).
 - **"Ver"** em sugestão de tela (Caixa, Lista de espera, Relacionamento, perfil) abre a tela e registra a decisão para o acompanhamento; em sugestão de proposta, abre a sugestão em Metas e sugestões, onde **Preparar** cria a proposta.
 - **Preparar** reavalia a regra com o dado de agora e recusa se mudou (`stale`), em vez de propor com o número da madrugada.
 - **Silêncio por regra**, não por assunto: "Agora não" numa faixa ociosa não traz outra faixa no dia seguinte.

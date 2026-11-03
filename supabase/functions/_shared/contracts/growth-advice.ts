@@ -108,7 +108,7 @@ export const ContentPublishOutput = z.object({ published: PublishedContent.nulla
 export const ContentUnpublishInput = z.object({ expected_version: z.int().min(1) });
 
 // ---------------------------------------------------------------------------
-// P45 · Insights proativos (aditivo; ADR-0035). Motor diário de nove regras fixas (sem LLM) no worker `jobs`.
+// P45 · Insights proativos (aditivo; ADR-0036). Motor diário de nove regras fixas (sem LLM) no worker `jobs`.
 // Cada insight traz período, número e denominador; a ação cria PROPOSTA no fluxo dono (P05/P13) ou abre a tela do
 // fluxo (P06/P07/P13/P44); nunca executa. "Agora não" silencia a regra por 30 dias. Acompanhamento pelo P22.
 // ---------------------------------------------------------------------------

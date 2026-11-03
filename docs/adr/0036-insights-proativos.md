@@ -1,4 +1,4 @@
-# ADR-0035 · Insights proativos: motor diário de regras, proposta no fluxo dono e resumo semanal (P45)
+# ADR-0036 · Insights proativos: motor diário de regras, proposta no fluxo dono e resumo semanal (P45)
 
 Status: aceita · 2026-11-03 · integrador (sessão `claude-int-p45`, pedido do dono: plano em `docs/plano-assistente-configuracao-e-insights.md` §3)
 
