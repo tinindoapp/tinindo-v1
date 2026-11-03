@@ -50,8 +50,9 @@ for (const scheme of ["light", "dark"] as const) {
     await terms.click();
     const sheet = page.getByRole("dialog", { name: "Termos de uso" });
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByText(/RASCUNHO PARA REVISÃO JURÍDICA/)).toBeVisible();
-    await expect(sheet.getByRole("heading", { name: /Quem pode usar/ })).toBeAttached();
+    // O rascunho de docs/legal é "NÃO PUBLICAR": a folha só diz que o texto está em revisão.
+    await expect(sheet.getByText(/Texto em revisão/)).toBeVisible();
+    await expect(sheet.getByText(/RASCUNHO|NÃO PUBLICAR/)).toHaveCount(0);
     // A folha cabe na tela e só o texto rola.
     const vbox = await sheet.boundingBox();
     const viewport = page.viewportSize()!;
@@ -63,7 +64,7 @@ for (const scheme of ["light", "dark"] as const) {
 
     await page.getByRole("button", { name: "Política de privacidade" }).click();
     const privacy = page.getByRole("dialog", { name: "Política de privacidade" });
-    await expect(privacy.getByRole("heading", { name: /Seus direitos/ })).toBeAttached();
+    await expect(privacy.getByText(/Política de privacidade está em revisão/)).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(privacy).toBeHidden();
   });

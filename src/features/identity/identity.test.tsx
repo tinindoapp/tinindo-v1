@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { inline, parseLegal } from "./legalMarkdown.tsx";
 import { Profession } from "@contracts";
 import { FX, tenantA } from "@contracts/fixtures.ts";
 import { OnboardingGoal, type Onboarding } from "@contracts";
@@ -222,22 +221,21 @@ describe("criar conta (E7)", () => {
 });
 
 describe("criar negócio: termos e fuso (E8, E9)", () => {
-  it("links abrem a folha com o texto do repositório; Fechar devolve o foco", async () => {
+  it("links abrem a folha; o rascunho jurídico (NÃO PUBLICAR) não aparece; Fechar devolve o foco", async () => {
     renderPage(<CreateBusinessPage />, fakeServices(), "/app/conta/novo-negocio");
     const open = await screen.findByRole("button", { name: "Termos de uso" });
     open.focus();
     fireEvent.click(open);
     const dialog = await screen.findByRole("dialog", { name: "Termos de uso" });
-    expect(await within(dialog).findByText(/RASCUNHO PARA REVISÃO JURÍDICA/)).toBeInTheDocument();
-    expect(within(dialog).getByRole("heading", { name: /Quem somos/ })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Texto em revisão/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/RASCUNHO|NÃO PUBLICAR|a definir/)).toBeNull();
     fireEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(open).toHaveFocus();
 
     fireEvent.click(screen.getByRole("button", { name: "Política de privacidade" }));
     const privacy = await screen.findByRole("dialog", { name: "Política de privacidade" });
-    expect(await within(privacy).findByRole("heading", { name: /Seus direitos/ })).toBeInTheDocument();
-    expect(within(privacy).getAllByRole("table").length).toBeGreaterThan(0);
+    expect(within(privacy).getByText(/Política de privacidade está em revisão/)).toBeInTheDocument();
   });
 
   it("frase de saúde fica separada do aceite", async () => {
@@ -287,21 +285,6 @@ describe("criar negócio: termos e fuso (E8, E9)", () => {
   });
 });
 
-describe("texto jurídico (E8)", () => {
-  it("lê títulos, aviso, listas, tabela e marcas, sem HTML cru", () => {
-    const blocks = parseLegal(
-      "> **RASCUNHO**\n> linha 2\n\n# Título\n\n## 1. Seção\n\nTexto `[a definir]` <b>x</b>.\n\n- um\n- dois\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
-    );
-    expect(blocks.map((b) => b.kind)).toEqual(["notice", "title", "heading", "paragraph", "list", "table"]);
-    expect(blocks[3]).toEqual({ kind: "paragraph", text: "Texto `[a definir]` <b>x</b>." });
-    expect(blocks[5]).toEqual({ kind: "table", head: ["A", "B"], rows: [["1", "2"]] });
-    render(<p data-testid="p">{inline("Texto **forte** e `marca` <b>x</b>")}</p>);
-    const p = screen.getByTestId("p");
-    expect(p.querySelector("strong")).toHaveTextContent("forte");
-    expect(p.querySelector("code")).toHaveTextContent("marca");
-    expect(p.querySelector("b")).toBeNull();
-  });
-});
 
 describe("Sua conta (E13)", () => {
   it("primeiros passos no topo para quem acabou de entrar, sem texto técnico; criar outro negócio sem destaque", async () => {

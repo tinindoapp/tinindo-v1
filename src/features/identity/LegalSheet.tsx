@@ -1,9 +1,9 @@
-// Folha com os termos de uso e a política de privacidade (auditoria de UX, E8). O texto é o de docs/legal, como está no
-// repositório (rascunho para revisão jurídica, com o aviso do próprio documento no topo): nada é escrito aqui.
-// Folha local da Conta: o integrador unifica com src/components/ui/sheet.tsx depois.
+// Folha com os termos de uso e a política de privacidade (auditoria de UX, E8).
+// Os textos de docs/legal são rascunho marcado "NÃO PUBLICAR" (docs/legal/PENDENCIAS.md): não entram no app nem no
+// pacote publicado. Até a versão final existir, a folha diz que o texto está em revisão e qual versão o aceite registra.
+// Nada de texto jurídico é escrito aqui. Folha local: o integrador unifica com a folha do sistema depois.
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button, StatusBanner } from "../../components/ui/index.tsx";
-import { type LegalBlock, LegalBlocks, parseLegal } from "./legalMarkdown.tsx";
 import "./identity.css";
 
 export type LegalDoc = "terms" | "privacy";
@@ -13,11 +13,6 @@ export const LEGAL_TITLE: Record<LegalDoc, string> = {
   privacy: "Política de privacidade",
 };
 
-// Só carrega o texto quando a pessoa abre a folha (fica fora do pacote principal).
-const LOADERS: Record<LegalDoc, () => Promise<{ default: string }>> = {
-  terms: () => import("../../../docs/legal/termos-de-uso.md?raw"),
-  privacy: () => import("../../../docs/legal/politica-de-privacidade.md?raw"),
-};
 
 /**
  * Folha modal acessível sobre o `<dialog>` nativo: prende o foco, fecha com Esc, com "Fechar" e tocando fora, e devolve
@@ -76,25 +71,16 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
   );
 }
 
-type Load = { kind: "loading" } | { kind: "ready"; blocks: LegalBlock[] } | { kind: "error" };
+const WHAT: Record<LegalDoc, string> = { terms: "dos Termos de uso", privacy: "da Política de privacidade" };
 
 function LegalText({ doc }: { doc: LegalDoc }) {
-  const [state, setState] = useState<Load>({ kind: "loading" });
-  useEffect(() => {
-    let alive = true;
-    LOADERS[doc]().then(
-      (m) => alive && setState({ kind: "ready", blocks: parseLegal(m.default) }),
-      () => alive && setState({ kind: "error" }),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [doc]);
-  if (state.kind === "loading") return <p role="status">Carregando…</p>;
-  if (state.kind === "error") return <StatusBanner tone="danger">Não deu para abrir o texto agora. Tente de novo.</StatusBanner>;
   return (
-    <div className="tn-id-legal">
-      <LegalBlocks blocks={state.blocks} />
+    <div className="tn-stack">
+      <StatusBanner tone="info">
+        <strong>Texto em revisão.</strong> A versão final {WHAT[doc]} está em revisão jurídica e vai aparecer aqui quando for
+        publicada.
+      </StatusBanner>
+      <p>Nesta fase de piloto, o aceite registra a versão do piloto, combinada com a Tinindo ao entrar no teste.</p>
     </div>
   );
 }

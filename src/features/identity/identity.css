@@ -113,16 +113,6 @@
   .tn-id-sheet { width: min(100% - 2 * var(--tn-space-6), 720px); margin: auto; border-radius: var(--tn-radius-lg); }
 }
 
-.tn-id-legal { display: grid; gap: var(--tn-space-3); overflow-wrap: anywhere; }
-.tn-id-legal :is(h3, h4, p, ul) { margin: 0; }
-.tn-id-legal h3 { font-size: var(--tn-text-group); margin-top: var(--tn-space-3); }
-.tn-id-legal h4 { font-size: var(--tn-text-body); }
-.tn-id-legal ul { padding-left: var(--tn-space-5); display: grid; gap: var(--tn-space-1); }
-.tn-id-legal code { font-family: var(--tn-font-mono); font-size: var(--tn-text-support); background: var(--tn-surface-sunken); padding: 0 var(--tn-space-1); border-radius: var(--tn-radius-sm); }
-.tn-id-legal__table { overflow-x: auto; border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); }
-.tn-id-legal__table table { border-collapse: collapse; min-width: 560px; font-size: var(--tn-text-support); }
-.tn-id-legal__table :is(th, td) { padding: var(--tn-space-2) var(--tn-space-3); border-bottom: 1px solid var(--tn-border); text-align: left; vertical-align: top; }
-.tn-id-legal__table th { background: var(--tn-surface-sunken); font-weight: var(--tn-font-weight-semibold); }
 
 /* Primeiros passos (E9/E13): uma lista só, no topo da Conta. */
 .tn-id-steps h2 { margin: 0; }
