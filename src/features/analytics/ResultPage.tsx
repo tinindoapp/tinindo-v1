@@ -1,9 +1,11 @@
 // Resultado (P18): indicadores do que foi registrado, com a conta (numerador/denominador), o que falta nos dados e a
 // comparação com um ponto de partida guardado (baseline). Antes/depois não prova causa; insuficiente e indisponível não viram zero.
 import { type FormEvent, useEffect, useState } from "react";
-import type { AnalyticsBaseline, AnalyticsMetricsOutput, TimeRange } from "@contracts";
-import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { deltaText, localDayStart, metricMath, metricValue, monthStartOffset, PERIODS } from "./format.ts";
+import type { AnalyticsBaseline, AnalyticsMetricsOutput, Metric, TimeRange } from "@contracts";
+import { Link } from "react-router";
+import { Button, Card, Field, Help, PageHeader, Stat, Stats, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { plural } from "../../lib/text/plural.ts";
+import { formatCents, localDayStart, metricMath, metricValue, monthStartOffset, PERIODS, trend } from "./format.ts";
 import { type AnalyticsPort, newKey } from "./port.ts";
 
 function explain(err: unknown): string {
@@ -15,6 +17,67 @@ function explain(err: unknown): string {
 }
 // Indicadores de uso interno da Tinindo (operação assistida): não são do profissional, ficam fora desta tela.
 const INTERNAL_METRICS = new Set<string>(["human_minutes"]);
+// Dinheiro vai na faixa do topo (item 54): Recebido, Gasto e Sobrou, antes dos indicadores de agenda.
+const MONEY_KEYS = new Set<string>(["received", "expenses"]);
+
+/** Atalho para fechar a lacuna (item 59): texto do que fazer, com a quantidade, e a tela onde se faz. */
+export function coverageAction(key: string, count: number | null): { to: string; label: string } | null {
+  const n = count ?? 0;
+  if (key === "uncharged" && n > 0) return { to: "/app/caixa", label: `Cobrar ${plural(n, "atendimento")}` };
+  if (key === "pending_outcome" && n > 0) return { to: "/app/agenda", label: `Marcar “Atendido” ou “Faltou” em ${plural(n, "atendimento")}` };
+  return null;
+}
+
+/** Diferença para o ponto de partida: seta e palavra, e "melhorou" ou "piorou" conforme o indicador. */
+function TrendText({ metricKey, unit, delta }: { metricKey: Parameters<typeof trend>[0]; unit: Metric["unit"]; delta: number | null }) {
+  const t = trend(metricKey, unit, delta);
+  if (!t) return <>sem comparação</>;
+  return (
+    <span className="tn-an-trend" data-verdict={t.verdict ?? undefined}>
+      <span aria-hidden="true">{t.arrow} </span>
+      <span className="tn-visually-hidden">{t.spoken} </span>
+      <span className="tn-num">{t.amount}</span>
+      {t.verdict ? <> · <strong>{t.verdict}</strong></> : null}
+    </span>
+  );
+}
+
+function Compared({ metricKey, unit, baseline, delta }: { metricKey: Parameters<typeof trend>[0]; unit: Metric["unit"]; baseline: number | null; delta: number | null }) {
+  return (
+    <p className="tn-muted">
+      Ponto de partida: {metricValue({ unit, value: baseline, status: baseline === null ? "insufficient" : "ok" })} · <TrendText metricKey={metricKey} unit={unit} delta={delta} />
+    </p>
+  );
+}
+
+/** Faixa do dinheiro no topo: o que entrou, o que saiu e quanto sobrou, no mesmo período dos indicadores. */
+function MoneyStrip({ data, range }: { data: AnalyticsMetricsOutput; range: string }) {
+  const get = (k: string) => data.metrics.find((m) => m.key === k);
+  const received = get("received");
+  const spent = get("expenses");
+  const ok = (m?: Metric) => !!m && m.status === "ok" && m.value !== null;
+  const cmp = (k: string) => data.comparison?.find((c) => c.key === k);
+  const left = ok(received) && ok(spent) ? received!.value! - spent!.value! : null;
+  const cr = cmp("received");
+  const cs = cmp("expenses");
+  const baseLeft = cr?.baseline_value != null && cs?.baseline_value != null ? cr.baseline_value - cs.baseline_value : null;
+  const leftDelta = left !== null && baseLeft !== null ? left - baseLeft : null;
+  const hint = (k: string, delta: number | null | undefined, has: boolean) =>
+    has ? <>{range} · <TrendText metricKey={k as Parameters<typeof trend>[0]} unit="cents" delta={delta ?? null} /></> : range;
+  return (
+    <Card aria-labelledby="an-money-title">
+      <h2 id="an-money-title">Dinheiro registrado</h2>
+      <Stats label="Recebido, gasto e o que sobrou">
+        <Stat label="Recebido" value={received ? metricValue(received) : "Dados insuficientes"} hint={hint("received", cr?.delta, !!cr)} />
+        <Stat label="Gasto" value={spent ? metricValue(spent) : "Dados insuficientes"} hint={hint("expenses", cs?.delta, !!cs)} />
+        <Stat label={left !== null && left < 0 ? "Faltou" : "Sobrou"} value={left === null ? "Dados insuficientes" : formatCents(Math.abs(left))}
+          hint={hint("leftover", leftDelta, !!data.comparison)} />
+      </Stats>
+      <p className="tn-an-note">Recebido menos gasto, só do que foi lançado na Tinindo. Não é lucro nem saldo do banco.</p>
+    </Card>
+  );
+}
+
 const fmtDay = (v: string, tz: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit" }).format(new Date(v));
 
 export function ResultPage({ port }: { port: AnalyticsPort }) {
@@ -84,16 +147,21 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
   }
   const zone = tz ?? "America/Sao_Paulo";
   const cmp = (k: string) => data?.comparison?.find((c) => c.key === k);
+  const shown = data?.metrics.filter((m) => !INTERNAL_METRICS.has(m.key) && !MONEY_KEYS.has(m.key)) ?? [];
+  // "Sem dados" agrupados (item 54): uma lista curta no fim, em vez de cartões vazios entre os números.
+  const measured = shown.filter((m) => m.status === "ok" && m.value !== null);
+  const missing = shown.filter((m) => !(m.status === "ok" && m.value !== null));
 
   return (
     <div className="tn-an">
       <div className="tn-page-intro">
         <PageHeader id="an-title" title="Resultado" />
-        <p className="tn-muted">
-          Números do que foi registrado na Tinindo. Cada indicador mostra a conta e o que falta nos dados.
-          <strong> Comparar antes e depois não prova que a mudança veio da Tinindo.</strong>
-        </p>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Agenda sintética, só para demonstração.</StatusBanner> : null}
+        {/* Um aviso só (item 19): a faixa "Demonstração" do topo já identifica a demonstração; as ressalvas ficam em "Como funciona". */}
+        <p className="tn-muted">Números do que foi registrado na Tinindo{port.kind === "demo" ? ", com dados de exemplo" : ""}.</p>
+        <Help>
+          <p>Cada indicador mostra a conta (quantos de quantos) e o que falta nos dados. Indicador sem dado suficiente aparece como “Dados insuficientes”, nunca como zero.</p>
+          <p><strong>Comparar antes e depois não prova que a mudança veio da Tinindo.</strong> Época do ano, preços, clientes e registro incompleto também mudam os números.</p>
+        </Help>
         <div className="tn-an-controls">
           <Field as="select" label="Período" value={periodId} onChange={(e) => setPeriodId(e.target.value as typeof periodId)}>
             {PERIODS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -106,11 +174,13 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
         {data ? <p className="tn-muted">De {fmtDay(data.period.starts_at, zone)} a {fmtDay(data.period.ends_at, zone)} (fim não incluído) · atualizado agora.</p> : null}
       </div>
 
+      {data ? <MoneyStrip data={data} range={range} /> : null}
+
       {data ? (
         <Card aria-labelledby="an-metrics-title">
           <h2 id="an-metrics-title">Indicadores</h2>
           <ul className="tn-an-grid">
-            {data.metrics.filter((m) => !INTERNAL_METRICS.has(m.key)).map((m) => {
+            {measured.map((m) => {
               const c = cmp(m.key);
               return (
                 <li key={m.key} className="tn-an-metric" data-status={m.status}>
@@ -119,12 +189,25 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
                   {/* Período ao lado do número (item 47): o mesmo número em outra tela só bate no mesmo período. */}
                   <p className="tn-muted">{range}</p>
                   {metricMath(m) ? <p className="tn-muted">Conta: {metricMath(m)}</p> : null}
-                  {c ? <p className="tn-muted">Ponto de partida: {metricValue({ unit: m.unit, value: c.baseline_value, status: c.baseline_value === null ? "insufficient" : "ok" })} · diferença: {deltaText(m.unit, c.delta)}</p> : null}
+                  {c ? <Compared metricKey={m.key} unit={m.unit} baseline={c.baseline_value} delta={c.delta} /> : null}
                   <p className="tn-an-note">{m.note}</p>
                 </li>
               );
             })}
           </ul>
+          {missing.length ? (
+            <section aria-labelledby="an-missing-title" className="tn-an-missing">
+              <h3 id="an-missing-title">Ainda sem dados suficientes</h3>
+              <ul className="tn-an-list">
+                {missing.map((m) => (
+                  <li key={m.key} data-status={m.status}>
+                    <strong>{m.label}</strong> · {metricValue(m)}
+                    <span className="tn-an-note"> · {m.note}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           {data.comparison ? <StatusBanner tone="warning">{data.comparison_note}</StatusBanner> : null}
         </Card>
       ) : <p role="status">Carregando…</p>}
@@ -133,7 +216,17 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
         <Card aria-labelledby="an-coverage-title">
           <h2 id="an-coverage-title">O que falta nos dados</h2>
           {data.coverage.length === 0 ? <p className="tn-muted">Nenhuma lacuna conhecida neste período.</p> : (
-            <ul className="tn-an-list">{data.coverage.map((c) => <li key={c.key}>{c.count !== null ? <strong>{c.count} · </strong> : null}{c.note}</li>)}</ul>
+            <ul className="tn-an-list">
+              {data.coverage.map((c) => {
+                const fix = coverageAction(c.key, c.count);
+                return (
+                  <li key={c.key} className="tn-an-gap">
+                    <span>{c.count !== null ? <strong className="tn-num">{c.count} · </strong> : null}{c.note}</span>
+                    {fix ? <Link className="tn-an-link" to={fix.to}>{fix.label} →</Link> : null}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </Card>
       ) : null}

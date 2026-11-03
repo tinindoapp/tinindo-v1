@@ -22,6 +22,9 @@ export const REGIME_LABEL = { mei: "MEI", simples_nacional: "Simples Nacional", 
 export const ENV_LABEL = { homologacao: "Homologação (teste, sem valor fiscal)", producao: "Produção" } as const;
 export const formatCents = (c: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(c / 100);
 export const formatCnpj = (v: string) => v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+/** Mês por extenso, só a primeira letra da frase em maiúscula onde precisar: "2026-10" → "outubro de 2026". */
+export const formatMonthName = (ym: string) =>
+  new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${ym.slice(0, 7)}-15T12:00:00Z`));
 export const formatDate = (iso: string, tz = "America/Sao_Paulo") => new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: tz }).format(new Date(iso));
 export const todayLocal = (tz = "America/Sao_Paulo") => new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(new Date());
 

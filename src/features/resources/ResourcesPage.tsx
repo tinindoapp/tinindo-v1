@@ -10,6 +10,7 @@ import {
 import {
   newKey, type ResourcesPort, type TeamBase, type TeamBooking, type TeamClass, type TeamCommissionRule, type TeamCommissions, type TeamResource, type TimeRange,
 } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string; undo?: () => void } | null;
 const KINDS = ["professional", "room", "chair", "equipment"] as const;
@@ -293,7 +294,7 @@ function ClassItem({ c, port, base, onDone }: { c: TeamClass; port: ResourcesPor
               <Button variant="secondary" onClick={() => void act(() => port.enroll(c.id, customerId, newKey()), "Vaga reservada.")}>Inscrever</Button>
             </>
           ) : (
-            <Button variant="secondary" onClick={() => void act(() => port.completeClass(c, present, newKey()), `Turma concluída: ${present.length} presença(s) com cobrança no Caixa; as demais viraram falta.`)}>Concluir turma</Button>
+            <Button variant="secondary" onClick={() => void act(() => port.completeClass(c, present, newKey()), `Turma concluída: ${plural(present.length, "presença")} com cobrança no Caixa; as demais viraram falta.`)}>Concluir turma</Button>
           )}
           <ConfirmAction trigger="Cancelar turma" triggerLabel={`Cancelar a turma ${c.title}`} title={`Cancelar a turma “${c.title}”?`}
             consequence={`${live.length ? `As ${live.length} vagas reservadas são canceladas. ` : ""}A profissional e a sala ficam livres. Não dá para desfazer.`}

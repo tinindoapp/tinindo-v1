@@ -1,29 +1,17 @@
 // Páginas públicas do módulo (perfil por slug, convite e indicação) e a prévia do dono.
 // As públicas ficam fora do shell autenticado; o integrador as monta no roteador
 // a partir de `networkPublicRoutes` (module.tsx).
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { Profession } from "@contracts";
+import { PublicLayout } from "../../app/PublicLayout.tsx";
 import { useSession } from "../../app/session.tsx";
-import { Button, Card, Field, PageHeader, StatusBanner, useFormErrors, Wordmark } from "../../components/ui/index.tsx";
+import { Button, Card, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import type { NetworkApi, PublicProfileData, ReferralInspectOutput, ReferralLinkData } from "./api.ts";
 import { PublicProfileView } from "./PublicProfileView.tsx";
 import { ShareLink } from "./ShareLink.tsx";
 import { CATEGORY_LABEL, errorMessage, formatDateTime, newIdempotencyKey, useNetworkApi } from "./useNetworkApi.ts";
 import "./network.css";
-
-export function PublicLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="tn-net-public">
-      <header className="tn-net-public__header">
-        <Wordmark width={120} />
-      </header>
-      <main className="tn-net-public__main" id="conteudo">
-        {children}
-      </main>
-    </div>
-  );
-}
 
 type Load<T> = { kind: "loading" } | { kind: "ok"; data: T } | { kind: "error"; message: string };
 

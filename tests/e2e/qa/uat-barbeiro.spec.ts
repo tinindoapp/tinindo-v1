@@ -7,17 +7,19 @@ import { bookFromAgenda, expectDemoLabel, noHorizontalScroll, openFromNav, PENDI
 // O que a demonstração já cobre roda; o resto fica em test.fixme com o motivo.
 
 test.describe("UAT barbeiro", () => {
-  test("1a · catálogo mostra Corte de 30 min com preço base e piso", async ({ page }) => {
+  test("1a · catálogo mostra Corte de 30 min com o preço em destaque (piso fica na edição)", async ({ page }) => {
     await page.goto("/app");
     await openFromNav(page, "Clientes");
     await openFromNav(page, "Serviços");
     await expect(page.getByRole("heading", { name: "Serviços", level: 1 })).toBeVisible();
     const corte = page.getByRole("list").getByRole("listitem").filter({ hasText: "Corte" }).first();
     await expect(corte).toContainText("30 min");
-    await expect(corte).toContainText("R$ 60,00");
-    await expect(corte).toContainText("piso R$ 45,00");
-    // Modelos da profissão aparecem, mas a demonstração não grava.
-    await expect(page.getByRole("button", { name: "Modelo: Corte (30 min)" })).toBeDisabled();
+    await expect(corte.locator(".crm-price")).toHaveText("R$ 60,00");
+    // Auditoria de UX, item 45: piso e custo só na edição; modelos só na lista vazia ou dentro de "Novo serviço".
+    await expect(corte).not.toContainText("piso");
+    await expect(page.getByRole("button", { name: "Modelo: Corte (30 min)" })).toHaveCount(0);
+    // A demonstração não grava.
+    await expect(page.getByRole("button", { name: "Novo serviço" })).toBeDisabled();
     await expectDemoLabel(page);
     await noHorizontalScroll(page);
   });
@@ -25,6 +27,7 @@ test.describe("UAT barbeiro", () => {
   test("1b · barbeiro cria o serviço Corte de 30 min", async ({ page }) => {
     test.fixme(true, PENDING.crmWrite);
     await page.goto("/app/clientes/servicos");
+    await page.getByRole("button", { name: "Novo serviço" }).click();
     await page.getByRole("button", { name: "Modelo: Corte (30 min)" }).click();
     await page.getByLabel("Preço base (R$)").fill("60,00");
     await page.getByLabel("Piso (R$)").fill("45,00");
@@ -46,7 +49,7 @@ test.describe("UAT barbeiro", () => {
     await page.getByLabel("Ou cole o conteúdo").fill(fiveCustomers);
     await page.getByRole("button", { name: "Ver prévia" }).click();
     await expect(page.getByRole("heading", { name: "Prévia" })).toBeVisible();
-    await expect(page.getByText(/5 linha\(s\) prontas, 0 com problema/)).toBeVisible();
+    await expect(page.getByText(/5 linhas prontas, 0 com problema/)).toBeVisible();
     await expect(page.getByText("Linha 2", { exact: false })).toBeVisible();
     await expect(page.getByText("(11) 98765-0001")).toBeVisible();
     // Sem servidor, a gravação fica bloqueada em vez de fingir sucesso.
@@ -71,10 +74,11 @@ test.describe("UAT barbeiro", () => {
     await page.getByRole("link", { name: "Novo agendamento" }).click();
     await page.getByRole("radio", { name: /Corte/ }).check();
     await page.getByRole("button", { name: "13:00", exact: true }).click();
-    await page.getByLabel("Cliente").selectOption({ label: "Cliente Exemplo Ana" });
+    await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Ana" }).check();
     // Regra emulada do P05: terça 13h–17h, 15% de desconto, nunca abaixo do piso (R$ 45,00).
     await expect(page.getByText("R$ 51,00", { exact: true })).toBeVisible();
-    await expect(page.getByText(/Desconto de horário aprovado \(regra v3\)/)).toBeVisible();
+    await expect(page.getByText(/Desconto de horário aprovado/)).toBeVisible();
+    await expect(page.getByText(/regra v\d/)).toHaveCount(0);
     await expect(page.getByText("Ver o valor não segura o horário", { exact: false })).toBeVisible();
     await page.getByRole("button", { name: "Confirmar agendamento" }).click();
     await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
@@ -88,13 +92,13 @@ test.describe("UAT barbeiro", () => {
     await openFromNav(page, "Preços");
     const form = page.getByRole("form", { name: "Nova regra" });
     await form.getByLabel("Desconto pedido (%)").fill("40");
-    await form.getByLabel("Teto aprovado (%)").fill("40");
+    await form.getByLabel("Desconto máximo (%)").fill("40");
     await form.getByRole("button", { name: "Ver prévia" }).click();
     const proposals = page.getByRole("list", { name: "Propostas aguardando aprovação" });
-    await expect(proposals.getByText("Desconto limitado ao preço mínimo", { exact: false })).toBeVisible();
+    await expect(proposals.getByText("Desconto limitado ao menor preço que você aceita", { exact: false })).toBeVisible();
     await expect(proposals.getByText(/R\$\s?45,00/).first()).toBeVisible();
     await proposals.getByRole("button", { name: "Aprovar e publicar" }).click();
-    await expect(page.getByText(/Regra v4 publicada/)).toBeVisible();
+    await expect(page.getByText(/Regra publicada para Corte/)).toBeVisible();
     await expect(page.getByRole("region", { name: "Regras ativas" }).getByRole("listitem")).toHaveCount(1);
   });
 
@@ -138,7 +142,7 @@ test.describe("UAT barbeiro", () => {
       window.history.pushState(null, "", "/app/agenda");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
-    await page.getByRole("link", { name: new RegExp(`^${time}–.*Confirmado`) }).click();
+    await page.getByRole("link", { name: new RegExp(`^${time}–`) }).click();
     await expect(page.getByText("Link de agendamento")).toBeVisible();
   });
 
@@ -158,7 +162,10 @@ test.describe("UAT barbeiro", () => {
     // Próximo passo: a lista de espera tem quem aceite quarta às 11:00 e leva à tela que sugere a pessoa.
     await page.getByRole("link", { name: "Oferecer à lista de espera (1 pessoa)" }).click();
     await expect(page.getByRole("heading", { name: "Lista de espera", level: 1 })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Vagas para oferecer" }).getByRole("button", { name: /Preparar oferta/ })).toBeVisible();
+    // A vaga cancelada chega pela URL: fica em destaque no topo, com o foco em "Preparar oferta".
+    const slots = page.getByRole("region", { name: "Vagas para oferecer" });
+    await expect(slots.locator(".tn-wl-target")).toContainText("Vaga liberada agora");
+    await expect(slots.locator(".tn-wl-target").getByRole("button", { name: /Preparar oferta/ })).toBeFocused();
   });
 
   test("7 · lista de espera oferece a vaga cancelada e recupera o horário", async ({ page }) => {
@@ -195,7 +202,7 @@ test.describe("UAT barbeiro", () => {
     await openFromNav(page, "Caixa");
     const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
     const item = pending.getByRole("listitem").filter({ hasText: "Bruno" });
-    await item.getByRole("button", { name: /Marcar como recebido/ }).click();
+    await item.getByRole("button", { name: /^Recebi R\$/ }).click();
     await expect(page.getByText(/Recebido R\$\s?40,00/)).toBeVisible();
     await expect(pending.getByRole("listitem").filter({ hasText: "Bruno" })).toHaveCount(0);
     const payments = page.getByRole("region", { name: "Recebimentos no mês" });
@@ -208,7 +215,7 @@ test.describe("UAT barbeiro", () => {
     await expect(page.getByRole("heading", { name: /quarta-feira, 21 de outubro/ })).toBeVisible();
     const timeline = page.getByRole("list", { name: /Linha do tempo de quarta-feira/ });
     await expect(timeline).toContainText("Cancelado");
-    await expect(page.getByText("Horários no fuso do negócio: America/Sao Paulo (UTC−03:00)")).toBeVisible();
+    await expect(page.getByText(/As mudanças valem só nesta aba/)).toBeVisible();
   });
 
   test("10b · pergunta ao assistente “o que tenho amanhã?” e recebe período, fonte e cobertura", async ({ page }) => {
@@ -216,6 +223,8 @@ test.describe("UAT barbeiro", () => {
     await page.getByRole("textbox").fill("o que tenho amanhã?");
     await page.keyboard.press("Enter");
     await expect(page.getByText(/quarta-feira, 21 de outubro/)).toBeVisible();
+    // A cobertura fica em "Detalhes" (item 57), a um toque.
+    await page.getByRole("region", { name: "Conversa" }).locator("details.tn-ag-details summary").last().click();
     await expect(page.getByText(/registros lançados na Tinindo/)).toBeVisible();
   });
 });

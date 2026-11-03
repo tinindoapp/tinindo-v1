@@ -6,6 +6,7 @@ import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toa
 import { Icon } from "../../components/ui/icons.tsx";
 import { cycleLabel, explain, formatCents, formatDate, RECEIVABLE_STATUS } from "./labels.ts";
 import { newKey, type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 const centsToInput = (c: number) => (c / 100).toFixed(2).replace(".", ",");
 const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
@@ -250,7 +251,7 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
     setTicking(true);
     try {
       const r = await port.tick!();
-      toast({ tone: "info", message: `Renovação (simulação): ${r.renewed} ciclo(s) aberto(s), ${r.closed} assinatura(s) encerrada(s).` });
+      toast({ tone: "info", message: `Renovação (simulação): ${plural(r.renewed, "ciclo aberto", "ciclos abertos")}, ${plural(r.closed, "assinatura encerrada", "assinaturas encerradas")}.` });
     } catch (err) {
       fail(err);
     } finally {
@@ -272,8 +273,12 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
           </Button>
         ) : null}
       />
-      <Help><p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (por Pix ou registro manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p></Help>
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é cobrado. "Avançar o ciclo" simula a renovação que o sistema faz sozinho.</StatusBanner> : null}
+      {/* Um aviso só, em uma linha (item 19); as explicações ficam em "Como funciona". */}
+      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Nada é cobrado.</StatusBanner> : null}
+      <Help>
+        <p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (por Pix ou registro manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p>
+        {port.kind === "demo" ? <p>“Avançar o ciclo” simula agora a renovação que o sistema faz sozinho.</p> : null}
+      </Help>
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
 
       {open === "sub" && base ? (
@@ -300,7 +305,7 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
           {plans.map((p) => (
             <li key={p.id} className="tn-rc-item">
               <h3>{p.name}{p.active ? "" : " (inativo)"}</h3>
-              <p>{p.sessions_per_cycle} × {p.service_name ?? "sessão"} {cycleLabel(p.cycle_days)} · {formatCents(p.price_cents)} · {p.subscribers} assinante(s)</p>
+              <p>{p.sessions_per_cycle} × {p.service_name ?? "sessão"} {cycleLabel(p.cycle_days)} · {formatCents(p.price_cents)} · {plural(p.subscribers, "assinante")}</p>
               <div className="tn-actions"><Button variant="ghost" onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? "Fechar" : "Editar"}</Button></div>
               {editing === p.id && base ? <PlanForm port={port} base={base} plan={p} onDone={saved} /> : null}
             </li>

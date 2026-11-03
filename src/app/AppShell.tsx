@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router";
 import { BrandSymbol, IconButton, Wordmark } from "../components/ui/index.tsx";
 import { Icon, IconSprite } from "../components/ui/icons.tsx";
 import { MODULES } from "./modules.ts";
+import { unreadLabel, useUnreadMessages } from "../features/messaging/unread.ts";
 import { activeTo, buildNavigation, HOME, isItemActive, type NavSection, sectionFor } from "./navigation.ts";
 import { useSession } from "./session.tsx";
 import "./shell.css";
@@ -31,6 +32,18 @@ function TenantSwitcher({ compact }: { compact?: boolean }) {
   }
   return <span className="tn-tenant__name">{memberships[0]?.tenant_name ?? "Sem negócio"}</span>;
 }
+
+/** Selo de não lidas (item 39): o número à vista; o leitor de tela ouve "Mensagens, 3 não lidas" (nome do link). */
+function UnreadBadge({ count, className }: { count: number; className: string }) {
+  if (count <= 0) return null;
+  return (
+    <span className={className} aria-hidden="true">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+/** Nome do link com o selo escrito por extenso. */
+const withUnread = (label: string, count: number) => (count > 0 ? `${label}, ${unreadLabel(count)}` : undefined);
 
 /** Sub-abas do grupo atual (ex.: Dinheiro → Caixa, Pagamentos, Assinaturas). No desktop a barra lateral já mostra.
  *  A faixa rola de lado: a sub-aba ativa vai para o centro e a borda esmaece quando há mais telas daquele lado. */
@@ -90,6 +103,8 @@ export function AppShell() {
   const menuOpen = openAt === pathname;
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const unread = useUnreadMessages(pathname);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -107,6 +122,17 @@ export function AppShell() {
       delete document.body.dataset.menuOpen;
     };
   }, [menuOpen]);
+
+  // Item 60 da auditoria: no desktop, o menu lateral rola sozinho e o item ativo (ex.: Resultado, no fim) pode ficar
+  // fora da vista. Rola só o menu, e só quando o item está escondido nele.
+  useEffect(() => {
+    const nav = navRef.current;
+    const link = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !link || nav.scrollHeight <= nav.clientHeight) return;
+    const a = link.getBoundingClientRect();
+    const box = nav.getBoundingClientRect();
+    if (a.top < box.top || a.bottom > box.bottom) link.scrollIntoView({ block: "nearest" });
+  }, [pathname, state.status]);
 
   if (state.status === "loading") {
     return (
@@ -171,7 +197,7 @@ export function AppShell() {
       </div>
 
       {menuOpen ? <div className="tn-scrim" aria-hidden="true" onClick={closeMenu} /> : null}
-      <nav id="tn-menu" className="tn-nav" aria-label="Principal" data-open={menuOpen || undefined}>
+      <nav ref={navRef} id="tn-menu" className="tn-nav" aria-label="Principal" data-open={menuOpen || undefined}>
         <div className="tn-nav__head">
           <strong>Menu</strong>
           <IconButton ref={closeButton} icon="fechar" label="Fechar menu" onClick={closeMenu} />
@@ -186,14 +212,20 @@ export function AppShell() {
         </ul>
         {sections.map((s) => (
           <div className="tn-nav__group" key={s.id}>
-            {/* Grupo de um item só (Assistente): o próprio item já é o título. */}
+            {/* Grupo de um item só: o próprio item já é o título. */}
             {s.items.length > 1 ? <p className="tn-nav__title">{s.label}</p> : null}
             <ul className="tn-nav__list">
               {s.items.map((i) => (
                 <li key={i.to}>
-                  <Link to={i.to} className="tn-nav__link" aria-current={i.to === active ? "page" : undefined}>
+                  <Link
+                    to={i.to}
+                    className="tn-nav__link"
+                    aria-current={i.to === active ? "page" : undefined}
+                    aria-label={s.badge === "unread" && i.to === s.to ? withUnread(i.label, unread) : undefined}
+                  >
                     <Icon name={i.icon} size={20} />
                     {i.label}
+                    {s.badge === "unread" && i.to === s.to ? <UnreadBadge count={unread} className="tn-nav__badge" /> : null}
                   </Link>
                 </li>
               ))}
@@ -243,9 +275,10 @@ export function AppShell() {
               const active = s.items.some((i) => isItemActive(i, pathname));
               return (
                 <li key={s.id}>
-                  <Link to={s.to} aria-current={active ? "page" : undefined}>
+                  <Link to={s.to} aria-current={active ? "page" : undefined} aria-label={s.badge === "unread" ? withUnread(s.label, unread) : undefined}>
                     <Icon name={s.icon} />
                     <span>{s.label}</span>
+                    {s.badge === "unread" ? <UnreadBadge count={unread} className="tn-tabbar__badge" /> : null}
                   </Link>
                 </li>
               );

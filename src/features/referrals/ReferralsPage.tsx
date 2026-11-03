@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import { Button, Card, Help, LinkButton, PageHeader, StatusBanner, toast } from "../../components/ui/index.tsx";
 import { activationLabel, explain, formatDate, formatMonth, STATE } from "./labels.ts";
 import type { ReferralDashboard, ReferralReward, ReferralsPort } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
+
+/** Progresso da adesão (item 58): "1 de 3 clientes" com barra. O texto diz o número; a barra só reforça. */
+function Progress({ done, goal, one, many }: { done: number; goal: number; one: string; many: string }) {
+  const text = `${Math.min(done, goal)} de ${plural(goal, one, many)}`;
+  return (
+    <div>
+      <span>{text}</span>
+      <progress max={goal} value={Math.min(done, goal)} aria-label={text} />
+    </div>
+  );
+}
 
 export function ReferralsPage({ port }: { port: ReferralsPort }) {
   const [data, setData] = useState<ReferralDashboard | null>(null);
@@ -27,7 +39,7 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
     setSimulating(true);
     try {
       const r = await port.simulateActivity!();
-      toast({ tone: "info", message: `Avaliação (simulação): ${r.rewarded} benefício(s) concedido(s).` });
+      toast({ tone: "info", message: `Avaliação (simulação): ${plural(r.rewarded, "benefício concedido", "benefícios concedidos")}.` });
     } catch (e) {
       toast({ tone: "danger", message: explain(e) });
     } finally {
@@ -40,18 +52,21 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
     <div className="tn-ref">
       <div className="tn-page-intro">
         <PageHeader id="ref-title" title="Indicações" />
-        <Help><p>
-          O convite sai do seu Perfil: o link é pessoal e quem envia é você. Quando o negócio indicado passa a usar a Tinindo de verdade, você ganha crédito de perguntas do assistente no mês.
-        </p></Help>
+        {/* Um aviso só, em uma linha (item 19); as regras ficam em "Como funciona". */}
+        <StatusBanner tone="info">
+          <strong>O benefício não é avaliação.</strong>{port.kind === "demo" ? " Dados de exemplo; nada é concedido de verdade." : " Não existe nota nem ranking por indicar."}
+        </StatusBanner>
+        <Help>
+          <p>O convite sai do seu Perfil: o link é pessoal e quem envia é você. Quando o negócio indicado passa a usar a Tinindo de verdade, você ganha crédito de perguntas do assistente no mês.</p>
+          <p>
+            Não existe nota, ranking nem posição por indicar. A Tinindo mede o uso real do negócio indicado
+            {rules ? ` (${rules.min_customers} clientes e ${rules.min_completed_bookings} atendimentos concluídos em ${rules.window_days} dias)` : ""} e concede
+            {rules ? ` ${rules.reward_questions} perguntas` : " o crédito"} uma única vez por negócio indicado, até {rules?.monthly_cap ?? 10} por mês. Convite aceito pelo seu próprio negócio ou por quem já aderiu não rende.
+          </p>
+        </Help>
         <div className="tn-actions">
           <LinkButton to="/app/perfil" variant="secondary">Convidar pelo Perfil</LinkButton>
         </div>
-        <StatusBanner tone="info">
-          <strong>O benefício não é avaliação.</strong> Não existe nota, ranking nem posição por indicar. A Tinindo mede o uso real do negócio indicado
-          {rules ? ` (${rules.min_customers} clientes e ${rules.min_completed_bookings} atendimentos concluídos em ${rules.window_days} dias)` : ""} e concede
-          {rules ? ` ${rules.reward_questions} perguntas` : " o crédito"} uma única vez por negócio indicado, até {rules?.monthly_cap ?? 10} por mês. Convite aceito pelo seu próprio negócio ou por quem já aderiu não rende.
-        </StatusBanner>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é concedido de verdade.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {data ? (
           <dl className="tn-ref-summary" aria-label="Resumo">
@@ -77,6 +92,12 @@ export function ReferralsPage({ port }: { port: ReferralsPort }) {
               <h3>{i.invitee_name}</h3>
               <p><strong>{STATE[i.state]}</strong> · gerado em {formatDate(i.created_at)}{i.claimed_at ? ` · aceito em ${formatDate(i.claimed_at)}` : ` · vale até ${formatDate(i.expires_at)}`}</p>
               <p className="tn-muted">{activationLabel(i)}{i.reward ? ` · ${i.reward.amount} perguntas em ${formatMonth(i.reward.period_start)}` : ""}</p>
+              {i.activation?.status === "awaiting_activity" && rules ? (
+                <div className="tn-ref-progress" role="group" aria-label={`Uso real de ${i.invitee_name}`}>
+                  <Progress done={Number(i.activation.checks.customers ?? 0)} goal={rules.min_customers} one="cliente" many="clientes" />
+                  <Progress done={Number(i.activation.checks.completed_bookings ?? 0)} goal={rules.min_completed_bookings} one="atendimento concluído" many="atendimentos concluídos" />
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

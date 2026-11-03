@@ -2,10 +2,11 @@
 // e na prévia do dono. Mostra só a projeção publicada: nada de CRM, contatos ou agenda alheia.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, toast, useFormErrors, whatsappHref } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
 import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, SlotsData } from "./api.ts";
-import { CATEGORY_LABEL, errorMessage, formatTime, newIdempotencyKey } from "./useNetworkApi.ts";
+import { buildIcs } from "./ics.ts";
+import { CATEGORY_LABEL, errorMessage, formatPhoneBr, formatTime, newIdempotencyKey } from "./useNetworkApi.ts";
 
 /** Dia da demonstração (fixtures do piloto). Com servidor, o visitante escolhe a partir de hoje. */
 const DEMO_DAY = "2026-10-20";
@@ -71,19 +72,44 @@ function bookingError(e: unknown): string {
   return errorMessage(e);
 }
 
+/** Âncora da reserva no perfil: o "Ver horários livres" do topo e o "Ver horários" do diretório levam até ela. */
+export const BOOKING_ANCHOR = "agendar";
+
+function goToBooking() {
+  document.getElementById(BOOKING_ANCHOR)?.scrollIntoView({ block: "start" });
+  document.getElementById("horarios-titulo")?.focus({ preventScroll: true });
+}
+
 export function PublicProfileView({ profile, api }: { profile: PublicProfileData; api: NetworkApi }) {
   const name = profile.fields.display_name ?? CATEGORY_LABEL[profile.category];
+  const booking = !!profile.fields.booking_link;
   return (
     <div className="tn-stack">
       <div className="tn-net-head">
         {profile.photo ? <img className="tn-net-photo" src={profile.photo.url} alt={profile.photo.alt} width={96} height={96} /> : null}
         <PageHeader id="perfil-nome" eyebrow={CATEGORY_LABEL[profile.category]} title={name} subtitle={profile.area} />
       </div>
-      {profile.whatsapp_e164 ? (
+      {/* A reserva vem primeiro (E12): o botão principal leva aos horários; o WhatsApp é a segunda opção. */}
+      {booking || profile.whatsapp_e164 ? (
         <div className="tn-actions">
-          <a className="tn-button" data-variant="secondary" href={whatsappLink(profile.whatsapp_e164)} target="_blank" rel="noopener noreferrer">
-            Conversar no WhatsApp
-          </a>
+          {booking ? (
+            <a
+              className="tn-button"
+              data-variant="primary"
+              href={`#${BOOKING_ANCHOR}`}
+              onClick={(e) => {
+                e.preventDefault();
+                goToBooking();
+              }}
+            >
+              Ver horários livres
+            </a>
+          ) : null}
+          {profile.whatsapp_e164 ? (
+            <a className="tn-button" data-variant="secondary" href={whatsappLink(profile.whatsapp_e164)} target="_blank" rel="noopener noreferrer">
+              Conversar no WhatsApp
+            </a>
+          ) : null}
         </div>
       ) : null}
       <Card as="article" aria-labelledby="perfil-nome">
@@ -100,21 +126,45 @@ export function PublicProfileView({ profile, api }: { profile: PublicProfileData
             )}
           </li>
         </ul>
-        {/* Avaliar exige login e só lista atendimentos concluídos do próprio cliente (regra do servidor). */}
-        <p className="tn-muted">
-          Já foi atendido aqui? <Link to="/avaliar">Avaliar meu atendimento</Link> ·{" "}
-          <Link to="/app/conta/reservas">Minhas reservas</Link>
-        </p>
         {profile.fields.bio ? <p>{profile.fields.bio}</p> : null}
         {profile.fields.services_summary ? <p>{profile.fields.services_summary}</p> : null}
       </Card>
-      {profile.fields.booking_link ? <BookingSlots slug={profile.slug} api={api} /> : null}
-      <p className="tn-muted">
-        Informações publicadas pelo próprio profissional. A Tinindo não garante habilidade nem resultado. Algo
-        errado ou indevido? Fale com a equipe Tinindo para pedir correção ou remoção.
-      </p>
+      {booking ? (
+        <div id={BOOKING_ANCHOR} className="tn-net-booking">
+          <BookingSlots slug={profile.slug} api={api} professional={name} whatsapp={profile.whatsapp_e164 ?? null} />
+        </div>
+      ) : null}
+      {/* Links de quem já é cliente e o aviso ficam no rodapé (E12), longe da reserva. */}
+      <footer className="tn-net-foot">
+        {/* Avaliar exige login e só lista atendimentos concluídos do próprio cliente (regra do servidor). */}
+        <p>
+          Já foi atendido aqui? <Link to="/avaliar">Avaliar meu atendimento</Link> ·{" "}
+          <Link to="/app/conta/reservas">Minhas reservas</Link>
+        </p>
+        <p className="tn-muted">
+          Informações publicadas pelo próprio profissional. A Tinindo não garante habilidade nem resultado. Algo
+          errado ou indevido? Fale com a equipe Tinindo para pedir correção ou remoção.
+        </p>
+      </footer>
     </div>
   );
+}
+
+/** Mensagem pronta para falar com o profissional depois de reservar. Só o que a própria pessoa marcou. */
+export function bookedMessage(service: string, startsAt: string): string {
+  return `Olá! Marquei ${service} para ${formatDay(startsAt)} às ${formatTime(startsAt)} pelo seu perfil na Tinindo.`;
+}
+
+/** Baixa o .ics da reserva (gerado aqui no navegador; nada vai para o servidor). */
+function downloadIcs(filename: string, ics: string) {
+  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 type SlotsState = { key: string } & ({ kind: "ok"; data: SlotsData } | { kind: "error"; message: string });
@@ -152,7 +202,7 @@ function StepIndicator({ phase }: { phase: StepPhase }) {
   );
 }
 
-function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
+function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api: NetworkApi; professional: string; whatsapp: string | null }) {
   const [services, setServices] = useState<PublicService[] | null>(null);
   const [serviceId, setServiceId] = useState<string>("");
   const [firstDay] = useState<string>(() => (api.demo ? DEMO_DAY : todayInSaoPaulo()));
@@ -178,6 +228,9 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
   const { formRef: codeRef, errors: codeErrors, show: showCode, clear: clearCode } = useFormErrors<"code">();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const daysRef = useRef<HTMLDivElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  // "Corrigir" o número: ao voltar para os dados, o foco vai direto para o WhatsApp.
+  const fixPhone = useRef(false);
   const moved = useRef(false);
 
   useEffect(() => {
@@ -198,11 +251,21 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
       moved.current = true;
       return;
     }
-    titleRef.current?.focus();
+    if (phase === "contact" && fixPhone.current) {
+      fixPhone.current = false;
+      phoneRef.current?.focus();
+      phoneRef.current?.select();
+    } else titleRef.current?.focus();
     if (phase === "slot") {
       daysRef.current?.querySelector("input:checked")?.closest("label")?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     }
   }, [phase]);
+
+  // Chegou pelo "Ver horários" do diretório (/p/slug#agendar): depois de carregar, mostra a reserva.
+  const loaded = services !== null;
+  useEffect(() => {
+    if (loaded && window.location.hash === `#${BOOKING_ANCHOR}`) document.getElementById(BOOKING_ANCHOR)?.scrollIntoView({ block: "start" });
+  }, [loaded]);
 
   const slotsKey = `${serviceId}|${day}|${reload}`;
   useEffect(() => {
@@ -315,6 +378,38 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
           {booking.service_name} · {formatDay(booking.slot.starts_at)} às <span className="tn-num">{formatTime(booking.slot.starts_at)}</span>.
           {api.demo ? " Demonstração: a reserva entrou só na Agenda desta aba." : null}
         </StatusBanner>
+        <div className="tn-actions">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              downloadIcs(
+                `horario-${slug}.ics`,
+                buildIcs({
+                  uid: `${request?.data.request_id ?? newIdempotencyKey()}@tinindo`,
+                  starts_at: booking.slot.starts_at,
+                  ends_at: booking.slot.ends_at,
+                  summary: `${booking.service_name} · ${professional}`,
+                  description: "Horário confirmado pelo link da Tinindo. Para remarcar ou cancelar, fale com o profissional.",
+                  url: `${window.location.origin}/p/${slug}`,
+                }),
+              );
+              toast("Arquivo da agenda baixado. Abra para salvar no seu calendário.");
+            }}
+          >
+            Adicionar à agenda
+          </Button>
+          {whatsapp ? (
+            <a
+              className="tn-button"
+              data-variant="secondary"
+              href={whatsappHref(whatsapp, bookedMessage(booking.service_name, booking.slot.starts_at))}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Falar com o profissional
+            </a>
+          ) : null}
+        </div>
         <p className="tn-muted">
           Para remarcar ou cancelar, fale com o profissional. Tem login? Veja em <Link to="/app/conta/reservas">Minhas reservas</Link>.
         </p>
@@ -483,6 +578,7 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
             }}
           />
           <Field
+            ref={phoneRef}
             label="WhatsApp com DDD"
             type="tel"
             autoComplete="tel"
@@ -531,9 +627,25 @@ function BookingSlots({ slug, api }: { slug: string; api: NetworkApi }) {
             </StatusBanner>
           ) : null}
           <StatusBanner tone="info">
-            Enviamos um código de 6 dígitos para o seu WhatsApp <span className="tn-num">{request.phone}</span>. O horário fica
-            guardado até as <span className="tn-num">{formatTime(request.data.expires_at)}</span>; depois disso, volta a ficar livre.
+            Enviamos um código de 6 dígitos para o seu WhatsApp <span className="tn-num">{formatPhoneBr(request.phone)}</span>. O
+            horário fica guardado até as <span className="tn-num">{formatTime(request.data.expires_at)}</span>; depois disso, volta a
+            ficar livre.
           </StatusBanner>
+          {/* Corrigir volta aos dados com serviço, dia e hora mantidos (E10). */}
+          <p className="tn-net-fix">
+            Número errado?{" "}
+            <button
+              type="button"
+              className="tn-net-linkbutton"
+              aria-label="Corrigir o número"
+              onClick={() => {
+                fixPhone.current = true;
+                go("contact");
+              }}
+            >
+              Corrigir
+            </button>
+          </p>
           {request.data.demoCode ? (
             <StatusBanner tone="warning">
               Demonstração: nenhuma mensagem é enviada. O código seria <span className="tn-num">{request.data.demoCode}</span>.

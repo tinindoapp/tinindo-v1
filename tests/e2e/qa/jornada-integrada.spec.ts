@@ -37,7 +37,7 @@ test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → receb
   await expect(received(page)).toHaveText("R$ 1.740,00");
   await noHorizontalScroll(page);
 
-  await visit.getByRole("button", { name: /Marcar como recebido/ }).dblclick();
+  await visit.getByRole("button", { name: /^Recebi R\$/ }).dblclick();
   await expect(page.getByText(/Recebido R\$\s?60,00 \(.+\) de .*Ana/)).toBeVisible();
   await expect(pending.getByRole("listitem").filter({ hasText: "20/10/2026" })).toHaveCount(0);
   const payments = page.getByRole("region", { name: "Recebimentos no mês" });
@@ -112,7 +112,7 @@ test.describe("regressões da auditoria", () => {
     await page.getByRole("radio", { name: /Barba/ }).check();
     await page.getByRole("button", { name: "Próximo dia" }).click();
     await page.getByRole("button", { name: "10:30", exact: true }).click();
-    await page.getByLabel("Cliente").selectOption({ label: "Cliente Exemplo Bruno" });
+    await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Bruno" }).check();
     await page.getByRole("button", { name: "Confirmar agendamento" }).dblclick();
     await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
 
@@ -151,7 +151,7 @@ test("minhas reservas: a cliente vê o que o dono agenda e conclui na mesma aba,
   await page.getByRole("link", { name: "Novo agendamento" }).click();
   await page.getByRole("radio", { name: /Corte/ }).check();
   await page.getByRole("button", { name: "13:00", exact: true }).click();
-  await page.getByLabel("Cliente").selectOption({ label: "Cliente Exemplo Ana" });
+  await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Ana" }).check();
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
 

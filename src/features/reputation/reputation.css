@@ -1,9 +1,23 @@
 /* Avaliações (P24). Só tokens; ação preta; laranja nunca em botão ou texto. A nota usa o Segmented do sistema;
    pilha, ações e apoio vêm de .tn-stack, .tn-actions e .tn-muted. */
 .tn-rev > :is(.tn-page-header, .tn-help) { margin: 0; }
-.tn-rev-badges { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-1); }
-.tn-rev-badges li { padding: var(--tn-space-2) var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); font-size: var(--tn-text-support); }
-.tn-rev-badges li[data-on] { border-color: var(--tn-action); font-weight: var(--tn-font-weight-medium); }
+/* Resumo no topo e selos como pílulas (item 43): não parecem campos de formulário. */
+.tn-rev-summary { margin: 0; font-size: var(--tn-text-group); }
+.tn-rev-summary__avg { font-weight: var(--tn-font-weight-semibold); }
+.tn-rev-badges { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+.tn-rev-badges li { padding: var(--tn-space-1) var(--tn-space-3); border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); font-size: var(--tn-text-support); }
+.tn-rev-badges li[data-on] { box-shadow: inset 0 0 0 1px var(--tn-selected-border); font-weight: var(--tn-font-weight-medium); }
+/* "Verifique sua identidade →": uma tarefa, com a explicação a um toque. */
+.tn-rev-task { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); }
+.tn-rev-task summary { display: flex; align-items: center; justify-content: space-between; gap: var(--tn-space-2); min-height: var(--tn-size-touch); padding: 0 var(--tn-space-3); font-weight: var(--tn-font-weight-medium); cursor: pointer; list-style: none; }
+.tn-rev-task summary::-webkit-details-marker { display: none; }
+.tn-rev-task[open] summary .tn-icon { transform: rotate(90deg); }
+.tn-rev-task p { margin: 0; padding: 0 var(--tn-space-3) var(--tn-space-3); color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+@media (hover: hover) { .tn-rev-task summary:hover { background: var(--tn-action-subtle); } }
+/* Resposta: prévia pública e "⋯" no fim da linha de ações. */
+.tn-rev-preview { display: grid; gap: var(--tn-space-1); }
+.tn-rev-preview p { margin: 0; }
+.tn-rev-item__actions .tn-menu { margin-left: auto; }
 .tn-rev-list { list-style: none; margin: 0; padding: 0; }
 .tn-rev-item { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); overflow-wrap: anywhere; }
 /* Atendimento escolhido em "Minhas reservas": destaque discreto, sem cor de marca. */

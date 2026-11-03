@@ -81,7 +81,7 @@ test.describe("UAT cabeleireira", () => {
 
   test("4a · preço combinado não muda sozinho; mudança no reagendamento é explícita", async ({ page }) => {
     await page.goto("/app/agenda");
-    await page.getByRole("link", { name: /15:00–15:30 Corte Cliente Exemplo Bruno Confirmado R\$ 51,00/ }).click();
+    await page.getByRole("link", { name: /15:00–15:30 Corte Cliente Exemplo Bruno R\$ 51,00/ }).click();
     await expect(page.getByText("R$ 51,00")).toBeVisible();
 
     await page.getByRole("link", { name: "Reagendar" }).click();

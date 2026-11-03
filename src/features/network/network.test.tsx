@@ -59,9 +59,23 @@ describe("perfil do dono (demonstração)", () => {
   it("onboarding progressivo: convite de colega só aparece depois do perfil no ar", async () => {
     renderAt("/app/perfil");
     expect(await screen.findByText(/Demonstração: nada é salvo/)).toBeInTheDocument();
-    const steps = screen.getByRole("region", { name: /Primeiros passos/ });
-    expect(within(steps).getAllByRole("listitem")).toHaveLength(2);
+    // Os primeiros passos ficam numa lista só, em Conta (E9).
+    expect(screen.queryByRole("region", { name: /Primeiros passos/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Convidar um colega" })).not.toBeInTheDocument();
+  });
+
+  it("não pergunta de novo: endereço sugerido pelo nome com prévia do link e categoria vinda da profissão (E9)", async () => {
+    renderAt("/app/perfil");
+    const slug = await screen.findByLabelText("Endereço do perfil");
+    expect(slug).toHaveValue("barbearia-exemplo-a");
+    expect(slug).toHaveAccessibleDescription(new RegExp(`Seu link: ${window.location.host}/p/barbearia-exemplo-a\\.`));
+    fireEvent.change(slug, { target: { value: "Barba Nova" } });
+    expect(slug).toHaveAccessibleDescription(/\/p\/barba-nova\./);
+    expect(screen.getByText(/Categoria:/)).toHaveTextContent("Categoria: Barbearia · a profissão do seu negócio");
+    // A troca existe, mas fica recolhida.
+    expect(screen.getByText("Trocar a categoria do perfil").closest("details")).not.toHaveAttribute("open");
+    fireEvent.change(screen.getByLabelText("Categoria"), { target: { value: "hairdresser" } });
+    expect(screen.getByText(/Categoria:/)).toHaveTextContent("Categoria: Cabeleireiro(a)");
   });
 
   it("publica com slug normalizado e só campos escolhidos; endereço inválido bloqueia", async () => {
@@ -83,7 +97,6 @@ describe("perfil do dono (demonstração)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Publicar perfil" }));
     expect(await screen.findByText("Perfil publicado.")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Convidar um colega" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /Primeiros passos/ })).toHaveTextContent("2 de 3");
   });
 
   it("perfil no ar: cartão com o endereço completo, WhatsApp com texto pronto e Copiar com retorno", async () => {
@@ -93,13 +106,12 @@ describe("perfil do dono (demonstração)", () => {
     const card = await screen.findByRole("region", { name: "Seu perfil está no ar!" });
     const url = `${window.location.origin}/p/barbearia-exemplo`;
     expect(within(card).getByLabelText("Endereço do seu perfil")).toHaveValue(url);
-    const wa = within(card).getByRole("link", { name: "Mandar no WhatsApp" });
+    const wa = within(card).getByRole("link", { name: "Enviar pelo WhatsApp" });
     expect(wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/\?text=/);
     expect(decodeURIComponent(new URL(wa.getAttribute("href")!).search.slice(6))).toContain(url);
     fireEvent.click(within(card).getByRole("button", { name: "Copiar link" }));
-    expect(await within(card).findByRole("button", { name: "Copiado" })).toBeInTheDocument();
+    expect(await within(card).findByText("Copiado ✓")).toBeInTheDocument();
     expect(writeText).toHaveBeenCalledWith(url);
-    expect(await screen.findByText(/Link copiado/)).toBeInTheDocument();
     // "Ver como o cliente vê" continua no cartão do perfil.
     expect(screen.getByRole("link", { name: "Ver como o cliente vê" })).toBeInTheDocument();
   });
@@ -109,7 +121,7 @@ describe("perfil do dono (demonstração)", () => {
     await publishDemoProfile();
     const card = await screen.findByRole("region", { name: "Seu perfil está no ar!" });
     fireEvent.click(within(card).getByRole("button", { name: "Copiar link" }));
-    expect(await screen.findByText(/Não foi possível copiar/)).toBeInTheDocument();
+    expect(await within(card).findByText(/Não deu para copiar/)).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Copiar link" })).toBeInTheDocument();
   });
 
@@ -169,7 +181,9 @@ describe("páginas públicas (demonstração)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
 
     expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();
-    expect(screen.getByText("+5511977774343")).toBeInTheDocument();
+    // Telefone formatado como a pessoa digitou (E10), não em E.164.
+    expect(screen.getByText("(11) 97777-4343")).toBeInTheDocument();
+    expect(screen.queryByText("+5511977774343")).not.toBeInTheDocument();
     const shown = /O código seria (\d{6})/.exec(screen.getByText(/nenhuma mensagem é enviada/).textContent ?? "")![1]!;
     const wrong = String((Number(shown) + 1) % 1_000_000).padStart(6, "0");
     fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: wrong } });
@@ -461,5 +475,106 @@ describe("demonstração não finge agenda real", () => {
     });
     const api = createHttpNetworkApi(call as never, null);
     await waitFor(async () => expect(await api.publicServices("barbearia-a")).toEqual([]));
+  });
+});
+
+/** Do perfil público até o passo do código: Corte às 12:00, Maria, (11) 97777-4343. Devolve o código mostrado. */
+async function bookToCode() {
+  await chooseService();
+  const slots = await screen.findByRole("list", { name: "Horários livres" });
+  fireEvent.click(within(slots).getByRole("button", { name: "12:00" }));
+  fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
+  fireEvent.change(screen.getByLabelText("WhatsApp com DDD"), { target: { value: "(11) 97777-4343" } });
+  fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
+  await screen.findByRole("heading", { name: "Confirme o horário" });
+  return /O código seria (\d{6})/.exec(screen.getByText(/nenhuma mensagem é enviada/).textContent ?? "")![1]!;
+}
+
+async function turnOnWhatsapp() {
+  const box = await screen.findByRole("region", { name: "Foto e contato" });
+  fireEvent.click(within(box).getByRole("checkbox", { name: /Mostrar botão do WhatsApp/ }));
+  fireEvent.click(within(box).getByRole("button", { name: "Salvar foto e opções" }));
+  await screen.findByText("Foto e opções do perfil salvas.");
+}
+
+describe("confirmação da reserva (E10)", () => {
+  it("Número errado? Corrigir volta aos dados com a escolha e o foco no WhatsApp", async () => {
+    await publishDemoProfile();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    await bookToCode();
+    fireEvent.click(screen.getByRole("button", { name: "Corrigir o número" }));
+    expect(await screen.findByRole("heading", { name: "Seus dados" })).toBeInTheDocument();
+    const phone = screen.getByLabelText("WhatsApp com DDD");
+    await waitFor(() => expect(phone).toHaveFocus());
+    expect(phone).toHaveValue("(11) 97777-4343");
+    expect(screen.getByLabelText("Seu nome")).toHaveValue("Maria");
+    expect(screen.getByText(/^Corte · ter 20\/10 · 12:00$/)).toBeInTheDocument();
+  });
+
+  it("confirmado: Adicionar à agenda baixa o .ics em UTC, sem o telefone; Falar com o profissional com o WhatsApp público", async () => {
+    await publishDemoProfile();
+    await turnOnWhatsapp();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    const code = await bookToCode();
+    fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: code } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
+    await screen.findByRole("heading", { name: "Horário confirmado" });
+
+    const talk = screen.getByRole("link", { name: "Falar com o profissional" });
+    const href = new URL(talk.getAttribute("href")!);
+    expect(href.origin + href.pathname).toBe("https://wa.me/5511999990001");
+    expect(href.searchParams.get("text")).toMatch(/^Olá! Marquei Corte para terça-feira, 20\/10 às 12:00/);
+
+    let saved: Blob | null = null;
+    const create = vi.spyOn(URL, "createObjectURL").mockImplementation((b) => {
+      saved = b as Blob;
+      return "blob:ics";
+    });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      expect(this.download).toBe("horario-barbearia-exemplo.ics");
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar à agenda" }));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    const ics = await saved!.text();
+    expect(saved!.type).toMatch(/^text\/calendar/);
+    expect(ics).toContain("DTSTART:20261020T150000Z\r\n");
+    expect(ics).toMatch(/DTEND:20261020T15\d{4}Z\r\n/);
+    expect(ics).toContain("SUMMARY:Corte · Barbearia Exemplo A");
+    expect(ics).not.toMatch(/97777|4343|Maria/);
+    expect(await screen.findByText(/Arquivo da agenda baixado/)).toBeInTheDocument();
+  });
+
+  it("sem WhatsApp público: não mostra Falar com o profissional", async () => {
+    await publishDemoProfile();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    const code = await bookToCode();
+    fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: code } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
+    await screen.findByRole("heading", { name: "Horário confirmado" });
+    expect(screen.getByRole("button", { name: "Adicionar à agenda" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Falar com o profissional" })).not.toBeInTheDocument();
+  });
+});
+
+describe("perfil público: reserva primeiro (E12)", () => {
+  it("Ver horários livres é a primeira ação; avaliar e minhas reservas ficam no rodapé", async () => {
+    await publishDemoProfile();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    const cta = await screen.findByRole("link", { name: "Ver horários livres" });
+    const footer = document.querySelector<HTMLElement>("footer.tn-net-foot")!;
+    expect(within(footer).getByRole("link", { name: "Avaliar meu atendimento" })).toBeInTheDocument();
+    expect(within(footer).getByRole("link", { name: "Minhas reservas" })).toBeInTheDocument();
+    const links = screen.getAllByRole("link");
+    expect(links[0]).toBe(cta);
+    const booking = await screen.findByRole("heading", { name: "Escolha o serviço" });
+    expect(booking.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    Element.prototype.scrollIntoView ??= () => undefined;
+    fireEvent.click(cta);
+    expect(booking).toHaveFocus();
   });
 });

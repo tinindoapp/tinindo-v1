@@ -8,6 +8,7 @@ import { explain, formatCents, formatDate, formatPercent, formatQty, KIND_LABEL,
 import {
   type MarginReport, type MaterialBooking, type MaterialItem, type MaterialPurchase, type MaterialsBase, type MaterialsPort, type MaterialUsage, newKey, type PurchaseLine,
 } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string; undo?: () => void } | null;
 const DAY = 86_400_000;
@@ -252,11 +253,11 @@ export function MaterialsPage({ port }: { port: MaterialsPort }) {
           {margin?.services.map((s) => (
             <li key={s.service_id} className="tn-mt-row"><strong>{s.service_name}</strong>:
               {s.with_materials ? ` ${formatCents(s.covered_revenue_cents)} combinados − ${formatCents(s.material_cost_cents)} em materiais = ${formatCents(s.margin_cents)}${s.margin_bps != null ? ` (${formatPercent(s.margin_bps)})` : ""}` : " sem uso registrado"}
-              {" · "}{s.with_materials} de {s.completed} atendimento(s) com materiais</li>
+              {" · "}{s.with_materials} de {plural(s.completed, "atendimento")} com materiais</li>
           ))}
         </ul>
         {margin && margin.totals.completed > margin.totals.with_materials ? (
-          <p className="tn-muted">{margin.totals.completed - margin.totals.with_materials} atendimento(s) sem uso registrado ficam fora da margem real.</p>
+          <p className="tn-muted">{plural(margin.totals.completed - margin.totals.with_materials, "atendimento sem uso registrado fica", "atendimentos sem uso registrado ficam")} fora da margem real.</p>
         ) : null}
       </Card>
 

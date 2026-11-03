@@ -25,12 +25,15 @@ import { discoveryModule } from "../features/discovery/module.tsx";
 import { reputationModule } from "../features/reputation/module.tsx";
 import { resourcesModule } from "../features/resources/module.tsx";
 import { materialsModule } from "../features/materials/module.tsx";
+import { financeAdvancedModule } from "../features/finance-advanced/module.tsx";
+import { fieldServiceModule } from "../features/field-service/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
   crmModule,
   messagingModule,
   financeModule,
+  financeAdvancedModule,
   paymentsModule,
   fiscalModule,
   lifecycleModule,
@@ -50,5 +53,6 @@ export const MODULES: readonly ModuleDefinition[] = [
   serviceOpsModule,
   resourcesModule,
   materialsModule,
+  fieldServiceModule,
   identityModule,
 ];

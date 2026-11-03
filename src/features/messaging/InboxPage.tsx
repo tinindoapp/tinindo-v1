@@ -3,10 +3,11 @@
 // de 24 h só modelo aprovado; a cliente que pediu SAIR não recebe nada; humano assume quando você pede.
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, formatTime, MESSAGE_STATUS, PROVIDER_LABEL, unreadLabel } from "./labels.ts";
+import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, formatTime, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, templateInfo, unreadLabel } from "./labels.ts";
 import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort, newKey } from "./port.ts";
+import { plural, pluralWord } from "../../lib/text/plural.ts";
 
 /** Depois de uma ação: o aviso de sucesso sai no toast e a tela recarrega. Erro de formulário fica no formulário. */
 type Done = (message: string) => void;
@@ -112,7 +113,7 @@ function SendForm({ port, convo, onSent }: { port: MessagingPort; convo: Convers
     <form ref={formRef} className="tn-msg-form tn-msg-composer" aria-label="Responder" onSubmit={(e) => void submit(e)} noValidate>
       <Field
         as="textarea"
-        label="Resposta"
+        label="Sua resposta"
         hint={blocked ? (convo.contact.opted_out ? "A cliente pediu para não receber mensagens." : "Fora da janela de 24 h: só modelo aprovado.") : "Texto livre até 24 h após a última mensagem da cliente."}
         rows={2}
         maxLength={4096}
@@ -128,40 +129,80 @@ function SendForm({ port, convo, onSent }: { port: MessagingPort; convo: Convers
   );
 }
 
-function TemplateForm({ port, convo, templates, onDone }: { port: MessagingPort; convo: Conversation; templates: ChannelStatus["templates"]; onDone: Done }) {
+/** Primeiro nome de quem está na conversa, para já preencher "Nome da cliente" no modelo. */
+function firstName(convo: Conversation): string {
+  const name = convo.contact.customer_name ?? convo.contact.profile_name ?? "";
+  return name.trim().split(/\s+/)[0] ?? "";
+}
+
+/**
+ * Modelo aprovado (item 41): nome legível no lugar do código, cada campo com o nome do que vai nele (o nome da cliente
+ * já vem preenchido), prévia do texto como a cliente vai receber e todos os campos vazios apontados de uma vez.
+ */
+function TemplateForm({ port, convo, templates, onDone, onCancel }: { port: MessagingPort; convo: Conversation; templates: ChannelStatus["templates"]; onDone: Done; onCancel: () => void }) {
   const usable = templates.filter((t) => t.code !== "verificacao_numero");
-  const [code, setCode] = useState(usable[0]?.code ?? "");
-  const [params, setParams] = useState<string[]>([]);
+  const prefill = (code: string) => {
+    const tpl = usable.find((x) => x.code === code);
+    if (!tpl) return [];
+    return templateInfo(tpl.code, tpl.params).fields.map((f) => (f === "Nome da cliente" ? firstName(convo) : ""));
+  };
+  const initial = (usable.find((t) => t.approved) ?? usable[0])?.code ?? "";
+  const [code, setCode] = useState(initial);
+  const [params, setParams] = useState<string[]>(() => prefill(initial));
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const { formRef, errors, show } = useFormErrors();
   const t = usable.find((x) => x.code === code);
+  const info = t ? templateInfo(t.code, t.params) : null;
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!t) return;
+    if (!t || !info) return;
+    const values = Array.from({ length: t.params }, (_, i) => (params[i] ?? "").trim());
+    if (!show(Object.fromEntries(values.map((v, i) => [`p${i}`, !v && `Preencha “${info.fields[i]}”.`])))) return;
     setBusy(true);
     setFailure(null);
     try {
-      await port.send({ contact_id: convo.contact.id, kind: "template", template_code: t.code, template_params: Array.from({ length: t.params }, (_, i) => params[i] ?? "") }, newKey());
-      setParams([]);
-      onDone("Modelo na fila. Ele vira enviado, entregue ou lido conforme o provedor confirmar.");
+      await port.send({ contact_id: convo.contact.id, kind: "template", template_code: t.code, template_params: values }, newKey());
+      onDone(`${info.name} na fila. Ele vira enviado, entregue ou lido conforme o provedor confirmar.`);
     } catch (err) {
       setFailure(explain(err));
     } finally {
       setBusy(false);
     }
   }
+  if (usable.length === 0) return <p className="tn-muted">Nenhum modelo aprovado neste número ainda.</p>;
   return (
-    <form className="tn-msg-form" aria-label="Enviar modelo aprovado" onSubmit={(e) => void submit(e)} noValidate>
-      <Field as="select" label="Modelo" value={code} onChange={(e) => { setCode(e.target.value); setParams([]); }}>
-        {usable.map((x) => <option key={x.code} value={x.code} disabled={!x.approved}>{x.code}{x.approved ? "" : " (não aprovado)"}</option>)}
+    <form ref={formRef} className="tn-stack" data-gap="sm" aria-label="Enviar modelo aprovado" onSubmit={(e) => void submit(e)} noValidate>
+      <Field as="select" label="Modelo" value={code} onChange={(e) => { setCode(e.target.value); setParams(prefill(e.target.value)); show({}); }}>
+        {usable.map((x) => (
+          <option key={x.code} value={x.code} disabled={!x.approved}>
+            {templateInfo(x.code, x.params).name}{x.approved ? "" : " (não aprovado)"}
+          </option>
+        ))}
       </Field>
-      {t ? <p className="tn-muted">{t.body}</p> : null}
-      {t ? Array.from({ length: t.params }, (_, i) => (
-        <Field key={i} label={`Campo ${i + 1}`} maxLength={300} value={params[i] ?? ""} onChange={(e) => setParams((p) => { const n = [...p]; n[i] = e.target.value; return n; })} />
+      {t && info ? info.fields.map((field, i) => (
+        <Field
+          key={`${t.code}-${i}`}
+          label={field}
+          hint={info.examples?.[i] ? `Ex.: ${info.examples[i]}` : undefined}
+          maxLength={300}
+          value={params[i] ?? ""}
+          error={errors[`p${i}`]}
+          onChange={(e) => setParams((p) => { const n = [...p]; n[i] = e.target.value; return n; })}
+        />
       )) : null}
-      {/* Modelo não aprovado ou cliente que pediu SAIR: o canal não permite (regra, não validação). */}
-      <Button type="submit" variant="secondary" loading={busy} loadingText="Enviando…" disabled={!t?.approved || convo.contact.opted_out}>Enviar modelo</Button>
+      {t && info ? (
+        <section className="tn-msg-preview" aria-label="Prévia da mensagem">
+          <p className="tn-msg-preview__label">Prévia · como a cliente recebe</p>
+          <p>{renderTemplate(t.body, params, info.fields)}</p>
+        </section>
+      ) : null}
       {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
+      <div className="tn-actions" data-sheet-footer>
+        {/* Modelo não aprovado ou cliente que pediu SAIR: o canal não permite (regra, não validação). */}
+        <Button type="submit" loading={busy} loadingText="Enviando…" disabled={!t?.approved || convo.contact.opted_out}>Enviar modelo</Button>
+        <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
+      </div>
     </form>
   );
 }
@@ -198,7 +239,7 @@ function DemoNotice({ port }: { port: MessagingPort }) {
 function DispatchButton({ port, done, fail }: { port: MessagingPort; done: Done; fail: (e: unknown) => void }) {
   if (!port.dispatch) return null;
   return (
-    <Button variant="secondary" onClick={() => void port.dispatch!().then((r) => done(`Despacho (simulação): ${r.sent} enviada(s), ${r.failed} falhou(aram), ${r.unknown} desconhecida(s), ${r.reconciled} resolvida(s).`), fail)}>
+    <Button variant="secondary" onClick={() => void port.dispatch!().then((r) => done(`Despacho (simulação): ${plural(r.sent, "enviada")}, ${r.failed} ${pluralWord(r.failed, "falhou", "falharam")}, ${plural(r.unknown, "desconhecida")}, ${plural(r.reconciled, "resolvida")}.`), fail)}>
       Rodar o despacho (simulação)
     </Button>
   );
@@ -352,6 +393,7 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
   const [convo, setConvo] = useState<Conversation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -423,6 +465,9 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
               Desvincular do cadastro
             </Button>
           ) : null}
+          {conn?.status === "active" && status ? (
+            <Button variant="ghost" aria-expanded={templateOpen} onClick={() => setTemplateOpen(true)}>Enviar modelo aprovado</Button>
+          ) : null}
           {conn?.status === "active" ? <DispatchButton port={port} done={actions.done} fail={actions.fail} /> : null}
         </div>
         {convo.messages.length === 0 ? <p className="tn-muted">Nenhuma mensagem nesta conversa.</p> : null}
@@ -438,13 +483,17 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
             </li>
           ))}
         </ul>
-        {conn?.status === "active" && status ? (
-          <details className="tn-help">
-            <summary>Enviar modelo aprovado</summary>
-            <div className="tn-help__body">
-              <TemplateForm port={port} convo={convo} templates={status.templates} onDone={actions.done} />
-            </div>
-          </details>
+        {/* Modelo aprovado: folha no celular; no desktop, cartão perto do campo de escrever, com o foco no primeiro campo. */}
+        {conn?.status === "active" && status && templateOpen ? (
+          <FormPanel title="Enviar modelo aprovado" onClose={() => setTemplateOpen(false)}>
+            <TemplateForm
+              port={port}
+              convo={convo}
+              templates={status.templates}
+              onCancel={() => setTemplateOpen(false)}
+              onDone={(m) => { setTemplateOpen(false); actions.done(m); }}
+            />
+          </FormPanel>
         ) : null}
         {conn?.status === "active" ? (
           <SendForm port={port} convo={convo} onSent={refresh} />

@@ -8,12 +8,13 @@ import {
   CrmCustomerUpsertInput,
   DeclaredSource,
 } from "@contracts";
-import { Button, Card, Field, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { ActionsMenu, Button, Card, Field, FormPanel, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
-import { ActionsMenu, ContactButtons } from "./contact.tsx";
+import { ContactButtons } from "./contact.tsx";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
-import { CrmDemoNotice, fieldErrors, Tag } from "./shared.tsx";
+import { CrmDemoNotice, EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
+import { plural } from "../../lib/text/plural.ts";
 
 type Draft = { id?: string; version?: number; name: string; phone: string; email: string; source: string };
 const EMPTY: Draft = { name: "", phone: "", email: "", source: "" };
@@ -44,7 +45,9 @@ export function CustomersPage() {
   const noun = PROFESSION_CONFIG[profession ?? "other"].customer;
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [items, setItems] = useState<CrmCustomer[]>([]);
+  // null = ainda carregando (esqueleto); depois, a lista e a busca que a produziu (item 40: busca vazia ≠ lista vazia).
+  const [items, setItems] = useState<CrmCustomer[] | null>(null);
+  const [shownQuery, setShownQuery] = useState("");
   const [next, setNext] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -52,8 +55,10 @@ export function CustomersPage() {
   const load = useCallback(
     async (cursor?: string) => {
       try {
-        const page = await api.listCustomers({ q: query.trim() || undefined, include_archived: showArchived, cursor });
-        setItems((prev) => (cursor ? [...prev, ...page.items] : page.items));
+        const q = query.trim();
+        const page = await api.listCustomers({ q: q || undefined, include_archived: showArchived, cursor });
+        setItems((prev) => (cursor && prev ? [...prev, ...page.items] : page.items));
+        setShownQuery(q);
         setNext(page.next_cursor);
         setLoadError(null);
       } catch (e) {
@@ -139,16 +144,17 @@ export function CustomersPage() {
       </div>
 
       {draft ? (
-        <CustomerForm
-          draft={draft}
-          noun={noun.one}
-          onCancel={() => setDraft(null)}
-          onSaved={async (text, tone) => {
-            setDraft(null);
-            toast({ message: text, tone });
-            await load();
-          }}
-        />
+        <FormPanel key={draft.id ?? "novo"} title={draft.id ? `Editar ${noun.one}` : `Novo ${noun.one}`} onClose={() => setDraft(null)}>
+          <CustomerForm
+            draft={draft}
+            onCancel={() => setDraft(null)}
+            onSaved={async (text, tone) => {
+              setDraft(null);
+              toast({ message: text, tone });
+              await load();
+            }}
+          />
+        </FormPanel>
       ) : null}
 
       <Card aria-labelledby="crm-customers-list">
@@ -156,11 +162,38 @@ export function CustomersPage() {
           Lista de {noun.many}
         </h2>
         {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
-        {!loadError && items.length === 0 ? (
-          <p className="tn-muted">Nenhum {noun.one} encontrado. Cadastre o primeiro ou importe uma planilha.</p>
+        {!loadError && items === null ? <ListSkeleton label={`Carregando ${noun.many}…`} /> : null}
+        {!loadError && items?.length === 0 && shownQuery ? (
+          <EmptyState
+            title={`Ninguém com “${shownQuery}”`}
+            actions={
+              <Button variant="secondary" disabled={api.readOnly} onClick={() => setDraft({ ...EMPTY, ...draftFromQuery(shownQuery) })}>
+                Cadastrar
+              </Button>
+            }
+          >
+            {showArchived ? "Confira a grafia ou busque pelo telefone." : "Confira a grafia, busque pelo telefone ou marque “Mostrar arquivados”."}
+          </EmptyState>
+        ) : null}
+        {!loadError && items?.length === 0 && !shownQuery ? (
+          <EmptyState
+            title={`Nenhum ${noun.one} ainda`}
+            actions={
+              <>
+                <Button disabled={api.readOnly} onClick={() => setDraft(EMPTY)}>
+                  Cadastrar {noun.one}
+                </Button>
+                <LinkButton to="importar" variant="secondary">
+                  Importar planilha
+                </LinkButton>
+              </>
+            }
+          >
+            Cadastre o primeiro ou traga a lista que você já tem numa planilha.
+          </EmptyState>
         ) : null}
         <ul className="tn-item-list">
-          {items.map((c) => (
+          {items?.map((c) => (
             <li key={c.id} className="crm-item">
               <div className="crm-item__main">
                 <Link to={c.id} className="crm-item__name">
@@ -216,12 +249,10 @@ export function CustomersPage() {
 
 function CustomerForm({
   draft,
-  noun,
   onCancel,
   onSaved,
 }: {
   draft: Draft;
-  noun: string;
   onCancel: () => void;
   onSaved: (text: string, tone: "success" | "warning") => Promise<void>;
 }) {
@@ -232,11 +263,6 @@ function CustomerForm({
   const [busy, setBusy] = useState(false);
   const keys = useMemo(() => createKeyRing(), []);
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
-  // Aberto pelo botão ou pelo menu "⋯": o foco vai para o primeiro campo (o formulário fica acima da lista).
-  useEffect(() => {
-    const first = formRef.current?.querySelector<HTMLInputElement>("input");
-    first?.focus();
-  }, [formRef]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -263,7 +289,7 @@ function CustomerForm({
       keys.reset();
       if (out.possible_duplicates.length > 0) {
         await onSaved(
-          `${out.customer.name} foi salvo. Há ${out.possible_duplicates.length} cadastro(s) parecido(s) neste negócio; nada foi mesclado. Confira na lista.`,
+          `${out.customer.name} foi salvo. Há ${plural(out.possible_duplicates.length, "cadastro parecido", "cadastros parecidos")} neste negócio; nada foi mesclado. Confira na lista.`,
           "warning",
         );
       } else await onSaved(`${out.customer.name} foi salvo.`, "success");
@@ -275,9 +301,7 @@ function CustomerForm({
   }
 
   return (
-    <Card aria-labelledby="crm-customer-form">
-      <form ref={formRef} className="tn-stack" onSubmit={submit} noValidate>
-        <h2 id="crm-customer-form">{form.id ? `Editar ${noun}` : `Novo ${noun}`}</h2>
+    <form ref={formRef} className="tn-stack" onSubmit={submit} noValidate>
         <div className="tn-form-grid">
           <Field label="Nome" value={form.name} onChange={set("name")} maxLength={120} required error={errors.name} />
           <Field label="Telefone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} error={errors.phone} />
@@ -292,7 +316,8 @@ function CustomerForm({
         </div>
         <p className="tn-muted">A origem é o que você declara. O telefone não liga cadastros de outros negócios.</p>
         {serverError ? <StatusBanner tone="danger">{serverError}</StatusBanner> : null}
-        <div className="tn-actions">
+        {/* No celular, Salvar fica preso no rodapé da folha. */}
+        <div className="tn-actions" data-sheet-footer>
           <Button type="submit" loading={busy} loadingText="Salvando…" disabled={api.readOnly}>
             Salvar
           </Button>
@@ -301,8 +326,15 @@ function CustomerForm({
           </Button>
         </div>
       </form>
-    </Card>
   );
+}
+
+/** "Cadastrar" a partir da busca sem resultado: o que foi digitado já entra no campo certo. */
+function draftFromQuery(q: string): Partial<Draft> {
+  const text = q.trim();
+  if (/@/.test(text)) return { email: text };
+  if (/^[\d\s()+-]+$/.test(text) && /\d{4}/.test(text.replace(/\D/g, ""))) return { phone: text };
+  return { name: text };
 }
 
 export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

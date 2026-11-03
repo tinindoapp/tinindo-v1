@@ -31,6 +31,41 @@ export function deltaText(unit: Metric["unit"], delta: number | null): string {
   return `${sign}${INT.format(abs)} min`;
 }
 
+/** Quando subir é bom (`up`) ou ruim (`down`), por indicador. Sem direção (minutos internos): só a diferença. */
+export const BETTER_WHEN: Partial<Record<Metric["key"] | "leftover", "up" | "down">> = {
+  occupancy: "up", no_show: "down", cancellation: "down", waitlist_acceptance: "up", quote_acceptance: "up",
+  received: "up", expenses: "down", charge_coverage: "up", reminders: "up", leftover: "up",
+};
+
+export interface Trend {
+  /** Seta só visual: ▲ subiu, ▼ caiu, = igual. */
+  arrow: "▲" | "▼" | "=";
+  /** Palavra para leitor de tela no lugar da seta. */
+  spoken: "subiu" | "caiu" | "ficou igual";
+  /** Diferença sem sinal: "1,2 p.p.", "R$ 60,00", "15 min". */
+  amount: string;
+  /** Se a mudança é boa para o negócio, sabendo a direção do indicador. */
+  verdict: "melhorou" | "piorou" | "sem mudança" | null;
+}
+
+/** Diferença com seta e palavra (item 54): "▼ 1,2 p.p. · melhorou" para faltas que caíram. */
+export function trend(key: Metric["key"] | "leftover", unit: Metric["unit"], delta: number | null): Trend | null {
+  if (delta === null) return null;
+  const amount = deltaText(unit, Math.abs(delta)).replace(/^\+/, "");
+  if (delta === 0) return { arrow: "=", spoken: "ficou igual", amount, verdict: "sem mudança" };
+  const up = delta > 0;
+  const better = BETTER_WHEN[key];
+  return {
+    arrow: up ? "▲" : "▼",
+    spoken: up ? "subiu" : "caiu",
+    amount,
+    verdict: better ? ((better === "up") === up ? "melhorou" : "piorou") : null,
+  };
+}
+
+/** Mesma frase em texto corrido (testes e Toast): "▼ 1,2 p.p. · melhorou". */
+export const trendText = (t: Trend | null) => (t ? `${t.arrow} ${t.amount}${t.verdict ? ` · ${t.verdict}` : ""}` : "sem comparação");
+
 /** Espelha app.an_metric: razão com 4 casas; denominador zero = insuficiente. */
 export function ratioMetric(num: number, den: number): Pick<Metric, "numerator" | "denominator" | "value" | "status"> {
   return { numerator: num, denominator: den, value: den === 0 ? null : Math.round((num / den) * 10_000) / 10_000, status: den === 0 ? "insufficient" : "ok" };

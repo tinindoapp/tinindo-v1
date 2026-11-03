@@ -119,6 +119,8 @@ export interface SchedulingBase {
   ctx: SchedulingContext;
   services: ProviderService[];
   customers: CustomerRef[];
+  /** Cliente criado agora pelo "+ Novo" do agendamento: entra na lista sem recarregar a base. */
+  addCustomer(c: CustomerRef): void;
 }
 
 const BaseContext = createContext<SchedulingBase | null>(null);
@@ -134,6 +136,18 @@ function BaseLoader({ port }: { port: SchedulingPort }) {
     const [ctx, services, customers] = await Promise.all([port.context(), port.listServices(), port.listCustomers()]);
     return { ctx, services: services.filter((s) => s.active), customers };
   });
+  const [added, setAdded] = useState<CustomerRef[]>([]);
+  const value = useMemo<SchedulingBase | null>(
+    () =>
+      base.data
+        ? {
+            ...base.data,
+            customers: [...base.data.customers, ...added.filter((a) => !base.data!.customers.some((c) => c.id === a.id))],
+            addCustomer: (c) => setAdded((list) => (list.some((x) => x.id === c.id) ? list : [...list, c])),
+          }
+        : null,
+    [base.data, added],
+  );
   if (base.error) {
     return (
       <section aria-labelledby="agenda-title">
@@ -142,7 +156,7 @@ function BaseLoader({ port }: { port: SchedulingPort }) {
       </section>
     );
   }
-  if (!base.data) {
+  if (!value) {
     return (
       <p role="status" className="tn-sched-loading">
         Carregando agenda…
@@ -150,7 +164,7 @@ function BaseLoader({ port }: { port: SchedulingPort }) {
     );
   }
   return (
-    <BaseContext.Provider value={base.data}>
+    <BaseContext.Provider value={value}>
       <Outlet />
     </BaseContext.Provider>
   );

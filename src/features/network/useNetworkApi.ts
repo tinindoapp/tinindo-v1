@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import type { Profession } from "@contracts";
+import { Profession } from "@contracts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { ApiError, createApiClient } from "../../lib/api/client.ts";
 import { supabase } from "../../lib/supabase.ts";
-import { createDemoNetworkApi, createHttpNetworkApi, type NetworkApi, type PhotoStorage } from "./api.ts";
+import { type BusinessBasics, createDemoNetworkApi, createHttpNetworkApi, type NetworkApi, type PhotoStorage } from "./api.ts";
 
 /** Bucket profile-photos pelo cliente do navegador, com a sessão de quem está logado. */
 function photoStorage(): PhotoStorage | null {
@@ -23,6 +23,15 @@ function photoStorage(): PhotoStorage | null {
   };
 }
 
+/** Nome e profissão do negócio (tenants, RLS: só membros leem). */
+async function readBusiness(tenantId: string): Promise<BusinessBasics | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from("tenants").select("name, profession").eq("id", tenantId).maybeSingle();
+  if (error || !data) return null;
+  const profession = Profession.safeParse(data.profession);
+  return profession.success ? { name: String(data.name), profession: profession.data } : null;
+}
+
 /** Servidor real quando o Supabase está configurado; senão, demonstração offline rotulada. */
 export function useNetworkApi(): NetworkApi {
   const { tenantId, getAccessToken } = useSession();
@@ -33,7 +42,7 @@ export function useNetworkApi(): NetworkApi {
       publishableKey: appEnv.supabase.publishableKey,
       getAccessToken,
     });
-    return createHttpNetworkApi(call, tenantId, photoStorage());
+    return createHttpNetworkApi(call, tenantId, photoStorage(), readBusiness);
   }, [tenantId, getAccessToken]);
 }
 
@@ -58,6 +67,12 @@ export function errorMessage(e: unknown): string {
 
 export const formatDateTime = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+
+/** "+5511977774343" → "(11) 97777-4343"; outro formato volta como veio. */
+export function formatPhoneBr(e164: string): string {
+  const m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164);
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
+}
 
 export const formatTime = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(iso));

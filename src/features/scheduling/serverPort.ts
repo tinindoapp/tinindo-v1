@@ -7,6 +7,7 @@ import {
   BookingOutput,
   ContextResponse,
   CRM_ROUTES,
+  CrmCustomerUpsertOutput,
   CustomerListOutput,
   PublicContactOutput,
   Quote,
@@ -116,6 +117,10 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
     async complete(input, key) {
       const { data } = await call(scheduling("booking.complete"), BookingOutput, post(input, key));
       return data.booking;
+    },
+    async createCustomer(input, key) {
+      const { data } = await call(`/crm/${CRM_ROUTES.upsertCustomer}`, CrmCustomerUpsertOutput, post({ name: input.name, phone: input.phone }, key));
+      return { customer: { id: data.customer.id, name: data.customer.name, phone: data.customer.phone }, duplicates: data.possible_duplicates.length };
     },
     async confirm(input, key) {
       const { data } = await call(scheduling("booking.confirm"), BookingOutput, post(input, key));

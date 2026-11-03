@@ -51,6 +51,11 @@ export interface SchedulingPort {
   context(): Promise<SchedulingContext>;
   listServices(): Promise<ProviderService[]>;
   listCustomers(): Promise<CustomerRef[]>;
+  /**
+   * Cadastro rápido no novo agendamento ("+ Novo"): nome e, se houver, WhatsApp em E.164. Servidor: `crm` customer.upsert
+   * (criação). `duplicates` = quantos cadastros parecidos o CRM achou (nunca mescla).
+   */
+  createCustomer(input: { name: string; phone: string | null }, idempotencyKey: string): Promise<{ customer: CustomerRef; duplicates: number }>;
   /** Atendimentos que começam na janela, de todos os estados. */
   listBookings(window: TimeRange): Promise<Booking[]>;
   getBooking(id: string): Promise<Booking>;

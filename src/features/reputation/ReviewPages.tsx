@@ -2,9 +2,11 @@
 // pública do perfil. Selos separados: identidade verificada, atendimentos verificados, competência certificada (ainda não).
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { ActionsMenu, Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Icon } from "../../components/ui/icons.tsx";
 import { useSession } from "../../app/session.tsx";
-import { type CustomerReviewsPort, newKey, type OwnerReviewsPort, type PublicReviewsPort, type ReviewOwnerList, type ReviewPending, type ReviewPublicList } from "./port.ts";
+import { type CustomerReviewsPort, newKey, type OwnerReviewsPort, type PublicReviewsPort, type ReportReason, type ReviewOwnerList, type ReviewPending, type ReviewPublicList } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 const MONTH = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 const monthLabel = (ym: string) => MONTH.format(new Date(`${ym}-15T12:00:00Z`));
@@ -21,13 +23,36 @@ function explain(err: unknown): string {
   return "Não deu certo agora. Nada foi alterado; tente de novo.";
 }
 
-export function Badges({ s }: { s: ReviewPublicList["summary"] }) {
+type Summary = ReviewPublicList["summary"];
+const decimal = (n: number) => n.toFixed(1).replace(".", ",");
+
+/** Resumo no topo (item 43): "4,7 ★ · 3 avaliações"; sem média antes de 3, diz quando ela aparece. */
+export function ReviewSummary({ s, min = 3 }: { s: Summary; min?: number }) {
+  if (s.reviews_count === 0) return <p className="tn-rev-summary">Nenhuma avaliação ainda</p>;
+  const count = plural(s.reviews_count, "avaliação", "avaliações");
+  return (
+    <p className="tn-rev-summary">
+      {s.rating_average != null ? (
+        <>
+          <span className="tn-num tn-rev-summary__avg" aria-label={`Média ${decimal(s.rating_average)} de 5`}>{decimal(s.rating_average)} ★</span> · {count}
+        </>
+      ) : (
+        <>
+          {count} <span className="tn-muted">· a média aparece a partir de {min}</span>
+        </>
+      )}
+    </p>
+  );
+}
+
+/** Selos como pílulas (item 43): só o que é verdade. Sem selo de "não verificado" nem de "não certificado". */
+export function Badges({ s }: { s: Summary }) {
+  if (!s.identity_verified && s.completed_bookings === 0 && s.reviews_count === 0) return null;
   return (
     <ul className="tn-rev-badges" aria-label="Selos">
-      <li data-on={s.identity_verified || undefined}>{s.identity_verified ? "Identidade verificada pela equipe" : "Identidade não verificada"}</li>
-      <li>{s.completed_bookings} atendimento(s) concluído(s) na Tinindo</li>
-      <li>{s.reviews_count} avaliação(ões) de clientes atendidos{s.rating_average != null ? ` · média ${s.rating_average.toFixed(1).replace(".", ",")}` : " · média só a partir de 3"}</li>
-      <li>Competência certificada: não (ainda não existe certificação na Tinindo)</li>
+      {s.identity_verified ? <li data-on="true">✓ Identidade verificada pela equipe</li> : null}
+      {s.completed_bookings > 0 ? <li>{plural(s.completed_bookings, "atendimento concluído", "atendimentos concluídos")} na Tinindo</li> : null}
+      {s.reviews_count > 0 ? <li>Avaliações só de clientes atendidos</li> : null}
     </ul>
   );
 }
@@ -42,12 +67,58 @@ function ReviewView({ r }: { r: ReviewPublicList["reviews"][number] }) {
   );
 }
 
+const REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: "offensive", label: "Ofensiva ou com xingamento" },
+  { value: "personal_data", label: "Expõe dados pessoais" },
+  { value: "not_a_customer", label: "Não foi atendimento meu" },
+  { value: "conflict_of_interest", label: "Conflito de interesse (concorrente, parente)" },
+  { value: "other", label: "Outro motivo" },
+];
+
+/** Inícios rápidos da resposta (item 44): tom conforme a nota; o profissional completa. */
+const quickStarts = (rating: number) =>
+  rating >= 4
+    ? ["Obrigado pela avaliação! ", "Que bom que você gostou! ", "Foi um prazer atender você. "]
+    : ["Obrigado pelo retorno. ", "Sinto muito que não foi como você esperava. ", "Quero entender melhor o que aconteceu. "];
+
+const REPLY_MAX = 600;
+
 function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number]; port: OwnerReviewsPort; onDone: (message: string) => void }) {
   const [text, setText] = useState(r.reply?.body ?? "");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const { formRef, errors, show } = useFormErrors<"text">();
+  const { formRef, errors, show, clear } = useFormErrors<"text">();
+  const replyButton = useRef<HTMLButtonElement>(null);
+  const field = useRef<HTMLDivElement>(null);
+  const reportTitle = useRef<HTMLParagraphElement>(null);
+  const reportOpener = useRef<HTMLElement | null>(null);
+  const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState<ReportReason | "">("");
+  const [reasonError, setReasonError] = useState<string | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const label = `a avaliação de ${plural(r.rating, "estrela")} sobre ${r.service_name}`;
+
+  // Abriu "Responder": o foco vai direto para o campo.
+  useEffect(() => {
+    if (open) field.current?.querySelector("textarea")?.focus();
+  }, [open]);
+  useEffect(() => {
+    if (reporting) reportTitle.current?.focus();
+  }, [reporting]);
+
+  function closeReply() {
+    setOpen(false);
+    clear();
+    queueMicrotask(() => replyButton.current?.focus());
+  }
+  function closeReport() {
+    setReporting(false);
+    setReason("");
+    setReasonError(null);
+    const back = reportOpener.current;
+    queueMicrotask(() => back?.focus());
+  }
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!show({ text: text.trim().length < 2 && "Escreva a resposta (pelo menos 2 caracteres)." })) return;
@@ -62,37 +133,88 @@ function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number];
       setBusy(false);
     }
   }
+  async function report() {
+    if (!reason) {
+      setReasonError("Escolha o motivo da denúncia.");
+      document.getElementById(`rev-reason-${r.id}`)?.focus();
+      return;
+    }
+    setReportBusy(true);
+    try {
+      await port.report(r.id, reason, newKey());
+      onDone("Denúncia enviada. A avaliação continua visível até a moderação decidir.");
+    } catch (e) {
+      toast({ tone: "danger", message: explain(e) });
+    } finally {
+      setReportBusy(false);
+    }
+  }
+  const canReport = r.status === "published" && !r.open_reports;
   return (
     <li className="tn-rev-item">
       <ReviewView r={r} />
       {r.status === "hidden" ? <StatusBanner tone="warning">Oculta pela moderação: {r.hidden_reason}</StatusBanner> : null}
       {r.open_reports ? <p className="tn-muted">Denúncia em análise pela moderação.</p> : null}
-      <div className="tn-actions">
-        {!open ? <Button variant="secondary" onClick={() => setOpen(true)}>{r.reply ? "Editar resposta" : "Responder"}</Button> : null}
-        {/* Denúncia não tem como ser retirada no port: confirma antes, dizendo o que acontece. */}
-        {r.status === "published" && !r.open_reports ? (
-          <ConfirmAction
-            trigger="Denunciar"
-            triggerLabel={`Denunciar a avaliação de ${r.rating} estrela(s) sobre ${r.service_name}`}
-            title="Denunciar esta avaliação?"
-            consequence={<p>A moderação analisa e decide se oculta. Até lá ela continua visível, e a denúncia não pode ser retirada.</p>}
-            confirmLabel="Sim, denunciar"
-            onConfirm={() =>
-              port.report(r.id, "offensive", newKey()).then(
-                () => onDone("Denúncia enviada. A avaliação continua visível até a moderação decidir."),
-                (e: unknown) => toast({ tone: "danger", message: explain(e) }),
-              )
-            }
+      <div className="tn-actions tn-rev-item__actions">
+        {!open ? (
+          <Button ref={replyButton} variant="secondary" onClick={() => setOpen(true)}>
+            {r.reply ? "Editar resposta" : "Responder"}
+          </Button>
+        ) : null}
+        {/* Denunciar fica no "⋯" (item 44): não tem o mesmo peso de responder. */}
+        {canReport ? (
+          <ActionsMenu
+            label={`Mais ações para ${label}`}
+            actions={[{ label: "Denunciar…", tone: "danger", onSelect: () => { reportOpener.current = document.activeElement as HTMLElement | null; setReporting(true); } }]}
           />
         ) : null}
       </div>
+      {reporting ? (
+        // Denúncia não tem como ser retirada no port: confirma com o motivo, dizendo o que acontece.
+        <div className="tn-confirm" role="group" aria-labelledby={`rev-report-${r.id}`}>
+          <p id={`rev-report-${r.id}`} ref={reportTitle} tabIndex={-1} className="tn-confirm__title">Denunciar esta avaliação?</p>
+          <div className="tn-confirm__body"><p>A moderação analisa e decide se oculta. Até lá ela continua visível, e a denúncia não pode ser retirada.</p></div>
+          <Field as="select" id={`rev-reason-${r.id}`} label="Motivo" value={reason} error={reasonError} onChange={(e) => { setReason(e.target.value as ReportReason | ""); setReasonError(null); }}>
+            <option value="">Escolha o motivo</option>
+            {REPORT_REASONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Field>
+          <div className="tn-actions">
+            <Button variant="danger" loading={reportBusy} onClick={() => void report()}>Sim, denunciar</Button>
+            <Button variant="ghost" disabled={reportBusy} onClick={closeReport}>Voltar</Button>
+          </div>
+        </div>
+      ) : null}
       {open ? (
         <form ref={formRef} className="tn-stack" data-gap="sm" aria-label="Responder avaliação" onSubmit={(e) => void submit(e)} noValidate>
-          <Field as="textarea" label="Sua resposta (pública)" value={text} maxLength={600} error={errors.text} onChange={(e) => setText(e.target.value)} />
+          <div className="tn-actions" role="group" aria-label="Começar com">
+            {quickStarts(r.rating).map((q) => (
+              <Button key={q} variant="secondary" onClick={() => { setText((t) => (t.startsWith(q) ? t : (q + t).slice(0, REPLY_MAX))); clear("text"); field.current?.querySelector("textarea")?.focus(); }}>
+                {q.trim()}
+              </Button>
+            ))}
+          </div>
+          <div ref={field}>
+            <Field
+              as="textarea"
+              label="Sua resposta (pública)"
+              hint={<span className="tn-num">{text.length}/{REPLY_MAX}</span>}
+              rows={3}
+              value={text}
+              maxLength={REPLY_MAX}
+              error={errors.text}
+              onChange={(e) => { setText(e.target.value); clear("text"); }}
+            />
+          </div>
+          {text.trim() ? (
+            <section className="tn-rev-preview" aria-label="Prévia pública">
+              <p className="tn-muted">Como aparece no seu perfil, embaixo da avaliação:</p>
+              <p className="tn-rev-reply"><strong>Resposta do profissional:</strong> {text.trim()}</p>
+            </section>
+          ) : null}
           {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
           <div className="tn-actions">
             <Button type="submit" loading={busy} loadingText="Publicando…">Publicar resposta</Button>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button variant="ghost" onClick={closeReply}>Cancelar</Button>
           </div>
         </form>
       ) : null}
@@ -121,7 +243,27 @@ export function OwnerReviewsPage({ port }: { port: OwnerReviewsPort }) {
       {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
       {data ? (
         <>
-          <Card aria-labelledby="rev-badges-title"><h2 id="rev-badges-title">Selos do seu perfil</h2><Badges s={data.summary} /></Card>
+          <Card aria-labelledby="rev-badges-title">
+            <div className="tn-stack" data-gap="sm">
+              <h2 id="rev-badges-title">Seu perfil</h2>
+              <ReviewSummary s={data.summary} min={data.rules.min_reviews_for_average} />
+              <Badges s={data.summary} />
+              {/* Sem verificação: vira uma tarefa, não um selo negativo. */}
+              {!data.summary.identity_verified ? (
+                <details className="tn-rev-task">
+                  <summary>
+                    Verifique sua identidade
+                    <Icon name="seta" size={18} />
+                  </summary>
+                  <p>
+                    A equipe da Tinindo confere a identidade de quem atende por videochamada com documento ou pelo gov.br.
+                    Depois disso, o selo “Identidade verificada pela equipe” aparece no seu perfil. Nenhum documento fica
+                    guardado. Para pedir a verificação, fale com a equipe da Tinindo.
+                  </p>
+                </details>
+              ) : null}
+            </div>
+          </Card>
           <Card aria-labelledby="rev-list-title">
             <h2 id="rev-list-title">Recebidas</h2>
             {data.reviews.length === 0 ? <p className="tn-muted">Nenhuma avaliação ainda.</p> : null}
@@ -304,6 +446,7 @@ export function PublicReviewsPage({ port }: { port: PublicReviewsPort }) {
       {cur && !cur.list ? <p>Perfil não encontrado.</p> : null}
       {cur?.list ? (
         <>
+          <ReviewSummary s={cur.list.summary} min={cur.list.rules.min_reviews_for_average} />
           <Badges s={cur.list.summary} />
           <ul className="tn-rev-list" aria-label="Avaliações publicadas">{cur.list.reviews.map((r) => <li key={r.id} className="tn-rev-item"><ReviewView r={r} /></li>)}</ul>
           <p><Link to={`/p/${slug}`}>Voltar ao perfil</Link></p>

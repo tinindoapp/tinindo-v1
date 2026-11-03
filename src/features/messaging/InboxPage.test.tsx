@@ -120,11 +120,39 @@ describe("caixa de entrada", () => {
     expect(await screen.findByRole("heading", { name: "Ana Beatriz (exemplo)", level: 1 })).toBeInTheDocument();
     const reply = screen.getByRole("form", { name: "Responder" });
     expect(reply).toHaveClass("tn-msg-composer");
-    fireEvent.change(within(reply).getByLabelText("Resposta"), { target: { value: "Oi!" } });
+    fireEvent.change(within(reply).getByLabelText("Sua resposta"), { target: { value: "Oi!" } });
     fireEvent.click(within(reply).getByRole("button", { name: "Enviar" }));
     expect(await within(reply).findByText(/Mensagem na fila\./)).toBeInTheDocument();
     expect(await screen.findByRole("list", { name: "Mensagens da conversa" })).toHaveTextContent("Na fila");
     // Ao abrir, a conversa fica lida: a lista não mostra mais o selo.
     expect((await port.inbox()).contacts[0]!.unread_count).toBe(0);
+  });
+
+  it("modelo aprovado: nome legível, campos com nome, nome da cliente já preenchido, prévia e todos os erros de uma vez", async () => {
+    const port = await connectedWithAna();
+    const send = vi.spyOn(port, "send");
+    conversation(port, (await port.inbox()).contacts[0]!.id);
+    fireEvent.click(await screen.findByRole("button", { name: "Enviar modelo aprovado" }));
+    const form = await screen.findByRole("form", { name: "Enviar modelo aprovado" });
+    const select = within(form).getByLabelText("Modelo");
+    const names = within(select).getAllByRole("option").map((o) => o.textContent);
+    expect(names).toEqual(["Confirmação de horário", "Lembrete de horário", "Link do orçamento", "Horário que abriu"]);
+    expect(form).not.toHaveTextContent(/confirmacao_agendamento|Campo 1/);
+    expect(within(form).getByLabelText("Nome da cliente")).toHaveValue("Ana");
+    const preview = within(form).getByRole("region", { name: "Prévia da mensagem" });
+    expect(preview).toHaveTextContent("Olá, Ana! Seu horário de [Serviço] está confirmado para [Dia e hora].");
+    fireEvent.click(within(form).getByRole("button", { name: "Enviar modelo" }));
+    expect(await within(form).findByText("Preencha “Serviço”.")).toBeInTheDocument();
+    expect(within(form).getByText("Preencha “Dia e hora”.")).toBeInTheDocument();
+    await waitFor(() => expect(within(form).getByLabelText("Serviço")).toHaveFocus());
+    expect(send).not.toHaveBeenCalled();
+    fireEvent.change(within(form).getByLabelText("Serviço"), { target: { value: "Corte" } });
+    fireEvent.change(within(form).getByLabelText("Dia e hora"), { target: { value: "quarta às 10h" } });
+    expect(preview).toHaveTextContent("Seu horário de Corte está confirmado para quarta às 10h.");
+    fireEvent.click(within(form).getByRole("button", { name: "Enviar modelo" }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    expect(send.mock.calls[0]![0]).toMatchObject({ kind: "template", template_code: "confirmacao_agendamento", template_params: ["Ana", "Corte", "quarta às 10h"] });
+    expect(await screen.findByText(/Confirmação de horário na fila/)).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Enviar modelo aprovado" })).not.toBeInTheDocument();
   });
 });

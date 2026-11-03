@@ -14,5 +14,21 @@
 .tn-an-value { font-size: var(--tn-text-section); font-weight: var(--tn-font-weight-semibold); }
 .tn-an-metric[data-status="unavailable"] .tn-an-value, .tn-an-metric[data-status="insufficient"] .tn-an-value { font-size: var(--tn-text-body); color: var(--tn-text-muted); }
 .tn-an-note { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
-.tn-an-scroll { overflow-x: auto; max-width: 100%; }
 @media (max-width: 30rem) { .tn-an-controls { display: grid; grid-template-columns: minmax(0, 1fr); } }
+/* Diferença com seta e palavra (item 54); lacunas com atalho de 44 px (item 59). */
+.tn-an-trend { white-space: normal; }
+.tn-an-missing { display: grid; gap: var(--tn-space-2); margin-top: var(--tn-space-4); }
+.tn-an-missing h3 { margin: 0; font-size: var(--tn-text-body); }
+.tn-an-gap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); min-width: 0; overflow-wrap: anywhere; }
+.tn-an-gap > span { flex: 1 1 16rem; min-width: 0; }
+.tn-an-link { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); font-weight: var(--tn-font-weight-medium); }
+/* Custo por cliente (item 60): no celular, cada linha da tabela vira um cartão com o rótulo ao lado do valor. */
+@media (max-width: 899.98px) {
+  .tn-an-cards, .tn-an-cards tbody, .tn-an-cards tfoot, .tn-an-cards tr, .tn-an-cards th, .tn-an-cards td { display: block; }
+  .tn-an-cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .tn-an-cards tr { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); padding: var(--tn-space-3); margin-bottom: var(--tn-space-3); }
+  .tn-an-cards th[scope="row"] { border: 0; padding: 0 0 var(--tn-space-2); font-size: var(--tn-text-body); }
+  .tn-an-cards td { display: flex; justify-content: space-between; gap: var(--tn-space-3); padding: var(--tn-space-1) 0; border-bottom: 0; }
+  .tn-an-cards td::before { content: attr(data-label); color: var(--tn-text-muted); text-align: left; }
+  .tn-an-cards td[data-empty] { display: none; }
+}

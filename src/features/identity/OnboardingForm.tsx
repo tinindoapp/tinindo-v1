@@ -64,7 +64,9 @@ export function OnboardingForm({ tenantId, profession, onboarding, onSaved }: Pr
 
   return (
     <form className="tn-stack" onSubmit={onSubmit} ref={formRef} noValidate aria-labelledby="onboarding-title">
-      <h2 id="onboarding-title">{done ? "Objetivo e política de cancelamento" : "Dois passos para começar"}</h2>
+      <h2 id="onboarding-title" tabIndex={-1}>
+        Objetivo e política de cancelamento
+      </h2>
 
       {/* Faltou escolher: os cartões ficam marcados como inválidos e o foco vai para o primeiro. */}
       <fieldset className="tn-id-choices">

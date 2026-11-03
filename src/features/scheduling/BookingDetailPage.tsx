@@ -19,14 +19,16 @@ import {
   formatCents,
   formatRange,
   serviceName,
+  waitlistHref,
   waitlistMatches,
   whatsAppDigits,
 } from "./agenda.ts";
 import { AttendanceActions, toastFailure } from "./attendance.tsx";
 import type { Operation } from "./errors.ts";
 import { formatDayLong, localParts } from "./time.ts";
-import { DemoNotice, ErrorPanel, PolicyNote, StatusBadge, TimezoneNote } from "./parts.tsx";
+import { ErrorPanel, PolicyNote, ScreenNotes, StatusBadge } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
+import { plural } from "../../lib/text/plural.ts";
 
 const DONE_MESSAGE: Record<string, string> = {
   criado: "Agendamento confirmado.",
@@ -84,7 +86,7 @@ export function BookingDetailPage() {
         ‹ Voltar para a agenda
       </Link>
       <PageHeader id="booking-title" title="Atendimento" />
-      <DemoNotice kind={port.kind} />
+      <ScreenNotes demo={port.kind === "fixture"} timezone={ctx.timezone} at={state.data?.starts_at ?? port.now()} />
       {state.error ? (
         <ErrorPanel error={state.error} operation="load" onRetry={state.reload} />
       ) : !state.data ? (
@@ -259,7 +261,6 @@ function BookingDetail({
         <dt>Origem</dt>
         <dd>{SOURCE_LABEL[booking.source]}</dd>
       </dl>
-      <TimezoneNote timezone={tz} at={booking.starts_at} />
 
       {canConfirmHold(booking) ? (
         <div className="tn-actions">
@@ -415,13 +416,14 @@ function AfterCancel({ info }: { info: Cancelled }) {
         ) : null}
         {people === null ? (
           waitlist.error ? (
-            <Link className="tn-button" data-variant="secondary" to="/app/lista-de-espera">
+            <Link className="tn-button" data-variant="secondary" to={waitlistHref(b.starts_at)}>
               Ver lista de espera
             </Link>
           ) : null
         ) : people > 0 ? (
-          <Link className="tn-button" data-variant="secondary" to="/app/lista-de-espera">
-            Oferecer à lista de espera ({people} {people === 1 ? "pessoa" : "pessoas"})
+          // O horário vai na URL: a lista de espera abre com esta vaga em destaque e o foco em "Preparar oferta".
+          <Link className="tn-button" data-variant="secondary" to={waitlistHref(b.starts_at)}>
+            Oferecer à lista de espera ({plural(people, "pessoa")})
           </Link>
         ) : null}
       </div>

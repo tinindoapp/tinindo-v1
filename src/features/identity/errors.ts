@@ -2,10 +2,14 @@
 import { ApiError } from "../../lib/api/client.ts";
 import { AuthFlowError } from "./services.tsx";
 
+export const EMAIL_UNAVAILABLE = "Não deu para criar a conta com esse e-mail. Se já tem conta, entre ou recupere a senha.";
+
 export function messageFor(e: unknown, context: "business" | "onboarding" | "link" | "auth"): string {
   if (e instanceof AuthFlowError) {
     if (e.kind === "weak_password") return "Senha fraca. Use uma senha maior, que você não usa em outro lugar.";
     if (e.kind === "rate_limited") return "Muitas tentativas. Espere alguns minutos e tente de novo.";
+    // Neutra: não diz se o e-mail já tem conta (E7).
+    if (e.kind === "email_unavailable") return EMAIL_UNAVAILABLE;
     return "Não foi possível concluir agora. Tente de novo.";
   }
   if (e instanceof ApiError) {

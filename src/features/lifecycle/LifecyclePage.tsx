@@ -2,25 +2,50 @@
 // passo visível e por palavra; textos prontos para compartilhar quando não há canal; consentimento por finalidade;
 // reativação só como campanha com público visto e teto. O que a tela promete é o que o banco garante.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { type ShareHow, ShareActions } from "./share.tsx";
+import { Button, Card, ChipGroup, ConfirmAction, Field, Help, PageHeader, ShareActions, type ShareHow, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { explain, formatDate, formatDateTime, MESSAGE_STATUS, RULE_LABEL, SKIP_REASON, STEP_STATUS } from "./labels.ts";
 import { type Audience, type LifecycleCampaign, type LifecyclePort, type LifecycleSettings, type LifecycleStep, type LifecycleStepStatus, newKey, type StepsList } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
+import { NumberField, parseWhole, rangeError } from "./NumberField.tsx";
 
 /** Depois de uma ação: o sucesso sai no toast e a tela recarrega. */
 type Done = (message: string) => void;
-const HOURS = [1, 2, 3, 6, 12, 24, 48];
+/** Horas de lembrete (item 18): "1 dia" no lugar de "24 h"; o atalho cobre o par mais comum. */
+const HOURS = [1, 2, 3, 6, 12, 24, 48].map((h) => ({ value: h, label: h === 24 ? "1 dia" : h === 48 ? "2 dias" : `${h} h` }));
+const HOUR_SHORTCUTS = [{ label: "1 dia e 2 h antes", values: [24, 2] }];
+
+/** Faixas do contrato (lifecycle.ts): o que o servidor aceita, conferido aqui antes de enviar. */
+const RANGES = {
+  quote_followup_days: { min: 1, max: 14, unit: "dias", what: "em quantos dias" },
+  reactivation_days: { min: 14, max: 365, unit: "dias", what: "há quantos dias sem visita" },
+  daily_budget: { min: 0, max: 500, unit: "envios", what: "o teto" },
+} as const;
+type NumKey = keyof typeof RANGES;
 
 function SettingsForm({ port, data, onDone }: { port: LifecyclePort; data: { settings: LifecycleSettings; sent_today: number }; onDone: Done }) {
   const [s, setS] = useState(data.settings);
+  // Números como texto (item 42): apagar deixa o campo vazio, não "0"; converte e confere a faixa ao salvar.
+  const [nums, setNums] = useState<Record<NumKey, string>>(() => ({
+    quote_followup_days: String(data.settings.quote_followup_days),
+    reactivation_days: String(data.settings.reactivation_days),
+    daily_budget: String(data.settings.daily_budget),
+  }));
+  const { formRef, errors, show, clear } = useFormErrors<NumKey>();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const setNum = (k: NumKey) => (text: string) => {
+    setNums((n) => ({ ...n, [k]: text }));
+    clear(k);
+  };
   async function submit(e: FormEvent) {
     e.preventDefault();
+    const found = Object.fromEntries((Object.keys(RANGES) as NumKey[]).map((k) => [k, rangeError(nums[k], RANGES[k].min, RANGES[k].max, RANGES[k].unit, RANGES[k].what)]));
+    if (!show(found)) return;
     setBusy(true);
     setFailure(null);
     try {
-      const { version: _v, ...patch } = s;
+      const { version: _v, ...rest } = s;
+      const patch = { ...rest, quote_followup_days: parseWhole(nums.quote_followup_days)!, reactivation_days: parseWhole(nums.reactivation_days)!, daily_budget: parseWhole(nums.daily_budget)! };
       await port.saveSettings(patch, data.settings.version, newKey());
       onDone("Réguas salvas. Valem para os próximos agendamentos e passos; o que já saiu não muda.");
     } catch (err) {
@@ -29,21 +54,16 @@ function SettingsForm({ port, data, onDone }: { port: LifecyclePort; data: { set
       setBusy(false);
     }
   }
-  const toggleHour = (h: number) => setS((x) => ({ ...x, reminder_hours: x.reminder_hours.includes(h) ? x.reminder_hours.filter((y) => y !== h) : [...x.reminder_hours, h].sort((a, b) => b - a) }));
   return (
-    <form className="tn-lc-form" aria-label="Réguas" onSubmit={(e) => void submit(e)} noValidate>
+    <form ref={formRef} className="tn-lc-form" aria-label="Réguas" onSubmit={(e) => void submit(e)} noValidate>
       <label className="tn-lc-check"><input type="checkbox" checked={s.enabled} onChange={(e) => setS({ ...s, enabled: e.target.checked })} /> Réguas ligadas</label>
       <label className="tn-lc-check"><input type="checkbox" checked={s.confirmation} onChange={(e) => setS({ ...s, confirmation: e.target.checked })} /> Confirmar ao agendar</label>
-      <fieldset className="tn-lc-hours">
-        <legend>Lembretes antes do atendimento</legend>
-        <div className="tn-actions">
-          {HOURS.map((h) => <label key={h} className="tn-lc-check"><input type="checkbox" checked={s.reminder_hours.includes(h)} onChange={() => toggleHour(h)} /> {h} h</label>)}
-        </div>
-      </fieldset>
-      <Field label="Acompanhar orçamento sem decisão após (dias)" inputMode="numeric" value={s.quote_followup_days} onChange={(e) => setS({ ...s, quote_followup_days: Number(e.target.value) || 0 })} />
+      <ChipGroup label="Lembretes antes do atendimento" options={HOURS} shortcuts={HOUR_SHORTCUTS} value={s.reminder_hours}
+        onChange={(hours) => setS((x) => ({ ...x, reminder_hours: [...hours].sort((a, b) => b - a) }))} />
+      <NumberField label="Acompanhar orçamento sem decisão após" {...RANGES.quote_followup_days} value={nums.quote_followup_days} error={errors.quote_followup_days} onChange={setNum("quote_followup_days")} />
       <label className="tn-lc-check"><input type="checkbox" checked={s.receivable_reminder} onChange={(e) => setS({ ...s, receivable_reminder: e.target.checked })} /> Lembrar cobrança vencida</label>
-      <Field label="Reativação: sem visita há (dias)" inputMode="numeric" value={s.reactivation_days} onChange={(e) => setS({ ...s, reactivation_days: Number(e.target.value) || 0 })} />
-      <Field label="Teto de envios por dia" inputMode="numeric" value={s.daily_budget} onChange={(e) => setS({ ...s, daily_budget: Number(e.target.value) || 0 })} />
+      <NumberField label="Reativação: sem visita há" {...RANGES.reactivation_days} value={nums.reactivation_days} error={errors.reactivation_days} onChange={setNum("reactivation_days")} />
+      <NumberField label="Teto de envios por dia" {...RANGES.daily_budget} hint="De 0 a 500 envios. Com 0, nada sai pelo canal." value={nums.daily_budget} error={errors.daily_budget} onChange={setNum("daily_budget")} />
       <p className="tn-muted">Hoje já saíram {data.sent_today} pelo canal. Além do teto, o passo é adiado para o dia seguinte, nunca descartado.</p>
       {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
       <Button type="submit" loading={busy} loadingText="Salvando…">Salvar réguas</Button>
@@ -125,13 +145,13 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
   async function approve(e: FormEvent) {
     e.preventDefault();
     if (!audience) return;
-    const n = Number(maxSends);
-    if (!show({ maxSends: !(Number.isInteger(n) && n >= 1) && "Informe um teto de pelo menos 1 envio." })) return;
+    const n = parseWhole(maxSends);
+    if (!show({ maxSends: n === null || n < 1 ? "Informe um teto de pelo menos 1 envio." : n > 500 ? "O teto vai até 500 envios." : null })) return;
     setApproveBusy(true);
     setApproveFailure(null);
     try {
-      const c = await port.approveCampaign(audience.audience_hash, n, newKey());
-      done(`Campanha aprovada para ${c.audience_count} cliente(s), até ${c.max_sends} envio(s). Os passos saem dentro do teto diário.`);
+      const c = await port.approveCampaign(audience.audience_hash, n!, newKey());
+      done(`Campanha aprovada para ${plural(c.audience_count, "cliente")}, até ${plural(c.max_sends, "envio")}. Os passos saem dentro do teto diário.`);
     } catch (err) {
       // Público mudou ou regra recusou: o motivo fica no formulário e a tela recarrega o público.
       setApproveFailure(explain(err));
@@ -148,7 +168,7 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
         <Help><p>Confirmação e lembretes do agendamento, acompanhamento de orçamento parado e lembrete de cobrança vencida, com cada passo visível. A régua para sozinha no aceite, cancelamento, pagamento ou quando a cliente pede SAIR. Sem canal conectado, o texto fica pronto para você compartilhar.</p></Help>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Agenda de exemplo; nada é enviado. Use "Rodar a régua" para ver os passos vencidos saírem.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-        {port.tick ? <div className="tn-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => { toast({ tone: "info", message: `Régua (simulação): ${r.sent} enviado(s) ao canal, ${r.manual} para compartilhar, ${r.deferred} adiado(s), ${r.skipped} pulado(s).` }); refresh(); }, (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Rodar a régua (simulação)</Button></div> : null}
+        {port.tick ? <div className="tn-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => { toast({ tone: "info", message: `Régua (simulação): ${plural(r.sent, "enviado")} ao canal, ${r.manual} para compartilhar, ${plural(r.deferred, "adiado")}, ${plural(r.skipped, "pulado")}.` }); refresh(); }, (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Rodar a régua (simulação)</Button></div> : null}
       </div>
 
       <Card aria-labelledby="lc-steps-title">
@@ -209,16 +229,16 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
               ))}
             </ul>
             <form ref={formRef} className="tn-lc-form" aria-label="Aprovar campanha" onSubmit={(e) => void approve(e)} noValidate>
-              <Field label="Teto de envios desta campanha" inputMode="numeric" value={maxSends} error={errors.maxSends} onChange={(e) => setMaxSends(e.target.value)} />
+              <NumberField label="Teto de envios desta campanha" unit="envios" min={1} max={500} value={maxSends} error={errors.maxSends} onChange={setMaxSends} />
               {/* Sem público elegível não há o que aprovar (regra, não validação). */}
-              <Button type="submit" loading={approveBusy} loadingText="Aprovando…" disabled={audience.customers.length === 0}>Aprovar campanha para {audience.customers.length} cliente(s)</Button>
+              <Button type="submit" loading={approveBusy} loadingText="Aprovando…" disabled={audience.customers.length === 0}>Aprovar campanha para {plural(audience.customers.length, "cliente")}</Button>
               {approveFailure ? <StatusBanner tone="danger">{approveFailure}</StatusBanner> : null}
             </form>
           </>
         ) : null}
         {campaigns.length > 0 ? (
           <ul className="tn-lc-list" aria-label="Campanhas">
-            {campaigns.map((c) => <li key={c.id} className="tn-lc-item"><h3>Reativação · {formatDate(c.created_at, timezone)}</h3><p>{c.audience_count} no público · teto {c.max_sends} · {c.scheduled ?? 0} agendado(s) · {c.sent ?? 0} enviado(s)/compartilhado(s) · {c.skipped ?? 0} pulado(s)</p></li>)}
+            {campaigns.map((c) => <li key={c.id} className="tn-lc-item"><h3>Reativação · {formatDate(c.created_at, timezone)}</h3><p>{c.audience_count} no público · teto {c.max_sends} · {plural(c.scheduled ?? 0, "agendado")} · {plural(c.sent ?? 0, "enviado ou compartilhado", "enviados ou compartilhados")} · {plural(c.skipped ?? 0, "pulado")}</p></li>)}
           </ul>
         ) : null}
       </Card>

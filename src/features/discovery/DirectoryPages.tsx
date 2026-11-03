@@ -2,19 +2,38 @@
 // ordem e os filtros são os documentados, e a página os mostra. Sem destaque pago, nota ou posição comprada.
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { Button, Card, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ChoiceCard, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { CATEGORY_LABEL, CATEGORY_PLURAL, directoryPath, explain, STATUS_LABEL, UFS, WEEKDAY, WEEKDAY_SHORT } from "./labels.ts";
 import { type DirectoryCard, type DirectoryCities, type DirectoryPort, type DirectorySearch, type DiscoveryOverview, type DiscoveryPort, newKey } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
+import { PublicLayout } from "../../app/PublicLayout.tsx";
 
-export function CardView({ c }: { c: DirectoryCard }) {
+/**
+ * Linha de apoio do cartão sem repetir o que já está no título da página ou no nome do cartão (E11): numa busca por
+ * cidade a cidade sai; com a profissão escolhida, a profissão sai; sem nome público, profissão e bairro já são o nome.
+ */
+export function cardDetails(c: DirectoryCard, hide: { city?: boolean; category?: boolean } = {}): string {
+  const named = c.display_name !== null;
+  return [
+    named && !hide.category ? CATEGORY_LABEL[c.category] : null,
+    named ? c.area : null,
+    hide.city ? null : `${c.city_name}/${c.uf}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function CardView({ c, hide }: { c: DirectoryCard; hide?: { city?: boolean; category?: boolean } }) {
+  const details = cardDetails(c, hide);
   return (
     <li className="tn-dir-card">
       <div>
         <Link to={c.site_path ?? c.profile_path}><strong>{c.display_name ?? `${CATEGORY_LABEL[c.category]} · ${c.area}`}</strong></Link>
-        <p className="tn-muted">{CATEGORY_LABEL[c.category]} · {c.area} · {c.city_name}/{c.uf}</p>
+        {details ? <p className="tn-muted">{details}</p> : null}
         {c.weekdays?.length ? <p className="tn-muted">Atende {c.weekdays.map((d) => WEEKDAY_SHORT[d]).join(", ")}</p> : null}
       </div>
-      {c.booking ? <Link className="tn-dir-link" to={c.profile_path}>Ver horários</Link> : null}
+      {/* Botão de 44 px; leva direto aos horários do perfil. */}
+      {c.booking ? <LinkButton to={`${c.profile_path}#agendar`} variant="secondary">Ver horários</LinkButton> : null}
     </li>
   );
 }
@@ -96,7 +115,7 @@ export function DiscoverySettingsPage({ port }: { port: DiscoveryPort }) {
             </div>
             {o.listing?.status === "suspended" ? <StatusBanner tone="warning">Suspenso pela moderação: {o.listing.suspended_reason}. Fale com o suporte para revisar.</StatusBanner> : null}
             <form className="tn-dir-form" aria-label="Diretório" onSubmit={(e) => void submit(e)} ref={formRef} noValidate>
-              <label className="tn-dir-check"><input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} /> Quero aparecer no diretório</label>
+              <ChoiceCard type="checkbox" name="diretorio" value="listed" checked={listed} onChange={setListed} title="Quero aparecer no diretório" />
               <div className="tn-dir-inline">
                 <Field as="select" label="UF" className="tn-dir-uf" value={uf} onChange={(e) => setUf(e.target.value)}>
                   {UFS.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -110,7 +129,7 @@ export function DiscoverySettingsPage({ port }: { port: DiscoveryPort }) {
                   error={errors.city}
                 />
               </div>
-              <label className="tn-dir-check"><input type="checkbox" checked={hours} onChange={(e) => setHours(e.target.checked)} /> Mostrar os dias em que atendo (permite a busca por dia)</label>
+              <ChoiceCard type="checkbox" name="diretorio" value="show_hours" checked={hours} onChange={setHours} title="Mostrar os dias em que atendo" description="Permite a busca por dia." />
               {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
               <div><Button type="submit" loading={busy}>Salvar</Button></div>
             </form>
@@ -153,45 +172,47 @@ export function PublicDirectoryPage({ port }: { port: DirectoryPort }) {
   const current = result?.key === key ? result : null;
   const cityName = current?.data?.city_name ?? cidade;
   return (
-    <main className="tn-dir-page">
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Negócios de exemplo.</StatusBanner> : null}
-      <h1>{ufParam && cidade ? `${category ? CATEGORY_PLURAL[category] : "Profissionais"} em ${cityName}/${ufParam.toUpperCase()}` : "Encontre um profissional"}</h1>
-      {!ufParam ? (
-        <section aria-labelledby="dir-cities">
-          <h2 id="dir-cities">Cidades</h2>
-          {cities?.cities.length === 0 ? <p>Nenhuma cidade com profissionais listados ainda.</p> : null}
-          <ul className="tn-dir-list" aria-label="Cidades">
-            {cities?.cities.map((c) => <li key={`${c.uf}/${c.city_slug}`} className="tn-dir-card"><Link to={directoryPath(c.uf, c.city_slug)}>{c.city_name}/{c.uf}</Link><span className="tn-muted">{c.count} profissional(is)</span></li>)}
-          </ul>
-        </section>
-      ) : (
-        <>
-          <form className="tn-dir-filters" aria-label="Filtros" onSubmit={(e) => e.preventDefault()}>
-            <Field as="select" label="Profissão" value={category ?? ""} onChange={(e) => navigate(directoryPath(ufParam, cidade!, e.target.value || null))}>
-              <option value="">Todas</option>
-              {Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </Field>
-            <Field label="Bairro" value={area} maxLength={60} onChange={(e) => setArea(e.target.value)} />
-            <Field as="select" label="Atende no dia" value={weekday} onChange={(e) => setWeekday(e.target.value)}>
-              <option value="">Qualquer dia</option>
-              {WEEKDAY.map((d, i) => <option key={d} value={i}>{d}</option>)}
-            </Field>
-          </form>
-          {!current ? <p role="status">Carregando…</p> : null}
-          {current?.error ? <StatusBanner tone="danger">{current.error}</StatusBanner> : null}
-          {current?.data ? (
-            <>
-              <p className="tn-muted" aria-live="polite">{current.data.total} resultado(s) · {current.data.criteria.order} · sem destaque pago</p>
-              <ul className="tn-dir-list" aria-label="Resultados">{current.data.items.map((c) => <CardView key={c.slug} c={c} />)}</ul>
-              <details className="tn-dir-criteria"><summary>Como os resultados são escolhidos</summary>
-                <p>Filtros: {current.data.criteria.filters.join("; ")}.</p>
-                <p>Ordem: {current.data.criteria.order}. Nunca: {current.data.criteria.never.join(", ")}.</p>
-              </details>
-            </>
-          ) : null}
-          <p><Link to="/diretorio">Outras cidades</Link></p>
-        </>
-      )}
-    </main>
+    <PublicLayout>
+      <div className="tn-dir-page">
+        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Negócios de exemplo.</StatusBanner> : null}
+        <h1>{ufParam && cidade ? `${category ? CATEGORY_PLURAL[category] : "Profissionais"} em ${cityName}/${ufParam.toUpperCase()}` : "Encontre um profissional"}</h1>
+        {!ufParam ? (
+          <section aria-labelledby="dir-cities">
+            <h2 id="dir-cities">Cidades</h2>
+            {cities?.cities.length === 0 ? <p>Nenhuma cidade com profissionais listados ainda.</p> : null}
+            <ul className="tn-dir-list" aria-label="Cidades">
+              {cities?.cities.map((c) => <li key={`${c.uf}/${c.city_slug}`} className="tn-dir-card"><Link to={directoryPath(c.uf, c.city_slug)}>{c.city_name}/{c.uf}</Link><span className="tn-muted">{plural(c.count, "profissional", "profissionais")}</span></li>)}
+            </ul>
+          </section>
+        ) : (
+          <>
+            <form className="tn-dir-filters" aria-label="Filtros" onSubmit={(e) => e.preventDefault()}>
+              <Field as="select" label="Profissão" value={category ?? ""} onChange={(e) => navigate(directoryPath(ufParam, cidade!, e.target.value || null))}>
+                <option value="">Todas</option>
+                {Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </Field>
+              <Field label="Bairro" value={area} maxLength={60} onChange={(e) => setArea(e.target.value)} />
+              <Field as="select" label="Atende no dia" value={weekday} onChange={(e) => setWeekday(e.target.value)}>
+                <option value="">Qualquer dia</option>
+                {WEEKDAY.map((d, i) => <option key={d} value={i}>{d}</option>)}
+              </Field>
+            </form>
+            {!current ? <p role="status">Carregando…</p> : null}
+            {current?.error ? <StatusBanner tone="danger">{current.error}</StatusBanner> : null}
+            {current?.data ? (
+              <>
+                <p className="tn-muted" aria-live="polite">{plural(current.data.total, "profissional", "profissionais")} · {current.data.criteria.order} · sem destaque pago</p>
+                <ul className="tn-dir-list" aria-label="Resultados">{current.data.items.map((c) => <CardView key={c.slug} c={c} hide={{ city: true, category: !!category }} />)}</ul>
+                <details className="tn-dir-criteria"><summary>Como os resultados são escolhidos</summary>
+                  <p>Filtros: {current.data.criteria.filters.join("; ")}.</p>
+                  <p>Ordem: {current.data.criteria.order}. Nunca: {current.data.criteria.never.join(", ")}.</p>
+                </details>
+              </>
+            ) : null}
+            <p><Link to="/diretorio">Outras cidades</Link></p>
+          </>
+        )}
+      </div>
+    </PublicLayout>
   );
 }

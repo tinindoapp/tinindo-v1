@@ -113,6 +113,32 @@ export const BRAZIL_TIMEZONES: readonly { id: string; label: string }[] = [
   { id: "America/Noronha", label: "Fernando de Noronha" },
 ];
 
+/** Fusos do Brasil fora da lista, levados ao da lista com o mesmo horário (a lista já diz "BA, NE"). */
+const BRAZIL_ALIASES: Record<string, string> = {
+  "America/Fortaleza": "America/Sao_Paulo",
+  "America/Recife": "America/Sao_Paulo",
+  "America/Maceio": "America/Sao_Paulo",
+  "America/Bahia": "America/Sao_Paulo",
+  "America/Araguaina": "America/Sao_Paulo",
+  "America/Santarem": "America/Belem",
+  "America/Eirunepe": "America/Rio_Branco",
+};
+
+/**
+ * Fuso do aparelho (E9), quando é do Brasil; senão o de Brasília. `fromDevice` diz se veio do aparelho, para a tela
+ * explicar de onde saiu.
+ */
+export function detectTimezone(): { id: string; fromDevice: boolean } {
+  let tz: string | undefined;
+  try {
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    tz = undefined;
+  }
+  const id = tz ? (BRAZIL_ALIASES[tz] ?? tz) : undefined;
+  return id && BRAZIL_TIMEZONES.some((t) => t.id === id) ? { id, fromDevice: true } : { id: "America/Sao_Paulo", fromDevice: false };
+}
+
 /**
  * Versões de termos e privacidade aceitas na criação do negócio. PROVISÓRIAS: o texto final
  * da política de privacidade é gate aberto do P00 e precisa existir antes de dados reais.
@@ -122,5 +148,7 @@ export const POLICY_VERSIONS = {
   privacy: "privacidade-piloto-v0",
 } as const;
 
-/** Senha mínima no app. O config.toml local aceita 6; proposta ao integrador: 10. */
+/** Senha mínima no app, igual à do Supabase Auth (supabase/config.toml: 10 caracteres, com letras e números). */
 export const MIN_PASSWORD_LENGTH = 10;
+/** Dica sempre visível embaixo da senha (E7): a regra antes do erro, não só no erro. */
+export const PASSWORD_HINT = `Pelo menos ${MIN_PASSWORD_LENGTH} caracteres, com letras e números.`;

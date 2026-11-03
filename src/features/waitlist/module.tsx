@@ -1,7 +1,7 @@
 // Módulo Lista de espera · P06 (tasks/P06.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 // Sem Supabase (demonstração offline) usa a emulação local, rotulada; com Supabase, a função `waitlist`.
 import { useMemo } from "react";
-import type { RouteObject } from "react-router";
+import { type RouteObject, useSearchParams } from "react-router";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
@@ -16,6 +16,9 @@ import "./waitlist.css";
 
 function WaitlistLayout() {
   const { state, tenantId, getAccessToken } = useSession();
+  // Horário liberado por um cancelamento (`?vaga=<início ISO>`): a tela abre com ele em destaque.
+  const [params] = useSearchParams();
+  const vaga = params.get("vaga");
   const port = useMemo<WaitlistPort | null>(() => {
     if (state.status === "offline_demo" || !appEnv.supabase) return createDemoPort();
     if (!tenantId) return null;
@@ -31,7 +34,7 @@ function WaitlistLayout() {
   }
   return (
     <WaitlistPortProvider value={port}>
-      <WaitlistPage key={`${port.kind}:${tenantId ?? ""}`} />
+      <WaitlistPage key={`${port.kind}:${tenantId ?? ""}:${vaga ?? ""}`} vaga={vaga} />
     </WaitlistPortProvider>
   );
 }

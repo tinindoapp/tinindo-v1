@@ -7,6 +7,7 @@ import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
 import { CSV_MAX_BYTES, type PreviewRow, readCustomerCsv } from "./csv.ts";
 import { formatPhone, REJECT_LABEL } from "./format.ts";
 import { CrmDemoNotice } from "./shared.tsx";
+import { plural } from "../../lib/text/plural.ts";
 
 type Matches = ImportPreviewOutput["rows"][number]["matches"];
 const REASON_LABEL = { phone: "telefone", email: "e-mail", name: "nome" } as const;
@@ -148,8 +149,8 @@ export function ImportPage() {
         <Card aria-labelledby="crm-import-preview">
           <h2 id="crm-import-preview">Prévia</h2>
           <StatusBanner tone={problems ? "warning" : "info"}>
-            {ready} linha(s) prontas, {problems} com problema (não serão importadas e entram no relatório) e{" "}
-            {matches.size} parecida(s) com cadastros existentes.
+            {plural(ready, "linha pronta", "linhas prontas")}, {problems} com problema (não serão importadas e entram no relatório) e{" "}
+            {plural(matches.size, "parecida", "parecidas")} com cadastros existentes.
             {ignored.length ? ` Colunas ignoradas: ${ignored.join(", ")}.` : ""}
           </StatusBanner>
           <ul className="tn-item-list">
@@ -206,8 +207,8 @@ export function ImportPage() {
         <Card aria-labelledby="crm-import-report">
           <h2 id="crm-import-report">Resultado da importação</h2>
           <StatusBanner tone={report.rejected.length || report.skipped.length ? "warning" : "success"}>
-            {report.created.length} criado(s), {report.skipped.length} pulado(s) por possível duplicado e{" "}
-            {report.rejected.length} rejeitado(s).
+            {plural(report.created.length, "criado")}, {plural(report.skipped.length, "pulado")} por possível duplicado e{" "}
+            {plural(report.rejected.length, "rejeitado")}.
           </StatusBanner>
           {report.rejected.length ? (
             <>

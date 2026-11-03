@@ -40,7 +40,7 @@ test("visitante reserva pelo link e o dono vê na Agenda", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 
   await go(page, "/app/agenda");
-  const row = page.getByRole("link", { name: new RegExp(`^${time}–.*Confirmado`) });
+  const row = page.getByRole("link", { name: new RegExp(`^${time}–`) });
   await expect(row).toBeVisible();
   await row.click();
   await expect(page.getByText("Link de agendamento")).toBeVisible();

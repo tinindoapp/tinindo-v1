@@ -6,6 +6,7 @@ import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } f
 import { DEMO_CUSTOMERS } from "./demoPort.ts";
 import { explain, formatTime } from "./labels.ts";
 import { type MessagingPort, newKey, type SimPhone } from "./port.ts";
+import { plural, pluralWord } from "../../lib/text/plural.ts";
 
 export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezone: string }) {
   const [phone, setPhone] = useState(DEMO_CUSTOMERS[0]!.phone);
@@ -58,7 +59,7 @@ export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezon
         {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
         <Field label="Número da cliente (ou o do negócio, para ver o código)" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} list="sim-phones" />
         <datalist id="sim-phones">{DEMO_CUSTOMERS.map((c) => <option key={c.id} value={c.phone}>{c.name}</option>)}</datalist>
-        {port.dispatch ? <div className="tn-actions"><Button variant="secondary" onClick={() => void port.dispatch!().then((r) => { toast({ tone: "info", message: `Despacho (simulação): ${r.sent} enviada(s), ${r.failed} falhou(aram), ${r.unknown} desconhecida(s), ${r.reconciled} resolvida(s).` }); refresh(); }, (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Rodar o despacho (simulação)</Button></div> : null}
+        {port.dispatch ? <div className="tn-actions"><Button variant="secondary" onClick={() => void port.dispatch!().then((r) => { toast({ tone: "info", message: `Despacho (simulação): ${plural(r.sent, "enviada")}, ${r.failed} ${pluralWord(r.failed, "falhou", "falharam")}, ${plural(r.unknown, "desconhecida")}, ${plural(r.reconciled, "resolvida")}.` }); refresh(); }, (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Rodar o despacho (simulação)</Button></div> : null}
       </div>
       <Card aria-labelledby="sim-phone-title">
         <h2 id="sim-phone-title">Recebidas neste número</h2>

@@ -1,9 +1,9 @@
 // Lista de espera (P06), visão do dono. Uma pessoa de cada vez por horário; o dono aprova cada oferta.
 // A Tinindo não envia mensagens: o dono compartilha o link, e compartilhar não confirma entrega.
-import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
+import { createContext, type FormEvent, useContext, useEffect, useRef, useState } from "react";
 import type { TimeRange, WaitlistEntry, WaitlistOffer } from "@contracts";
-import { Button, Card, ConfirmAction, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { endOfLocalDay, formatDateTime, formatSlot, localDate, WEEKDAYS, windowsText } from "./format.ts";
+import { Button, Card, ChipGroup, ConfirmAction, Field, PageHeader, ShareActions, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
+import { endOfLocalDay, entriesForStart, formatDateTime, formatSlot, formatStart, localDate, windowsText } from "./format.ts";
 import { newKey, type WaitlistBase, type WaitlistPort } from "./port.ts";
 
 const PortContext = createContext<WaitlistPort | null>(null);
@@ -33,7 +33,12 @@ export function offerLink(token: string): string {
   return `${window.location.origin}/oferta#t=${token}`;
 }
 
-export function WaitlistPage() {
+/**
+ * `vaga`: início (ISO) de um horário que acabou de ser liberado, vindo do atendimento cancelado
+ * (`/app/lista-de-espera?vaga=…`). A vaga vai para o topo de "Vagas para oferecer", com o foco em "Preparar oferta";
+ * se ninguém da lista aceita aquele horário, a tela diz isso com o horário escrito.
+ */
+export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
   const port = usePort();
   const [base, setBase] = useState<WaitlistBase | null>(null);
   const [data, setData] = useState<Awaited<ReturnType<WaitlistPort["list"]>> | null>(null);
@@ -62,7 +67,8 @@ export function WaitlistPage() {
     try {
       const o = await port.prepareOffer(entry, slot, newKey());
       if (o.token) setFresh({ offerId: o.id, token: o.token });
-      toast(`Oferta preparada para ${customer(entry.customer_id)}. O horário fica segurado até ${formatDateTime(o.expires_at, tz)}.`);
+      if (target !== null && Date.parse(slot.starts_at) === target) setTargetDone(customer(entry.customer_id));
+      toast(`Oferta preparada para ${customer(entry.customer_id)}. O horário fica guardado para ela até ${formatDateTime(o.expires_at, tz)}.`);
     } catch (err) {
       toast({ tone: "danger", message: explain(err) });
     } finally {
@@ -85,9 +91,39 @@ export function WaitlistPage() {
   const bySlot = new Map<string, NonNullable<typeof data>["candidates"]>();
   for (const c of data?.candidates ?? []) bySlot.set(c.slot.starts_at, [...(bySlot.get(c.slot.starts_at) ?? []), c]);
 
+  // Vaga que chegou pela URL: os candidatos do servidor para esse início ou, se ainda não foram gerados, quem da lista
+  // aceita esse horário (mesma regra do servidor). A duração da vaga é a do serviço de quem está na vez.
+  const target = vaga && !Number.isNaN(Date.parse(vaga)) ? Date.parse(vaga) : null;
+  const [targetDone, setTargetDone] = useState<string | null>(null);
+  const targetKey = target === null ? null : [...bySlot.keys()].find((k) => Date.parse(k) === target) ?? null;
+  const highlight: { slot: TimeRange; queue: WaitlistEntry[] } | null = (() => {
+    if (target === null || !data || !base) return null;
+    if (targetKey) {
+      const queue = bySlot.get(targetKey)!.map((c) => entryOf(c.entry_id)).filter((e): e is WaitlistEntry => !!e);
+      return queue.length ? { slot: bySlot.get(targetKey)![0]!.slot, queue } : null;
+    }
+    const starts = new Date(target).toISOString();
+    const queue = entriesForStart(data.entries, starts, tz);
+    const first = queue[0];
+    if (!first) return null;
+    const minutes = base.services.find((x) => x.id === first.service_id)?.duration_min ?? 30;
+    return { slot: { starts_at: starts, ends_at: new Date(target + minutes * 60_000).toISOString() }, queue };
+  })();
+  const others = [...bySlot.entries()].filter(([start]) => start !== targetKey);
+  // Rola até a vaga e foca "Preparar oferta" (ou a frase de que ninguém aceita) uma vez, quando a lista chega.
+  const targetRef = useRef<HTMLElement | null>(null);
+  const focused = useRef(false);
+  const ready = target !== null && !!data && !!base;
+  useEffect(() => {
+    if (!ready || focused.current || !targetRef.current) return;
+    focused.current = true;
+    targetRef.current.focus();
+    if (typeof targetRef.current.scrollIntoView === "function") targetRef.current.scrollIntoView({ block: "center" });
+  }, [ready]);
+
   return (
     <section aria-labelledby="wl-title" className="tn-wl">
-      <PageHeader id="wl-title" title="Lista de espera" subtitle="Lista de espera e ofertas de vaga com aceite seguro. Abrir o link não reserva; o cliente aceita ou recusa." />
+      <PageHeader id="wl-title" title="Lista de espera" subtitle="Quando um horário fica livre, ofereça a quem está esperando. Abrir o link não reserva; o cliente aceita ou recusa." />
       {port.kind === "demo" ? (
         <StatusBanner tone="info">
           <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no servidor;
@@ -102,11 +138,38 @@ export function WaitlistPage() {
         <>
           <section aria-labelledby="wl-slots-title" className="tn-wl-section">
             <h2 id="wl-slots-title">Vagas para oferecer</h2>
-            {bySlot.size === 0 ? (
-              <p className="tn-muted">Nenhuma vaga liberada que sirva a alguém da lista. Quando um atendimento for cancelado, ela aparece aqui.</p>
+            {target !== null ? (
+              targetDone ? (
+                <p className="tn-wl-target" data-state="done" role="status">
+                  Oferta preparada para {targetDone} na vaga de {formatStart(new Date(target).toISOString(), tz)}. Veja em “Ofertas”.
+                </p>
+              ) : highlight ? (
+                <div className="tn-wl-item tn-wl-target" data-state="open">
+                  <div>
+                    <span className="tn-wl-target__tag">Vaga liberada agora</span>
+                    <strong>{formatSlot(highlight.slot, tz)}</strong>
+                    <div className="tn-muted">
+                      Próximo da fila: {customer(highlight.queue[0]!.customer_id)} · {service(highlight.queue[0]!.service_id)}
+                      {highlight.queue.length > 1 ? ` · depois: ${highlight.queue.length - 1}` : ""}
+                    </div>
+                  </div>
+                  <Button ref={(el) => { targetRef.current = el; }} onClick={() => void prepare(highlight.queue[0]!, highlight.slot)}>
+                    Preparar oferta<span className="tn-visually-hidden"> para {customer(highlight.queue[0]!.customer_id)}</span>
+                  </Button>
+                </div>
+              ) : (
+                <p ref={(el) => { targetRef.current = el; }} tabIndex={-1} className="tn-wl-target" data-state="none">
+                  Ninguém da lista aceita {formatStart(new Date(target).toISOString(), tz)}. A vaga continua livre na agenda.
+                </p>
+              )
+            ) : null}
+            {others.length === 0 ? (
+              target === null ? (
+                <p className="tn-muted">Nenhuma vaga liberada que sirva a alguém da lista. Quando um atendimento for cancelado, ela aparece aqui.</p>
+              ) : null
             ) : (
-              <ul className="tn-item-list">
-                {[...bySlot.entries()].map(([start, list]) => {
+              <ul className="tn-item-list" aria-label={target !== null ? "Outras vagas" : undefined}>
+                {others.map(([start, list]) => {
                   const first = list[0]!;
                   const entry = entryOf(first.entry_id);
                   return (
@@ -211,11 +274,9 @@ function ShareCard({ token, onShared, onClose }: { token: string; onShared: () =
         cliente recebeu.
       </p>
       <p className="tn-wl-link"><code>{link}</code></p>
+      {/* Só registra o compartilhamento depois que a cópia deu certo (ou ao abrir o WhatsApp). */}
+      <ShareActions message={text} copyText={link} copyLabel="Copiar link" onShared={onShared} />
       <div className="tn-actions">
-        <Button onClick={() => { void navigator.clipboard?.writeText(link).catch(() => undefined); onShared(); }}>Copiar link</Button>
-        <a className="tn-button" data-variant="secondary" href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer noopener" onClick={onShared}>
-          Abrir no WhatsApp
-        </a>
         <Button variant="ghost" onClick={onClose}>Fechar</Button>
       </div>
     </Card>
@@ -272,17 +333,10 @@ function JoinForm({ base, onDone }: { base: WaitlistBase; onDone: (t: string) =>
         <Field as="select" label="Serviço" id="wl-service" value={service} onChange={(e) => setService(e.target.value)}>
           {base.services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </Field>
-        <fieldset className="tn-wl-days" data-span="full" aria-describedby={errors.days ? "wl-days-error" : undefined}>
-          <legend>Dias que servem</legend>
-          {[1, 2, 3, 4, 5, 6, 0].map((d, i) => (
-            <label key={d} className="tn-wl-check">
-              <input type="checkbox" checked={days.includes(d)} aria-invalid={errors.days && i === 0 ? true : undefined}
-                onChange={(e) => setDays(e.target.checked ? [...days, d] : days.filter((x) => x !== d))} />
-              {WEEKDAYS[d]}
-            </label>
-          ))}
-          {errors.days ? <span id="wl-days-error" className="tn-field__error">{errors.days}</span> : null}
-        </fieldset>
+        <div data-span="full">
+          <ChipGroup label="Dias que servem" options={WEEKDAY_CHIPS} shortcuts={WEEKDAY_SHORTCUTS} value={days} onChange={setDays}
+            error={errors.days} errorId="wl-days-error" />
+        </div>
         <Field label="A partir de" id="wl-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} />
         <Field label="Até as" id="wl-to" type="time" step={900} value={to} error={errors.to} onChange={(e) => setTo(e.target.value)} />
         <Field label="Fica na lista até" id="wl-until" type="date" min={today} value={until} error={errors.until} onChange={(e) => setUntil(e.target.value)} />

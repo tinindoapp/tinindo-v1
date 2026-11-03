@@ -36,14 +36,23 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
     setCents(c);
   }
 
+  // Tela da equipe Tinindo (item 60): fora do menu do profissional. O cliente não sabe quem é operador; o servidor
+  // decide e responde FORBIDDEN. Sem acesso, a tela mostra só o aviso, sem formulário nem números.
+  if (error?.code === "FORBIDDEN") {
+    return (
+      <div className="tn-page-intro">
+        <PageHeader id="cost-title" title="Custo por cliente" />
+        <StatusBanner tone="warning">Só a equipe Tinindo acessa esta tela.</StatusBanner>
+      </div>
+    );
+  }
+  const cols = ["Min. humanos", "Retrabalho", "Custo estimado", "Plano (manual)", "Serviços contratados"] as const;
   return (
     <div className="tn-an">
       <div className="tn-page-intro">
-        <PageHeader id="cost-title" title="Custo por cliente" />
-        <p className="tn-muted">Últimos 30 dias. Custo estimado = minutos humanos medidos × custo-hora que você informar (premissa).</p>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Demonstração sem servidor.</StatusBanner> : null}
-        {error?.code === "FORBIDDEN" ? <StatusBanner tone="warning">Só a equipe Tinindo acessa esta tela.</StatusBanner> : null}
-        {error && error.code !== "FORBIDDEN" ? <StatusBanner tone="danger">Não foi possível carregar agora.</StatusBanner> : null}
+        <PageHeader id="cost-title" title="Custo por cliente" eyebrow="Equipe Tinindo" />
+        <p className="tn-muted">Últimos 30 dias{port.kind === "demo" ? ", com dados de exemplo" : ""}. Custo estimado = minutos humanos medidos × custo-hora que você informar (premissa).</p>
+        {error ? <StatusBanner tone="danger">Não foi possível carregar agora.</StatusBanner> : null}
         <form ref={formRef} className="tn-an-controls" aria-label="Custo-hora" onSubmit={submit} noValidate>
           <Field label="Custo-hora (R$)" inputMode="decimal" value={hourly} error={errors.hourly} onChange={(e) => setHourly(e.target.value)} />
           <Button type="submit" variant="secondary">Recalcular</Button>
@@ -52,27 +61,34 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
       {data ? (
         <Card aria-labelledby="cost-table-title">
           <h2 id="cost-table-title">Por cliente</h2>
-          <div className="tn-an-scroll">
-            <table className="tn-an-table">
-              <thead><tr><th scope="col">Cliente</th><th scope="col">Min. humanos</th><th scope="col">Retrabalho</th><th scope="col">Custo estimado</th><th scope="col">Plano (manual)</th><th scope="col">Serviços contratados</th></tr></thead>
-              <tbody>
-                {data.tenants.map((t) => (
-                  <tr key={t.tenant_id}>
-                    <th scope="row">{t.tenant_name}</th>
-                    <td className="tn-num">{t.human_minutes}</td>
-                    <td className="tn-num">{t.reprocess_minutes}</td>
-                    <td className="tn-num">{formatCents(t.estimated_cost_cents)}</td>
-                    <td className="tn-num">{formatCents(t.plan_monthly_cents)}</td>
-                    <td className="tn-num">{formatCents(t.services_contracted_cents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot><tr><th scope="row">Total</th><td className="tn-num">{data.totals.human_minutes}</td><td className="tn-num">{data.totals.reprocess_minutes}</td><td className="tn-num">{formatCents(data.totals.estimated_cost_cents)}</td><td /><td /></tr></tfoot>
-            </table>
-          </div>
+          {/* No celular cada linha vira um cartão (rótulo ao lado do valor); no desktop, a tabela. */}
+          <table className="tn-an-table tn-an-cards">
+            <thead><tr><th scope="col">Cliente</th>{cols.map((c) => <th key={c} scope="col">{c}</th>)}</tr></thead>
+            <tbody>
+              {data.tenants.map((t) => (
+                <tr key={t.tenant_id}>
+                  <th scope="row">{t.tenant_name}</th>
+                  <td className="tn-num" data-label={cols[0]}>{t.human_minutes}</td>
+                  <td className="tn-num" data-label={cols[1]}>{t.reprocess_minutes}</td>
+                  <td className="tn-num" data-label={cols[2]}>{formatCents(t.estimated_cost_cents)}</td>
+                  <td className="tn-num" data-label={cols[3]}>{formatCents(t.plan_monthly_cents)}</td>
+                  <td className="tn-num" data-label={cols[4]}>{formatCents(t.services_contracted_cents)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row">Total</th>
+                <td className="tn-num" data-label={cols[0]}>{data.totals.human_minutes}</td>
+                <td className="tn-num" data-label={cols[1]}>{data.totals.reprocess_minutes}</td>
+                <td className="tn-num" data-label={cols[2]}>{formatCents(data.totals.estimated_cost_cents)}</td>
+                <td data-empty="" /><td data-empty="" />
+              </tr>
+            </tfoot>
+          </table>
           <p className="tn-muted">{data.note}</p>
         </Card>
-      ) : null}
+      ) : !error ? <p role="status">Carregando…</p> : null}
     </div>
   );
 }

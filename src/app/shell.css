@@ -38,7 +38,7 @@
   text-overflow: ellipsis;
   white-space: pre;
 }
-@media (max-width: 599.98px) {
+@media (max-width: 899.98px) {
   .tn-demo-banner__long { display: none; }
 }
 
@@ -204,6 +204,35 @@
 .tn-tabbar a[aria-current="page"] { color: var(--tn-text); font-weight: var(--tn-font-weight-semibold); }
 .tn-tabbar a[aria-current="page"] .tn-icon { background: var(--tn-selected-indicator); color: var(--tn-text-on-action); }
 .tn-tabbar span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Selo de não lidas (item 39): número escrito numa pílula sobre o ícone; o texto inteiro vai ao leitor de tela. */
+.tn-tabbar a { position: relative; }
+.tn-tabbar .tn-tabbar__badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 10px);
+  min-width: 20px;
+  padding: 0 5px;
+  border: 2px solid var(--tn-surface);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-action);
+  color: var(--tn-text-on-action);
+  font-size: var(--tn-text-label);
+  font-weight: var(--tn-font-weight-semibold);
+  line-height: 16px;
+  text-align: center;
+  overflow: visible;
+}
+.tn-nav__badge {
+  margin-left: auto;
+  min-width: 24px;
+  padding: 0 var(--tn-space-2);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-action);
+  color: var(--tn-text-on-action);
+  font-size: var(--tn-text-label);
+  font-weight: var(--tn-font-weight-semibold);
+  text-align: center;
+}
 
 /* ------------------------------------------------------------------ menu (folha no celular, barra lateral no desktop) */
 .tn-nav { min-width: 0; }
@@ -280,8 +309,8 @@
     overscroll-behavior: contain;
     padding: var(--tn-space-2) var(--tn-space-3) calc(var(--tn-space-6) + env(safe-area-inset-bottom));
     border-radius: var(--tn-radius-lg) var(--tn-radius-lg) 0 0;
-    background: var(--tn-surface);
-    box-shadow: var(--tn-shadow-lg);
+    background: var(--tn-surface-float);
+    box-shadow: var(--tn-elevation-2);
   }
   .tn-nav:not([data-open]) { display: none; }
   .tn-nav[data-open] { animation: tn-sheet-in var(--tn-motion-slow) var(--tn-motion-ease); }

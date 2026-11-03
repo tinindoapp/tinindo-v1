@@ -7,6 +7,7 @@ import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toa
 import { CHARGE_STATUS, DIFF_LABEL, explain, FAILURE_REASON, formatCents, formatDateTime, formatDay, PROVIDER_LABEL, REFUND_STATUS, todayIn, unknownNote } from "./labels.ts";
 import { CodeDetails, CopyButton, ShareCharge } from "./Share.tsx";
 import { type ChargesList, newKey, type PaymentCharge, type PaymentProvider, type PaymentsPort, type Receivable, type Reconciliation } from "./port.ts";
+import { plural } from "../../lib/text/plural.ts";
 
 /** Retorno de uma ação: sai num aviso curto (Toast), sempre à vista. A lista mostra o estado que fica. */
 const notify = (tone: Tone, text: string) => toast({ message: text, tone });
@@ -141,7 +142,7 @@ export function PaymentsPage({ port, timezone }: { port: PaymentsPort; timezone:
     setSyncing(true);
     try {
       const r = await port.sync!();
-      notify("info", `Consulta ao banco (simulação): ${r.checked} consultada(s), ${r.settled} paga(s), ${r.closed} encerrada(s), ${r.still_unknown} ainda sem resposta.`);
+      notify("info", `Consulta ao banco (simulação): ${plural(r.checked, "consultada")}, ${plural(r.settled, "paga")}, ${plural(r.closed, "encerrada")}, ${r.still_unknown} ainda sem resposta.`);
     } catch (err) {
       notify("danger", explain(err));
     } finally {
@@ -156,7 +157,7 @@ export function PaymentsPage({ port, timezone }: { port: PaymentsPort; timezone:
     try {
       const r = await port.reconcile("simulated", day, newKey());
       if (r.differences.length === 0) notify("success", `Conferência de ${formatDay(day)}: extrato e caixa batem (${formatCents(r.report_paid_cents)}).`);
-      else notify("warning", `Conferência de ${formatDay(day)}: ${r.differences.length} diferença(s) listada(s) abaixo. Nada foi corrigido automaticamente.`);
+      else notify("warning", `Conferência de ${formatDay(day)}: ${plural(r.differences.length, "diferença listada", "diferenças listadas")} abaixo. Nada foi corrigido automaticamente.`);
       done();
     } catch (err) {
       setRecError(explain(err));
@@ -169,8 +170,12 @@ export function PaymentsPage({ port, timezone }: { port: PaymentsPort; timezone:
     <div className="tn-pay">
       <div className="tn-page-intro">
         <PageHeader id="pay-title" title="Pagamentos" />
-        <Help><p>Cobrança por Pix. Só aparece como pago quando o banco confirma; o mesmo aviso nunca entra duas vezes; sem resposta, nada é presumido. A Tinindo não guarda dinheiro: o banco repassa ao seu negócio.</p></Help>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> O recebimento é simulado: nenhum dinheiro existe. Abra o link da cobrança para "pagar" como a cliente.</StatusBanner> : null}
+        {/* Um aviso só, em uma linha (item 19); o passo a passo fica em "Como funciona". */}
+        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> O recebimento é simulado: nenhum dinheiro existe.</StatusBanner> : null}
+        <Help>
+          <p>Cobrança por Pix. Só aparece como pago quando o banco confirma; o mesmo aviso nunca entra duas vezes; sem resposta, nada é presumido. A Tinindo não guarda dinheiro: o banco repassa ao seu negócio.</p>
+          {port.kind === "demo" ? <p>Na demonstração, abra o link da cobrança para “pagar” como a cliente.</p> : null}
+        </Help>
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {created ? (
           <ShareCharge description={created.description} amountCents={created.amount_cents} pix={created.pix_code} url={created.url}
@@ -236,7 +241,7 @@ export function PaymentsPage({ port, timezone }: { port: PaymentsPort; timezone:
           {recs.map((r) => (
             <li key={r.id} className="tn-pay-item">
               <h3>{formatDay(r.day)} · {PROVIDER_LABEL[r.provider]}</h3>
-              <p>Extrato: {formatCents(r.report_paid_cents)} em {r.report_count} cobrança(s) · Caixa: {formatCents(r.ledger_paid_cents)} · <strong>{r.differences.length === 0 ? "Sem diferenças" : `${r.differences.length} diferença(s)`}</strong></p>
+              <p>Extrato: {formatCents(r.report_paid_cents)} em {plural(r.report_count, "cobrança")} · Caixa: {formatCents(r.ledger_paid_cents)} · <strong>{r.differences.length === 0 ? "Sem diferenças" : plural(r.differences.length, "diferença")}</strong></p>
               {r.differences.length > 0 ? (
                 <ul className="tn-pay-list">
                   {r.differences.map((d, i) => <li key={i}>{DIFF_LABEL[d.kind] ?? d.kind}{d.external_id ? ` (${d.external_id})` : ""}{d.amount_cents != null ? ` · ${formatCents(d.amount_cents)}` : ""}</li>)}

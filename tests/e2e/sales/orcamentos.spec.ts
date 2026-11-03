@@ -15,11 +15,17 @@ test("orçamento: rascunho, link, nova versão, aceite da versão vista com hor�
   await page.getByRole("button", { name: "Novo orçamento" }).click();
 
   const form = page.getByRole("form", { name: "Novo orçamento" });
-  await form.getByLabel("Cliente", { exact: true }).selectOption({ label: "Cliente Exemplo Ana" });
-  await form.getByLabel("Título").fill("Corte e barba");
+  // Item 46: nenhum cliente vem escolhido; busca e escolha; o título acompanha os itens até a pessoa mudar.
+  const customer = form.getByRole("group", { name: "Escolha o cliente" });
+  await expect(customer.getByRole("radio", { checked: true })).toHaveCount(0);
+  await customer.getByLabel("Buscar cliente").fill("ana");
+  await expect(customer.getByRole("radio")).toHaveCount(1);
+  await customer.getByRole("radio", { name: "Cliente Exemplo Ana" }).check();
   await form.getByRole("group", { name: "Item 1" }).getByLabel("Serviço").selectOption({ label: "Corte" });
   await form.getByRole("button", { name: "Adicionar item" }).click();
   await form.getByRole("group", { name: "Item 2" }).getByLabel("Serviço").selectOption({ label: "Barba" });
+  await expect(form.getByLabel("Título")).toHaveValue("Corte e Barba");
+  await form.getByLabel("Título").fill("Corte e barba");
   await expect(form.getByText(/Total: R\$\s100,00/)).toBeVisible();
   await form.getByLabel("Propor um horário").check();
   await form.getByRole("button", { name: "Salvar rascunho" }).click();
@@ -88,7 +94,12 @@ test("orçamento: formulário explica o que falta e não grava", async ({ page }
   await page.getByRole("button", { name: "Novo orçamento" }).click();
   const form = page.getByRole("form", { name: "Novo orçamento" });
   await form.getByRole("button", { name: "Salvar rascunho" }).click();
+  // Todos os erros de uma vez, embaixo de cada campo; o foco vai para o primeiro.
+  await expect(form.getByText("Escolha o cliente.")).toBeVisible();
   await expect(form.getByText("Dê um título ao orçamento.")).toBeVisible();
+  await expect(form.getByText("Descreva o item.")).toBeVisible();
+  await expect(form.getByLabel("Buscar cliente")).toBeFocused();
+  await form.getByRole("radio", { name: "Cliente Exemplo Bruno" }).check();
   await form.getByLabel("Título").fill("Avulso");
   await form.getByLabel("Descrição").fill("Hidratação");
   await form.getByLabel("Valor (R$)").fill("12,345");

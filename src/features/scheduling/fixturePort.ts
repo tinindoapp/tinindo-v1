@@ -109,6 +109,9 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
     label: b.label,
   }));
   const commandIdem = new Map<string, string>();
+  // Clientes da aba: os de exemplo e os criados pelo "+ Novo" do agendamento (só nesta aba, como o resto).
+  const customers: { id: string; name: string; phone?: string | null }[] = DEMO_CUSTOMERS.map((c) => ({ ...c }));
+  const createdCustomers = new Map<string, string>();
 
   /** Idempotência dos comandos de expediente: mesma chave + mesmo pedido não repete o efeito. */
   function once(op: string, key: string, input: unknown): boolean {
@@ -290,7 +293,20 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
     now: () => new Date(now),
     context: () => delay({ tenantId: tenantA.id, tenantName: tenantA.name, timezone: tz, resourceId: FX.resources.A }),
     listServices: () => delay(services),
-    listCustomers: () => delay(DEMO_CUSTOMERS.map((c) => ({ ...c }))),
+    listCustomers: () => delay(customers.map((c) => ({ ...c }))),
+    createCustomer: async (input, key) => {
+      const name = input.name.trim();
+      if (!name || name.length > 120) fail("VALIDATION_ERROR", "name");
+      const prior = createdCustomers.get(key);
+      const id = prior ?? `30000000-0000-4000-8000-${String(900 + ++seq).padStart(12, "0")}`;
+      if (!prior) {
+        createdCustomers.set(key, id);
+        customers.push({ id, name, phone: input.phone });
+      }
+      const norm = (v: string) => v.toLocaleLowerCase("pt-BR");
+      const duplicates = customers.filter((c) => c.id !== id && norm(c.name) === norm(name)).length;
+      return delay({ customer: { id, name, phone: input.phone }, duplicates });
+    },
     listBookings: (window) =>
       delay(
         bookings
