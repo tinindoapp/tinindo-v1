@@ -46,10 +46,10 @@
 .crm-import-text textarea { min-height: 8rem; font-family: var(--tn-font-mono); }
 .crm-import-file input[type="file"] { box-sizing: border-box; max-width: 100%; }
 /* Serviço (item 45): preço à direita, em destaque; ações depois. */
-.crm-service { grid-template-columns: minmax(0, 1fr) auto auto; }
+.crm-item.crm-service { grid-template-columns: minmax(0, 1fr) auto auto; }
 .crm-price { font-size: var(--tn-text-group); font-weight: var(--tn-font-weight-semibold); white-space: nowrap; }
 @media (max-width: 560px) {
-  .crm-service { grid-template-columns: minmax(0, 1fr) auto; }
+  .crm-item.crm-service { grid-template-columns: minmax(0, 1fr) auto; }
   .crm-service .crm-item__actions { grid-column: 1 / -1; }
   .crm-item { grid-template-columns: minmax(0, 1fr); }
   .crm-item__actions { justify-content: start; }
