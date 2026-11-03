@@ -807,13 +807,14 @@
         "tests/agent-evals/",
         "release/LLM.md"
       ],
-      "status": "review",
+      "status": "done",
       "owner": "fffalleiros",
       "session": "claude-int-p46",
       "branch": "claude/amazing-volta-mjidw6",
-      "lease_until": "2026-11-03T15:51:21.810732Z",
+      "lease_until": null,
       "pr": 94,
-      "block_reason": null
+      "block_reason": null,
+      "merge_sha": "95a673e27059df14ca038e50c1d6bbc76d1f39c8"
     },
     "P45": {
       "id": "P45",
@@ -848,7 +849,7 @@
       "block_reason": null
     }
   },
-  "updated_at": "2026-11-03T13:59:47.248738Z",
+  "updated_at": "2026-11-03T14:01:37.808518Z",
   "history": [
     {
       "id": "9a75ee9b-b025-4238-850f-bdc2d73f0a4c",
@@ -1815,6 +1816,16 @@
       "actor": "fffalleiros",
       "session": "claude-int-p45",
       "pr": null,
+      "reason": null
+    },
+    {
+      "id": "91f05b69-9009-4aa7-b0e0-579673108cde",
+      "at": "2026-11-03T14:01:37.808518Z",
+      "action": "finish",
+      "task": "P46",
+      "actor": "fffalleiros",
+      "session": null,
+      "pr": 94,
       "reason": null
     }
   ]
