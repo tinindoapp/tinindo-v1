@@ -213,12 +213,14 @@ Os pedidos foram publicados como issues `[recado]` com a etiqueta `para-felipe`.
 - `npm run build`.
 - `playwright test` completo, desktop (Desktop Chrome) e mobile (Pixel 7), com `--workers=2`.
 
-**Último resultado local, na branch da Agenda (`main` + #82):**
+**Último resultado local, na branch deste PR** (`main` com #85, mais o item 23):
 
 | Comando | Resultado |
 |---|---|
-| unit | 690 passaram (104 arquivos, depois do rebase sobre o #84) |
-| e2e | 253 passaram, 33 pulados (os `fixme` que já existiam), 0 falhas |
+| lint e typecheck | ok |
+| unit | 692 passaram |
+| build | ok |
+| e2e | 265 passaram, 33 pulados (os `fixme` que já existiam), 0 falhas |
 
 **Tema escuro.** A spec de padrões e várias specs novas rodam com `colorScheme: "dark"`.
 
