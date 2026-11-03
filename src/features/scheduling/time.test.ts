@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { addDays, dayWindow, formatTime, isCivilDate, localParts, toZonedIso, weekStart, zonedInstant } from "./time.ts";
+import { describe, expect, it, vi } from "vitest";
+import { addDays, dayWindow, deviceZoneDiffers, formatTime, formatWeekdayDay, friendlyZone, isCivilDate, localParts, toZonedIso, weekStart, zonedInstant } from "./time.ts";
 
 const SP = "America/Sao_Paulo";
 
@@ -30,5 +30,29 @@ describe("tempo no fuso do negócio", () => {
     expect(weekStart("2026-10-25")).toBe("2026-10-19");
     expect(isCivilDate("2026-02-30")).toBe(false);
     expect(isCivilDate("2026-10-20")).toBe(true);
+  });
+});
+
+describe("fuso do aparelho e nome amigável (auditoria de UX, item 34)", () => {
+  it("só avisa quando o aparelho está noutro horário que o do negócio", () => {
+    const at = "2026-10-20T12:00:00Z";
+    const spy = vi.spyOn(Date.prototype, "getTimezoneOffset");
+    spy.mockReturnValue(180); // aparelho em -03:00, como São Paulo
+    expect(deviceZoneDiffers(at, SP)).toBe(false);
+    spy.mockReturnValue(-540); // Tóquio
+    expect(deviceZoneDiffers(at, SP)).toBe(true);
+    spy.mockRestore();
+  });
+
+  it("dá nome de gente ao fuso: Brasília, Amazonas; sem nome conhecido, a cidade", () => {
+    expect(friendlyZone("2026-10-20T12:00:00Z", SP)).toBe("de Brasília");
+    expect(friendlyZone("2026-10-20T12:00:00Z", "America/Manaus")).toBe("do Amazonas");
+    expect(friendlyZone("2026-10-20T12:00:00Z", "Etc/GMT+3")).toMatch(/^(d[aeo]s? |do fuso de )/);
+  });
+
+  it("visão Semana: \"Seg 19\" curto, sem ponto", () => {
+    expect(formatWeekdayDay("2026-10-19")).toBe("Seg 19");
+    expect(formatWeekdayDay("2026-10-21")).toBe("Qua 21");
+    expect(formatWeekdayDay("2026-11-01")).toBe("Dom 1");
   });
 });

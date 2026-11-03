@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { bookingsA, services } from "@contracts/fixtures.ts";
 import type { Booking } from "@contracts";
-import { canComplete, cancelNoticeText, dayTimeline, type DayPlan, formatCents, occupancy, STATUS_LABEL, waitlistMatches, whatsAppDigits } from "./agenda.ts";
+import { canComplete, cancelNoticeText, dayTimeline, type DayPlan, formatCents, formatPhoneBR, listStatus, occupancy, phoneToE164, STATUS_LABEL, waitlistHref, waitlistMatches, whatsAppDigits } from "./agenda.ts";
 import type { WaitlistEntry } from "@contracts";
 import { explainError } from "./errors.ts";
 
@@ -114,3 +114,24 @@ describe("depois do cancelamento", () => {
   });
 });
 
+
+describe("selo nas listas, WhatsApp do cadastro rápido e link da lista de espera", () => {
+  it("Confirmado não leva selo nas listas; as exceções usam o mesmo rótulo do detalhe", () => {
+    expect(listStatus("confirmed")).toBeNull();
+    for (const s of ["held", "cancelled", "no_show", "completed", "expired"] as const) expect(listStatus(s)).toBe(STATUS_LABEL[s]);
+  });
+
+  it("WhatsApp digitado vira E.164; vazio é null; inválido é undefined", () => {
+    expect(phoneToE164("(11) 98765-4321")).toBe("+5511987654321");
+    expect(phoneToE164("011 98765-4321")).toBe("+5511987654321");
+    expect(phoneToE164("+351 912 345 678")).toBe("+351912345678");
+    expect(phoneToE164("  ")).toBeNull();
+    expect(phoneToE164("1234")).toBeUndefined();
+    expect(phoneToE164("abc")).toBeUndefined();
+    expect(formatPhoneBR("+5511987654321")).toBe("(11) 98765-4321");
+  });
+
+  it("oferecer à lista de espera leva o início da vaga na URL", () => {
+    expect(waitlistHref("2026-10-21T11:00:00-03:00")).toBe("/app/lista-de-espera?vaga=2026-10-21T11%3A00%3A00-03%3A00");
+  });
+});
