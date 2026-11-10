@@ -2,7 +2,7 @@
 -- importação com relatório por linha. Roda depois da fundação + 001_crm.sql + seed sintético.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(61);
+select plan(68);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -224,6 +224,33 @@ select is((select count(*)::int from public.audit_events
            where object_type = 'customer' and (before::text like '%+55%' or after::text like '%+55%'
              or after::text like '%@exemplo%' or after::text like '%Ana%')), 0,
   'auditoria de cliente não guarda telefone, e-mail nem nome');
+
+-- ------------------------------------------------------------------ busca ignora acento e caixa (Onda 0, linha J)
+select pg_temp.login_as((select owner_b from ids));
+set local role authenticated;
+insert into r select 'joao', public.crm_customer_upsert((select tenant_b from ids), null, null,
+  'João da Silva', '+5511912344321', null, null, 'idem-b-joao-000001', pg_temp.h('joao'));
+insert into r select 'conceicao', public.crm_customer_upsert((select tenant_b from ids), null, null,
+  'Maria da Conceição', null, null, null, 'idem-b-conc-000001', pg_temp.h('conceicao'));
+insert into r select 'alvaro', public.crm_customer_upsert((select tenant_b from ids), null, null,
+  'Álvaro Exemplo', null, null, null, 'idem-b-alva-000001', pg_temp.h('alvaro'));
+select is(jsonb_path_query_array(public.crm_customer_list((select tenant_b from ids), 'joao')->'items', '$[*].id'),
+  jsonb_build_array(pg_temp.cid('joao')), '“joao” acha “João”');
+select is(jsonb_path_query_array(public.crm_customer_list((select tenant_b from ids), 'conceicao')->'items', '$[*].id'),
+  jsonb_build_array(pg_temp.cid('conceicao')), '“conceicao” acha “Conceição”');
+select is(jsonb_path_query_array(public.crm_customer_list((select tenant_b from ids), 'JOÃO')->'items', '$[*].id'),
+  jsonb_build_array(pg_temp.cid('joao')), '“JOÃO” (maiúsculas e acento) acha “João”');
+select is(jsonb_path_query_array(public.crm_customer_list((select tenant_b from ids), '  Conceição ')->'items', '$[*].id'),
+  jsonb_build_array(pg_temp.cid('conceicao')), 'busca com acento e espaços também acha');
+select is(jsonb_path_query_array(public.crm_customer_list((select tenant_b from ids), '4321')->'items', '$[*].id'),
+  jsonb_build_array(pg_temp.cid('joao')), '“4321” acha pelo telefone');
+select is(public.crm_customer_list((select tenant_b from ids))->'items'->0->>'name', 'Álvaro Exemplo',
+  'ordem alfabética ignora acento (“Álvaro” antes de “Cliente”)');
+insert into r select 'bp1', public.crm_customer_list((select tenant_b from ids), null, false, null, null, 3);
+select is(jsonb_path_query_array(public.crm_customer_list((select tenant_b from ids), null, false,
+    pg_temp.got('bp1')->'next'->>'key', (pg_temp.got('bp1')->'next'->>'id')::uuid, 3)->'items', '$[*].name'),
+  '["João da Silva", "Maria da Conceição"]'::jsonb, 'cursor segue a mesma ordem sem acento');
+reset role;
 
 select * from finish();
 rollback;

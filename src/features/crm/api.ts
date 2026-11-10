@@ -164,12 +164,17 @@ export function createDemoCrmApi(): CrmApi {
   return {
     readOnly: true,
     profession: async () => tenantA.profession,
+    // Mesma regra do servidor (crm_customer_list): nome sem acento nem caixa, e-mail, ou 4+ dígitos do telefone.
     listCustomers: async ({ q, include_archived }) => {
       const needle = fold(q ?? "");
+      const digits = (q ?? "").replace(/\D/g, "");
+      const matches = (c: CrmCustomer) =>
+        !needle ||
+        fold(c.name).includes(needle) ||
+        (c.email ?? "").toLowerCase().includes((q ?? "").trim().toLowerCase()) ||
+        (digits.length >= 4 && (c.phone ?? "").includes(digits));
       return {
-        items: customers.filter(
-          (c) => (include_archived || !c.archived_at) && (!needle || fold(c.name).includes(needle)),
-        ),
+        items: customers.filter((c) => (include_archived || !c.archived_at) && matches(c)),
         next_cursor: null,
       };
     },
