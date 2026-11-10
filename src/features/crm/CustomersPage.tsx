@@ -1,6 +1,6 @@
 // Clientes: listar, buscar, criar, editar e arquivar. Duplicado é só sugerido, nunca mesclado. No cartão, ligar e
 // WhatsApp à mão; editar e arquivar no menu "⋯"; o nome abre a ficha (CustomerPage).
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { type Profession } from "@contracts";
 import {
@@ -16,6 +16,8 @@ import { PROFESSION_CONFIG } from "./profession.ts";
 import { CrmDemoNotice, EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
 import { plural } from "../../lib/text/plural.ts";
 
+/** A busca que produziu uma página: o texto já aparado e se inclui arquivados. */
+type CustomerSearch = { q: string; archived: boolean };
 type Draft = { id?: string; version?: number; name: string; phone: string; email: string; source: string };
 const EMPTY: Draft = { name: "", phone: "", email: "", source: "" };
 const SOURCE_OPTIONS = [
@@ -47,25 +49,37 @@ export function CustomersPage() {
   const [showArchived, setShowArchived] = useState(false);
   // null = ainda carregando (esqueleto); depois, a lista e a busca que a produziu (item 40: busca vazia ≠ lista vazia).
   const [items, setItems] = useState<CrmCustomer[] | null>(null);
-  const [shownQuery, setShownQuery] = useState("");
+  const [shown, setShown] = useState<CustomerSearch>({ q: "", archived: false });
+  const shownQuery = shown.q;
   const [next, setNext] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
 
-  const load = useCallback(
-    async (cursor?: string) => {
+  // Guarda de ordem: cada carga da primeira página tira uma senha nova; resposta com senha antiga (outra busca, ou
+  // uma recarga mais nova já em curso) é descartada. "Carregar mais" usa a senha da lista exibida e só anexa se o
+  // cursor ainda for o da lista na tela, então nunca junta página de outra busca nem repete a mesma página.
+  const ticket = useRef(0);
+  const shownNext = useRef<string | null>(null);
+  const fetchPage = useCallback(
+    async (search: CustomerSearch, cursor?: string) => {
+      const mine = cursor ? ticket.current : ++ticket.current;
       try {
-        const q = query.trim();
-        const page = await api.listCustomers({ q: q || undefined, include_archived: showArchived, cursor });
+        const page = await api.listCustomers({ q: search.q || undefined, include_archived: search.archived, cursor });
+        if (mine !== ticket.current || (cursor && cursor !== shownNext.current)) return;
+        shownNext.current = page.next_cursor;
         setItems((prev) => (cursor && prev ? [...prev, ...page.items] : page.items));
-        setShownQuery(q);
+        setShown(search);
         setNext(page.next_cursor);
         setLoadError(null);
       } catch (e) {
-        setLoadError(errorMessage(e));
+        if (mine === ticket.current) setLoadError(errorMessage(e));
       }
     },
-    [api, query, showArchived],
+    [api],
+  );
+  const load = useCallback(
+    () => fetchPage({ q: query.trim(), archived: showArchived }),
+    [fetchPage, query, showArchived],
   );
 
   useEffect(() => {
@@ -243,7 +257,7 @@ export function CustomersPage() {
           ))}
         </ul>
         {next ? (
-          <Button variant="secondary" onClick={() => void load(next)}>
+          <Button variant="secondary" onClick={() => void fetchPage(shown, next)}>
             Carregar mais
           </Button>
         ) : null}

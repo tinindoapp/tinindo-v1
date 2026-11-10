@@ -55,6 +55,8 @@ function fakeApi(over: Partial<CrmApi> = {}): CrmApi {
   };
 }
 
+type Page = { items: CrmCustomer[]; next_cursor: string | null };
+
 const renderWith = (api: CrmApi, ui: React.ReactNode) =>
   render(
     <MemoryRouter>
@@ -208,6 +210,63 @@ describe("clientes: três estados da lista (item 40) e formulário perto do foco
     fireEvent.click(screen.getByRole("button", { name: "Cadastrar" }));
     expect(screen.getByRole("heading", { name: "Novo cliente" })).toBeInTheDocument();
     expect(screen.getByLabelText("Nome")).toHaveValue("zzz");
+  });
+
+  it("resposta atrasada de uma busca antiga não sobrescreve a busca nova", async () => {
+    const joao: CrmCustomer = { ...ana, id: FX.customers.guestInA, name: "João Exemplo" };
+    let soltarJo: (v: Page) => void = () => {};
+    const api = fakeApi({
+      listCustomers: vi.fn((q: { q?: string }) =>
+        q.q === "jo"
+          ? new Promise<Page>((r) => (soltarJo = r))
+          : Promise.resolve({ items: q.q === "joao" ? [joao] : [ana], next_cursor: null })),
+    });
+    renderWith(api, <CustomersPage />);
+    expect(await screen.findByText("Ana Exemplo")).toBeInTheDocument();
+    type("Buscar por nome, e-mail ou telefone", "jo");
+    await waitFor(() => expect(api.listCustomers).toHaveBeenCalledWith(expect.objectContaining({ q: "jo" })));
+    type("Buscar por nome, e-mail ou telefone", "joao");
+    expect(await screen.findByText("João Exemplo")).toBeInTheDocument();
+    soltarJo({ items: [ana], next_cursor: null });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText("João Exemplo")).toBeInTheDocument();
+    expect(screen.queryByText("Ana Exemplo")).not.toBeInTheDocument();
+  });
+
+  it("“Carregar mais” não anexa página de outra busca nem repete a mesma página", async () => {
+    const bia: CrmCustomer = { ...ana, id: FX.customers.guestInA, name: "Bia Exemplo" };
+    const carla: CrmCustomer = { ...ana, id: "c0000000-0000-4000-8000-0000000000c1", name: "Carla Exemplo" };
+    const pendentes: ((v: Page) => void)[] = [];
+    const api = fakeApi({
+      listCustomers: vi.fn((q: { q?: string; cursor?: string }) =>
+        q.cursor
+          ? new Promise<Page>((r) => pendentes.push(r))
+          : Promise.resolve(q.q === "bia" ? { items: [bia], next_cursor: null } : { items: [ana], next_cursor: "c1" })),
+    });
+    renderWith(api, <CustomersPage />);
+    expect(await screen.findByText("Ana Exemplo")).toBeInTheDocument();
+
+    // Dois cliques na mesma página: anexa uma vez só.
+    fireEvent.click(screen.getByRole("button", { name: "Carregar mais" }));
+    fireEvent.click(screen.getByRole("button", { name: "Carregar mais" }));
+    await waitFor(() => expect(pendentes).toHaveLength(2));
+    pendentes[0]!({ items: [carla], next_cursor: "c2" });
+    pendentes[1]!({ items: [carla], next_cursor: "c2" });
+    expect(await screen.findByText("Carla Exemplo")).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getAllByText("Carla Exemplo")).toHaveLength(1);
+
+    // Pede a página seguinte e troca a busca antes de ela chegar: a página antiga é descartada.
+    fireEvent.click(screen.getByRole("button", { name: "Carregar mais" }));
+    await waitFor(() => expect(pendentes).toHaveLength(3));
+    expect(api.listCustomers).toHaveBeenLastCalledWith(expect.objectContaining({ q: undefined, cursor: "c2" }));
+    type("Buscar por nome, e-mail ou telefone", "bia");
+    expect(await screen.findByText("Bia Exemplo")).toBeInTheDocument();
+    pendentes[2]!({ items: [{ ...carla, id: "c0000000-0000-4000-8000-0000000000c2", name: "Dora Exemplo" }], next_cursor: null });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText("Dora Exemplo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ana Exemplo")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Carregar mais" })).not.toBeInTheDocument();
   });
 
   it("no desktop, Editar abre o formulário com o foco no primeiro campo; Cancelar devolve o foco ao “⋯”", async () => {
@@ -399,6 +458,16 @@ describe("módulo no app (demonstração sem servidor)", () => {
     expect(screen.getByRole("button", { name: "Novo cliente" })).toBeDisabled();
     fireEvent.click(within(screen.getByRole("navigation", { name: "Telas de Clientes" })).getByRole("link", { name: "Serviços" }));
     expect(await screen.findByText("Barba")).toBeInTheDocument();
+  });
+
+  it("demonstração busca como o servidor: sem acento nem caixa, e-mail e dígitos do telefone", async () => {
+    const demo = createDemoCrmApi();
+    const nomes = async (q: string) => (await demo.listCustomers({ q })).items.map((c) => c.name);
+    expect(await nomes("CLIENTE ÁB")).toEqual(["Cliente AB (exemplo)"]);
+    expect(await nomes("visitante sem login")).toEqual(["Visitante sem login (exemplo)"]);
+    expect(await nomes("cliente.ab@")).toEqual(["Cliente AB (exemplo)"]);
+    expect(await nomes("7777")).toEqual(["Cliente AB (exemplo)"]);
+    expect(await nomes("777")).toEqual([]);
   });
 
   it("demonstração recusa gravação mesmo se chamada diretamente", async () => {
