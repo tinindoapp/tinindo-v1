@@ -33,6 +33,7 @@
 .crm-visit__when { font-weight: var(--tn-font-weight-semibold); }
 .crm-visit__meta { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .crm-item__meta { font-size: var(--tn-text-support); color: var(--tn-text-muted); }
+.crm-item__visit { font-size: var(--tn-text-support); color: var(--tn-text); font-weight: var(--tn-font-weight-medium); }
 .crm-item__actions { justify-content: end; }
 .crm-tag {
   display: inline-block;

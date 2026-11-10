@@ -19,3 +19,14 @@
 .tn-lc-number__box { position: relative; display: flex; align-items: center; flex: 1 1 auto; min-width: 0; }
 .tn-lc-number__box input { width: 100%; padding-right: 4.5rem; text-align: right; }
 .tn-lc-number__unit { position: absolute; right: var(--tn-space-3); color: var(--tn-text-muted); font-size: var(--tn-text-support); pointer-events: none; }
+
+/* Aba Retorno (P49): três blocos em seções simples, linhas com divisor e uma ação visível por linha. */
+.tn-rt-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.tn-rt-item { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0; overflow-wrap: anywhere; }
+.tn-rt-item:last-child { border-bottom: 0; }
+.tn-rt-item h3 { margin: 0; font-size: var(--tn-text-body); }
+.tn-rt-item p { margin: 0; }
+.tn-rt-row { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.tn-rt-row__main { display: grid; gap: var(--tn-space-1); min-width: 0; }
+.tn-rt-row__name { font-weight: var(--tn-font-weight-medium); }
+@media (max-width: 30rem) { .tn-rt-row { grid-template-columns: minmax(0, 1fr); } }

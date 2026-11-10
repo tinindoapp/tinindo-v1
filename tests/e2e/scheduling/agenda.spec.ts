@@ -155,7 +155,12 @@ test("novo agendamento: cliente primeiro, busca, + Novo e barra de resumo que n�
 
   await bar.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
-  await expect(page.getByText("Dona Rosa")).toBeVisible();
+  await expect(page.getByText("Dona Rosa", { exact: true })).toBeVisible();
+  // P49: com WhatsApp no cadastro, a tela do atendimento oferece avisar com o texto de confirmação pronto.
+  const notice = page.getByRole("region", { name: "Avise o cliente" });
+  await expect(notice).toContainText("Olá, Dona Rosa! Seu horário de Corte está marcado para terça-feira, 20 de outubro, às 13:00");
+  await expect(notice.getByRole("link", { name: "Avisar no WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/5511977771212\?text=Ol%C3%A1%2C%20Dona%20Rosa/);
+  await noHorizontalScroll(page);
 });
 
 test("novo agendamento sem cadastro: o atendimento fica sem cliente vinculado", async ({ page }) => {

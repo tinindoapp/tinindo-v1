@@ -24,6 +24,7 @@ import {
   whatsAppDigits,
 } from "./agenda.ts";
 import { AttendanceActions, toastFailure } from "./attendance.tsx";
+import type { CreatedNotice } from "./BookingFlowPage.tsx";
 import type { Operation } from "./errors.ts";
 import { formatDayLong, localParts } from "./time.ts";
 import { ErrorPanel, PolicyNote, ScreenNotes, StatusBadge } from "./parts.tsx";
@@ -63,6 +64,9 @@ export function BookingDetailPage() {
   // Confirmação de quem chegou do fluxo de novo/reagendar: Toast quando o atendimento aparece, uma vez por navegação.
   const location = useLocation();
   const done = (location.state as { done?: string } | null)?.done;
+  // P49: recém-criado, com WhatsApp no cadastro: o texto de confirmação pronto, enquanto o atendimento segue confirmado.
+  const notify = (location.state as { notify?: CreatedNotice } | null)?.notify;
+  const created = done === "criado" && notify?.bookingId === bookingId && state.data?.status === "confirmed" ? notify : null;
   const loaded = state.data !== undefined;
   const toasted = useRef<string | null>(null);
   useEffect(() => {
@@ -97,6 +101,7 @@ export function BookingDetailPage() {
         <>
           {failure ? <ErrorPanel error={failure.err} operation={failure.op} /> : null}
           {nextStep ? <AfterCancel info={nextStep} /> : null}
+          {created ? <AfterCreate notice={created} /> : null}
           <BookingDetail
             key={state.data.version}
             booking={state.data}
@@ -106,6 +111,22 @@ export function BookingDetailPage() {
           />
         </>
       )}
+    </section>
+  );
+}
+
+/** Depois de criar: avisar o cliente pelo WhatsApp do dono, com o texto pronto (mesmo padrão do aviso de cancelamento). */
+function AfterCreate({ notice }: { notice: CreatedNotice }) {
+  return (
+    <section className="tn-sched-confirm tn-sched-after" aria-labelledby="after-create-title">
+      <h2 id="after-create-title">Avise o cliente</h2>
+      <p className="tn-sched-notice">{notice.text}</p>
+      <div className="tn-actions">
+        <a className="tn-button" data-variant="primary" href={`https://wa.me/${notice.phone}?text=${encodeURIComponent(notice.text)}`} target="_blank" rel="noreferrer noopener">
+          Avisar no WhatsApp
+        </a>
+      </div>
+      <p className="tn-muted">Texto pronto para você compartilhar: o WhatsApp abre com ele, você revisa e envia. Abrir não confirma que chegou.</p>
     </section>
   );
 }
