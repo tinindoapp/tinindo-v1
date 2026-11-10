@@ -122,7 +122,7 @@ function AfterCreate({ notice }: { notice: CreatedNotice }) {
       <h2 id="after-create-title">Avise o cliente</h2>
       <p className="tn-sched-notice">{notice.text}</p>
       <div className="tn-actions">
-        <a className="tn-button" href={`https://wa.me/${notice.phone}?text=${encodeURIComponent(notice.text)}`} target="_blank" rel="noreferrer noopener">
+        <a className="tn-button" data-variant="primary" href={`https://wa.me/${notice.phone}?text=${encodeURIComponent(notice.text)}`} target="_blank" rel="noreferrer noopener">
           Avisar no WhatsApp
         </a>
       </div>

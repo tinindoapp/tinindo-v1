@@ -90,7 +90,7 @@ function Reminders({ load, contacts, board, port, onShared }: { load: Load<Lifec
                 <p className="tn-muted">Para você compartilhar · previsto {formatDateTime(s.due_at, timezone)}</p>
                 <span className="tn-lc-body">{s.body}</span>
                 <div className="tn-actions">
-                  <a className="tn-button" href={whatsappHref(phone, s.body)} target="_blank" rel="noopener noreferrer" aria-label={`Mandar no WhatsApp para ${who}`} onClick={() => shared(s)}>
+                  <a className="tn-button" data-variant="primary" href={whatsappHref(phone, s.body)} target="_blank" rel="noopener noreferrer" aria-label={`Mandar no WhatsApp para ${who}`} onClick={() => shared(s)}>
                     Mandar no WhatsApp
                   </a>
                 </div>
