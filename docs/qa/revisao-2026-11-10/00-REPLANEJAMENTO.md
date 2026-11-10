@@ -86,6 +86,8 @@ Não dependem de decisão dos donos. São pequenos, de risco baixo, e vários es
 
 A linha Q é falta de tela, não defeito de código; entra na Onda 1. A linha P pede migration nova e vai com a Onda 6. A linha R já foi corrigida. As demais formam a Onda 0. A linha B adota em todo o app a regra que o Caixa já usa (decisão D13).
 
+**Situação em 10/11.** As linhas A, C, D, E, H e S estão corrigidas no branch `claude/correcoes-revisao-1110` (quatro commits, cada um com o teste que faltava; sem PR aberto). A linha R está corrigida nos PRs #91 e #92. Faltam B, F, G, I, J, K, L, M, N e O.
+
 O item A tem causa única e correção única: um hook de chave em `src/lib` com a semântica do `identity/idempotency.ts` (mesma chave enquanto o conteúdo é o mesmo, mantida no erro, trocada só no sucesso), mais um teste em que a porta falha uma vez e a segunda tentativa sai com a mesma chave.
 
 ## 5. Plano em ondas
