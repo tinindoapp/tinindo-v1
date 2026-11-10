@@ -100,6 +100,31 @@ describe("agenda (demonstração sobre fixtures)", () => {
     expect(screen.queryByRole("region", { name: "Atendimento cancelado" })).not.toBeInTheDocument();
   });
 
+  it("reagendar com versão desatualizada: a explicação aparece, o horário escolhido fica e a segunda tentativa reagenda", async () => {
+    const port = createFixturePort({ simulate: "versao" });
+    const reschedule = vi.spyOn(port, "reschedule");
+    const router = renderAt("/app/agenda/atendimento/60000000-0000-4000-8000-000000000006/reagendar", null, port);
+    const slots = await screen.findByRole("group", { name: "Horários livres" }, SLOW);
+    const chosen = within(slots).getAllByRole("button").at(-1)!;
+    const time = chosen.textContent!;
+    fireEvent.click(chosen);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar reagendamento" }));
+
+    expect(await screen.findByText("Este atendimento mudou enquanto você editava")).toBeInTheDocument();
+    // A releitura do atendimento não desmonta o fluxo: a explicação e o horário escolhido continuam na tela.
+    await waitFor(() => expect(reschedule).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(screen.getByText("Este atendimento mudou enquanto você editava")).toBeInTheDocument();
+    expect(screen.queryByText("Carregando atendimento…")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Horários livres" })).getByRole("button", { name: time })).toHaveAttribute("aria-pressed", "true");
+
+    // Com a versão relida, a nova tentativa vai com a versão atual e reagenda.
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar reagendamento" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/app/agenda/atendimento/60000000-0000-4000-8000-000000000006"), SLOW);
+    expect(reschedule).toHaveBeenCalledTimes(2);
+    expect(reschedule.mock.calls[1]![0].expected_version).toBe(reschedule.mock.calls[0]![0].expected_version + 1);
+  });
+
   it("cancelar na quarta: oferece à lista de espera (1 pessoa) e Desfazer refaz no mesmo horário com id novo", async () => {
     const port = createFixturePort();
     const slot = { starts_at: "2026-10-21T11:00:00-03:00", ends_at: "2026-10-21T11:20:00-03:00" };
