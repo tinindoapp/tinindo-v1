@@ -1,0 +1,283 @@
+{
+ "area": "testes",
+ "veredito": "misto",
+ "veredito_justificativa": "A base está forte e no tamanho certo: 1.779 asserções pgTAP em 9,8 s, 142 testes de integração com banco real em 18,6 s, 27 scripts de concorrência, 807 testes de contrato, e o CI roda tudo isso em todo PR, sem falha nem instabilidade na medição de 10/11 (0 falhas em 8 suítes). O topo está largo no lugar errado: as 308 execuções do Playwright e a maior parte dos 468 testes de frontend exercitam a demonstração offline (5.687 linhas de regra paralela no navegador), enquanto o caminho real navegador → porta de servidor → função → banco não tem teste automático (25 de 26 adaptadores de servidor sem teste, 14 passos dos roteiros UAT em fixme). Os três defeitos de 04/11 escaparam exatamente por aí: chave de idempotência trocada no erro, schema local do guia e contraste, três coisas que nenhum nível mede.",
+ "manter": [
+  "pgTAP em supabase/tests/database (33 arquivos, 1.779 asserções, 9,8 s com migrations do zero): é a prova de RLS, autorização e idempotência no lugar onde a regra mora. Não trocar por mock nem mover para o handler.",
+  "tests/integration com harness sem mock de RPC (24 arquivos, 142 testes, 18,6 s): os helpers ok() e fails() validam a resposta contra o schema do contrato e o código de erro (tests/integration/harness.ts:219-234). Os 19 casos sem expect() explícito falham de verdade por esses helpers.",
+  "tests/db-concurrency (27 scripts, 267 verificações): corrida real com várias conexões; é o que prova BOOK-01, WAIT-01 e FIN-02. Só mudar a preparação do banco (achado testes-08), não o conteúdo.",
+  "Testes de contrato e o elo fixtures ↔ seed (tests/contracts/foundation/registry-and-fixtures.test.ts:89): garantem que demonstração, contrato e seed falam dos mesmos IDs.",
+  "CI em .github/workflows/ci-app.yml: roda lint, typecheck, unit, contratos, build, deno check, pgTAP, lint de schema, concorrência, integração, ensaio de restore, e2e e gitleaks em todo PR, com actions fixadas por SHA e a regra escrita de não usar || true nem --passWithNoTests (linha 4).",
+  "Playwright com retries: 0 (playwright.config.ts:11) e 0 teste instável na medição: instabilidade aparece em vez de ser escondida por nova tentativa.",
+  "tests/e2e/foundation/padroes.spec.ts: percorre todas as rotas do menu em 375 px, nos dois temas, e acusa fonte menor que 12 px, botão sem nome e rolagem lateral. É a base certa para receber a checagem de contraste.",
+  "src/app/css-system.test.ts: trava as regras do sistema de CSS (tokens de fonte, peso, sombra, pontos de quebra) em 7 testes rápidos.",
+  "eslint com --max-warnings=0 e tsc estrito como portões (20 s cada)."
+ ],
+ "achados": [
+  {
+   "id": "testes-01",
+   "titulo": "O caminho real navegador → porta de servidor → função não tem teste: 25 de 26 adaptadores de servidor (≈1.950 linhas) nunca rodam em teste",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "Verificado: `grep -rlE \"createServerPort|createApiClient\" src --include=*.test.ts --include=*.test.tsx` devolve só src/features/scheduling/serverPort.test.ts e src/lib/api/client.test.ts; há 24 serverPort.ts e 2 api.ts em src/features (2.105 linhas; só as 149 do scheduling têm teste). tests/integration chama os handlers direto (harness.ts:194 `call(module, op)`), sem passar pelas portas do frontend (`grep -rn \"serverPort|src/features\" tests/integration` = vazio). O Playwright roda só a demonstração (playwright.config.ts:3-4). Consequência já vista (04/11, item 3): src/features/agent/serverPort.ts:5 e :29 validam `setup.progress` com o schema local de src/features/agent/setupGuide.ts:9-23 em vez do contrato (supabase/functions/_shared/contracts/setup.ts:49), e o único teste do caminho de servidor cobre a falha (src/features/agent/AssistPanels.test.tsx:46).",
+   "recomendacao": "Criar no harness de integração um `edgeFetch(usuario)` que entrega a Request ao handler montado (mesmo roteamento de harness.ts:194-218) e um arquivo tests/integration/50_portas_do_navegador.test.ts que, para cada feature, monta `createServerPort(createApiClient({ fetch: edgeFetch(U.ownerA) }), T.A)` e chama todas as leituras e uma escrita por porta. O próprio cliente já valida a resposta contra o schema (src/lib/api/client.ts:83), então schema divergente ou rota errada falha no CI. Começar pelas portas do núcleo (scheduling, crm, finance, pricing, lifecycle, waitlist, setup, agent). Junto, apagar o schema local de setupGuide.ts e importar SetupProgress de @contracts.",
+   "caminhos": [
+    "tests/integration/harness.ts",
+    "tests/integration/",
+    "src/features/*/serverPort.ts",
+    "src/features/crm/api.ts",
+    "src/features/network/api.ts",
+    "src/features/agent/setupGuide.ts",
+    "src/features/agent/serverPort.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "testes-02",
+   "titulo": "Nenhum teste nem regra de lint garante a mesma chave de idempotência na nova tentativa: 131 chamadas geram chave no envio e 7 trocam a chave no erro",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "Verificado: `grep -rnE \"newKey\\(\\)\\)\" src --include=*.ts --include=*.tsx | grep -v \"\\.test\\.\"` = 131 ocorrências em 27 arquivos de tela (ex.: src/features/finance-advanced/AccountsPage.tsx:41, src/features/recurrence/RecurrencePage.tsx:39). `setKey(newKey())` dentro do catch em src/features/materials/MaterialsPage.tsx:110-111, recurrence/RecurrencePage.tsx:95-96, payments/PaymentsPage.tsx:48-49, messaging/InboxPage.tsx:32-33 e :105-106, campaigns/CampaignsPage.tsx:64-65, resources/ResourcesPage.tsx:136-137. Testes de tela que conferem a chave no retry: só src/features/identity/identity.test.tsx:127 e src/features/agent/AgentPage.test.tsx:49-61; src/features/finance/useKeyFor.test.tsx:6 cobre dois toques, não erro seguido de nova tentativa. A regra existe e passa no banco (FIN-02 em pgTAP 05, conc 05_finance, tests/integration/12_uat_personal.test.ts:80), mas com a chave repetida pelo próprio teste. É a causa do item 1 de 04/11.",
+   "recomendacao": "Duas travas. (1) Lint: regra `no-restricted-syntax` em eslint.config para `newKey()` passado direto como argumento e para `setKey(newKey())` dentro de `catch`; as 131 ocorrências viram a lista de trabalho da correção. (2) Teste de tela por formulário de escrita, com um helper único em src/test (porta que rejeita a primeira chamada e aceita a segunda; afirma `keys[0] === keys[1]` e que mudar o conteúdo troca a chave), aplicado primeiro a Caixa (recebimento, despesa), Materiais, Mensagens, Contas e Recorrência. A correção do código (hook único de chave por conteúdo) é do achado 1 de 04/11 e da área de frontend.",
+   "caminhos": [
+    "eslint.config.js",
+    "src/test/",
+    "src/features/finance/",
+    "src/features/materials/MaterialsPage.tsx",
+    "src/features/messaging/InboxPage.tsx",
+    "src/features/finance-advanced/AccountsPage.tsx",
+    "src/features/recurrence/RecurrencePage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "testes-03",
+   "titulo": "Contraste não é medido em nível nenhum, embora a matriz UX-01 prometa contraste legível; por isso o passo com contraste 1:1 passou",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "Verificado: `grep -nE \"axe|contrast|pa11y|lighthouse\" package.json` = vazio; `grep -rnlE \"axe|contrast|contraste\" tests/e2e src` só acha tests/e2e/foundation/navegacao.spec.ts (sem medir contraste). A função audit() de tests/e2e/foundation/padroes.spec.ts:15-43 confere rolagem lateral, fonte ≥ 12 px, botão sem nome e tamanho de botão de ícone; nada de cor. tests/e2e/foundation/a11y.spec.ts tem 4 testes (pular para o conteúdo, título, foco, 320 px). docs/10_TESTES_E_ACEITE.md:25 exige \"foco/contraste legíveis\" e a linha 66 dá UX-01 como provado por esses arquivos. Defeito que escapou: src/features/setup/setup.css:19 (04/11, item 2).",
+   "recomendacao": "Acrescentar à audit() de padroes.spec.ts a medida de contraste de todo elemento com texto próprio: cor computada contra o primeiro fundo opaco dos ancestrais (compondo alfa), limite 4,5:1 (3:1 para texto ≥ 24 px ou ≥ 18,66 px em negrito), nos dois temas que o teste já percorre. Incluir na lista de rotas as telas com estado destacado que não estão no menu (configuração guiada com passo `data-next`, folhas abertas). Alternativa equivalente: @axe-core/playwright só com a regra color-contrast. Corrigir a linha 66 do docs/10 para citar o teste novo.",
+   "caminhos": [
+    "tests/e2e/foundation/padroes.spec.ts",
+    "docs/10_TESTES_E_ACEITE.md",
+    "src/features/setup/setup.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "testes-04",
+   "titulo": "Os roteiros UAT das três personas não fecham na tela: 14 passos em test.fixme (28 das 33 execuções puladas) e nenhuma jornada roda a interface com servidor",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "Medido em 10/11: `npx playwright test --workers=2` = 308 execuções, 275 passaram, 33 puladas, 0 falhas, 251 s; das puladas, 28 são fixme (14 passos × 2 projetos) e 5 são skip por projeto (trabalho/testes/pw-run2.json). Por arquivo: tests/e2e/qa/uat-personal.spec.ts 4 de 7 testes em fixme (linhas 43, 52, 60, 66), uat-cabeleireira.spec.ts 5 de 9 (12, 25, 50, 77, 111), uat-cliente-dois-profissionais.spec.ts 3 de 6 (22, 56, 62), uat-barbeiro.spec.ts 2 de 15 (28, 61). Motivo declarado em tests/e2e/qa/helpers.ts:9: a demonstração não grava cadastro (ADR-0006) e a tela com servidor só roda na homologação hospedada. A regra está provada pelos handlers (tests/integration/10 a 13), mas a tela desses passos (cadastrar serviço, importar clientes, pacote, recorrência) não é exercitada com gravação real em lugar nenhum.",
+   "recomendacao": "Depois do testes-01, criar um projeto Playwright `servidor` com UMA jornada do ciclo principal (cliente → serviço → horário e preço → confirmar → concluir → receber → retorno) contra o stack local (supabase start com auth e functions serve, build com VITE_SUPABASE_URL local, usuário do seed), rodando no push da main e uma vez por noite. Os 14 fixme saem do arquivo: os que a jornada cobrir viram teste de verdade; os demais viram uma tabela em docs/10 apontando para o teste de integração que prova a regra, para o relatório parar de mostrar 33 pulados como ruído.",
+   "caminhos": [
+    "playwright.config.ts",
+    "tests/e2e/qa/",
+    "tests/e2e/qa/helpers.ts",
+    ".github/workflows/ci-app.yml",
+    "docs/10_TESTES_E_ACEITE.md"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "testes-05",
+   "titulo": "A demonstração é uma segunda implementação (5.687 linhas) que recebe quase todo o peso dos testes de tela, sem nenhum teste de paridade com o servidor",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "Verificado: `find src -iname \"*fixture*\" -o -iname \"demo*\" | grep -v test | xargs wc -l` = 5.687 linhas; 23 arquivos demoPort.test.ts/fixturePort.test.ts, dos quais só 6 validam a saída com schema (`grep -rlE \"\\.parse\\(|safeParse\\(\"` nesses arquivos); busca por paridade (`grep -rnliE \"paridade|conformance|duas portas\" src tests`) = vazio. Divergência admitida no próprio código: tests/e2e/qa/helpers.ts:11 (\"A agenda da demonstração usa a regra de exemplo própria\"). Defeito de 04/11 da mesma família: item 10 (configuração guiada da demonstração não muda o resto do app, src/features/setup/demoPort.ts).",
+   "recomendacao": "Para as portas do núcleo (scheduling, finance, crm, pricing), escrever o cenário uma vez, como função que recebe a porta, e rodá-lo duas vezes: em vitest contra a porta de demonstração e em tests/integration contra a porta de servidor ligada ao handler (adaptador do testes-01). Regras comparadas: conflito de horário, piso de preço, saldo depois de recebimento parcial e estorno, repetição com a mesma chave. Nos 17 testes de porta de demonstração que não validam schema, passar cada retorno por `Schema.parse` do @contracts.",
+   "caminhos": [
+    "src/features/scheduling/",
+    "src/features/finance/",
+    "src/features/crm/",
+    "src/features/pricing/",
+    "tests/integration/"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "testes-06",
+   "titulo": "O teste de 320 px cobre só 4 rotas e deixa a Home de fora; o de 375 px não vê conteúdo cortado",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "Verificado: tests/e2e/foundation/a11y.spec.ts:50-58 percorre apenas /app/clientes/importar, /app/conta, /app/conta/novo-negocio e /app/perfil. tests/e2e/foundation/padroes.spec.ts:17 compara só `document.documentElement.scrollWidth` com a largura, em 375 px. O item 9 de 04/11 (Home rola para o lado em 320 px e o valor passa da borda em 375 px, src/app/pages/pages.css:20-24) cai nos dois buracos: rota fora da lista e texto que ultrapassa a caixa sem criar rolagem.",
+   "recomendacao": "No A11Y-01, trocar a lista fixa por `appRoutes(page)` (já existe em padroes.spec.ts:8-12) mais as rotas públicas. Na audit(), acrescentar: para cada elemento com texto próprio, `getBoundingClientRect().right` não pode passar de `innerWidth` nem da borda direita do contêiner mais próximo que corta conteúdo (overflow diferente de visible).",
+   "caminhos": [
+    "tests/e2e/foundation/a11y.spec.ts",
+    "tests/e2e/foundation/padroes.spec.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "testes-07",
+   "titulo": "80 dos 111 arquivos do projeto unit não usam DOM e mesmo assim sobem jsdom: 29,5 s contra 10,0 s em ambiente node",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "Medido: `npm run test:unit` = 111 arquivos, 733 testes, 55,0 s, com \"environment 49%\" (trabalho/testes/unit.log). vite.config.ts:78-81 põe src/**/*.test.{ts,tsx}, worker e supabase/functions no mesmo projeto com environment jsdom. Os 47 src/**/*.test.ts, os 32 de supabase/functions e o de worker (80 arquivos, 477 testes) rodados sozinhos: 29,5 s em jsdom (environment 69%) e 9,99 s com environment node (config em trabalho/testes/tools/vitest.node.config.mjs). Em node, 1 arquivo falha (src/features/payments/demoPort.test.ts, 3 testes, `window is not defined`); os outros 79 passam.",
+   "recomendacao": "Dividir o projeto unit em dois em vite.config.ts: `unit` (environment node; src/**/*.test.ts, worker, supabase/functions) e `unit-dom` (jsdom; src/**/*.test.tsx e o payments/demoPort.test.ts, ou injetar o armazenamento em vez de ler `window`/`sessionStorage` direto, src/features/payments/demoPort.ts:48). `npm run test:unit` passa a rodar os dois. Ganho esperado no ciclo local e no CI: cerca de 20 s por execução.",
+   "caminhos": [
+    "vite.config.ts",
+    "package.json",
+    "src/features/payments/demoPort.test.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "testes-08",
+   "titulo": "A suíte de concorrência reaplica as 38 migrations do zero 27 vezes: 173 s, o trecho mais lento do banco, quase todo em preparação",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "Medido com PGHOST=/var/tmp/pgtest PGPORT=54329: `npm run db:test:concurrency` = 27 scripts, exit 0, 173,2 s (6,4 s por script); `npm run db:test:local` (migrations + seed + 33 arquivos pgTAP) = 9,8 s; `npm run test:integration` = 18,6 s, dos quais 14,6 s de vitest, ou seja, cerca de 4 s para criar, migrar e semear. scripts/db-concurrency.sh:11-17 cria um banco e roda shim + 38 migrations + seed para cada script. Inferência: perto de 27 × 4 s ≈ 108 s dos 173 s são migração repetida. Os três scripts (db-test-local.sh, db-integration.sh, db-concurrency.sh) repetem o mesmo bloco de preparação.",
+   "recomendacao": "Criar scripts/db-local/prepare.sh que monta uma vez o banco modelo (shim + migrations + seed) e fazer os três scripts criarem o banco de trabalho com `create database X template <modelo>`. Em db-concurrency.sh, cada script recebe uma cópia nova do modelo (mantém o isolamento). Mede-se de novo: a meta é concorrência abaixo de 70 s.",
+   "caminhos": [
+    "scripts/db-concurrency.sh",
+    "scripts/db-test-local.sh",
+    "scripts/db-integration.sh",
+    "scripts/db-local/"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "testes-09",
+   "titulo": "O smoke de homologação, único teste da tela com servidor, pula em silêncio quando falta variável e fica verde sem conferir nada",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "Verificado: tests/e2e-staging/smoke.spec.ts:71, :94 e :113 usam `test.skip(!env.…)` para as funções, o login da conta técnica e o perfil público; sem STAGING_SUPABASE_URL, STAGING_TECH_EMAIL/PASSWORD e STAGING_PUBLIC_SLUG o comando termina com sucesso. O arquivo não está em nenhum job de .github/workflows/ci-app.yml (só `npm run test:e2e`, que usa tests/e2e) nem em script do package.json.",
+   "recomendacao": "Ler `STAGING_REQUIRED=1` no smoke: com ela, variável ausente vira falha (`expect(env.email, 'defina STAGING_TECH_EMAIL').toBeTruthy()`) em vez de skip. Acrescentar o script `test:staging` no package.json e citar o comando com STAGING_REQUIRED=1 em release/CHECKLIST.md, seção 2. Sem credencial no CI de PR (regra do ci-app.yml:2 mantida).",
+   "caminhos": [
+    "tests/e2e-staging/smoke.spec.ts",
+    "package.json",
+    "release/CHECKLIST.md"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "testes-10",
+   "titulo": "A leitura da frase do negócio tem 6 casos felizes e nenhum com negação; o erro que salva dias errados não tinha como ser pego",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "Verificado: supabase/functions/_shared/domain/setup/describe.test.ts tem 6 testes (linhas 6, 13, 26, 36, 44, 54); `grep -nE \"não atendo|nao atendo|sessões\"` nesse arquivo e em src/features/setup/*.test.* = vazio. Os casos de 04/11, item 4 (\"não atendo domingo e segunda\" vira atendimento nesses dias; \"pacote com 4 sessões\" vira \"4 pessoas\") não estão em teste algum.",
+   "recomendacao": "Trocar os 6 casos por uma tabela (`it.each`) em describe.test.ts com as frases reais das três personas, incluindo negação (\"não atendo…\", \"fecho…\", \"menos…\"), dois turnos e números que não são equipe (sessões, minutos, reais). Acrescentar a propriedade: dia citado em negação nunca aparece no expediente e o trecho não entendido volta em `unknown`. As frases de 04/11 entram como regressão.",
+   "caminhos": [
+    "supabase/functions/_shared/domain/setup/describe.test.ts",
+    "supabase/functions/_shared/domain/setup/describe.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "testes-11",
+   "titulo": "Reserva pelo link: o teste confirma o bloqueio depois de 5 códigos errados, mas não há teste de pedir código novo nem do estado de envio na tela",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "Verificado: tests/db-concurrency/24_public_booking.sh:101-106 prova que depois de 5 erros nem o código certo confirma e o horário fica provisório; não há caso de novo pedido depois do bloqueio (única outra menção a tentativas: supabase/tests/database/25_public_booking.test.sql:152, na troca de pedido). `grep -rnE \"delivery\" src/features/network/*.test.tsx tests/e2e/network/*.ts` = vazio: nenhum teste de tela olha o resultado do envio. São os itens 5, 6 e 7 de 04/11.",
+   "recomendacao": "Depois da decisão de produto sobre o desbloqueio (04/11, item 5): em 25_public_booking.test.sql, caso \"novo pedido para o mesmo horário e contato depois de 5 erros começa com attempts = 0 e o código certo confirma\", mais o limite por contato contra abuso. Em src/features/network/network.test.tsx, caso com `delivery` de falha: a tela não diz \"Enviamos um código\" e mostra \"Reenviar código\". Em tests/e2e/network/confirmacao.spec.ts, corrigir o WhatsApp mantém o horário.",
+   "caminhos": [
+    "supabase/tests/database/25_public_booking.test.sql",
+    "tests/db-concurrency/24_public_booking.sh",
+    "src/features/network/network.test.tsx",
+    "tests/e2e/network/confirmacao.spec.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "testes-12",
+   "titulo": "A mesma regra de servidor é reescrita em até cinco níveis (conflito de horário em 31 arquivos de teste) sem dono definido por nível",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "Contagem por `grep -rl` em 10/11: SLOT_CONFLICT aparece em 9 arquivos de teste de src, 4 de supabase/functions, 1 de contratos, 6 de integração, 6 de pgTAP e 5 de concorrência; FORBIDDEN em 12 de supabase/functions, 20 de integração e 32 de pgTAP; IDEMPOTENCY_MISMATCH em 9 de pgTAP, 3 de funções, 1 de integração, 1 de concorrência. O custo em tempo é pequeno (handlers 1,2 s, integração 18,6 s, pgTAP 9,8 s); o custo é de manutenção: uma mudança de regra pede edição em contrato, handler, integração, pgTAP, porta de demonstração, teste da porta, teste de tela e e2e. Total de código de teste: cerca de 29 mil linhas para 44,5 mil de TypeScript de produção.",
+   "recomendacao": "Escrever em docs/10 uma tabela de dono por nível e aplicar nos próximos pacotes: regra de dados (RLS, conflito, idempotência, saldo) = pgTAP, e concorrência quando há corrida; handler.test = só validação de entrada e mapeamento de erro (sem repetir matriz SEC); integração = um caminho feliz e uma negação por operação, mais os roteiros UAT; tela = estados e texto; e2e = jornada. Na próxima vez que um módulo for tocado, remover do handler.test os casos SEC que 00_seguranca.test.ts e o pgTAP já provam. Não apagar em lote agora.",
+   "caminhos": [
+    "docs/10_TESTES_E_ACEITE.md",
+    "supabase/functions/*/handler.test.ts",
+    "tests/integration/00_seguranca.test.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "testes-13",
+   "titulo": "Todo PR roda as 308 execuções de e2e dos 27 módulos, com fluxos funcionais repetidos em dois temas e dois projetos, e não há recorte do núcleo",
+   "gravidade": "baixa",
+   "tipo": "simplificar",
+   "evidencia": "Medido: 308 execuções em 251 s com 2 workers (soma das durações: 489 s). 242 execuções (372 s) são de núcleo e base (scheduling, crm, finance, pricing, lifecycle, waitlist, qa, foundation, identity, network, setup); 66 são dos demais módulos. Quatro specs funcionais repetem o fluxo inteiro em claro e escuro (tests/e2e/identity/cadastro.spec.ts:10 e :32, network/reserva-etapas.spec.ts:19, network/confirmacao.spec.ts:24, messaging/modelo.spec.ts:7), e tudo roda em desktop e celular. Os 5 testes mais lentos são os de padroes.spec.ts (11 s cada).",
+   "recomendacao": "Marcar os specs de núcleo e base com a tag `@nucleo` e, se os donos esconderem módulos fora do piloto (decisão da área de escopo), rodar os specs desses módulos só no push da main. Nos quatro specs com laço de tema, manter o fluxo em um tema e deixar o segundo tema para uma asserção visual curta. Não mexer antes da decisão de escopo: hoje 4,2 min cabem no orçamento do PR.",
+   "caminhos": [
+    "tests/e2e/",
+    "playwright.config.ts",
+    ".github/workflows/ci-app.yml"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "testes-14",
+   "titulo": "Não existe comando único para o ciclo local: `npm test` roda só unit e contratos (60 s) e deixa de fora banco e e2e, que somam 7,5 min",
+   "gravidade": "baixa",
+   "tipo": "simplificar",
+   "evidencia": "Verificado em package.json: `test` = `npm run test:unit && npm run test:contracts`. Tempos medidos em 10/11 (4 CPUs, carga 1 a 3): lint 20,0 s; typecheck 19,8 s; unit 55,0 s; contratos 5,4 s; e2e 251 s; pgTAP 9,8 s; integração 18,6 s; concorrência 173,2 s. Total em sequência: cerca de 9,2 min, dos quais 7,1 min em e2e e concorrência. As variáveis PGHOST, PGPORT e PGUSER precisam ser passadas à mão a cada script de banco.",
+   "recomendacao": "Acrescentar ao package.json `verify:rapido` (lint, typecheck, unit, contratos; cerca de 1 min depois do testes-07) e `verify` (o rápido mais pgTAP, integração, concorrência e e2e), e fazer os scripts de banco lerem um padrão de PGHOST/PGPORT em scripts/db-local/env.sh quando as variáveis não vierem. Documentar os dois em AGENTS.md como o que o agente roda antes de abrir PR.",
+   "caminhos": [
+    "package.json",
+    "scripts/db-local/",
+    "AGENTS.md"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Jornada e2e com servidor no CI (testes-04). Opções: (a) uma jornada do ciclo principal contra o stack Supabase local, no push da main e à noite; (b) só o teste das portas contra os handlers (testes-01), sem navegador; (c) continuar só com o smoke manual na homologação. Recomendo (b) agora e (a) em seguida: (b) é barato e fecha o buraco que deixou passar o guia; (a) custa minutos de CI e manutenção, mas é a única prova automática de que a tela grava.",
+  "Portão de e2e por escopo (testes-13). Se módulos fora do piloto forem escondidos, os e2e deles podem sair do PR e rodar só na main. Opções: manter tudo no PR (4,2 min hoje) ou separar por tag. Recomendo separar só depois da decisão de escopo; até lá, manter.",
+  "Os 38 testes de avaliação com provedor real (tests/contracts/agent/evals-llm-live.test.ts) nunca rodam. Quando houver chave de provedor em homologação (issue de gasto e termos), decidir se rodam por agendamento com teto de custo. Recomendo rodar semanalmente com teto, fora do portão de PR."
+ ],
+ "nao_coberto": [
+  "Proteção de branch no GitHub (quais checks são obrigatórios para merge): não consultei a API; o ci-app.yml roda tudo em PR, mas não confirmei que o merge é bloqueado por falha.",
+  "npm run build, npm run test:coord, npm run check:functions (deno não está instalado nesta máquina) e npm run db:restore:drill não foram rodados; build por regra da auditoria.",
+  "tests/e2e-staging e a avaliação com provedor real não rodam sem credenciais.",
+  "Cobertura por linha (v8/istanbul) não foi medida: o projeto não tem a dependência de cobertura e não instalei pacote.",
+  "Teste de mutação: não rodei; a checagem de 'teste que não consegue falhar' foi por análise estática (casos sem expect) e leitura dos helpers.",
+  "Cada suíte rodou uma vez nesta retomada (lint, typecheck, unit e contratos foram medidos pelo auditor anterior e reaproveitados); como nada falhou, não houve segunda rodada para medir instabilidade. A primeira tentativa do Playwright falhou 100% por falta do Chromium na versão que o pacote pede (1194; a máquina tem 1243), problema de ambiente e não do produto.",
+  "Tempos reais do CI no GitHub Actions (duração dos jobs, filas) não foram consultados.",
+  "Não li um a um os 33 arquivos pgTAP nem os 27 scripts de concorrência; conferi por amostra e pelos resultados."
+ ]
+}

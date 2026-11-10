@@ -1,0 +1,301 @@
+{
+ "area": "ux-cliente-final",
+ "veredito": "misto",
+ "veredito_justificativa": "O fluxo de reserva está no tamanho certo (4 passos, alvos de 44 px, textos humanos, token no fragmento, 'abrir não aceita nada'). Como vitrine está simples demais: o perfil mínimo é nome, região e um formulário, sem endereço, descrição, horário de funcionamento nem política, e a marca que domina todas as páginas é a Tinindo, não o profissional. Em largura está exagerado: 12 rotas públicas em 5 molduras visuais diferentes, duas páginas públicas concorrentes para o mesmo negócio (/p e /s) e um diretório para um piloto de 6 a 10 profissionais. E toda página pública baixa o app inteiro do profissional (1.589.139 bytes de JS, 16% usados).",
+ "manter": [
+  "Reserva em 4 passos com indicador 'Passo N de 4' e resumo da escolha (PublicProfileView.tsx:174-200): a contagem e a ordem estão certas; mexer só na moldura em volta.",
+  "Código de confirmação pelo WhatsApp num único campo com inputMode numeric e autoComplete one-time-code (PublicProfileView.tsx:665-667) e 'Número errado? Corrigir' ao lado do aviso.",
+  "Frases de segurança das páginas com token: 'Abrir esta página não aceita nada. Aceitar não é pagar' (QuoteLinkPage.tsx:108) e 'Abrir esta página não reserva nada' na oferta. Passam confiança e devem sobreviver ao redesenho.",
+  "Token no fragmento (#t=), tirado da barra de endereço e guardado só na sessão (PayLinkPage.tsx:14-20): bom para privacidade e para a prévia de link não vazar nada.",
+  "Botão principal preto, fundo #F7F7F5, cartões brancos e tokens da marca nas páginas públicas: o acabamento básico é o mesmo das telas do profissional e não tem laranja em botão ou estado.",
+  "Alvos de toque de 44 px e ausência de rolagem horizontal em 390 e 360 px (medidas em log-fluxos-m390.json e log-fluxos-m360.json).",
+  "Reputação sem nome de autor, média só a partir de 3 avaliações e 'ordem alfabética, sem destaque pago' no diretório: regras de confiança corretas.",
+  "Prévia de link própria para /p e /s com nome do negócio e foto quando existe (worker/og.ts:107-121) e o .ics com mensagem pronta de WhatsApp depois da reserva (PublicProfileView.tsx:153-168)."
+ ],
+ "achados": [
+  {
+   "id": "ux-cliente-final-01",
+   "titulo": "Com servidor, 'Recebimento simulado' é o padrão e o cliente vê 'Copiar Pix' falso e o botão 'Pagar (simulação)', que dá a cobrança como paga",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "src/features/payments/PaymentsPage.tsx:24 (useState<PaymentProvider>('simulated')) e :61-64 (as duas opções aparecem ao profissional sem condição de ambiente). src/features/payments/PayLinkPage.tsx:82 e :92-99 mostram o aviso 'Simulação' e os botões 'Pagar (simulação)' e 'Deixar expirar (simulação)' a qualquer pessoa com o link sempre que view.simulated for verdadeiro, sem checar ambiente. supabase/functions/payments/handler.ts:252-276 aceita esse pedido anônimo com o token e dispara o aviso assinado de pagamento para cobranças do provedor 'simulated'. Captura trabalho/ux-cliente-final/shots/m390-20-pagar-pendente.png mostra a tela. Fato verificado por leitura de código; não rodei com servidor (inferência: o recebível passa a constar como pago).",
+   "recomendacao": "Fora da demonstração offline, não oferecer 'Recebimento simulado' ao profissional (ou só em homologação, por variável de ambiente) e, na página do cliente, nunca renderizar o bloco tn-pay-box nem 'Copiar Pix' de cobrança simulada: mostrar 'Cobrança de teste. Não pague.' Trocar o padrão do seletor para o provedor real quando ele estiver configurado.",
+   "caminhos": [
+    "src/features/payments/PaymentsPage.tsx",
+    "src/features/payments/PayLinkPage.tsx",
+    "supabase/functions/payments/handler.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "ux-cliente-final-02",
+   "titulo": "A marca que domina as páginas do cliente é a Tinindo; o profissional aparece como texto de corpo",
+   "gravidade": "alta",
+   "tipo": "redesenhar",
+   "evidencia": "Orçamento: logotipo Tinindo de 144 px no topo do cartão e h1 genérico 'Orçamento'; o nome do negócio fica numa linha de 16 px junto do título do orçamento (src/features/sales/QuoteLinkPage.tsx:82-83 e :89; medida negocioFont 16px, h1Font 24px em log-fluxos-m390.json; captura m390-30-orcamento.png). Oferta: mesmo logotipo de 144 px e o negócio na linha 'Onde' (src/features/waitlist/OfferPage.tsx:73-74; m390-40-oferta.png). Perfil: logotipo de 120x30 px é o primeiro elemento (y 19 a 49) e o nome do negócio vem depois em 24 px (src/app/PublicLayout.tsx:12; log-perfil-m390-full.json). Pagamento: logotipo de 132 px acima de 'Pagar <negócio>' (PayLinkPage.tsx:72-73). Foto do negócio só existe no perfil, opcional, com 96 px (PublicProfileView.tsx:89).",
+   "recomendacao": "Criar um cabeçalho de negócio único para todas as páginas do cliente: foto (ou inicial num círculo) + nome do negócio como h1 + categoria e região. Tirar o logotipo do topo e levar a Tinindo para o rodapé ('Agendamento por Tinindo', logotipo pequeno, link 'o que é isto'). Nas páginas com token, o título vira '<Negócio> enviou um orçamento', 'Pagamento para <Negócio>', '<Negócio> tem um horário para você'.",
+   "caminhos": [
+    "src/app/PublicLayout.tsx",
+    "src/features/sales/QuoteLinkPage.tsx",
+    "src/features/waitlist/OfferPage.tsx",
+    "src/features/payments/PayLinkPage.tsx",
+    "src/features/reputation/ReviewPages.tsx",
+    "src/features/presence/PublicSitePage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-03",
+   "titulo": "Toda página pública baixa o app inteiro do profissional: 1,59 MB de JS num arquivo só, 16% usados, tela vazia até 3 s em 4G lento",
+   "gravidade": "alta",
+   "tipo": "refatorar",
+   "evidencia": "dist/assets/index-BAq6pvoJ.js tem 1.589.139 bytes (ls -la; 447.705 em gzip e 357.056 em brotli em log-perf.json; conferi por amostra: gzip -9 dá 446.093). É o único JS do build e não há import dinâmico: src/app/router.tsx:3-16 importa todos os módulos de forma estática e vite.config.ts:70 só define sourcemap. Cobertura medida em /pagar: 257.054 de 1.583.971 bytes de JS usados (16,2%) e 7.274 de 115.646 bytes de CSS (6,3%). #root fica vazio até o JS rodar (index.html:34; rootEmptyBeforeJs true). Tempo até o h1, três medidas cada, servidor local: 3,0 s com rede de 1,6 Mbps e 150 ms; 2,3 s com 4 Mbps, 100 ms e CPU 4x mais lenta; 0,4 s sem limite (log-perf2.json). Inferência: com rede real, TLS e chamada ao servidor o tempo é maior.",
+   "recomendacao": "Dividir por rota com React.lazy: o shell /app e cada módulo do profissional em pedaços próprios, e as páginas do cliente (perfil, pagar, orçamento, oferta, avaliar) num pedaço público sem dependência dos módulos internos. Meta: até 120 kB em gzip de JS para abrir uma página pública. Pôr em index.html um esqueleto estático (fundo e cartão) para a tela não ficar branca e, em /p e /s, deixar o Worker injetar o nome do negócio no esqueleto.",
+   "caminhos": [
+    "src/app/router.tsx",
+    "src/app/modules.ts",
+    "vite.config.ts",
+    "index.html",
+    "worker/index.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-04",
+   "titulo": "O perfil público mínimo é nome, região e um formulário: falta o que faz parecer um negócio de verdade (onde fica, o que faz, quando atende, política)",
+   "gravidade": "alta",
+   "tipo": "redesenhar",
+   "evidencia": "Captura m360-min-01-perfil-inteiro.png: categoria, nome, 'Centro, Campinas', botão 'Ver horários livres', um cartão que só contém a pílula '2 avaliações de clientes' e o assistente de reserva. O contrato público só tem display_name, area, bio, services_summary, foto e WhatsApp (supabase/functions/_shared/contracts/network.ts:9-13, 35-37): não há endereço, horário de funcionamento nem política de cancelamento. O botão 'Ver horários livres' (PublicProfileView.tsx:96-106) rola para um bloco que já começa 97 px abaixo dele (ações terminam em y 246 ou 273 e a reserva começa em y 343 ou 370; log-perfil-m360-min.json e log-perfil-m390-full.json) e continua na tela, preto, em todos os passos e depois de 'Horário confirmado' (m390-full-08-confirmado.png). O rodapé legal ocupa 197 px, mais que o cabeçalho. O relatório 05 (achado 5) já registrou a falta de preço e endereço no fluxo.",
+   "recomendacao": "Redesenhar o perfil como página do negócio: cabeçalho com foto, nome, categoria, bairro e nota; linha de fatos (endereço com link de mapa ou 'atende em domicílio', horário de funcionamento, 'paga direto ao profissional'); descrição curta; serviços com duração e preço; reserva; avaliações; política. Remover o botão 'Ver horários livres' quando a reserva está logo abaixo e esconder ações do topo depois que a reserva começa. Campos novos (endereço, política) entram no contrato do perfil e no editor do dono.",
+   "caminhos": [
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/network/network.css",
+    "src/features/network/NetworkHome.tsx",
+    "supabase/functions/_shared/contracts/network.ts"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-05",
+   "titulo": "A página de pagamento não tem cara de pagamento: valor do tamanho do título, 'Copiar Pix' de 119 px, sem QR, sem recebedor, sem prazo e 'pago' é só uma frase",
+   "gravidade": "alta",
+   "tipo": "redesenhar",
+   "evidencia": "src/features/payments/PayLinkPage.tsx:79-90: descrição, valor, status em <p><strong> e um botão. Medidas em log-fluxos-m390.json (pagarEstilos): valor em 24 px peso 600 (payments.css:12, mesmo token do h1), status em parágrafo de 16 px, botão 'Copiar Pix' com 119x44 px numa coluna de 358 px, qr false. O estado pago mostra só 'Pago (confirmado pelo banco)' em negrito, sem ícone, data ou recibo (m390-21-pagar-pago.png; pagarPago.texto). O contrato devolve expires_at (supabase/functions/_shared/contracts/payments.ts:107) e a tela não mostra (grep expires_at em PayLinkPage.tsx sem resultado). O aviso encosta no botão (m390-20-pagar-pendente.png). O relatório 05 (achados 7 e 11) cobre os textos de prazo e de cobrança não encontrada.",
+   "recomendacao": "Redesenhar em três blocos: quem cobra (foto ou inicial, nome do negócio, 'cobrança de <serviço> em <data>'); quanto e até quando (valor em 32 a 40 px, 'pague até HH:MM'); como pagar (botão 'Copiar código Pix' de largura total, QR Code para quem abre no computador, 'confira no banco se o recebedor é <nome>'). Estado pago como tela própria com selo verde, valor, data e hora e 'não precisa mandar comprovante'. Estados vencido e cancelado com o caminho de volta ao profissional.",
+   "caminhos": [
+    "src/features/payments/PayLinkPage.tsx",
+    "src/features/payments/payments.css",
+    "src/features/payments/labels.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-06",
+   "titulo": "Cinco molduras diferentes para doze rotas do cliente; orçamento e oferta usam o cartão da tela de login",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "Classe do <main> medida em cada rota (log-fluxos-m390.json, campo mainClass): tn-net-public__main em /p, /diretorio, /convite e /indicar (src/app/PublicLayout.tsx:10-14); tn-auth em /orcamento e /oferta (QuoteLinkPage.tsx:80, OfferPage.tsx:71), que é o cartão de login centralizado na altura da tela (src/app/pages/pages.css:2-8; o cartão do orçamento começa em y 132 e o da oferta fica no meio, m390-40-oferta.png); tn-pay-public em /pagar (payments.css:11); tn-rev-page em /avaliar e /avaliacoes, sem marca nenhuma (ReviewPages.tsx:380-381 e :442-443); tn-site-page em /s (PublicSitePage.tsx:19). Larguras máximas também divergem: 720 px, 420 px, 36rem, 640 px e 640 px.",
+   "recomendacao": "Um único componente de moldura do cliente (evoluir src/app/PublicLayout.tsx) com cabeçalho do negócio, coluna de 560 px, rodapé com a Tinindo e o canal de contato, e uma variante 'documento' para páginas com token. Migrar as cinco páginas para ele e apagar tn-pay-public, tn-rev-page e tn-site-page como molduras.",
+   "caminhos": [
+    "src/app/PublicLayout.tsx",
+    "src/app/public-layout.css",
+    "src/features/payments/PayLinkPage.tsx",
+    "src/features/sales/QuoteLinkPage.tsx",
+    "src/features/waitlist/OfferPage.tsx",
+    "src/features/reputation/ReviewPages.tsx",
+    "src/features/presence/PublicSitePage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-07",
+   "titulo": "Durante a reserva o cabeçalho do perfil ocupa quase metade da tela e, no passo 'Seus dados', o campo de WhatsApp e o botão ficam abaixo da dobra",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "O bloco de reserva começa em y 370 de 844 (44%) com foto e WhatsApp e em y 343 de 740 (46%) no perfil mínimo (log-perfil-m390-full.json e log-perfil-m360-min.json, campo booking.top). Na captura m390-full-04-passo3-dados.png (390x844, passo 3) aparecem cabeçalho, dois botões, cartão de avaliações, indicador de passos, resumo e explicação; o rótulo 'WhatsApp com DDD' está em y 763 e o campo e os botões 'Voltar' e 'Continuar' ficam fora da tela, antes mesmo de o teclado abrir. No passo 4 o cartão tem 609 px de altura (passo4.cardH) com dois avisos antes do campo do código.",
+   "recomendacao": "Ao sair do passo 1, recolher o cabeçalho para uma barra compacta (foto de 32 px e nome) e esconder as ações do topo e o cartão de avaliações; rolar o assistente para o topo a cada passo; barra de ação fixa no rodapé com o botão do passo. No passo 4, juntar o número e o prazo numa frase curta e deixar o campo do código como primeiro elemento depois do resumo.",
+   "caminhos": [
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/network/network.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-08",
+   "titulo": "O estado final (reservado, aceito, pago) é um aviso de texto; só o perfil oferece agenda e contato, e nenhum diz o que acontece depois",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "Perfil: 'Horário confirmado' é um aviso verde dentro do cartão, com 'Adicionar à agenda' e 'Falar com o profissional' ambos secundários e o botão preto 'Ver horários livres' ainda acima (m390-full-08-confirmado.png; PublicProfileView.tsx:392-414). Oferta: só 'Reserva confirmada. Até lá!' (src/features/waitlist/OfferPage.tsx:108), sem arquivo de agenda, endereço nem contato, e o título continua 'Vaga disponível'. Orçamento: 'Orçamento aceito. Horário reservado: ... O pagamento é combinado com o profissional.' (QuoteLinkPage.tsx:116-119), sem agenda nem contato. Pagamento: 'Pago (confirmado pelo banco)' (pagarPago.texto em log-fluxos-m390.json).",
+   "recomendacao": "Um componente único de conclusão usado nas quatro páginas: selo, frase do que foi feito, bloco com serviço, dia, hora, valor e local, ação principal 'Adicionar à agenda', ação secundária 'Falar com <negócio> no WhatsApp' e uma linha de próximo passo que seja verdadeira ('para remarcar, fale com o profissional'). A página troca o conteúdo inteiro pelo estado final em vez de empilhar um aviso.",
+   "caminhos": [
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/waitlist/OfferPage.tsx",
+    "src/features/sales/QuoteLinkPage.tsx",
+    "src/features/payments/PayLinkPage.tsx",
+    "src/components/ui/index.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-09",
+   "titulo": "O orçamento parece uma tela de login com uma tabela: total sem destaque, validade escondida em texto cinza e cabeçalho 'Valor' desalinhado",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "src/features/sales/QuoteLinkPage.tsx:80-102. Medidas (orcamentoEstilos em log-fluxos-m390.json): total em 16 px, igual às linhas; h1 'Orçamento' em 24 px; nome do negócio em 16 px. Na captura m390-30-orcamento.png o cabeçalho 'Valor' está alinhado à esquerda sobre valores alinhados à direita; a validade aparece em cinza junto de 'Versão 1 · código 127957f8' (linha 102; o relatório 05, achado 15, já pede tirar o código); 'Horário proposto (Corte): quarta-feira, 21/10, 10:00–10:30' é um parágrafo comum, embora aceitar reserve esse horário; 'Aceitar orçamento' e 'Recusar' ficam lado a lado com 182 e 104 px.",
+   "recomendacao": "Redesenhar como documento do negócio: cabeçalho do negócio; título do orçamento; 'válido até 27/10' como etiqueta visível; itens em lista (descrição à esquerda, valor à direita, quantidade só quando maior que 1); total em 24 px; bloco destacado 'Ao aceitar, você reserva: quarta, 21/10, 10:00'; botão 'Aceitar orçamento' de largura total e 'Recusar' como ação discreta com confirmação (relatório 05, achado 10).",
+   "caminhos": [
+    "src/features/sales/QuoteLinkPage.tsx",
+    "src/features/sales/sales.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-10",
+   "titulo": "Avaliar pede a nota em números de 1 a 5 num controle segmentado, sem estrelas, sem marca e sem dizer quem está sendo avaliado no título",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "src/features/reputation/ReviewPages.tsx:325 usa <Segmented> com '1' a '5' (medida avaliarNota: cinco alvos de 44x44, estrelas false, dica '1 = Ruim · 5 = Excelente'), enquanto a página pública mostra a nota em estrelas (linha 15). A página não tem logotipo nem cabeçalho de negócio (linhas 380-381: <main className='tn-rev-page'><h1>Avaliar atendimentos</h1>); captura m390-50-avaliar.png. O primeiro conteúdo depois do título é o link 'Minhas reservas' e um parágrafo sobre vínculo. O relatório 05 (achado 4) registra que o cliente real nem chega aqui, porque a página exige login e vínculo.",
+   "recomendacao": "Uma avaliação por página, aberta por link: 'Como foi seu <serviço> com <negócio> em <data>?', cinco estrelas de 44 px com o rótulo da nota escolhida, comentário opcional, 'seu nome não aparece' ao lado do botão e agradecimento com a prévia de como ficou. Manter a regra de só avaliar atendimento concluído.",
+   "caminhos": [
+    "src/features/reputation/ReviewPages.tsx",
+    "src/features/reputation/reputation.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-11",
+   "titulo": "Cliente precisa de conta com e-mail e senha de 10 caracteres para avaliar ou ver a reserva, numa tela de cadastro escrita para o profissional",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "Rodapé do perfil e confirmação apontam para /avaliar e /app/conta/reservas (PublicProfileView.tsx:141-142 e :414); /avaliar sem sessão mostra 'Entre na sua conta' (ReviewPages.tsx:383); a tela de cadastro diz 'Para quem atende com hora marcada: agenda, clientes, preços e recebimentos num lugar só' e pede e-mail, senha de pelo menos 10 caracteres e repetição (captura m390-82-criar-conta.png). O defeito de funcionamento está no relatório 05, achado 4; aqui o ponto é de desenho: o cliente já provou o WhatsApp com o código na reserva.",
+   "recomendacao": "Decidir se o cliente final tem conta. Recomendo que não tenha no piloto: avaliar e ver a reserva por link com token enviado pelo profissional (mesmo padrão de /orcamento e /oferta) e retirar do perfil os links 'Avaliar meu atendimento' e 'Minhas reservas' até isso existir.",
+   "caminhos": [
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/reputation/ReviewPages.tsx",
+    "src/features/identity/AuthPages.tsx"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "alto",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-12",
+   "titulo": "Duas páginas públicas para o mesmo negócio, cada uma incompleta: /s tem serviços com preço e horários; /p tem foto, avaliações, WhatsApp e reserva",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "Captura m360-60-site-inteiro.png e texto em log-fluxos-m360.json (site): 'Barbearia · Pinheiros', nome, frase, botão 'Ver horários e agendar' que leva a /p, serviços com preço, horários de segunda a sexta e o rodapé 'Página feita com a Tinindo · versão 1' (src/features/presence/PublicSitePage.tsx:28, expõe o número interno da versão). Não tem foto, avaliações nem WhatsApp. O perfil (PublicProfileView.tsx:86-148) tem foto, avaliações, WhatsApp e reserva, mas não tem horário de funcionamento nem frase. As duas usam molduras diferentes (tn-site-page e tn-net-public).",
+   "recomendacao": "Uma página pública só: /p/:slug recebe as seções do site (frase, serviços com preço, horário de funcionamento) e /s/:slug redireciona para ela. O editor de site do dono vira a edição dessas seções. Tirar 'versão N' do rodapé público.",
+   "caminhos": [
+    "src/features/presence/PublicSitePage.tsx",
+    "src/features/presence/SitePreview.tsx",
+    "src/features/network/PublicProfileView.tsx",
+    "worker/og.ts"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-cliente-final-13",
+   "titulo": "Prévia de perfil sem foto usa o ícone do app Tinindo; no domínio do app faltam descrição própria, canonical, dados estruturados, robots e sitemap",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "worker/og.ts:104 define a imagem padrão como /icons/app-icon-512.png e :121 e :135 a usam quando o perfil não tem foto e sempre no site; o cartão é 'summary' (quadrado pequeno, og.ts:67). No navegador, em /p/barbearia-exemplo-a publicado, a descrição continua 'Agenda, clientes e dinheiro do seu negócio em ordem.', canonical é null e não há JSON-LD (log-perfil-m390-full.json: metaDesc, canonical, jsonld 0). ls public mostra só ícones, favicon e manifest: não há robots.txt nem sitemap. A versão indexável do site existe apenas como GET /presence/page na função do Supabase (supabase/functions/presence/handler.ts:4 e :150) e o Worker só troca as tags em /p/* e /s/* (wrangler.jsonc, run_worker_first). O relatório 05 (achado 6) cobre a prévia genérica de /pagar, /orcamento e /oferta. Inferência: sem conteúdo no HTML, buscadores dependem de executar 1,59 MB de JS.",
+   "recomendacao": "No Worker, para /p e /s: injetar também link canonical e JSON-LD de LocalBusiness (nome, categoria, bairro, foto, nota quando houver 3 avaliações) e, sem foto, uma imagem de prévia com a inicial e o nome do negócio em vez do ícone do app. Publicar robots.txt e um sitemap dos perfis publicados quando a busca entrar no escopo.",
+   "caminhos": [
+    "worker/og.ts",
+    "worker/index.ts",
+    "public/",
+    "index.html"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "ux-cliente-final-14",
+   "titulo": "Diretório por cidade com quatro filtros antes do primeiro resultado, para um piloto de 6 a 10 profissionais",
+   "gravidade": "media",
+   "tipo": "remover_ou_esconder",
+   "evidencia": "Em /diretorio/sp/sao-paulo a 390x844 a página abre com Profissão, Serviços, Bairro e 'Atende no dia' e o primeiro botão 'Ver horários' só aparece em y 515 (log-fluxos-m390.json, diretorioCidade.botoes); a lista tem 3 profissionais. O cartão sem nome público aparece como 'Barbearia · Moema'. A régua do produto (AGENTS.md, citada no CONTEXTO.md) diz para não construir marketplace amplo e o piloto tem 6 a 10 profissionais conhecidos dos fundadores. O relatório 05 (achado 16) registra que na demonstração os cartões levam a perfis inexistentes.",
+   "recomendacao": "Tirar o diretório das rotas públicas do piloto (manter o código atrás de uma chave) e investir o esforço no perfil, que é o link que o profissional de fato manda. Se ficar, mostrar a lista primeiro e os filtros recolhidos num botão.",
+   "caminhos": [
+    "src/features/discovery/",
+    "src/app/router.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "ux-cliente-final-15",
+   "titulo": "Dentro dos cartões públicos os elementos encostam uns nos outros: aviso colado no botão e no parágrafo seguinte",
+   "gravidade": "baixa",
+   "tipo": "defeito",
+   "evidencia": "Capturas: m390-20-pagar-pendente.png (o aviso 'Simulação' termina em y 338 e o botão 'Copiar Pix' começa em y 338, medida botoes[0].top em log-fluxos-m390.json); m390-30-orcamento.png (aviso encostado na linha 'Barbearia Exemplo A · Corte e Barba'); m390-full-08-confirmado.png (aviso verde encostado em 'Adicionar à agenda' e este botão encostado no parágrafo de baixo). Os filhos diretos de <Card> nessas páginas não têm espaçamento vertical comum (PayLinkPage.tsx:74-90, QuoteLinkPage.tsx:81-89).",
+   "recomendacao": "Dar ao conteúdo dos cartões das páginas públicas uma pilha com espaçamento de token (classe tn-stack, já usada em PublicProfileView.tsx:87) e padronizar botões de ação principal em largura total no celular.",
+   "caminhos": [
+    "src/features/payments/PayLinkPage.tsx",
+    "src/features/sales/QuoteLinkPage.tsx",
+    "src/features/network/PublicProfileView.tsx",
+    "src/components/ui/ui.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Pix no piloto: (a) só Pix de verdade, com 'Recebimento simulado' escondido fora da demonstração; (b) manter o simulado em homologação, mas sem link para o cliente; (c) como está. Recomendo (a), ou (b) enquanto o provedor real não estiver contratado: hoje o cliente pode marcar a cobrança como paga.",
+  "Quanto a Tinindo aparece na página do cliente: (a) só no rodapé, 'Agendamento por Tinindo'; (b) símbolo pequeno no cabeçalho e rodapé; (c) logotipo no topo, como hoje. Recomendo (a): a página é do profissional, e o cliente não conhece a Tinindo.",
+  "Uma página pública ou duas: (a) /p absorve o conteúdo do site e /s redireciona; (b) manter perfil e site separados. Recomendo (a).",
+  "Cliente final tem conta? (a) não, tudo por link com token (avaliar, ver reserva); (b) conta sem senha, com código pelo WhatsApp; (c) e-mail e senha como hoje. Recomendo (a) no piloto.",
+  "Campos novos no perfil: endereço (ou 'atende em domicílio'), horário de funcionamento e política de cancelamento em texto curto. Recomendo incluir os três como opcionais; exige mudança de contrato e de editor.",
+  "Diretório no piloto: (a) esconder até haver massa de profissionais; (b) manter. Recomendo (a).",
+  "Busca (SEO) dos perfis agora ou depois do piloto: recomendo agora só canonical, dados estruturados e imagem de prévia própria no Worker; sitemap e indexação ampla depois."
+ ],
+ "nao_coberto": [
+  "Nada foi testado com servidor: envio real do código pelo WhatsApp, webhook do Pix, Worker da prévia em produção e a página /presence/page foram avaliados por leitura de código.",
+  "Mensagens que o cliente recebe (modelos nas migrations): não reavaliei; o relatório 05, achado 8 e seção 4, já traz os textos e continuo de acordo com ele.",
+  "Tema escuro e desktop das páginas públicas: só conferi celular claro em 390x844 e 360x740.",
+  "Leitor de tela, contraste e teclado nas páginas públicas: não medidos nesta rodada (ver docs/qa/acessibilidade.md).",
+  "/convite com token válido, /indicar depois de gerar o link, /recuperar-senha depois do envio e /entrar com servidor: só o estado inicial foi capturado.",
+  "Diretório: não abri as capturas, usei só as medidas; a avaliação visual dos cartões ficou de fora.",
+  "Tempos de carregamento foram medidos contra o vite preview local com limitação de rede simulada, não num celular real nem na rede da Cloudflare."
+ ]
+}

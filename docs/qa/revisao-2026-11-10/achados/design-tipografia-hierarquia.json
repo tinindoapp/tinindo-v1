@@ -1,0 +1,340 @@
+{
+ "area": "design-tipografia-hierarquia",
+ "veredito": "misto",
+ "veredito_justificativa": "A base está no tamanho certo: 2.504 linhas de CSS, tamanho de fonte só por 8 papéis, 3 pesos (400/500/600), 3 raios mais pílula e 2 sombras, tudo travado por teste (src/app/css-system.test.ts). O que está exagerado é a composição das telas: 7 telas passam de 3 alturas de celular (Metas 5,4; Caixa 4,2), tudo fica aberto dentro de cartões, a tela Hoje mostra o dia só depois de 839 px e Caixa tem 25 botões. E a camada de regra de layout está simples demais: não existe padrão de abertura de tela (31 sequências diferentes em 38 telas), de lista (a lista agrupada só é usada em Hoje) nem de resumo de número (o valor em reais sai do ladrilho a partir de R$ 10 mil).",
+ "manter": [
+  "Tokens e o teste src/app/css-system.test.ts: nas 49 telas medidas só aparecem 12/14/16/18/20/24/32 px, pesos 400/500/600, raios 8/12/20/999 px e 2 sombras. É a disciplina que permite refatorar com segurança; não trocar por biblioteca de componentes.",
+  "Corpo em 16 px, apoio em 14 px, mínimo de 12 px e alvo de toque de 44 px (brand/tokens/tokens.css:44-52 e :87): adequado para uso no celular por quem tem pouca paciência.",
+  "Inter variável com eixo óptico, entrelinha 1,25 nos títulos e 1,5 no texto, peso máximo 600 (src/styles/global.css:80-92): leitura boa e sóbria.",
+  "Cartão de atendimento da Agenda (hora em 20 px tabular, serviço, cliente, preço à direita, duas ações) e o detalhe do atendimento em rótulo/valor: é o melhor desenho de linha do app e deve virar o modelo das outras listas (capturas dobra/agenda__m.png e dobra/agenda-atendimento__m.png).",
+  "Componentes Section, List/ListItem e Stat usados em Hoje (src/components/ui/ui.css:325-389): a linguagem certa já existe; a refatoração é estender o uso, não criar outra.",
+  "Ajuda \"Como funciona\" recolhida por padrão (src/components/ui/ui.css:412-430): tira explicação do caminho. Manter recolhida e dar a ela um lugar fixo.",
+  "Botão principal preto em pílula, barra de 5 abas e navegação por pílulas: consistentes em todas as telas e dentro das regras da marca (nenhum botão laranja encontrado).",
+  "Telas públicas de oferta, orçamento e pagamento: 2 ou 3 estilos de texto e um único cartão. Estão no tamanho certo.",
+  "Só dois pontos de quebra com nome (compacto 30rem, largo 900px) e novo agendamento com 0 de 23 números fora do tabular: não mexer."
+ ],
+ "achados": [
+  {
+   "id": "design-tipografia-hierarquia-01",
+   "titulo": "Hoje: o dia (números e atendimentos) só aparece depois de 839 px; a primeira dobra é ocupada por configuração e sugestões",
+   "gravidade": "alta",
+   "tipo": "redesenhar",
+   "evidencia": "Medida no celular 390x844 (trabalho/design-tipografia-hierarquia/medidas2-m.json, chave home.blocks): cartão \"Deixe seu negócio pronto\" em y=168 (235 px), \"Para você esta semana\" em y=427 (412 px, 6 botões), números do dia em y=839, ações rápidas em y=970, \"Atendimentos de hoje\" em y=1107 e \"Próximo: 09:00\" em y=1137. A barra de abas começa em y=778, então nada do dia cabe na primeira dobra (captura dobra/home__m.png). No desktop 1280x900 os números começam em y~800 e os atendimentos ficam abaixo da dobra (dobra/home__d.png). Causa: src/app/pages/Home.tsx:146-148 renderiza SetupCard e InsightsCard antes de Stats (linha 154) e da seção de atendimentos (linha 166). Além disso o intervalo entre as sugestões e os números é 0 px (medidas-m.json home.rhythm: \"section.tn-section -> div.tn-stats\" gap 0): o botão \"Ver\" encosta nos ladrilhos.",
+   "recomendacao": "Reordenar Home.tsx: (1) cabeçalho; (2) cartão \"Próximo\" (NextCard); (3) resumo do dia em uma faixa de 3 números; (4) outros atendimentos de hoje; (5) pendências; (6) ações rápidas; (7) configuração como uma linha fina (barra de progresso \"5 de 8\" e o próximo passo como link, cerca de 64 px) enquanto faltar passo; (8) sugestões como uma linha só (\"3 sugestões para esta semana\", abre Metas). Somem da Hoje os três blocos de sugestão com \"Ver / Agora não\". Meta mensurável: \"Próximo\" e os 3 números com y menor que 500 px em 390x844.",
+   "caminhos": [
+    "src/app/pages/Home.tsx",
+    "src/app/pages/pages.css",
+    "src/features/setup/SetupCard.tsx",
+    "src/features/growth-advice/Insights.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-02",
+   "titulo": "Valor em reais sai do ladrilho de número: em Hoje já passa 3 px com R$ 1.740,00 e passa 14 px a partir de R$ 10 mil",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "Script trabalho/design-tipografia-hierarquia/estouro.cjs (390x844), borda direita do texto contra a borda direita do ladrilho .tn-stat: Hoje, \"Recebido no mês\" R$ 1.740,00 em 18 px: texto 377, ladrilho 374 (passa 3 px); com R$ 12.540,00 passa 14 px; com R$ 125.400,00 chega a x=399, fora da tela de 390 (captura recortes/home-estouro-12mil.png, valor simulado). Resultado e Contas, 24 px em ladrilho de 156 px: R$ 2.540,00 termina a 1 px da borda, comendo os 16 px de respiro (captura recortes/resultado-numeros.png); R$ 12.540,00 passa 14 px e R$ 125.400,00 passa 29 px. O valor não quebra porque o formatador usa espaço não separável. Causa: src/components/ui/ui.css:373 (grade minmax(140px, 1fr)) e :388 (valor em 24 px sem regra de encolher); src/app/pages/pages.css:20-23 (3 colunas fixas e white-space: nowrap em Hoje). Um profissional com 200 atendimentos de R$ 60 no mês recebe R$ 12 mil.",
+   "recomendacao": "Criar o padrão \"resumo de número\" e usar nas três telas: no compacto (max-width: 30rem) cada número vira uma linha, rótulo à esquerda e valor à direita em 20 px tabular, dica em 12 px embaixo, altura mínima de 56 px, sem ladrilho; acima disso, ladrilhos lado a lado. O número principal da tela (\"Sobrou\") fica sozinho em 32 px em cima dos outros. Remover a grade de 3 colunas e o nowrap de pages.css:20-23. Teste: valor de R$ 999.999,99 em 320, 390 e 1280 px sem passar do contêiner.",
+   "caminhos": [
+    "src/components/ui/ui.css",
+    "src/components/ui/index.tsx",
+    "src/app/pages/pages.css",
+    "src/features/analytics/ResultPage.tsx",
+    "src/features/finance-advanced/AccountsPage.tsx",
+    "src/app/pages/Home.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-03",
+   "titulo": "Abertura de tela sem regra: 31 ordens diferentes em 38 telas e o conteúdo começa, na mediana, em y=399 de 778 px visíveis",
+   "gravidade": "alta",
+   "tipo": "refatorar",
+   "evidencia": "Script trabalho/design-tipografia-hierarquia/medir2.cjs nas 38 rotas de /app (390x844): a sequência de título, apoio, botão, aviso, ajuda e filtro antes do primeiro conteúdo tem 31 variações; a mais comum (\"h1 > p > aviso\") aparece em 3 telas. Exemplos: Assinaturas \"h1 > botão > aviso > ajuda\", Equipe \"h1 > botão > ajuda > aviso\", Pagamentos \"h1 > aviso > ajuda\", Mensagens \"h1 > ajuda > aviso\". O primeiro conteúdo começa entre y=168 e y=635 (mediana 399; Contas e Domicílio em 635, Indicações em 618); descontando a faixa de demonstração e a barra do topo (84 px) e a barra de abas (y=778), 45% da área visível vai para a abertura. O aviso por tela mede de 45 a 108 px e repete a faixa \"Demonstração\" do topo; na Agenda o mesmo aviso é texto solto. Há três mecanismos para a mesma coisa em src/components/ui/ui.css: .tn-page-header (311-323, 76 usos em 64 arquivos), .tn-page-intro (394-397, 32 usos em 27 arquivos) e .tn-card:has(> h1) (402-405). Os avisos azuis são condicionais ao modo de demonstração (por exemplo AccountsPage.tsx:308, port.kind === \"demo\"); a medida sem eles está no relatório, seção 2.5.",
+   "recomendacao": "Um componente só de abertura (estender PageHeader em src/components/ui/index.tsx:104) com lugares fixos, nesta ordem: voltar ou rótulo; título; uma linha de apoio (opcional, até 2 linhas); a ação principal (uma só, à direita no desktop e logo abaixo do título no celular); a ajuda \"Como funciona\" como botão de ícone ao lado do título, abrindo folha; filtro da tela (período ou segmentado) na mesma linha. O aviso de ambiente deixa de ser bloco por tela (ver decisão). Remover .tn-page-intro e a regra .tn-card:has(> h1). Meta: primeiro conteúdo com y menor ou igual a 280 px em toda tela de /app, e regra no css-system.test.ts que recuse h1 fora do componente.",
+   "caminhos": [
+    "src/components/ui/index.tsx",
+    "src/components/ui/ui.css",
+    "src/features",
+    "src/app/pages",
+    "src/app/css-system.test.ts"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-04",
+   "titulo": "Lista vira caixa dentro de cartão: a ficha do cliente tem 19 caixas e 3.093 px; a lista agrupada do sistema só é usada em Hoje",
+   "gravidade": "alta",
+   "tipo": "redesenhar",
+   "evidencia": "medidas-m.json (campo depthCount, caixas com borda dentro de outra caixa): ficha do cliente 19, Resultado 9, Configurar 8, Relacionamento 5, Contas 4. Na ficha (medidas2-m.json cliente-ficha.blocks) o cartão \"Atendimentos\" mede 2.299 px: 19 itens .crm-visit de 103 px, todos abertos (\"Próximos (3)\" e \"Anteriores (16)\"), sem botão de agendar no topo (3 botões na tela: voltar, Ligar, WhatsApp). Causa: src/features/crm/CustomerPage.tsx:156-170 lista todos os itens em .tn-item-list, cujo li tem borda e raio (src/components/ui/ui.css:301-308), dentro de Card (ui.css:74-80). O sistema tem a lista agrupada com divisor (.tn-list, ui.css:336-371), mas ela aparece em 1 arquivo .tsx e Section em 3, contra Card em 49 arquivos (119 usos). Cada módulo recria a sua caixa: .tn-an-metric (analytics.css:11), .tn-setup-step (setup.css:18), .crm-visit (crm.css:32), .tn-ga-item, .tn-lc-item.",
+   "recomendacao": "Regra de lista: registro que se repete é linha de .tn-list (divisor, 56 px, título em 16/500, apoio em 14, valor à direita tabular); caixa com borda só para objeto selecionável ou com formulário dentro; nunca caixa dentro de cartão. Ficha do cliente: cabeçalho com nome e ações (Agendar como principal, WhatsApp, Ligar); contato em 3 linhas; \"Próximos\" inteiro; \"Anteriores\" com os 5 mais recentes e \"Ver todos (16)\"; resumo (15 concluídos, 1 falta) como faixa de números no topo. Meta: ficha com até 1.400 px no celular com 19 atendimentos.",
+   "caminhos": [
+    "src/components/ui/ui.css",
+    "src/components/ui/index.tsx",
+    "src/features/crm/CustomerPage.tsx",
+    "src/features/crm/crm.css",
+    "src/features/analytics/analytics.css",
+    "src/features/setup/setup.css",
+    "src/features/growth-advice",
+    "src/features/lifecycle"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-05",
+   "titulo": "Caixa: 3.553 px, 25 botões (3 principais) e o número do mês (\"sobrou\", 32 px) só em y=1702",
+   "gravidade": "alta",
+   "tipo": "redesenhar",
+   "evidencia": "medidas2-m.json caixa (390x844): seções \"Atendimentos concluídos sem cobrança\" em y=468 (492 px, 7 botões), \"A receber\" em y=976 (633 px, 6 botões), cartão \"Caixa registrado em outubro\" em y=1625 com o único texto de 32 px da tela em y=1702 (.tn-fin-left__value), \"Recebimentos no mês\" em y=2148 (718 px), \"Despesas\" em y=2882, \"Pacotes de sessões\" em y=3185. Botões: 25 (3 principais, 11 secundários, 11 fantasma). Cada atendimento sem cobrança empilha três botões de 44 px (\"Recebi R$ 60,00 no Pix\" com seta, \"Cobrar depois\", \"Usar crédito do pacote\"), captura dobra/caixa__m.png. Na mesma tela o h2 mede 20 px fora de cartão (5 vezes) e 18 px dentro (1 vez). Arquivo: src/features/finance/FinancePage.tsx:221 (cabeçalho), :260-263 (resumo), :313, :420, :567, :669.",
+   "recomendacao": "Ordem nova em FinancePage.tsx: (1) título com o seletor de mês na mesma linha; (2) faixa de resumo do mês logo abaixo: \"Sobrou\" em 32 px e, em linha, Recebido, Gasto e A receber; (3) \"Para cobrar\" (os concluídos sem cobrança) como lista de linhas com uma ação cheia por linha (\"Recebi R$ 60 no Pix\") e as outras duas no menu \"...\"; (4) \"A receber\"; (5) Recebimentos, Despesas e Pacotes como um segmentado de 3 opções mostrando uma lista por vez, com 5 itens e \"ver todos\". Some o subtítulo \"Recebíveis, recebimentos manuais e pacotes de sessões\". Meta: até 1.600 px com os dados da demonstração e 1 botão principal visível por dobra.",
+   "caminhos": [
+    "src/features/finance/FinancePage.tsx",
+    "src/features/finance/finance.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-06",
+   "titulo": "Escala de títulos achatada: h2 vale 20 ou 18 px e h3 vale 18 ou 16 px conforme o contêiner; h3 em cartão tem o tamanho do texto",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "src/styles/global.css:13-17 define título 24, seção 20, grupo 18, corpo 16 (celular). Mas src/components/ui/ui.css:333 (.tn-section__head h2) e :407 (.tn-card h2) baixam o h2 para 18 px, e :408 baixa o h3 em cartão para 16 px, igual ao corpo. Resultado medido (medidas2-m.json, campo heads): em Hoje o h2 \"Atendimentos de hoje\" e o h3 \"Próximo: 09:00\" têm os mesmos 18 px/600 (src/app/pages/pages.css:66); em Caixa e Preços convivem h2 de 20 e de 18 px na mesma tela; em Metas, 12 h3 de 16/600 sobre parágrafos de 16/400. No app inteiro (medidas-m.json, 49 telas) 16 px aparece com três pesos (400 em 39 telas, 500 em 43, 600 em 28) e o estilo mais frequente é 14/400 (676 elementos; 97 das 163 declarações de font-size em src são --tn-text-support). Os degraus 24, 20, 18, 16 têm razão de 1,2, 1,11 e 1,125: o olho não separa seção de grupo. analytics.css:14 usa o papel de seção (--tn-text-section) para um número.",
+   "recomendacao": "Um tamanho por nível, independente do contêiner. Em global.css: --tn-text-section fica 20 px no celular e 24 px no largo para todo h2; --tn-text-group passa a var(--tn-font-size-md) (16 px, peso 600) para todo h3; criar --tn-text-lead: var(--tn-font-size-lg) (18 px) só para o título do item em foco (cartão \"Próximo\") e --tn-text-number-sm: var(--tn-font-size-xl) (20 px) para valor de indicador e de linha. Remover os ajustes de ui.css:333, :407 e :408 e os h2/h3 com font-size nos módulos (scheduling.css:64/67/197/238, agent.css:29/52/56, referrals.css:6, growth-advice.css:5, analytics.css:12). Título de item de lista em 16/500, nunca 600. Acrescentar ao css-system.test.ts: módulo não declara font-size em h1, h2 ou h3.",
+   "caminhos": [
+    "src/styles/global.css",
+    "src/components/ui/ui.css",
+    "src/app/pages/pages.css",
+    "src/features/scheduling/scheduling.css",
+    "src/features/agent/agent.css",
+    "src/features/analytics/analytics.css",
+    "src/app/css-system.test.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-07",
+   "titulo": "Metas e sugestões: 4.530 px, 18 títulos e 19 botões; repete as sugestões da Hoje e o resumo de Mensagens, e abre com botão de simulação",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "medidas2-m.json metas (390x844): 5 cartões empilhados: \"Sugestões para você\" (y=396, 1.101 px), \"Metas do mês\" (y=1513, 422 px), \"Sugestões do mês\" (y=1950, 1.108 px), \"Conteúdo aprovado\" (y=3074, 1.036 px) e \"Resumo da semana\" (y=4142). Cada sugestão ocupa de 222 a 363 px (título 16/600, parágrafo de 16 px, evidência, origem, dois botões). As três sugestões do primeiro cartão têm os mesmos títulos das três da Hoje (\"Faltas concentradas na quarta\", \"Horário vazio toda semana\", \"Perfil: 3 de 4 itens prontos\"), e \"Resumo da semana\" também é o primeiro cartão de Mensagens (dobra/mensagens__m.png). O primeiro controle da tela é \"Avançar 30 dias (simulação)\" em y=336 (src/features/growth-advice/GoalsPage.tsx:212). Esse botão depende de port.followUp, oferecido pelo modo de demonstração; no uso real a tela abre direto nas sugestões. Estrutura em GoalsPage.tsx:202-228. No desktop o parágrafo chega a 108 caracteres por linha.",
+   "recomendacao": "Ordem nova: (1) \"Metas do mês\" como faixa de resumo (meta, feito, barra) no topo; (2) uma lista só de sugestões, juntando \"para você\" e \"do mês\", cada uma em linha recolhida (título e a evidência em uma linha de 14 px), que abre o texto e as ações ao tocar; (3) \"Conteúdo aprovado\" recolhido em uma linha com contagem (\"5 textos aprovados\"). Some \"Resumo da semana\" (fica em Mensagens) e o botão de simulação sai do topo para o fim da tela, só na demonstração. Meta: até 1.500 px.",
+   "caminhos": [
+    "src/features/growth-advice/GoalsPage.tsx",
+    "src/features/growth-advice/Insights.tsx",
+    "src/features/growth-advice/growth-advice.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-08",
+   "titulo": "Relacionamento: 3.310 px, 20 botões com 4 principais; a fila de mensagens (1.571 px) e as réguas (859 px) ficam todas abertas",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "medidas2-m.json relacionamento (390x844): cartão \"Fila de mensagens\" em y=417 com 1.571 px e 8 botões (contadores em três caixinhas, um seletor \"Mostrar\", cinco itens com h3 de 16/600 que quebra em duas linhas, dois corpos de mensagem em caixa de 114 px); cartão \"Réguas\" em y=2004 com 859 px e 8 botões; \"Reativação (campanha)\" em y=2878. Botões: 20, sendo 4 principais, 11 secundários e 4 fantasma; 8 campos na tela (medidas-m.json). O primeiro botão é \"Rodar a régua (simulação)\" (src/features/lifecycle/LifecyclePage.tsx:176). Esse botão depende de port.tick, oferecido pelo modo de demonstração. Estrutura em LifecyclePage.tsx:172-202.",
+   "recomendacao": "Ordem nova: (1) fila como lista de linhas agrupada por estado (\"Para você compartilhar\" primeiro, porque é a única que pede ação), com uma ação por linha e o texto da mensagem aberto só ao tocar; os contadores viram o próprio filtro (segmentado de 3 opções), sem o seletor \"Mostrar\"; (2) \"Réguas\" como lista de resumo, uma linha por régua (\"Lembrete: 24 h antes, ligado\"), editando em folha; (3) \"Reativação\" recolhida em uma linha. Um botão principal na tela. Meta: até 1.400 px.",
+   "caminhos": [
+    "src/features/lifecycle/LifecyclePage.tsx",
+    "src/features/lifecycle/lifecycle.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "design-tipografia-hierarquia-09",
+   "titulo": "Resultado: \"Sobrou\" é o terceiro ladrilho, sozinho na segunda linha e do mesmo tamanho dos outros; 6 indicadores em coluna única somam 1.472 px",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "medidas2-m.json resultado (390x844): a abertura leva 372 px (título, apoio, ajuda, dois seletores empilhados \"Período\" e \"Comparar com\", linha de datas) e o primeiro cartão começa em y=528. \"Dinheiro registrado\": Recebido e Gasto lado a lado em y=622 e \"Sobrou\" sozinho em y=751, os três em 24 px (captura recortes/resultado-numeros.png). \"Indicadores\" (y=913, 1.472 px): seis caixas .tn-an-metric de 176 a 218 px, uma por linha, cada uma com h3 de 16/600, valor em 20 px e texto. Depois \"O que falta nos dados\" (y=2400) e \"Guardar como ponto de partida\" (y=2609). Arquivo: src/features/analytics/ResultPage.tsx:69-70, :181, :217, :236; caixa em src/features/analytics/analytics.css:11-15.",
+   "recomendacao": "Ordem nova: (1) título com o período como segmentado de 3 opções na mesma linha (7, 28, 90 dias); \"Comparar com\" vai para um menu; (2) \"Sobrou\" em 32 px como número da tela, com Recebido e Gasto em uma linha abaixo; (3) indicadores em grade de 2 colunas, ladrilho compacto (rótulo de 14 px, valor de 20 px, variação), com a explicação ao tocar; (4) \"O que falta nos dados\" e \"Ponto de partida\" recolhidos no fim. Meta: até 1.300 px.",
+   "caminhos": [
+    "src/features/analytics/ResultPage.tsx",
+    "src/features/analytics/analytics.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-10",
+   "titulo": "Contas: o segmentado de 4 opções quebra em duas linhas dentro da pílula (102 px) e o conteúdo só começa em y=635",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "medidas2-m.json contas.seg: trilho em y=432 com 102 px de altura, 358 px de largura, raio 999px e 2 linhas (\"Mês\", \"A pagar\", \"Conferir\" em cima; \"Categorias\" embaixo). Captura recortes/contas-segmentado.png: a pílula vira uma mancha arredondada. Os segmentados de 2 e 3 opções (Agenda, Domicílio) ficam em 54 px e 1 linha. Causa: src/components/ui/ui.css:220-229 (flex-wrap: wrap com raio de pílula) e :230-241 (opção com 16 px de respiro de cada lado); uso em src/features/finance-advanced/AccountsPage.tsx:310. Na mesma tela a abertura tem botão, ajuda, aviso, segmentado e campo de mês antes do primeiro cartão (y=635), e o mês é um campo nativo enquanto Caixa usa setas \"anterior / próximo\" (dobra/caixa__m.png).",
+   "recomendacao": "Em ui.css: trilho sem quebra (flex-wrap: nowrap), opções com flex: 1 1 0 e respiro lateral de var(--tn-space-3) no compacto (as quatro opções somam cerca de 337 px e cabem em 358 px). Regra: segmentado tem até 4 opções de uma palavra; mais que isso é navegação por pílulas com rolagem. Usar o mesmo seletor de mês de Caixa em Contas, na linha do título. Acrescentar caso de teste do segmentado com 4 opções em 320 e 390 px.",
+   "caminhos": [
+    "src/components/ui/ui.css",
+    "src/components/ui/selection.tsx",
+    "src/features/finance-advanced/AccountsPage.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-11",
+   "titulo": "Ritmo vertical sem níveis: 110 dos 178 intervalos entre blocos são de 16 px, o mesmo que separa itens dentro do bloco, e há 9 outros valores soltos",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "medidas-m.json, campo rhythm (intervalo entre filhos de primeiro nível do conteúdo, 49 telas no celular): 16 px em 110 casos, 12 em 16, 32 em 16, 24 em 10, 28 em 7, 8 em 5, 36 em 4, 40 em 4, 20 em 3 e 0, 2 e 4 px uma vez cada. Seção e item ficam à mesma distância, então nada agrupa. Exemplos: Caixa separa as seis seções por 16 px; Contas abre com 36, 28 e depois 16; em Hoje o intervalo entre sugestões e números é 0. A margem de seção de 24 px existe (src/components/ui/ui.css:325) mas o componente Section só é usado em 3 arquivos; o resto usa .tn-stack com 16 px (ui.css:294). Linha de lista com altura mínima em px solto (ui.css:351, min-height: 60px).",
+   "recomendacao": "Criar papéis de espaço em src/styles/global.css e usar só eles entre blocos: --tn-gap-item: var(--tn-space-2) (8 px, entre linhas e campos irmãos); --tn-gap-block: var(--tn-space-4) (16 px, entre blocos da mesma seção); --tn-gap-section: var(--tn-space-8) (32 px no celular) e var(--tn-space-10) (40 px no largo); --tn-gap-opener: var(--tn-space-3) (12 px, dentro da abertura); --tn-row-min: 56px. A raiz de toda tela passa a ser uma grade única (.tn-page) com gap de seção, e cada seção uma grade com gap de bloco. Regra no css-system.test.ts: margin-top e gap entre blocos só por esses papéis.",
+   "caminhos": [
+    "src/styles/global.css",
+    "src/components/ui/ui.css",
+    "src/app/css-system.test.ts",
+    "src/features"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "design-tipografia-hierarquia-12",
+   "titulo": "Ação de linha tem o mesmo peso do botão da tela: toda ação é pílula de 44 px em 16/500 e há telas com 2 a 4 botões principais",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "medidas2-m.json, campo btns (390x844): Caixa 25 botões (3 principais), Novo agendamento 22, Reagendar 21, Relacionamento 20 (4 principais), Metas 19 (2 principais), Equipe 10, Materiais 10, Horários 10. Telas com mais de um botão principal preto: Relacionamento 4, Caixa 3, Hoje 2, Metas 2, Lista de espera 2, Domicílio 2, Configurar 2, Site 2. O botão fantasma não tem borda nem fundo (src/components/ui/ui.css:21) e parece texto solto ao lado do secundário (\"Agora não\", \"Faltou\", \"Arquivar\", \"Cancelar\" nas capturas dobra/home__m.png e dobra/agenda__m.png). O estilo 16/500 é o terceiro mais frequente do app (253 elementos em 43 telas, medidas-m.json).",
+   "recomendacao": "Regra de ações: um botão principal por tela (ou por folha); em linha de lista, no máximo uma ação visível e o resto no menu \"...\" (o componente de menu já existe em src/components/ui/menu.tsx). Criar o tamanho compacto do botão para linha: data-size=\"sm\", texto em var(--tn-text-support) (14/500), 36 px de altura visual com área de toque de 44 px por pseudo-elemento. Dar ao fantasma cor de link com sublinhado no toque, para ler como ação. Aplicar primeiro em Caixa, Relacionamento, Metas e Clientes.",
+   "caminhos": [
+    "src/components/ui/ui.css",
+    "src/components/ui/index.tsx",
+    "src/features/finance/FinancePage.tsx",
+    "src/features/lifecycle/LifecyclePage.tsx",
+    "src/features/growth-advice/GoalsPage.tsx",
+    "src/features/crm/CustomersPage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "design-tipografia-hierarquia-13",
+   "titulo": "Site, Configurar e Preços: tudo aberto em cartões longos (2.861, 2.485 e 2.387 px) e o estado atual fica depois da ferramenta",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "medidas2-m.json (390x844). Site: abertura com dois avisos (108 e 66 px), primeiro cartão em y=528; \"Seu site\" com 1.099 px, incluindo a prévia, cujo título \"Barbearia Exemplo A\" é um h2 de 18 px igual aos títulos de seção; depois Domínio, Google (658 px) e Entregas (src/features/presence/PresencePage.tsx:26, :132, :198, :257). Configurar: cartão \"Passos\" com 1.199 px e 8 caixas, as 5 feitas com os mesmos 74 px das pendentes; depois dois cartões que são conteúdo de passos (src/features/setup/SetupPage.tsx:34, :180, :227). Preços: \"Simulador de desconto\" (683 px, h2 de 18 px em cartão) vem antes de \"Regras ativas\" (y=1133, h2 de 20 px) e de \"Nova regra\" (y=1346), com 10 campos na tela (src/features/pricing/PricingPage.tsx:98, :157, :261).",
+   "recomendacao": "Site: abrir com uma lista de estado de 4 linhas (Site, Domínio, Google, Entregas, cada uma com situação em uma frase) e cada linha abre o detalhe; a prévia vai para folha. Configurar: pendentes primeiro e abertos; os feitos recolhidos em uma linha (\"5 feitos, ver\"); \"Descreva seu negócio\" e \"Modelos de serviço\" entram dentro do passo correspondente. Preços: \"Regras ativas\" primeiro; \"Nova regra\" em folha a partir do botão principal; o simulador recolhido em \"Simular um desconto\". Meta: até 1.200 px cada.",
+   "caminhos": [
+    "src/features/presence/PresencePage.tsx",
+    "src/features/setup/SetupPage.tsx",
+    "src/features/pricing/PricingPage.tsx"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "design-tipografia-hierarquia-14",
+   "titulo": "Número tabular depende de classe aplicada à mão: 38 de 38 números da ficha do cliente e 15 de 15 de Domicílio ficam proporcionais",
+   "gravidade": "baixa",
+   "tipo": "defeito",
+   "evidencia": "medidas-m.json, campo numeric (textos com R$, hora, data, % ou minutos sem font-variant-numeric: tabular-nums, sobre o total): ficha do cliente 38/38, Domicílio 15/15, Contas 13/20, Resultado 12/21, Metas 12/16, Indicações 9/9, Materiais 9/9, Relacionamento 7/7, Hoje 6/15. Onde a classe foi aplicada funciona (Novo agendamento 0/23, Caixa 1/36). Causa: src/styles/global.css:107-115 liga o tabular só em .tn-num, time e campos numéricos; a classe aparece 100 vezes em 30 arquivos e falta nas listas de data e preço (src/features/crm/CustomerPage.tsx:164-169).",
+   "recomendacao": "Em global.css, declarar font-variant-numeric: tabular-nums no body (a Inter tem algarismos tabulares) e manter .tn-num como sinônimo sem efeito até ser removida. Assim data, hora e valor alinham em qualquer lista nova sem depender de quem escreve a tela.",
+   "caminhos": [
+    "src/styles/global.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-15",
+   "titulo": "Desktop: linha de texto chega a 108 caracteres (Metas) e 103 (Notas) porque a coluna de 846 a 896 px não tem medida máxima",
+   "gravidade": "baixa",
+   "tipo": "reforcar",
+   "evidencia": "medidas-d.json, campo lines (1280x900, parágrafos com mais de uma linha): Metas 108 caracteres por linha em 16 px (bloco de 846 px), Notas 103 e 97 em 14 px, Site 98, Serviços Tinindo 95, Relacionamento 82, Clientes importar 80. O ideal de leitura fica entre 45 e 75. No celular o máximo medido é 49. O contêiner é de 1.120 px (brand/tokens/tokens.css:90) e não há max-width em parágrafo, dica ou apoio (busca por max-width em src: só 20rem, 24rem, 36rem, 40rem e 640/720 px em casos pontuais).",
+   "recomendacao": "Criar --tn-measure: 68ch em src/styles/global.css e aplicar em p, .tn-muted, .tn-field__hint, .tn-help__body e .tn-banner dentro de .tn-main__inner. No largo, telas de formulário e detalhe ficam com coluna de conteúdo de até 40rem (já usada em scheduling.css:307), e as de lista usam a largura toda.",
+   "caminhos": [
+    "src/styles/global.css",
+    "src/components/ui/ui.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-16",
+   "titulo": "Ícones com 6 tamanhos e 4 espessuras de traço; ladrilho de número com raio de 20 px dentro de cartão de 20 px",
+   "gravidade": "baixa",
+   "tipo": "refatorar",
+   "evidencia": "medidas-m.json, campo icons (49 telas): 14x14 traço 1; 16x16 traço 2 e 2,4; 18x18 traço 1,7 (42 ocorrências, ícone dos avisos) e traço 2 (32); 20x20, 22x22 e 24x24 traço 2. Origem: src/components/ui/icons.tsx:157 (traço 2), src/components/ui/tone.tsx:22 (1,7), src/components/ui/selection.tsx:154 (2,4) e icons.tsx:45 (3). Raio: .tn-stat usa var(--tn-radius-lg) (src/components/ui/ui.css:381) dentro de .tn-card, que usa o mesmo raio (ui.css:77): em Resultado e Contas o canto interno fica tão redondo quanto o externo (medidas-m.json resultado.boxList: \"div.tn-stat d2 r20\"); só Hoje corrige para 12 px (src/app/pages/pages.css:21). Entrelinha com número solto em 5 lugares (1.1, 1.15, 1, 16px) fora dos tokens.",
+   "recomendacao": "Dois tamanhos de ícone por papel (20 px ao lado de texto, 24 px sozinho) e traço 2 em todos, inclusive tone.tsx e selection.tsx. Regra de raio: caixa dentro de cartão usa var(--tn-radius-md) (12 px); mover a correção de pages.css:21 para ui.css. Trocar as entrelinhas soltas por var(--tn-line-height-tight) e var(--tn-line-height-snug) e incluir line-height na regra do css-system.test.ts.",
+   "caminhos": [
+    "src/components/ui/icons.tsx",
+    "src/components/ui/tone.tsx",
+    "src/components/ui/selection.tsx",
+    "src/components/ui/ui.css",
+    "src/app/pages/pages.css",
+    "src/app/css-system.test.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-tipografia-hierarquia-17",
+   "titulo": "Identidade: fora o logotipo e o botão preto, as telas internas são cartão branco sobre cinza com Inter, sem um elemento próprio do Tinindo",
+   "gravidade": "baixa",
+   "tipo": "decisao",
+   "evidencia": "Leitura das capturas (dobra/mosaico-00, 02, 03, 04, 05 e 06, celular claro, e dobra/home__d.png): a marca aparece no símbolo da barra do topo e no logotipo do menu lateral; o conteúdo usa uma família só (Inter), cartões brancos de raio 20 px, pílulas pretas e aviso azul. Inferência, não medida: o conjunto passa seriedade e é legível, mas é difícil distinguir de um modelo pronto. O que já é próprio e funciona: hora em 20 px tabular nos cartões da Agenda, rótulo em caixa-alta com a data em Hoje, barra de progresso preta.",
+   "recomendacao": "Opções: (a) manter como está; (b) dentro das regras atuais da marca, eleger três assinaturas e repetir em todo o app: o número grande tabular (hora e valor) como elemento de destaque, o rótulo em caixa-alta de 12 px acima de todo título de tela, e a linha do tempo do dia como desenho da Agenda e da Hoje; (c) mudar tipografia ou paleta (altera brand/BRAND.md). Recomendo (b): dá reconhecimento sem custo de marca e sai junto com os achados 01, 02 e 06.",
+   "caminhos": [
+    "brand/BRAND.md",
+    "src/styles/global.css",
+    "src/components/ui/ui.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "media"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Hoje: o que vem primeiro? Opções: (a) como está, configuração e sugestões antes do dia; (b) o dia primeiro (próximo atendimento, 3 números, atendimentos, pendências), configuração como linha fina até completar os 8 passos e sugestões como uma linha. Recomendo (b): a métrica do produto é completar o ciclo do atendimento, e hoje nada do dia cabe na primeira dobra.",
+  "Aviso de demonstração ou homologação em toda tela: (a) manter o bloco azul por tela (45 a 108 px); (b) manter só a faixa fixa do topo, que já diz \"Demonstração, dados fictícios\", mais o rótulo \"(simulação)\" nos botões que simulam; (c) uma linha de 14 px sem caixa por tela. Recomendo (b), desde que a regra \"simulação é identificada como simulação\" continue atendida pela faixa e pelos rótulos.",
+  "Sugestões e resumo da semana aparecem em dois lugares (sugestões em Hoje e em Metas; resumo em Mensagens e em Metas). Opções: (a) manter; (b) um lugar para cada: sugestões em Metas com uma linha de chamada em Hoje, resumo só em Mensagens. Recomendo (b).",
+  "Identidade visual das telas internas: (a) manter; (b) três assinaturas dentro das regras atuais (número grande tabular, rótulo em caixa-alta, linha do tempo do dia); (c) rever tipografia ou paleta. Recomendo (b).",
+  "Meta de altura por tela no celular: adotar como regra de aceite \"nenhuma tela de /app passa de 2 alturas (1.700 px) com os dados da demonstração, salvo lista com paginação\"? Recomendo adotar; hoje 19 das 38 telas de /app passam disso."
+ ],
+ "nao_coberto": [
+  "Tema escuro: a hierarquia foi avaliada só no claro; medidas de tamanho e espaço não mudam com o tema, mas contraste entre níveis de superfície não foi conferido (área de cores).",
+  "Desktop: há medidas das 49 telas (medidas-d.json), mas só a Hoje foi vista em captura; o redesenho de duas colunas para o largo não foi detalhado tela a tela.",
+  "Folhas, menus, avisos flutuantes e estados vazio, carregando e erro: não medidos. Agenda em visão de semana: não vista.",
+  "Perfil público e site público (/p/:slug): dependem de publicar na mesma aba e não foram capturados.",
+  "Volume real: tudo foi medido com os dados da demonstração (2 clientes, 19 atendimentos na ficha). Com 200 atendimentos por mês as listas abertas ficam piores do que o medido; não simulei.",
+  "Largura de 320 px, zoom de texto de 200% e Safari no iPhone: não conferidos nesta rodada (orçamento curto).",
+  "Não rodei o css-system.test.ts nem os testes e2e; o risco de quebrar teste por mudança de ordem dos blocos (achados 01, 05, 07) não foi levantado arquivo a arquivo.",
+  "Agenda (visão do dia) ficou fora das 10 piores, mas o primeiro horário aparece só em y=541 (medidas-m.json agenda.boxList, captura dobra/agenda__m.png); o redesenho dela não foi detalhado."
+ ]
+}

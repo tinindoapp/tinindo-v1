@@ -1,0 +1,247 @@
+{
+ "area": "design-cores-tema",
+ "veredito": "misto",
+ "veredito_justificativa": "A paleta está adequada ao público e não precisa mudar: em 51 telas e nos dois temas, 2.177 trechos de texto por tema, o texto fora de controle desabilitado fica entre 5,38:1 e 18,88:1 no claro e entre 7,62:1 e 17,60:1 no escuro, com exceção de uma tela, /app/configurar (passo 'próximo' a 1,00:1 e etiqueta 'opcional' a 4,49:1). A aplicação é que está simples demais na ênfase: o preto preenchido marca ação, navegação, valor escolhido, progresso e estado positivo (4 preenchidos na primeira dobra da Agenda, só 1 é ação) e o laranja da marca tem zero uso no CSS do app. O tema escuro é um tema de verdade (três níveis de superfície, bordas mais fortes, camada flutuante mais clara), com quatro falhas pontuais: selos sem fundo, texto de exemplo a 3,70:1, barra nativa verde e o passo da configuração.",
+ "manter": [
+  "Cor só por token: grep por HEX, rgb() e hsl() em src não retorna nada; os 7 color-mix partem de tokens; src/app/css-tokens.test.ts garante que todo var(--tn-*) existe. Não relaxar.",
+  "Texto e superfícies: #111111 sobre #F7F7F5 (17,60:1) e secundário #4A4A46 (8,30:1) no claro; #F7F7F5 sobre #111111 e #BDBDB7 (10,00:1) no escuro. Legível ao sol e entre atendimentos; não clarear o secundário.",
+  "Ação principal preta e ação de perigo em vermelho próprio (branco sobre #B3261E = 6,54:1; no escuro #111111 sobre #F2958F = 8,52:1), com confirmação. Não trocar a ação por laranja.",
+  "Estados separados da marca e sempre com ícone e texto (selo da Agenda, aviso, toast). Os pares de estado passam nos dois temas (5,38 a 10,09:1).",
+  "Anel de foco de 3 px em azul, igual nos 48 elementos percorridos por teclado (6,39:1 no claro, 8,98:1 no escuro).",
+  "Estrutura do tema escuro: fundo #111111, cartão #1C1C1A, camada flutuante #2A2A28 (menu e folha), bordas #3A3A37 (1,50:1 sobre o cartão, mais fortes que no claro), color-scheme: dark para os controles nativos e meta theme-color por tema.",
+  "Tema seguindo o sistema, sem alternador dentro do app: menos uma preferência para o profissional cuidar.",
+  "Site do profissional com duas aparências fixas (clara e escura), todas acima de 8,20:1. Não abrir seletor de cor livre.",
+  "Sem cor por categoria de serviço na Agenda: com um profissional e poucos serviços, viraria ruído."
+ ],
+ "achados": [
+  {
+   "id": "design-cores-tema-01",
+   "titulo": "Passo 'próximo' de /app/configurar ilegível nos dois temas: título e link a 1,00:1 sobre o fundo de selecionado",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "src/features/setup/setup.css:19 pinta o fundo com var(--tn-selected-bg) e não define cor; os filhos herdam --tn-text (setup.css:25), --tn-text-muted (setup.css:27) e --tn-link (setup.css:29). Medido com Playwright em /app/configurar (auditoria-local/trabalho/design-cores-tema/contraste-m.json; resumo: node auditoria-local/trabalho/design-cores-tema/resumo.cjs auditoria-local/trabalho/design-cores-tema/contraste-m.json): claro, título e link 'Publicar perfil' #111111 sobre #111111 = 1,00:1, texto de apoio #4A4A46 sobre #111111 = 2,12:1; escuro, #F7F7F5 sobre #F7F7F5 = 1,00:1 e #BDBDB7 sobre #F7F7F5 = 1,76:1; o ícone do link também fica a 1,00:1. Capturas auditoria-local/trabalho/design-cores-tema/capturas/configurar-proximo-passo__light.png e __dark.png: só o número do passo e o texto de apoio aparecem. É o item 2 de docs/qa/revisao-2026-11-04/00-CONSOLIDADO.md:28, ainda aberto. Busca da classe de erro (fundo forte sem cor de texto na mesma regra) em todo o CSS de src (node auditoria-local/trabalho/design-cores-tema/classe-erro.cjs): 3 ocorrências, e só esta tem texto dentro (as outras duas são barras: shell.css:280 e setup.css:6). Na medição de 51 telas × 2 temas, é a única tela com texto ativo abaixo de 4,5:1.",
+   "recomendacao": "Em setup.css:19, trocar background para var(--tn-action-subtle) e manter a borda de selecionado com 2 px (mesma aparência de .tn-choice[data-selected] em ui.css). Contraste resultante, calculado: claro, título e link #111111 sobre #EDEDEA = 16,10:1 e apoio #4A4A46 = 7,59:1; escuro, #F7F7F5 sobre #2A2A28 = 13,41:1 e #BDBDB7 = 7,62:1. Somar ao src/app/css-system.test.ts a regra do classe-erro.cjs: toda regra com fundo --tn-action, --tn-selected-bg ou --tn-danger-action precisa declarar color na mesma regra, com lista explícita de exceções para barras sem texto.",
+   "caminhos": [
+    "src/features/setup/setup.css",
+    "src/app/css-system.test.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-cores-tema-02",
+   "titulo": "No tema escuro os selos de estado perdem o fundo: os quatro tokens *-bg valem tinta-900, a mesma cor do cartão",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "brand/tokens/tokens.css:146, 148, 150 e 152 (repetidos em 177, 179, 181 e 183): --tn-success-bg, --tn-warning-bg, --tn-danger-bg e --tn-info-bg = var(--tn-color-tinta-900), igual a --tn-surface (tokens.css:128). src/features/scheduling/scheduling.css:158-161 usa esses tokens como fundo do selo. Medido (auditoria-local/trabalho/design-cores-tema/extra.log): no detalhe do atendimento, selo 'Confirmado' com texto rgb(124,203,153), fundo rgb(28,28,26) e cartão pai rgb(28,28,26): 1,00:1 entre selo e cartão; no claro o mesmo selo tem fundo rgb(224,242,230) sobre branco. Na lista da Agenda escura, 'Reserva provisória' tem fundo rgb(28,28,26). Captura da galeria shots/home__m-dark.png (linha 10:45): o selo vira texto âmbar solto, sem a pílula que existe em shots/home__m-light.png. O texto continua legível (8,83:1 e 10,09:1) e mantém ícone; o que se perde é a forma do selo. Os avisos (.tn-banner) não têm o problema porque derivam o fundo com color-mix a 12% (src/components/ui/ui.css:135; medido #2A2E33 e #353022 no escuro).",
+   "recomendacao": "Derivar o fundo do selo como o do aviso, sem valor novo de marca: em scheduling.css:158-161 definir --tn-tone por tom e usar background: color-mix(in srgb, var(--tn-tone) 12%, var(--tn-surface)); color: var(--tn-tone). Contraste calculado do texto sobre o novo fundo: claro 5,28 (sucesso, #E4EEE7), 5,77 (atenção, #EFEAE0), 5,37 (erro, #F6E5E4) e 5,71 (informação, #E4EBF4); escuro 6,95 (#283129), 7,77 (#353022), 6,18 (#362B28) e 6,50 (#2A2E33). O selo passa a se destacar do cartão escuro em 1,25 a 1,30:1, a mesma ordem do claro (1,19 a 1,22:1). Os tokens *-bg ficam sem uso no selo; decidir no mesmo pacote se saem de tokens.css e tokens.json ou se recebem esse valor (registrar em brand/DECISIONS.md).",
+   "caminhos": [
+    "src/features/scheduling/scheduling.css",
+    "brand/tokens/tokens.css",
+    "brand/tokens/tokens.json",
+    "brand/tokens/contrast-report.md"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-cores-tema-03",
+   "titulo": "Preto preenchido significa cinco coisas (ação, 'você está aqui', valor escolhido, progresso, estado positivo): a ação principal não se destaca",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "Contagem de elementos com fundo igual a --tn-action na primeira dobra de 390×844 (auditoria-local/trabalho/design-cores-tema/extra2.log, igual nos dois temas): Agenda 4 (pílula 'Agenda' da subnavegação, opção 'Dia' do alternador, ícone da aba ativa e o botão 'Novo agendamento'), só 1 é ação; Hoje 3 (barra de progresso, 'Publicar perfil', aba ativa); Caixa 4; Clientes 3; Novo agendamento 3. Regras: navegação selecionada preenchida em src/components/ui/ui.css:245 (alternador) e ui.css:265 (subnavegação), aba ativa em src/app/shell.css:205, horário escolhido em src/features/scheduling/scheduling.css:237, progresso em src/features/setup/setup.css:6, passo concluído em setup.css:23, estado positivo em src/features/fiscal/fiscal.css:19, src/features/presence/presence.css:7 e src/features/discovery/discovery.css:8. Além disso convivem três aparências de 'selecionado': preenchido (acima), fundo sutil com borda de 2 px e ✓ (.tn-choice, visível em auditoria-local/trabalho/design-cores-tema/capturas/novo-agendamento-horario__light.png: serviço 'Corte' sutil e horário '13:00' preenchido na mesma tela) e fundo sutil com barra lateral (menu, shell.css:280). Captura auditoria-local/trabalho/design-cores-tema/capturas/agenda-topo__light.png. Inferência minha (não medida com usuário): com quatro manchas pretas iguais no topo, o olho não acha a ação primeiro.",
+   "recomendacao": "Reservar o preenchido para a ação principal da tela e para o valor escolhido num seletor (horário, dia). Navegação 'você está aqui' passa para a aparência que o menu e o .tn-choice já usam: fundo var(--tn-action-subtle), texto var(--tn-text) com peso 600 e indicador de 2 px em var(--tn-selected-indicator). Trocar em ui.css:245, ui.css:265 e shell.css:205. Contraste calculado: texto 16,10:1 no claro e 13,41:1 no escuro; indicador 17,60:1 sobre o fundo. Resultado na Agenda: de 4 preenchidos para 1 na primeira dobra. Isso revê o item 9 de docs/qa/AUDITORIA-UX-DESIGN-2026-10-27.md:41 (uma aparência só para selecionado): registrar a nova regra no comentário de src/styles/global.css:22 e atualizar os testes de css-system que fixam a aparência. Cabe nas regras atuais da marca (nenhuma cor nova).",
+   "caminhos": [
+    "src/components/ui/ui.css",
+    "src/app/shell.css",
+    "src/styles/global.css",
+    "src/app/css-system.test.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "design-cores-tema-04",
+   "titulo": "Barra de ocupação da Agenda é um <meter> nativo: pinta o verde do navegador, fora dos tokens, e há três jeitos de desenhar barra",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "src/features/scheduling/AgendaPage.tsx:152 usa <meter className=\"tn-sched-meter\">; src/features/scheduling/scheduling.css:85 só define largura e altura. Pixels lidos da captura auditoria-local/trabalho/design-cores-tema/capturas/agenda-meter__light.png e __dark.png (auditoria-local/trabalho/design-cores-tema/extra2.log): preenchimento rgb(16,124,16) no claro e rgb(116,179,116) no escuro, cores que não existem em brand/tokens/tokens.css. É a única cor saturada da Agenda além do selo âmbar (lista de cores cromáticas do main em auditoria-local/trabalho/design-cores-tema/extra.log), e o verde lê como 'sucesso' para uma ocupação de 26%; a cor muda sozinha conforme o navegador (Safari e Firefox desenham o meter de outro jeito; não testado aqui). Outras barras: src/features/growth-advice/GoalsPage.tsx:81 usa <progress> sem accent-color (growth-advice.css:9), src/features/referrals/referrals.css:10 usa <progress> com accent-color: var(--tn-action), e src/features/setup/setup.css:5-6 desenha a barra com div e span. Captura auditoria-local/trabalho/design-cores-tema/capturas/agenda-topo__light.png.",
+   "recomendacao": "Criar uma barra única em src/components/ui (trilho var(--tn-surface-sunken), preenchimento var(--tn-action), 8 px, role=meter ou progressbar com aria-valuenow e o texto que já existe ao lado) e usá-la nos quatro lugares. Contraste calculado do preenchimento contra o trilho: 16,10:1 no claro (#111111 sobre #EDEDEA) e 13,41:1 no escuro (#F7F7F5 sobre #2A2A28). Se os donos aprovarem o uso do laranja como destaque (achado de decisão sobre o laranja), esta barra é candidata; até lá, preta.",
+   "caminhos": [
+    "src/features/scheduling/AgendaPage.tsx",
+    "src/features/scheduling/scheduling.css",
+    "src/features/growth-advice/GoalsPage.tsx",
+    "src/features/referrals/ReferralsPage.tsx",
+    "src/features/setup",
+    "src/components/ui"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-cores-tema-05",
+   "titulo": "Texto de exemplo dos campos usa a cor padrão do navegador: 3,70:1 no tema escuro (mínimo 4,5:1)",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "Não existe regra ::placeholder em src (grep '::placeholder' em src: nenhuma ocorrência). Medido em 9 campos de 5 telas (assistente, notas, perfil, site, diretorio-app; bloco PLACEHOLDER de node auditoria-local/trabalho/design-cores-tema/resumo2.cjs auditoria-local/trabalho/design-cores-tema/contraste-m.json) e reconferido em /app/assistente (auditoria-local/trabalho/design-cores-tema/extra.log): cor computada rgb(117,117,117) nos dois temas; sobre #FFFFFF dá 4,61:1 (passa por 0,11) e sobre #1C1C1A dá 3,70:1 (falha). Exemplo: 'Ex.: o que tenho amanhã?'.",
+   "recomendacao": "Em src/components/ui/ui.css, junto das regras de campo: :is(input, textarea)::placeholder { color: var(--tn-text-muted); opacity: 1; }. Contraste calculado: 8,90:1 no claro (#4A4A46 sobre #FFFFFF) e 9,04:1 no escuro (#BDBDB7 sobre #1C1C1A).",
+   "caminhos": [
+    "src/components/ui/ui.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-cores-tema-06",
+   "titulo": "Na lista da Agenda o estado depende só de um selo pequeno; cartões de estados diferentes são idênticos e dois estados bons usam cores diferentes",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "Medido em /app/agenda (auditoria-local/trabalho/design-cores-tema/extra.log): os 5 itens 'confirmed' e o item 'held' têm o mesmo fundo e a mesma borda (rgb(255,255,255) e rgb(222,222,217) no claro; rgb(28,28,26) e rgb(58,58,55) no escuro); a única diferença é o selo 'Reserva provisória'. Mapa de tons em src/features/scheduling/agenda.ts:35-41: held=warning, confirmed=success (verde), completed=info (azul), no_show=danger, cancelled e expired=neutral. 'Concluído' em azul usa a mesma cor do anel de foco (--tn-focus e --tn-info-text são azul-700, brand/tokens/tokens.css:112 e 119). Cancelado e vencido usam opacity .75 (src/features/scheduling/scheduling.css:128-129). Não consegui produzir 'Concluído' e 'Faltou' em tela pelo roteiro automático (o estado não mudou; auditoria-local/trabalho/design-cores-tema/extra2.log), então a aparência desses dois é lida do código, não de captura. Cor por categoria de serviço não existe e, com um profissional e 2 a 6 serviços, não faz falta.",
+   "recomendacao": "Dar ao item da lista a faixa lateral de 4 px na cor do tom, padrão que já existe no aviso (ui.css:134), no toast (ui.css:168) e no cartão 'Próximo' (src/app/pages/pages.css:62): border-left: 4px solid var(--tn-tone) em .tn-sched-item[data-status], sem faixa para 'confirmed' (o estado normal). Assim o dia se lê pela borda: âmbar a confirmar, vermelho faltou, cinza cancelado. Rever com os donos se 'Concluído' deve ser verde (sucesso) e 'Confirmado' neutro no detalhe; é ajuste de mapa em agenda.ts:35-41, sem cor nova. Não adicionar cor por serviço no piloto.",
+   "caminhos": [
+    "src/features/scheduling/scheduling.css",
+    "src/features/scheduling/agenda.ts",
+    "src/features/scheduling/parts.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "design-cores-tema-07",
+   "titulo": "O laranja da marca não aparece na interface: os tokens de destaque têm zero uso e o app fica sem nenhuma cor fora do logotipo",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "Inventário (node auditoria-local/trabalho/design-cores-tema/inventario.cjs; auditoria-local/trabalho/design-cores-tema/inventario.json): --tn-brand-accent, --tn-accent-text e --tn-brand têm 0 usos em src; nenhum primitivo laranja é usado. O laranja só existe nos SVG do logotipo: símbolo de 32 px na barra do app no celular (src/app/AppShell.tsx:174) e palavra de 120 px no desktop (AppShell.tsx:175), palavra nas telas de entrada e públicas (SignIn.tsx:37, AuthPages.tsx:58 e 142, PublicLayout.tsx:12) e favicon. Medição de elementos com cor cromática (auditoria-local/trabalho/design-cores-tema/extra.log): em Hoje, fora a faixa âmbar de demonstração (que some em produção), há 0 elementos; em Caixa, Clientes, Mensagens, Pagamentos e Metas, 1 ícone azul de aviso. O manual sugere até 5% de laranja e lista 'pingos, olhos, sorriso, linhas' como destaque vivo (brand/guidelines/brand-manual.md:139 e 150). brand/BRAND.md:23-24 proíbe laranja em botão, estado e texto. Capturas shots/home__m-light.png e shots/home__m-dark.png. Julgamento: a sobriedade serve ao público (leitura rápida, 17,6:1), mas a interface não carrega a marca: tirando o símbolo, é um app preto e branco genérico.",
+   "recomendacao": "Decisão dos donos. Opção A: manter como está (laranja só no logotipo) e remover os tokens órfãos. Opção B (recomendada): permitir o laranja em um ou dois elementos não textuais, não clicáveis e que não sejam estado, usando var(--tn-brand-accent): a faixa lateral do cartão 'Próximo' em Hoje (src/app/pages/pages.css:62) e a linha de 'agora' na Agenda. Contraste não textual calculado: 3,12:1 sobre papel e 3,34:1 sobre branco no claro (mínimo 3:1, margem curta), 6,64:1 e 6,00:1 no escuro. Exige registrar a exceção em brand/DECISIONS.md e no BRAND.md. Opção C (não recomendada): laranja como botão principal; branco sobre laranja-500 dá 3,34:1 (reprova texto) e a cor se confunde com atenção e erro, risco que o próprio manual registra na linha 154.",
+   "caminhos": [
+    "brand/BRAND.md",
+    "brand/DECISIONS.md",
+    "src/app/pages/pages.css",
+    "src/features/scheduling/scheduling.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "design-cores-tema-08",
+   "titulo": "Na página pública do profissional a identidade é toda da Tinindo: palavra Tinindo no topo, botão preto e nada do profissional além do nome",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "Perfil público /p/:slug publicado na mesma aba (auditoria-local/trabalho/design-cores-tema/capturas/perfil-publico__light.png e __dark.png; medidas em auditoria-local/trabalho/design-cores-tema/estados.json): topo com a palavra Tinindo de 120 px (src/app/PublicLayout.tsx:12), nome do negócio em h1, botão 'Ver horários livres' em --tn-action (#FFFFFF sobre #111111, 18,88:1; no escuro 17,60:1); nenhuma foto, logotipo ou cor do profissional. Site /s/:slug (auditoria-local/trabalho/design-cores-tema/capturas/site-publico__light.png): duas aparências, 'Clara' e 'Escura' (src/features/presence/PresencePage.tsx:70-71; contrato supabase/functions/_shared/contracts/presence.ts:11), que são papel e tinta da Tinindo (src/features/presence/presence.css:26-33), fixas e independentes do tema do aparelho; todos os pares passam (mínimo 8,20:1). No site a Tinindo aparece só no rodapé ('Página feita com a Tinindo', src/features/presence/PublicSitePage.tsx:28); no perfil ela aparece no topo, antes do nome do profissional. As duas páginas públicas tratam a marca de modos opostos.",
+   "recomendacao": "Decisão dos donos: de quem é a marca na página que o cliente final vê. Opção A (recomendada para o piloto): manter a paleta neutra, que serve de moldura para qualquer profissional, e alinhar o perfil ao site: nome do profissional primeiro e a Tinindo no rodapé, como assinatura. Opção B (passo seguinte): foto ou logotipo do profissional no topo, sem mexer em cor. Opção C (depois do piloto): cor de destaque escolhida numa lista curta já validada (até 6 cores, cada uma com par de texto calculado nos dois temas), nunca seletor livre. Não recomendo cor livre: quebra o contraste garantido hoje.",
+   "caminhos": [
+    "src/app/PublicLayout.tsx",
+    "src/features/network/PublicPages.tsx",
+    "src/features/presence"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "design-cores-tema-09",
+   "titulo": "Selo de estado com tom só existe na Agenda; fiscal, site e diretório mostram estado positivo como pílula preta, igual a botão e a 'selecionado'",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "Única família de selo com tom: .tn-sched-badge em src/features/scheduling/scheduling.css:148-162, com componente em src/features/scheduling/parts.tsx:18-28. Outros módulos criaram pílulas próprias em que o estado positivo é preenchido com --tn-action: src/features/fiscal/fiscal.css:19 (authorized; rejected vira texto riscado na linha 20), src/features/presence/presence.css:7 (published) e src/features/discovery/discovery.css:8 (listed). Em /app/caixa não há marca de estado alguma: o único elemento com tom é um aviso informativo (auditoria-local/trabalho/design-cores-tema/extra2.log, linha 'caixa marcas de estado').",
+   "recomendacao": "Mover o selo para src/components/ui (classe .tn-badge[data-tone] e componente StatusBadge com ícone e texto), aplicar o fundo derivado do achado dos selos no escuro e trocar as três pílulas: authorized, published e listed passam a tom success; rejected a danger; rascunho a neutral. Nenhuma cor nova. Incluir no css-system.test.ts a proibição de fundo --tn-action em classe de estado.",
+   "caminhos": [
+    "src/components/ui",
+    "src/features/scheduling",
+    "src/features/fiscal/fiscal.css",
+    "src/features/presence/presence.css",
+    "src/features/discovery/discovery.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-cores-tema-10",
+   "titulo": "Onze tokens semânticos de cor vivem em global.css, fora de brand/tokens: tokens.json e o relatório de contraste não os conhecem",
+   "gravidade": "baixa",
+   "tipo": "refatorar",
+   "evidencia": "src/styles/global.css:23-26 (--tn-selected-bg, -text, -border, -weight), :29 (--tn-opacity-disabled), :32 (--tn-danger-action), :39-41 (--tn-elevation-1, -2, --tn-surface-float) e :45-48, que troca --tn-surface-sunken no escuro para tinta-800, contrariando brand/tokens/tokens.css:129 e 160 (tinta-950). brand/tokens/tokens.json não contém nenhum deles (checagem por script: false). brand/tokens/contrast-report.md não tem os pares de --tn-danger-action (medidos aqui: #FFFFFF sobre #B3261E = 6,54:1; #111111 sobre #F2958F = 8,52:1) nem de texto sobre o afundado escuro (medido 7,62:1). brand/BRAND.md:49 manda atualizar json, css, manual e relatório juntos. O tema escuro está escrito duas vezes em tokens.css (125-156 e 157-186) para um atributo data-theme que o app nunca define (grep em src por dataset.theme e setAttribute: nenhuma ocorrência), enquanto o logotipo troca de versão só por prefers-color-scheme (src/components/ui/index.tsx:209 e 220): se alguém forçar data-theme, o logotipo não acompanha.",
+   "recomendacao": "Levar esses tokens para brand/tokens (json e css gerados juntos, versão 0.3), corrigir --tn-surface-sunken do escuro na origem, gerar de novo o contrast-report com os pares novos e registrar em brand/DECISIONS.md. Decidir no mesmo pacote: ou o app ganha o alternador de tema e o logotipo passa a obedecer a data-theme, ou o bloco :root[data-theme=\"dark\"] sai. Sem mudança visual.",
+   "caminhos": [
+    "src/styles/global.css",
+    "brand/tokens/tokens.css",
+    "brand/tokens/tokens.json",
+    "brand/tokens/contrast-report.md",
+    "brand/DECISIONS.md"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-cores-tema-11",
+   "titulo": "Opacidade usada como cor derruba texto para 4,49:1 (cancelado, passo feito) e 2,48:1 (descrição de opção desabilitada)",
+   "gravidade": "baixa",
+   "tipo": "defeito",
+   "evidencia": "src/features/setup/setup.css:20 (opacity .8 no passo concluído): etiqueta 'opcional' medida a #6E6E6B sobre #F1F1EE = 4,49:1. src/features/scheduling/scheduling.css:128-129 (opacity .75 em cancelado e vencido): texto secundário calculado #777774 sobre #FFFFFF = 4,49:1. src/styles/global.css:29 (--tn-opacity-disabled: .5) aplicado em ui.css:25, 66, 102 e 290: botão desabilitado a 3,54:1 e, em /app/configurar, a descrição '30 min · faixa R$ 35,00 a R$ 70,00' da opção 'Corte · já no catálogo' a 2,48:1 no claro e 3,26:1 no escuro (bloco TEXTO ABAIXO DO MÍNIMO de node auditoria-local/trabalho/design-cores-tema/resumo.cjs auditoria-local/trabalho/design-cores-tema/contraste-m.json). O WCAG isenta controle desabilitado, mas essa descrição é informação que a pessoa precisa ler.",
+   "recomendacao": "Trocar opacidade por cor de token: em setup.css:20 e scheduling.css:128-129 usar color: var(--tn-text-muted) no título (8,90:1 no claro, 9,04:1 no escuro) e manter o riscado do cancelado; em .tn-choice[data-disabled] (ui.css:290) aplicar a opacidade só ao marcador e deixar título e descrição em var(--tn-text-muted). Botões desabilitados ficam como estão.",
+   "caminhos": [
+    "src/features/setup/setup.css",
+    "src/features/scheduling/scheduling.css",
+    "src/components/ui/ui.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "design-cores-tema-12",
+   "titulo": "Seis tokens de cor órfãos e sete usos de primitivo direto no CSS do app",
+   "gravidade": "baixa",
+   "tipo": "simplificar",
+   "evidencia": "node auditoria-local/trabalho/design-cores-tema/inventario.cjs: sem nenhum uso em src nem referência em tokens.css: --tn-color-laranja-200, --tn-color-laranja-100, --tn-shadow-md, --tn-brand, --tn-brand-accent, --tn-accent-text. Primitivos usados direto, sem semântico: --tn-color-tinta-950 como véu a 45% em src/app/shell.css:323 e src/components/ui/sheet.css:20 e a 55% em src/features/identity/identity.css:100 (o mesmo véu com duas opacidades), e tinta-950, tinta-700 e papel-50 no site em src/features/presence/presence.css:26, 27, 32 e 33. No resto, a disciplina é boa: grep por HEX, rgb() e hsl() em src não retorna nada e os 7 color-mix partem de tokens.",
+   "recomendacao": "Criar --tn-scrim (tinta-950 a 45%) e usar nos três véus; criar tokens do site (--tn-site-bg, --tn-site-text e par invertido) ou documentar a exceção no comentário de presence.css:25. Remover laranja-100, laranja-200 e shadow-md de tokens.css e tokens.json. Manter --tn-brand-accent e --tn-accent-text até a decisão sobre o laranja.",
+   "caminhos": [
+    "brand/tokens/tokens.css",
+    "brand/tokens/tokens.json",
+    "src/app/shell.css",
+    "src/components/ui/sheet.css",
+    "src/features/presence/presence.css",
+    "src/features/identity/identity.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Laranja na interface (achado 07). Hoje ele só existe no logotipo. Opções: A) manter assim; B) liberar em um ou dois elementos não textuais, não clicáveis e que não sejam estado (faixa do cartão 'Próximo', linha de 'agora' da Agenda), registrando a exceção em brand/DECISIONS.md; C) laranja como botão principal. Recomendo B; C reprova contraste (3,34:1) e confunde com atenção e erro.",
+  "Marca na página pública do profissional (achado 08). Opções: A) paleta neutra da Tinindo, com o nome do profissional primeiro e a Tinindo só no rodapé, igual ao site; B) somar foto ou logotipo do profissional; C) cor de destaque escolhida numa lista curta validada. Recomendo A agora, B em seguida e C só depois do piloto.",
+  "Mapa de cor dos estados do atendimento (achado 06): 'Concluído' continua azul (informação) e 'Confirmado' verde, ou 'Concluído' passa a verde e 'Confirmado' fica neutro? Recomendo a segunda: verde para o que foi entregue.",
+  "Tema forçado (achado 10): o app vai ter alternador claro/escuro? Se não, sai o bloco data-theme de tokens.css; se sim, o logotipo precisa obedecer ao atributo. Recomendo não ter alternador no piloto."
+ ],
+ "nao_coberto": [
+  "Contraste medido só na largura de celular (390×844); o desktop usa os mesmos tokens, mas não foi medido tela a tela.",
+  "Estados de hover e pressionado, e os estados 'Concluído', 'Faltou' e 'Cancelado' na lista da Agenda: o roteiro automático não mudou o estado do atendimento; a aparência desses foi lida do CSS e do mapa em agenda.ts.",
+  "Campo com erro em tela: o cenário de /entrar falhou no roteiro do auditor anterior (captura entrar-erro-FALHA); só a regra ui.css:101 foi lida.",
+  "Safari do iPhone e Firefox (em especial o desenho do <meter> e do <progress>), prefers-contrast, forced-colors e simulação de daltonismo.",
+  "Leitura em aparelho real ao sol e em tela de baixa qualidade; teste com profissionais do piloto sobre a preferência de cor.",
+  "E-mails, ícones do PWA, manifest e arquivos de brand/assets (só o uso deles no app foi conferido).",
+  "Páginas públicas com token (oferta, orçamento, pagamento) entraram só pela medição geral das 51 telas, sem análise própria."
+ ]
+}
