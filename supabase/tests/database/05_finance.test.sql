@@ -1,8 +1,9 @@
 -- P07 · Caixa registrado: pacote de R$1.000 em 10 sessões não repete caixa; consumo, retry e estorno;
--- recebimento parcial, excesso negado e estorno; despesas; resumo com cobertura; acesso só do dono.
+-- recebimento parcial, excesso negado e estorno; despesas; resumo com cobertura; acesso só do dono;
+-- livro do caixa com mais de 200 recebíveis não esconde os em aberto mais novos.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(60);
+select plan(64);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -262,6 +263,34 @@ select throws_ok(format($$ select public.package_list(%L) $$, (select tenant_b f
 reset role;
 set local role anon;
 select throws_ok('select * from public.payment_entries', '42501', null, 'anon não lê recebimentos');
+reset role;
+
+-- ------------------------------------------------------------------ livro com mais de 200 recebíveis (Onda 0, linha K)
+-- 210 atendimentos cobrados no último mês: os 200 mais antigos quitados, os 10 mais novos em aberto.
+-- O corte de 200 não pode esconder os em aberto (antes cortava pelo vencimento mais antigo).
+insert into public.receivables (tenant_id, customer_id, description, amount_cents, paid_cents, due_at, status, created_at)
+select (select tenant_b from ids), (select cust_b from ids), 'Atendimento ' || g, 5000,
+  case when g <= 200 then 5000 else 0 end,
+  now() - make_interval(hours => 220 - g) + interval '1 day',
+  case when g <= 200 then 'paid' else 'open' end,
+  now() - make_interval(hours => 220 - g)
+from generate_series(1, 210) g;
+select pg_temp.login_as((select owner_b from ids));
+set local role authenticated;
+insert into r select 'ledger210', public.finance_ledger((select tenant_b from ids), now() - interval '30 days', now() + interval '1 day');
+select is((select count(*)::int from jsonb_array_elements(pg_temp.got('ledger210')->'receivables') x
+  where x->>'description' ~ '^Atendimento (20[1-9]|210)$' and x->>'status' = 'open'), 10,
+  'livro com 210 cobrados traz os 10 em aberto mais novos');
+select is((select count(*)::int from jsonb_array_elements(pg_temp.got('ledger210')->'receivables') x
+  where x->>'status' in ('open', 'partially_paid')),
+  (select count(*)::int from public.receivables where tenant_id = (select tenant_b from ids) and status in ('open', 'partially_paid')),
+  'todo recebível em aberto do negócio aparece no livro');
+select is(jsonb_array_length(pg_temp.got('ledger210')->'receivables'), 200, 'o corte continua em 200');
+select ok((select bool_and(d.prev is null or d.prev <= d.due_at) from (
+    select (x->>'due_at')::timestamptz as due_at, lag((x->>'due_at')::timestamptz) over (order by n) as prev
+    from jsonb_array_elements(pg_temp.got('ledger210')->'receivables') with ordinality as t(x, n)
+    where x->>'due_at' is not null) d),
+  'saída continua ordenada pelo vencimento');
 reset role;
 
 select * from finish();
