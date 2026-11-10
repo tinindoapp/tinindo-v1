@@ -142,6 +142,18 @@ Regras verificáveis por lint ou teste: módulo não importa módulo; `app` só 
 
 Cada linha traz as opções e a recomendação da auditoria. As marcadas com ★ destravam pacote.
 
+**Decididas em 10/11 pelo Felipe:**
+
+| # | Decisão | Escolha |
+|---|---|---|
+| D1 | O que o participante do piloto vê | (a) 10 módulos no primeiro dia, 6 por ativação, 11 guardados |
+| D2 | Quinta aba da barra | (b) "Retorno": lembretes a mandar, quem não volta, lista de espera |
+| D5 | Demonstração offline | (B) congelar: gravação emulada só no ciclo central, fora do pacote de produção |
+| D6 | O que a Hoje mostra primeiro | (b) o dia primeiro; configuração em uma linha quando há atendimento |
+| D14 | Laranja na interface | (B) um ou dois elementos que não são texto, botão nem estado (registrado em `brand/DECISIONS.md`, D31) |
+
+Continuam em aberto, entre as que destravam pacote: D4, D8, D18, D19, D36 e D37.
+
 ### Produto e escopo
 
 | # | Decisão | Opções | Recomendo |
