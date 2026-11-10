@@ -292,6 +292,48 @@ describe("páginas públicas (demonstração)", () => {
     expect(await screen.findByLabelText("Seu nome")).toHaveValue("Maria");
   });
 
+  it("negócio em Manaus: pede a janela do dia local e mostra o horário de lá, também na confirmação", async () => {
+    // 13:00 UTC = 09:00 em Manaus (UTC−4) e 10:00 em Brasília.
+    const slot = { starts_at: "2026-10-20T13:00:00Z", ends_at: "2026-10-20T13:30:00Z" };
+    const slotsCall = vi.fn().mockResolvedValue({ slots: [slot], timezone: "America/Manaus" });
+    const book = vi.fn().mockResolvedValue({
+      request_id: "65100000-0000-4000-8000-000000000001", status: "pending_code", slot,
+      expires_at: "2026-10-20T13:10:00Z", delivery: "queued",
+    });
+    const confirmBooking = vi.fn().mockResolvedValue({ status: "confirmed", slot, timezone: "America/Manaus", service_name: "Corte" });
+    const api = {
+      ...createDemoNetworkApi("http://localhost"),
+      publicServices: async () => [{ id: FX.services.corteA, name: "Corte", duration_min: 30 }],
+      publicSlots: slotsCall,
+      book,
+      confirmBooking,
+    };
+    const profile = { slug: "x", category: "barber" as const, area: "Centro", published_at: "2026-10-20T12:00:00Z",
+      fields: { display_name: "Barbearia X", booking_link: "http://localhost/p/x" }, reputation: { identity_verified: false, reviews_count: 0 } };
+    render(
+      <MemoryRouter>
+        <PublicProfileView api={api} profile={profile} />
+      </MemoryRouter>,
+    );
+    await chooseService();
+    const list = await screen.findByRole("list", { name: "Horários livres" });
+    expect(within(list).getByRole("button", { name: "09:00" })).toBeInTheDocument();
+    expect(within(list).queryByRole("button", { name: "10:00" })).toBeNull();
+    // A lista mostrada é a do dia local de Manaus: [00:00, 24:00) com o offset de lá.
+    expect(slotsCall).toHaveBeenLastCalledWith("x", FX.services.corteA, { starts_at: "2026-10-20T00:00:00-04:00", ends_at: "2026-10-21T00:00:00-04:00" });
+
+    fireEvent.click(within(list).getByRole("button", { name: "09:00" }));
+    expect(screen.getByText(/^Corte · ter 20\/10 · 09:00$/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
+    fireEvent.change(screen.getByLabelText("WhatsApp com DDD"), { target: { value: "(92) 97777-4343" } });
+    fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
+    expect(await screen.findByText(/guardado até as/)).toHaveTextContent("guardado até as 09:10");
+    fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
+    await screen.findByRole("heading", { name: "Horário confirmado" });
+    expect(document.body).toHaveTextContent("Corte · terça-feira, 20/10 às 09:00.");
+  });
+
   it("mesmo WhatsApp com pedido aguardando código: avisa, mantém o anterior ou troca pelo novo", async () => {
     await publishDemoProfile();
     cleanup();
@@ -384,6 +426,10 @@ describe("páginas públicas (demonstração)", () => {
     expect(toE164("+55 11 97777-4343")).toBe("+5511977774343");
     expect(toE164("5511977774343")).toBe("+5511977774343");
     expect(toE164("97777-4343")).toBeNull();
+    // Mesmo analisador de Clientes e da Agenda: 0 de longa distância vale; letras no meio não.
+    expect(toE164("011 98765-4321")).toBe("+5511987654321");
+    expect(toE164("0 11 8765-4321")).toBe("+551187654321");
+    expect(toE164("11 9abc8765-4321")).toBeNull();
   });
 
   it("perfil tirado do ar some do link público", async () => {

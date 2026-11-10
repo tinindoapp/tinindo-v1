@@ -1,7 +1,7 @@
 // Porta do Assistente (P08). Servidor: Edge Function `agent`. Demonstração: o MESMO motor sobre dados de exemplo.
 import type { ActionApproval, ActionProposal, ActionReceipt, AgentAnswer, AgentDraftInput, AgentDraftOutput } from "@contracts";
 import type { z } from "zod";
-import type { SetupProgress } from "./setupGuide.ts";
+import type { SetupProgress } from "@contracts";
 
 export type Answer = z.infer<typeof AgentAnswer>;
 export type Proposal = z.infer<typeof ActionProposal>;

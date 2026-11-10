@@ -4,17 +4,32 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, toast, useFormErrors, whatsappHref } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
+import { phoneToE164 } from "../../lib/phone.ts";
+import { addDays, dayWindow, formatTime, localParts } from "../../lib/time.ts";
 import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, SlotsData } from "./api.ts";
 import { buildIcs } from "./ics.ts";
-import { CATEGORY_LABEL, errorMessage, formatPhoneBr, formatTime, newIdempotencyKey } from "./useNetworkApi.ts";
+import { CATEGORY_LABEL, errorMessage, formatPhoneBr, newIdempotencyKey } from "./useNetworkApi.ts";
 
 /** Dia da demonstração (fixtures do piloto). Com servidor, o visitante escolhe a partir de hoje. */
 const DEMO_DAY = "2026-10-20";
-const OFFSET = "-03:00"; // America/Sao_Paulo, sem horário de verão.
-const dayWindow = (day: string) => ({ starts_at: `${day}T00:00:00${OFFSET}`, ends_at: `${day}T23:59:59${OFFSET}` });
-const todayInSaoPaulo = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-const formatDay = (iso: string) =>
-  new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+/**
+ * Fuso usado só no primeiro pedido de horários, antes de o servidor dizer o do negócio. Toda resposta de horários e a
+ * confirmação trazem o `timezone` do negócio (o cadastro oferece nove fusos); a janela do dia, o "hoje" e os horários
+ * mostrados seguem esse fuso, nunca o do aparelho.
+ */
+const FIRST_GUESS_TZ = "America/Sao_Paulo";
+const isTimeZone = (tz: string) => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+const todayIn = (timeZone: string) => localParts(new Date(), timeZone).date;
+/** "terça-feira, 20/10" no fuso do negócio. */
+const formatDay = (iso: string, timeZone: string) =>
+  new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone }).format(new Date(iso));
 
 /** Pedido que aguarda código (error.details de PENDING_REQUEST_EXISTS). Só id e prazo: o servidor não diz qual é. */
 interface PendingSummary {
@@ -37,10 +52,6 @@ export const whatsappLink = (e164: string) => `https://wa.me/${e164.replace(/\D/
 
 /** Quantos dias a fileira de chips mostra a partir de hoje. */
 export const DAYS_AHEAD = 14;
-/** "2026-10-20" + n dias, em data de calendário (meio-dia UTC evita virar o dia). */
-export function addDays(day: string, n: number): string {
-  return new Date(Date.parse(`${day}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
-}
 /** "ter 20/10": rótulo curto de um dia de calendário. */
 export function shortDay(day: string): string {
   const date = new Date(`${day}T12:00:00Z`);
@@ -48,13 +59,12 @@ export function shortDay(day: string): string {
   return `${weekday} ${day.slice(8, 10)}/${day.slice(5, 7)}`;
 }
 
-/** Aceita "(11) 97777-4343", "11977774343" ou "+55 11 97777-4343"; devolve E.164 ou null. */
+/**
+ * Aceita "(11) 97777-4343", "011 97777-4343", "11977774343" ou "+55 11 97777-4343"; devolve E.164 ou null.
+ * Mesmo analisador de Clientes e da Agenda (src/lib/phone.ts).
+ */
 export function toE164(raw: string): string | null {
-  const digits = raw.replace(/\D/g, "");
-  if (raw.trim().startsWith("+")) return /^[1-9]\d{7,14}$/.test(digits) ? `+${digits}` : null;
-  if (/^\d{10,11}$/.test(digits)) return `+55${digits}`;
-  if (/^55\d{10,11}$/.test(digits)) return `+${digits}`;
-  return null;
+  return phoneToE164(raw) ?? null;
 }
 
 /** Mensagens do pedido e da confirmação, sem detalhes técnicos. */
@@ -151,8 +161,8 @@ export function PublicProfileView({ profile, api }: { profile: PublicProfileData
 }
 
 /** Mensagem pronta para falar com o profissional depois de reservar. Só o que a própria pessoa marcou. */
-export function bookedMessage(service: string, startsAt: string): string {
-  return `Olá! Marquei ${service} para ${formatDay(startsAt)} às ${formatTime(startsAt)} pelo seu perfil na Tinindo.`;
+export function bookedMessage(service: string, startsAt: string, timeZone: string): string {
+  return `Olá! Marquei ${service} para ${formatDay(startsAt, timeZone)} às ${formatTime(startsAt, timeZone)} pelo seu perfil na Tinindo.`;
 }
 
 /** Baixa o .ics da reserva (gerado aqui no navegador; nada vai para o servidor). */
@@ -205,7 +215,9 @@ function StepIndicator({ phase }: { phase: StepPhase }) {
 function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api: NetworkApi; professional: string; whatsapp: string | null }) {
   const [services, setServices] = useState<PublicService[] | null>(null);
   const [serviceId, setServiceId] = useState<string>("");
-  const [firstDay] = useState<string>(() => (api.demo ? DEMO_DAY : todayInSaoPaulo()));
+  // Fuso do negócio, informado pelo servidor em cada resposta de horários.
+  const [zone, setZone] = useState<string>(FIRST_GUESS_TZ);
+  const [firstDay, setFirstDay] = useState<string>(() => (api.demo ? DEMO_DAY : todayIn(FIRST_GUESS_TZ)));
   const [day, setDay] = useState<string>(firstDay);
   const [result, setResult] = useState<SlotsState | null>(null);
   const [reload, setReload] = useState(0);
@@ -267,18 +279,31 @@ function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api
     if (loaded && window.location.hash === `#${BOOKING_ANCHOR}`) document.getElementById(BOOKING_ANCHOR)?.scrollIntoView({ block: "start" });
   }, [loaded]);
 
-  const slotsKey = `${serviceId}|${day}|${reload}`;
+  const slotsKey = `${serviceId}|${day}|${zone}|${reload}`;
   useEffect(() => {
     if (!serviceId) return;
     let cancelled = false;
     api
-      .publicSlots(slug, serviceId, dayWindow(day))
-      .then((data) => !cancelled && setResult({ key: slotsKey, kind: "ok", data }))
+      .publicSlots(slug, serviceId, dayWindow(day, zone))
+      .then((data) => {
+        if (cancelled) return;
+        if (data.timezone !== zone && isTimeZone(data.timezone)) {
+          // O negócio está em outro fuso: pede de novo a janela do dia local dele (e "hoje" passa a ser o dia de lá).
+          if (!api.demo) {
+            const today = todayIn(data.timezone);
+            setFirstDay(today);
+            setDay((d) => (d === firstDay ? today : d));
+          }
+          setZone(data.timezone);
+          return;
+        }
+        setResult({ key: slotsKey, kind: "ok", data });
+      })
       .catch((e: unknown) => !cancelled && setResult({ key: slotsKey, kind: "error", message: errorMessage(e) }));
     return () => {
       cancelled = true;
     };
-  }, [api, slug, serviceId, day, slotsKey]);
+  }, [api, slug, serviceId, day, zone, firstDay, slotsKey]);
 
   // Resultado de outra escolha ainda na tela = carregando a atual.
   const slots = result && result.key === slotsKey ? result : { kind: "loading" as const };
@@ -375,7 +400,7 @@ function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api
           Horário confirmado
         </h2>
         <StatusBanner tone="success">
-          {booking.service_name} · {formatDay(booking.slot.starts_at)} às <span className="tn-num">{formatTime(booking.slot.starts_at)}</span>.
+          {booking.service_name} · {formatDay(booking.slot.starts_at, booking.timezone)} às <span className="tn-num">{formatTime(booking.slot.starts_at, booking.timezone)}</span>.
           {api.demo ? " Demonstração: a reserva entrou só na Agenda desta aba." : null}
         </StatusBanner>
         <div className="tn-actions">
@@ -402,7 +427,7 @@ function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api
             <a
               className="tn-button"
               data-variant="secondary"
-              href={whatsappHref(whatsapp, bookedMessage(booking.service_name, booking.slot.starts_at))}
+              href={whatsappHref(whatsapp, bookedMessage(booking.service_name, booking.slot.starts_at, booking.timezone))}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -437,7 +462,7 @@ function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api
   // Resumo da escolha, à vista do passo 2 em diante: "Corte · ter 20/10 · 10:00".
   const summary = kept && step === "code"
     ? "Pedido anterior deste WhatsApp"
-    : [service?.name, shortDay(day), chosen ? formatTime(chosen) : null].filter(Boolean).join(" · ");
+    : [service?.name, shortDay(day), chosen ? formatTime(chosen, zone) : null].filter(Boolean).join(" · ");
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(firstDay, i));
 
   return (
@@ -538,7 +563,7 @@ function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api
                       go("contact");
                     }}
                   >
-                    {formatTime(s.starts_at)}
+                    {formatTime(s.starts_at, zone)}
                   </button>
                 </li>
               ))}
@@ -628,7 +653,7 @@ function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api
           ) : null}
           <StatusBanner tone="info">
             Enviamos um código de 6 dígitos para o seu WhatsApp <span className="tn-num">{formatPhoneBr(request.phone)}</span>. O
-            horário fica guardado até as <span className="tn-num">{formatTime(request.data.expires_at)}</span>; depois disso, volta a
+            horário fica guardado até as <span className="tn-num">{formatTime(request.data.expires_at, zone)}</span>; depois disso, volta a
             ficar livre.
           </StatusBanner>
           {/* Corrigir volta aos dados com serviço, dia e hora mantidos (E10). */}

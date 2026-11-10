@@ -41,11 +41,28 @@
   --tn-surface-float: var(--tn-surface);
 }
 /* No escuro, "afundado" (selo neutro, bloqueio, ícone de atalho) era tinta-950: mais escuro que o cartão e igual ao
-   fundo da página, parecia um buraco. Passa a ser um tom acima do cartão, como no claro (tinta-100 sobre branco). */
+   fundo da página, parecia um buraco. Passa a ser um tom acima do cartão, como no claro (tinta-100 sobre branco).
+   Fundos de estado (selo, etapa feita, faixa de aviso): na marca, os quatro --tn-*-bg do escuro valem tinta-900, a cor
+   do cartão, e o selo perdia a forma (1,00:1 contra o cartão). Sem valor novo de paleta, o fundo deriva do próprio tom
+   como o do aviso (.tn-banner): 12% do texto do estado sobre o cartão. Texto do selo sobre ele: 6,95 (sucesso), 7,77
+   (atenção), 6,18 (erro) e 6,50:1 (informação); o selo se destaca do cartão em 1,25 a 1,30:1, como no claro.
+   Conferido em src/app/contrast-tokens.test.ts. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --tn-surface-sunken: var(--tn-color-tinta-800); --tn-surface-float: var(--tn-surface-raised); }
+  :root:not([data-theme="light"]) {
+    --tn-surface-sunken: var(--tn-color-tinta-800); --tn-surface-float: var(--tn-surface-raised);
+    --tn-success-bg: color-mix(in srgb, var(--tn-success-text) 12%, var(--tn-surface));
+    --tn-warning-bg: color-mix(in srgb, var(--tn-warning-text) 12%, var(--tn-surface));
+    --tn-danger-bg: color-mix(in srgb, var(--tn-danger-text) 12%, var(--tn-surface));
+    --tn-info-bg: color-mix(in srgb, var(--tn-info-text) 12%, var(--tn-surface));
+  }
 }
-:root[data-theme="dark"] { --tn-surface-sunken: var(--tn-color-tinta-800); --tn-surface-float: var(--tn-surface-raised); }
+:root[data-theme="dark"] {
+  --tn-surface-sunken: var(--tn-color-tinta-800); --tn-surface-float: var(--tn-surface-raised);
+  --tn-success-bg: color-mix(in srgb, var(--tn-success-text) 12%, var(--tn-surface));
+  --tn-warning-bg: color-mix(in srgb, var(--tn-warning-text) 12%, var(--tn-surface));
+  --tn-danger-bg: color-mix(in srgb, var(--tn-danger-text) 12%, var(--tn-surface));
+  --tn-info-bg: color-mix(in srgb, var(--tn-info-text) 12%, var(--tn-surface));
+}
 /* Pontos de quebra (item 23): só dois, com nome. CSS não aceita variável em @media, então o nome fica aqui e o teste
    src/app/css-system.test.ts recusa qualquer outra largura.
    - compacto: (max-width: 30rem), 480 px. Formulário em uma coluna.
@@ -94,6 +111,30 @@ strong, b { font-weight: var(--tn-font-weight-semibold); }
 /* Controles herdam a fonte do texto num lugar só (item 13). Os módulos não repetem `font: inherit`, que zerava o
    tabular-nums declarado antes. Os números tabulares vêm depois, para valer em botões e campos também. */
 button, input, select, textarea { font: inherit; letter-spacing: inherit; }
+/* Texto de exemplo dos campos: a cor padrão do navegador (#757575) dava 3,70:1 no cartão escuro. Com o texto
+   secundário: 8,90:1 no claro e 9,04:1 no escuro. opacity: 1 porque o Firefox clareia o placeholder por padrão. */
+::placeholder { color: var(--tn-text-muted); opacity: 1; }
+
+/* Barras de medida nativas (<meter>, <progress>): o navegador pintava o preenchimento com o próprio verde
+   (rgb(16,124,16)), fora dos tokens e lido como "sucesso". Trilho afundado e preenchimento na cor de ação, nos dois
+   temas: 16,10:1 no claro e 13,41:1 no escuro entre preenchimento e trilho. */
+meter {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-block;
+  height: 8px;
+  border: 0;
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-surface-sunken);
+  overflow: hidden;
+}
+meter::-webkit-meter-inner-element { border-radius: inherit; }
+meter::-webkit-meter-bar { height: 100%; border: 0; border-radius: inherit; background: var(--tn-surface-sunken); }
+meter::-webkit-meter-optimum-value,
+meter::-webkit-meter-suboptimum-value,
+meter::-webkit-meter-even-less-good-value { border-radius: inherit; background: var(--tn-action); }
+meter::-moz-meter-bar { border-radius: inherit; background: var(--tn-action); }
+progress { accent-color: var(--tn-action); }
 
 p { margin: 0 0 var(--tn-space-3); }
 

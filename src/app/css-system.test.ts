@@ -88,7 +88,12 @@ describe("sistema visual", () => {
 
   it("fundo forte declara a cor do texto na mesma regra (revisão de 10/11: passo da configuração a 1,00:1)", () => {
     // Fundo de ação, de selecionado ou de perigo sem `color` herda a cor do texto comum, que é a mesma do fundo.
-    const BARS = new Set([".tn-setup-card__bar > span"]); // barra de progresso: não tem texto dentro
+    // Barras de progresso e de medida: não têm texto dentro.
+    const BARS = new Set([
+      ".tn-setup-card__bar > span",
+      "meter::-webkit-meter-optimum-value, meter::-webkit-meter-suboptimum-value, meter::-webkit-meter-even-less-good-value",
+      "meter::-moz-meter-bar",
+    ]);
     const bad: string[] = [];
     for (const [file, css] of Object.entries(FILES)) {
       for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {

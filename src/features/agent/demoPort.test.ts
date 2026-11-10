@@ -1,3 +1,4 @@
+import { SetupProgressOutput } from "@contracts";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createDemoPort, resetDemoState } from "./demoPort.ts";
 
@@ -37,5 +38,14 @@ describe("assistente · emulação", () => {
     const a2 = await port.approve(second, "k-appr-0004");
     expect((await port.execute(a1.approval_id, "k-exec-0003")).status).toBe("executed");
     expect((await port.execute(a2.approval_id, "k-exec-0004")).status).toBe("rejected_by_policy");
+  });
+});
+
+describe("assistente · setup.progress da demonstração", () => {
+  it("sai no formato do contrato oficial, com os mesmos passos da tela de Configuração", async () => {
+    const p = SetupProgressOutput.parse(await createDemoPort().setupProgress());
+    expect(p.steps.map((s) => s.step)).toEqual(["hours", "service", "cancellation_policy", "profile", "first_customer", "photo_whatsapp", "channel", "first_cash"]);
+    expect(p.done_count).toBe(5);
+    expect(p.next).toBe("profile");
   });
 });

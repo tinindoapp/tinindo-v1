@@ -124,6 +124,9 @@ describe("selo nas listas, WhatsApp do cadastro rápido e link da lista de esper
   it("WhatsApp digitado vira E.164; vazio é null; inválido é undefined", () => {
     expect(phoneToE164("(11) 98765-4321")).toBe("+5511987654321");
     expect(phoneToE164("011 98765-4321")).toBe("+5511987654321");
+    // Fixo com o 0 de longa distância: antes virava +5501187654321.
+    expect(phoneToE164("0 11 8765-4321")).toBe("+551187654321");
+    expect(phoneToE164("00351912345678")).toBe("+351912345678");
     expect(phoneToE164("+351 912 345 678")).toBe("+351912345678");
     expect(phoneToE164("  ")).toBeNull();
     expect(phoneToE164("1234")).toBeUndefined();
