@@ -28,6 +28,11 @@
   /* Desabilitado (item 17): uma opacidade só para botão, botão de ícone e campo. */
   --tn-opacity-disabled: 0.5;
 
+  /* Faixa de destaque (brand/DECISIONS.md, D31; decisão D14 da revisão de 10/11): o laranja da marca num elemento que não
+     é texto, botão nem estado. Hoje só a faixa lateral do cartão "Próximo" da Hoje; cada uso novo é registrado na D31.
+     Acompanha o tema pelo próprio --tn-brand-accent (laranja-500 no claro, laranja-400 no escuro). */
+  --tn-highlight-stripe: var(--tn-brand-accent);
+
   /* Ação de perigo (só para confirmar o que não volta atrás): o vermelho de texto de cada tema como fundo. */
   --tn-danger-action: var(--tn-danger-text);
 
