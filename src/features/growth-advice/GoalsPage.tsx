@@ -8,6 +8,7 @@ import { InsightsSection, WeeklyDigestCard } from "./Insights.tsx";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { actionLabel, DECISION, DIRECTION, explain, formatDate, formatEvidence, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS, RULE_LABEL } from "./labels.ts";
 import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort, newKey } from "./port.ts";
+import { parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 /** Retorno de uma ação: aviso curto (Toast), sempre à vista; `null` só atualiza a tela. */
@@ -17,7 +18,6 @@ type Notice = ToastInput | string | null;
 const failed = (e: unknown): Notice => ({ tone: "danger", message: explain(e) });
 const KEYS = Object.keys(METRIC_LABEL) as GoalMetricKey[];
 const isCents = (k: GoalMetricKey) => k === "received" || k === "expenses";
-const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
 
 /** Período escrito ao lado do número (item 47 da auditoria): "Em outubro até agora". */
 const monthSoFar = (iso: string) =>
@@ -38,8 +38,13 @@ function GoalForm({ port, metrics, monthStart, onDone }: { port: GrowthAdvicePor
   const m = metrics.find((x) => x.key === key);
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const value = isCents(key) ? parseBRL(target) : Number(target.replace(",", ".")) / 100;
-    if (!show({ target: !(Number.isFinite(value) && value > 0) && (isCents(key) ? "Informe a meta em reais." : "Informe a meta em %.") })) return;
+    // Em reais: vazio (null), inválido (undefined) ou zero não valem como meta.
+    const cents = isCents(key) ? parseBRL(target) : null;
+    const value = isCents(key) ? (cents ?? 0) : Number(target.replace(",", ".")) / 100;
+    const targetError = isCents(key)
+      ? !(typeof cents === "number" && cents > 0) && "Informe a meta em reais, por exemplo 3.000,00."
+      : !(Number.isFinite(value) && value > 0) && "Informe a meta em %.";
+    if (!show({ target: targetError })) return;
     setBusy(true);
     setError(null);
     try {

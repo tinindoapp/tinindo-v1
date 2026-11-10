@@ -2,15 +2,11 @@
 // contábil; valores contratados têm cobrança manual. O banco decide se quem consulta é operador.
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
+import { parseBRL } from "../../lib/money.ts";
 import { formatCents } from "./format.ts";
 import type { CostPort, CostToServe } from "./port.ts";
 
 const DAY = 86_400_000;
-function parseCents(v: string): number | null {
-  const t = v.replace(/R\$|\s|\./g, "").replace(",", ".");
-  const n = Number(t);
-  return /^\d+(\.\d{1,2})?$/.test(t) && Number.isFinite(n) ? Math.round(n * 100) : null;
-}
 
 export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
   const [hourly, setHourly] = useState("60,00");
@@ -31,8 +27,8 @@ export function CostPage({ port, now }: { port: CostPort; now: () => Date }) {
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const c = parseCents(hourly);
-    if (!show({ hourly: c === null && "Informe o custo-hora em reais, por exemplo 60,00." }) || c === null) return;
+    const c = parseBRL(hourly);
+    if (!show({ hourly: (c === null || c === undefined) && "Informe o custo-hora em reais, por exemplo 60,00." }) || c === null || c === undefined) return;
     setCents(c);
   }
 

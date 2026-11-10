@@ -8,8 +8,9 @@ import type { Profession, WeeklyWindow } from "@contracts";
 import { Button, Card, ChipGroup, ChoiceCard, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { describeBusiness, draftToWeeklyWindows } from "../../../supabase/functions/_shared/domain/setup/describe.ts";
+import { centsToInput, parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
-import { explain, formatCents, parseCents, priceRange, PROFESSION_LABEL, specOf, summarizeHours } from "./labels.ts";
+import { explain, formatCents, priceRange, PROFESSION_LABEL, specOf, summarizeHours } from "./labels.ts";
 import { newKey, type SetupDescribeDraft, type SetupPort, type SetupProgress, type SetupServiceDraft, type SetupStepCode, type SetupTemplate } from "./port.ts";
 import "./setup.css";
 
@@ -92,7 +93,8 @@ function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeDraft; port
     return draftToWeeklyWindows({ weekdays, start: start || null, end: end || null, pause });
   }, [weekdays, start, end, pauseStart, pauseEnd]);
   const services = rows.filter((r) => r.name.trim());
-  const parsed: SetupServiceDraft[] = services.map((r) => ({ template_code: r.template_code, name: r.name.trim(), duration_min: Number(r.duration), base_price_cents: parseCents(r.price) ?? -1 }));
+  // Preço vazio (null) ou inválido (undefined) vira -1, que servicesOk recusa com a mensagem do campo.
+  const parsed: SetupServiceDraft[] = services.map((r) => ({ template_code: r.template_code, name: r.name.trim(), duration_min: Number(r.duration), base_price_cents: parseBRL(r.price) ?? -1 }));
   const servicesOk = parsed.every((s) => Number.isInteger(s.duration_min) && s.duration_min >= 5 && s.duration_min <= 1440 && s.base_price_cents >= 0);
 
   const wantsHours = weekdays.length > 0 || !!start || !!end;
@@ -203,7 +205,7 @@ function Templates({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgr
   if (error) return <StatusBanner tone="danger">{error}</StatusBanner>;
   if (!data) return <p role="status" className="tn-muted">Carregando modelos…</p>;
   const chosen = data.templates.filter((t) => t.kind === "service" && t.code in picked);
-  const drafts: SetupServiceDraft[] = chosen.map((t) => ({ template_code: t.code, name: t.name, duration_min: t.duration_min, base_price_cents: parseCents(picked[t.code] ?? "") ?? -1 }));
+  const drafts: SetupServiceDraft[] = chosen.map((t) => ({ template_code: t.code, name: t.name, duration_min: t.duration_min, base_price_cents: parseBRL(picked[t.code] ?? "") ?? -1 }));
   const problem = chosen.length === 0 ? "Marque pelo menos um modelo." : drafts.some((d) => d.base_price_cents < 0) ? "Informe o preço de cada serviço marcado, em reais (ex.: 35,00)." : null;
   const validate = () => show({ pick: problem ?? false });
   async function create() {
@@ -237,7 +239,7 @@ function Templates({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgr
                 <ChoiceCard type="checkbox" name="template" value={t.code} checked={checked} disabled={t.exists || busy}
                   onChange={(on) => setPicked((p) => {
                     const next = { ...p };
-                    if (on) next[t.code] = t.price_from_cents === null ? "" : (t.price_from_cents / 100).toFixed(2).replace(".", ",");
+                    if (on) next[t.code] = t.price_from_cents === null ? "" : centsToInput(t.price_from_cents);
                     else delete next[t.code];
                     return next;
                   })}

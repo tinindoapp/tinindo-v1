@@ -1,9 +1,7 @@
 // Textos do módulo Contas. Dinheiro em centavos; datas civis no fuso do negócio; estado por palavra.
 import type { AccPayable, AccStatement } from "@contracts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
-export const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
+export { formatCents } from "../../lib/money.ts";
 /** AAAA-MM-DD → 10/11/2026 (data civil: sem fuso). */
 export const formatDay = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 export const localToday = (now: Date, timeZone: string) =>

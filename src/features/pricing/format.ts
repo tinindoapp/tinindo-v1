@@ -1,6 +1,5 @@
 // Formatação do módulo de Preços. Centavos inteiros e basis points; nunca float para dinheiro.
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number | null | undefined) => (c === null || c === undefined ? "—" : BRL.format(c / 100));
+export { formatCents } from "../../lib/money.ts";
 /** 1500 → "15%"; 1250 → "12,5%". */
 export const formatBps = (bps: number) => `${(bps / 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 

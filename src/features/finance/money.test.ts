@@ -1,18 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { capitalizeFirst, endOfLocalDay, formatCents, formatMonth, leftover, monthPeriod, noonOfLocalDay, parseBRL, shiftMonth, startOfLocalDay, unchargedTotal } from "./money.ts";
+import { capitalizeFirst, endOfLocalDay, formatMonth, leftover, monthPeriod, noonOfLocalDay, shiftMonth, startOfLocalDay, unchargedTotal } from "./money.ts";
 
-describe("dinheiro e datas do caixa", () => {
-  it("lê reais em centavos inteiros, sem float", () => {
-    expect(parseBRL("60")).toBe(6000);
-    expect(parseBRL("60,5")).toBe(6050);
-    expect(parseBRL("1.234,56")).toBe(123456);
-    expect(parseBRL("R$ 0,10")).toBe(10);
-    expect(parseBRL("")).toBeNull();
-    expect(parseBRL("12,345")).toBeUndefined();
-    expect(parseBRL("-5")).toBeUndefined();
-    expect(formatCents(123456)).toMatch(/1\.234,56/);
-  });
-
+// A leitura e a formatação de dinheiro são testadas em src/lib/money.test.ts.
+describe("datas e contas do caixa", () => {
   it("mês e dia seguem o fuso do negócio, não o do navegador", () => {
     expect(startOfLocalDay("2026-10-20", "America/Sao_Paulo")).toBe("2026-10-20T03:00:00.000Z");
     expect(noonOfLocalDay("2026-10-20", "America/Sao_Paulo")).toBe("2026-10-20T15:00:00.000Z");

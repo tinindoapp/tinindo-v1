@@ -20,7 +20,7 @@ export const REASON_LABEL = {
 export const SERVICE_LABEL = { "06.01": "Barbearia, cabeleireiros e afins (06.01)", "06.04": "Atividades físicas, personal trainer (06.04)" } as const;
 export const REGIME_LABEL = { mei: "MEI", simples_nacional: "Simples Nacional", other: "Outro" } as const;
 export const ENV_LABEL = { homologacao: "Homologação (teste, sem valor fiscal)", producao: "Produção" } as const;
-export const formatCents = (c: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(c / 100);
+export { formatCents } from "../../lib/money.ts";
 export const formatCnpj = (v: string) => v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 /** Mês por extenso, só a primeira letra da frase em maiúscula onde precisar: "2026-10" → "outubro de 2026". */
 export const formatMonthName = (ym: string) =>

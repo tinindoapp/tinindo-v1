@@ -1,8 +1,8 @@
 // Textos e regras de apresentação do módulo Plano e serviços. Dinheiro em centavos; datas no fuso do negócio.
 import type { AccessScope, ServiceOrderStatus } from "@contracts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
+import { formatCents } from "../../lib/money.ts";
+export { formatCents };
 export const formatDateTime = (v: string, timeZone: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(v));
 export const priceLabel = (cents: number, billing: "monthly" | "one_time") =>

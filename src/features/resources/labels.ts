@@ -1,8 +1,7 @@
 // Textos do módulo Equipe. Dinheiro em centavos; horários no fuso do negócio; estado por palavra.
 import type { TeamResource } from "@contracts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
+export { formatCents } from "../../lib/money.ts";
 export const formatPercent = (bps: number) => `${(bps / 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 export const formatTime = (v: string, timeZone: string) => new Intl.DateTimeFormat("pt-BR", { timeZone, hour: "2-digit", minute: "2-digit" }).format(new Date(v));
 export const formatDay = (v: string, timeZone: string) =>

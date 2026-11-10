@@ -5,6 +5,7 @@ import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, Sta
 import { Icon } from "../../components/ui/icons.tsx";
 import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, formatMonthName, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
 import { type FiscalDocument, type FiscalFolder, type FiscalOverview, type FiscalPort, newKey } from "./port.ts";
+import { centsToInput, parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 /**
@@ -127,7 +128,7 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
   const [taker, setTaker] = useState(first?.customer_name ?? "");
   const [doc, setDoc] = useState("");
   const [desc, setDesc] = useState(first?.description ?? "");
-  const [amount, setAmount] = useState(first ? (first.amount_cents / 100).toFixed(2).replace(".", ",") : "");
+  const [amount, setAmount] = useState(first ? centsToInput(first.amount_cents) : "");
   const [date, setDate] = useState(todayLocal());
   const { formRef, errors, show } = useFormErrors<"taker" | "desc" | "amount">();
   const pick = (id: string) => {
@@ -136,10 +137,12 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
     if (x) {
       setTaker(x.customer_name ?? "");
       setDesc(x.description);
-      setAmount((x.amount_cents / 100).toFixed(2).replace(".", ","));
+      setAmount(centsToInput(x.amount_cents));
     }
   };
-  const cents = Math.round(Number(amount.replace(/\./g, "").replace(",", ".")) * 100);
+  // Vazio (null) e inválido (undefined) param na validação do formulário; a conferência só abre com valor válido.
+  const read = parseBRL(amount);
+  const cents = read ?? 0;
   // Emitir não se desfaz com um toque (cancelar exige motivo): antes, a tela mostra tudo para conferir.
   const [reviewing, setReviewing] = useState(false);
   // Mesma chave ao repetir o mesmo pedido; ao corrigir, pedido novo.
@@ -183,7 +186,7 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
         const ok = show({
           taker: !taker.trim() && "Informe o nome do cliente.",
           desc: desc.trim().length < 3 && "Descreva o serviço (pelo menos 3 letras).",
-          amount: !(cents > 0) && "Informe o valor.",
+          amount: (read === undefined && "Use só números, por exemplo 60,00.") || (!(cents > 0) && "Informe o valor."),
         });
         if (ok) setReviewing(true);
       }}>

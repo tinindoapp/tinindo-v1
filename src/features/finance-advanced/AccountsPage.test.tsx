@@ -25,3 +25,31 @@ describe("Contas: nova tentativa depois de falha de rede não cria a conta em do
     expect(save.mock.calls[1]![0]).toEqual(save.mock.calls[0]![0]);
   });
 });
+
+describe("Contas: o valor digitado vale o mesmo que no Caixa", () => {
+  async function openForm() {
+    const port = createDemoPort();
+    const save = vi.spyOn(port, "savePayable");
+    render(<><AccountsPage port={port} /><Toaster /></>);
+    fireEvent.click(await screen.findByRole("button", { name: "Nova conta" }));
+    const form = within(screen.getByRole("form", { name: "Nova conta a pagar" }));
+    fireEvent.change(form.getByLabelText("O que é"), { target: { value: "Luz" } });
+    return { form, save };
+  }
+
+  it("\"10.50\" é R$ 10,50, não R$ 1.050,00", async () => {
+    const { form, save } = await openForm();
+    fireEvent.change(form.getByLabelText("Valor (R$)"), { target: { value: "10.50" } });
+    await act(async () => { fireEvent.click(form.getByRole("button", { name: "Criar conta" })); });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]![0].amount_cents).toBe(1050);
+  });
+
+  it("texto que não é valor fica no campo com o aviso, sem criar conta", async () => {
+    const { form, save } = await openForm();
+    fireEvent.change(form.getByLabelText("Valor (R$)"), { target: { value: "R$ 60 reais" } });
+    await act(async () => { fireEvent.click(form.getByRole("button", { name: "Criar conta" })); });
+    expect(save).not.toHaveBeenCalled();
+    expect(form.getByText("Use só números, por exemplo 150,00.")).toBeInTheDocument();
+  });
+});
