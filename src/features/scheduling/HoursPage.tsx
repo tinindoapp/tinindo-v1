@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useBlocker } from "react-router";
 import type { ScheduleSettings } from "@contracts";
 import { Button, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { formatRange } from "./agenda.ts";
 import { isErrorLike } from "./errors.ts";
 import { ErrorPanel, ScreenNotes } from "./parts.tsx";
@@ -44,17 +45,6 @@ function draftErrors(d: Draft): Record<string, string> {
     }
   }
   return errors;
-}
-
-/** Mesma chave para o mesmo pedido (repetir não duplica); pedido diferente, chave nova. */
-function useAttemptKey() {
-  const [attempt, setAttempt] = useState<{ sig: string; key: string } | null>(null);
-  return (payload: unknown) => {
-    const sig = JSON.stringify(payload);
-    const key = attempt?.sig === sig ? attempt.key : newIdempotencyKey();
-    setAttempt({ sig, key });
-    return key;
-  };
 }
 
 export function HoursPage() {
@@ -100,7 +90,8 @@ function daySummary(list: Interval[]): string {
  */
 function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSaved: () => void }) {
   const port = usePort();
-  const keyFor = useAttemptKey();
+  // Mesma chave enquanto o pedido for o mesmo; depois do sucesso, o mesmo pedido é outra operação (reset).
+  const { keyFor, reset: resetKey } = useIdempotencyKey();
   const [baseline, setBaseline] = useState<Draft>(() => toDraft(settings));
   const [draft, setDraft] = useState<Draft>(baseline);
   const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set());
@@ -189,6 +180,7 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
     setFailure(null);
     try {
       await port.saveRules(payload, keyFor(payload));
+      resetKey();
       setBaseline(draft);
       setNote(null);
       toast("Expediente salvo.");
@@ -298,7 +290,8 @@ function Blocks({ resourceId }: { resourceId: string }) {
   const { ctx } = useBase();
   const tz = ctx.timezone;
   const today = localParts(port.now(), tz).date;
-  const keyFor = useAttemptKey();
+  // Mesma chave enquanto o pedido for o mesmo; depois do sucesso, o mesmo pedido é outra operação (reset).
+  const { keyFor, reset: resetKey } = useIdempotencyKey();
   const plans = useAsync(`blocks:${today}`, () => port.dayPlans(dayWindow(today, tz, BLOCKS_AHEAD_DAYS)));
   const [date, setDate] = useState(today);
   const [from, setFrom] = useState("14:00");
@@ -330,6 +323,9 @@ function Blocks({ resourceId }: { resourceId: string }) {
     setPending(true);
     try {
       await port.createBlock(payload, keyFor(payload));
+      // Sem isto, bloquear de novo o mesmo período (depois de remover) repetia a chave: o servidor devolvia
+      // a resposta antiga, a tela dizia "Bloqueio criado" e nada era criado.
+      resetKey();
       toast("Bloqueio criado. Esse período não aparece mais como livre.");
       setLabel("");
       plans.reload();

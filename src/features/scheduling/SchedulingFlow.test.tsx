@@ -223,6 +223,42 @@ describe("horários (demonstração)", () => {
     expect(within(form).getByLabelText("Motivo")).toHaveFocus();
   });
 
+  it("bloquear, remover e bloquear de novo o mesmo período cria o bloqueio de novo", async () => {
+    renderAt("/app/agenda/horarios");
+    const form = within(await screen.findByRole("form", { name: "Novo bloqueio" }, SLOW));
+    const rows = () => screen.queryAllByText("Médico").map((el) => el.closest("li")!);
+    const block = async () => {
+      fireEvent.change(form.getByLabelText("Dia"), { target: { value: "2026-10-23" } }); // sexta, sem atendimento
+      fireEvent.change(form.getByLabelText("Motivo"), { target: { value: "Médico" } });
+      fireEvent.click(form.getByRole("button", { name: "Bloquear" }));
+      expect(await within(toaster()).findByText(/Bloqueio criado/)).toBeInTheDocument();
+    };
+    await block();
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(within(rows()[0]!).getByRole("button", { name: /^Remover/ }));
+    expect(await within(toaster()).findByText(/Bloqueio "Médico" removido/)).toBeInTheDocument();
+    await waitFor(() => expect(rows()).toHaveLength(0));
+    // Mesmo dia, mesmo horário, mesmo motivo: é um bloqueio novo, não a repetição do pedido anterior.
+    await block();
+    await waitFor(() => expect(rows()).toHaveLength(1));
+  });
+
+  it("horário livre fora da grade: \"Agendar\" às 15:40 marca o primeiro horário possível e avisa", async () => {
+    renderAt("/app/agenda/novo?data=2026-10-20&inicio=15:40");
+    const when = within(await screen.findByRole("group", { name: "Dia e horário" }, SLOW));
+    const pressed = async () => (await when.findAllByRole("button", { pressed: true }, SLOW)).map((b) => b.textContent);
+    expect(await pressed()).toEqual(["15:45"]);
+    expect(when.getByRole("status")).toHaveTextContent("Primeiro horário possível a partir de 15:40: 15:45.");
+    // Horário que está na grade continua marcado como veio, sem aviso.
+  });
+
+  it("horário livre na grade: \"Agendar\" às 13:00 marca 13:00, sem aviso", async () => {
+    renderAt("/app/agenda/novo?data=2026-10-20&inicio=13:00");
+    const when = within(await screen.findByRole("group", { name: "Dia e horário" }, SLOW));
+    expect((await when.findAllByRole("button", { pressed: true }, SLOW)).map((b) => b.textContent)).toEqual(["13:00"]);
+    expect(when.queryByText(/Primeiro horário possível/)).toBeNull();
+  });
+
   it("remover bloqueio executa na hora e Desfazer recria o mesmo bloqueio", async () => {
     renderAt("/app/agenda/horarios");
     const blockRow = async () => (await screen.findByText("Compromisso pessoal", undefined, SLOW)).closest("li")!;
