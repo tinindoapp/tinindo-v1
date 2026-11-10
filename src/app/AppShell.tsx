@@ -7,6 +7,8 @@ import { unreadLabel, useUnreadMessages } from "../features/messaging/unread.ts"
 import { activeTo, buildNavigation, HOME, isItemActive, type NavSection, sectionFor } from "./navigation.ts";
 import { useSession } from "./session.tsx";
 import "./shell.css";
+import { InboxExtraProvider } from "../features/messaging/module.tsx";
+import { OwnerDigest } from "./OwnerDigest.tsx";
 
 /** Área da Conta (P01): alcançável sem negócio, para criar o primeiro ou resgatar um vínculo de cliente. */
 export function isAccountArea(pathname: string): boolean {
@@ -256,7 +258,10 @@ export function AppShell() {
               </p>
             </div>
           ) : (
-            <Outlet />
+            // P45: o resumo semanal entra na caixa de Mensagens do dono (o Mensagens só reserva o lugar).
+            <InboxExtraProvider value={<OwnerDigest />}>
+              <Outlet />
+            </InboxExtraProvider>
           )}
         </div>
       </main>

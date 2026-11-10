@@ -5,7 +5,8 @@
 import { createContext, type FormEvent, useContext, useEffect, useRef, useState } from "react";
 import { Button, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { approveLabel, splitAnswer } from "./answer.ts";
-import { type AgentPort, type Answer, type Approval, newKey, type Proposal, type Receipt } from "./port.ts";
+import { DraftPanel, SetupGuidePanel } from "./AssistPanels.tsx";
+import { type AgentPort, type Answer, type Approval, type DraftRequest, newKey, type Proposal, type Receipt } from "./port.ts";
 
 const PortContext = createContext<AgentPort | null>(null);
 export const AgentPortProvider = PortContext.Provider;
@@ -126,8 +127,13 @@ function ProposalCard({ turn, proposal, onApprove }: {
   );
 }
 
-export function AgentPage() {
+/** Rascunho trazido de outra tela (Relacionamento, Site, Campanhas): abre o painel de redação já preenchido. */
+export type InitialDraft = { kind?: DraftRequest["kind"]; text?: string };
+
+export function AgentPage({ initialDraft }: { initialDraft?: InitialDraft } = {}) {
   const port = usePort();
+  const [panel, setPanel] = useState<"setup" | "draft" | null>(initialDraft ? "draft" : null);
+  const toggle = (p: "setup" | "draft") => setPanel((cur) => (cur === p ? null : p));
   const [text, setText] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -205,7 +211,24 @@ export function AgentPage() {
             <button key={q} type="button" className="tn-ag-chip" onClick={() => void ask(q)} disabled={busy}>{q}</button>
           ))}
         </div>
+        <div className="tn-actions tn-ag-tools">
+          <Button variant="secondary" aria-expanded={panel === "setup"} aria-controls="ag-panel-setup" onClick={() => toggle("setup")}>Me ajuda a configurar</Button>
+          <Button variant="secondary" aria-expanded={panel === "draft"} aria-controls="ag-panel-draft" onClick={() => toggle("draft")}>Redigir um texto</Button>
+        </div>
       </div>
+
+      {panel === "setup" ? (
+        <section id="ag-panel-setup" className="tn-ag-panel" aria-labelledby="ag-panel-setup-title">
+          <h2 id="ag-panel-setup-title">Deixe seu negócio pronto</h2>
+          <SetupGuidePanel port={port} />
+        </section>
+      ) : null}
+      {panel === "draft" ? (
+        <section id="ag-panel-draft" className="tn-ag-panel" aria-labelledby="ag-panel-draft-title">
+          <h2 id="ag-panel-draft-title">Redigir um texto</h2>
+          <DraftPanel port={port} initial={initialDraft} />
+        </section>
+      ) : null}
 
       <section className="tn-ag-log" aria-label="Conversa" aria-live="polite">
         {turns.map((t) => {

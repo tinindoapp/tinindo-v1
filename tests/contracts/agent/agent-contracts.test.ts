@@ -20,8 +20,8 @@ function sqlParams(fn: string): string[] {
 const agentOps = (Object.keys(OPERATIONS) as OperationName[]).filter((n) => OPERATIONS[n].module === "agent");
 
 describe("agent · registro ↔ função", () => {
-  it("as operações do módulo são agent.ask (rota própria) + aprovar/executar", () => {
-    expect([...agentOps].sort()).toEqual(["action.approve", "action.execute", "agent.ask"]);
+  it("as operações do módulo são agent.ask e agent.draft (rotas próprias) + aprovar/executar", () => {
+    expect([...agentOps].sort()).toEqual(["action.approve", "action.execute", "agent.ask", "agent.draft"]);
     expect(Object.keys(AGENT_ACTION_ROUTES).sort()).toEqual(["action.approve", "action.execute"]);
   });
 

@@ -3,7 +3,7 @@
 import { createContext, type FormEvent, type MouseEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { ExpenseCategory, PackageDetail, PaymentRecord, Receivable, TimeRange, UnchargedBooking } from "@contracts";
-import { Button, Card, ConfirmAction, Field, Help, IconButton, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, Help, IconButton, PageHeader, Segmented, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import {
   capitalizeFirst,
@@ -566,7 +566,12 @@ function Payments({ list }: { list: PaymentRecord[] }) {
     <section aria-labelledby="fin-pay-title" className="tn-fin-section">
       <h2 id="fin-pay-title">Recebimentos no mês</h2>
       {list.length === 0 ? (
-        <p className="tn-muted">Nenhum recebimento registrado.</p>
+        <>
+          <p className="tn-muted">Nenhum recebimento registrado.</p>
+          <SetupHint to="/app/agenda" action="Abrir a agenda">
+            Ainda não configurado: conclua um atendimento na Agenda e registre aqui o que recebeu. O Caixa passa a mostrar o que entrou e o que falta cobrar.
+          </SetupHint>
+        </>
       ) : (
         <ul className="tn-fin-list">
           {(all ? recent : recent.slice(0, HISTORY_SHOWN)).map((p) => (

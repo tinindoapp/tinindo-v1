@@ -1,9 +1,9 @@
 // Canal (P12): conexão do número e caixa de entrada (/app/mensagens), conversa (/app/mensagens/:id). O que a tela promete é o que o banco garante:
 // enviado, entregue, lido, falhou e desconhecido são estados diferentes; nada é reenviado sozinho; fora da janela
 // de 24 h só modelo aprovado; a cliente que pediu SAIR não recebe nada; humano assume quando você pede.
-import { type FormEvent, useEffect, useId, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, formatTime, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, templateInfo, unreadLabel } from "./labels.ts";
 import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort, newKey } from "./port.ts";
@@ -270,7 +270,8 @@ function ConnectionActions({ port, status, conn, actions }: {
   );
 }
 
-export function InboxPage({ port }: { port: MessagingPort; timezone?: string }) {
+/** `extra`: bloco do dono acima das conversas (P45: o resumo semanal da Tinindo). */
+export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: string; extra?: ReactNode }) {
   const [status, setStatus] = useState<ChannelStatus | null>(null);
   const [inbox, setInbox] = useState<Inbox | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -301,6 +302,7 @@ export function InboxPage({ port }: { port: MessagingPort; timezone?: string }) 
         <DemoNotice port={port} />
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       </div>
+      {extra}
       {!status && !error ? <p role="status" className="tn-muted">Carregando…</p> : null}
 
       {/* Sem número: estado vazio guiado, com o que é e o passo para conectar. */}
@@ -316,6 +318,9 @@ export function InboxPage({ port }: { port: MessagingPort; timezone?: string }) 
               <li>Digite o código aqui para concluir.</li>
             </ol>
             <ConnectForm port={port} onDone={actions.done} />
+            <SetupHint to="/app/configurar" action="Ver os passos">
+              Passo opcional de “Deixe seu negócio pronto”: sem provedor contratado, conecte o número simulado para testar o fluxo.
+            </SetupHint>
           </div>
         </Card>
       ) : null}

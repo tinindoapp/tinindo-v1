@@ -39,4 +39,27 @@ describe("Edge Function growth-advice", () => {
     expect((await setup(denied)(post("content.unpublish", {}, key))).status).toBe(400);
     expect(denied).toHaveBeenCalledWith("jwt", "content_publish", expect.objectContaining({ p_template_code: "bio_barber_classico" }));
   });
+
+  it("insights (P45): lista com escopo padrão `all`; Preparar/Agora não são comandos com versão; ação fora de /app/ ou sem denominador vira 500", async () => {
+    const rpc = vi.fn(async () => ({ data: { run: null, insights: [], rules: [] }, error: null }));
+    expect((await setup(rpc)(post("insight.list", {}, owner))).status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("jwt", "insight_list", { p_tenant_id: FX.tenants.A, p_scope: "all" });
+    expect((await setup(rpc)(post("insight.list", { scope: "tudo" }, owner))).status).toBe(400);
+    const noKey = await setup(rpc)(post("insight.act", { insight_id: FX.tenants.B, expected_version: 1 }, owner));
+    expect(ErrorEnvelope.parse(await noKey.json()).error.field).toBe("idempotency_key");
+    expect((await setup(rpc)(post("insight.snooze", { insight_id: FX.tenants.B }, key))).status).toBe(400);
+    const insight = { id: FX.tenants.B, rule_code: "uncharged_bookings", rule_title: "Atendimentos sem cobrança", subject_key: "last30", state: "open", priority: 90,
+      title: "t", body: "b", evidence: { period_start: "2026-10-04", period_end: "2026-11-03", numerator: 0, denominator: 5 },
+      action: { kind: "open", flow: "P07", label: "Abrir o Caixa", route: "https://fora" }, first_seen_on: "2026-11-03", last_seen_on: "2026-11-03",
+      valid_until: "2026-11-05T12:00:00Z", quiet_until: null, acted_at: null, result: null, decision: null, version: 1 };
+    const outside = vi.fn(async () => ({ data: { run: null, insights: [insight], rules: [] }, error: null }));
+    expect((await setup(outside)(post("insight.list", {}, owner))).status).toBe(500);
+    const noDen = vi.fn(async () => ({ data: { run: null, insights: [{ ...insight, action: { ...insight.action, route: "/app/caixa" }, evidence: { period_start: "2026-10-04", period_end: "2026-11-03", numerator: 0 } }], rules: [] }, error: null }));
+    expect((await setup(noDen)(post("insight.list", {}, owner))).status).toBe(500);
+    const stale = vi.fn(async () => ({ data: null, error: { code: "PT422", message: "POLICY_REJECTED", hint: "stale" } }));
+    const res = await setup(stale)(post("insight.act", { insight_id: FX.tenants.B, expected_version: 2 }, key));
+    expect(ErrorEnvelope.parse(await res.json()).error).toMatchObject({ code: "POLICY_REJECTED", field: "stale" });
+    expect(stale).toHaveBeenCalledWith("jwt", "insight_act", expect.objectContaining({ p_insight_id: FX.tenants.B, p_expected_version: 2 }));
+  });
 });
+

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { createDemoPort, DEMO_CUSTOMERS, resetDemoState } from "./demoPort.ts";
@@ -15,10 +16,10 @@ afterEach(() => {
 });
 const renderPage = (port: ReturnType<typeof createDemoPort>) =>
   render(
-    <>
+    <MemoryRouter>
       <LifecyclePage port={port} timezone="America/Sao_Paulo" />
       <Toaster />
-    </>,
+    </MemoryRouter>,
   );
 
 async function manualStep() {

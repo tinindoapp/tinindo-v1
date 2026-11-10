@@ -65,4 +65,21 @@ describe("Hoje (auditoria de UX, itens 30 e 31)", () => {
     expect(next).toHaveAccessibleName("Próximo: 09:00 · Cliente Exemplo Ana · agora");
     expect(within(next).queryByRole("link", { name: /^WhatsApp/ })).not.toBeInTheDocument();
   });
+
+  it("P45: \"Para você esta semana\" com até 3 sugestões, cada uma com período, número e denominador, Ver e Agora não", async () => {
+    renderHome(portAt("2026-10-20T11:20:00-03:00"));
+    const card = await screen.findByRole("region", { name: "Para você esta semana" }, SLOW);
+    const items = await within(card).findAllByRole("listitem", {}, SLOW);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.length).toBeLessThanOrEqual(3);
+    for (const item of items) {
+      expect(item.textContent).toMatch(/\d+ de \d+/);
+      expect(item.textContent).toMatch(/\d{2}\/\d{2}/);
+      expect(within(item).getByRole("button", { name: /^Agora não/ })).toBeInTheDocument();
+      expect(within(item).queryByRole("link", { name: /^Ver/ }) ?? within(item).queryByRole("button", { name: /^Ver/ })).toBeInTheDocument();
+    }
+    // A linha antiga de sugestões saiu das Pendências (o cartão ocupa esse papel).
+    expect(screen.queryByText(/com base nos seus números/)).not.toBeInTheDocument();
+  });
 });
+

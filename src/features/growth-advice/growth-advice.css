@@ -8,3 +8,7 @@
 .tn-ga-item .tn-confirm { flex: 1 1 100%; }
 .tn-ga-progress { width: 100%; max-width: 24rem; height: 0.6rem; }
 .tn-ga-link { align-self: center; }
+.tn-ga-subtitle { margin: var(--tn-space-4) 0 0; font-size: var(--tn-text-body); }
+.tn-ga-digest { white-space: pre-line; margin: 0; overflow-wrap: anywhere; }
+.tn-insight[data-focus="true"] { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 4px; border-radius: var(--tn-radius-md); }
+.tn-insights .tn-ga-evidence { margin: 0; }

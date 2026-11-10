@@ -2,6 +2,7 @@
 // passo visível e por palavra; textos prontos para compartilhar quando não há canal; consentimento por finalidade;
 // reativação só como campanha com público visto e teto. O que a tela promete é o que o banco garante.
 import { type FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { Button, Card, ChipGroup, ConfirmAction, Field, Help, PageHeader, ShareActions, type ShareHow, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { explain, formatDate, formatDateTime, MESSAGE_STATUS, RULE_LABEL, SKIP_REASON, STEP_STATUS } from "./labels.ts";
 import { type Audience, type LifecycleCampaign, type LifecyclePort, type LifecycleSettings, type LifecycleStep, type LifecycleStepStatus, newKey, type StepsList } from "./port.ts";
@@ -94,6 +95,10 @@ function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timez
           copyLabel="Copiar e marcar como compartilhado"
           onShared={(how) => void port.markShared(step.id, newKey()).then(() => onDone(`${SHARED_OK[how]} Passo marcado como compartilhado. Compartilhar não confirma entrega.`), fail)}
         />
+      ) : null}
+      {step.status === "manual" ? (
+        // P46: leva o texto ao Assistente para uma versão no seu tom; você revisa e copia de lá. Nada é salvo aqui.
+        <Link className="tn-lc-assist" to="/app/assistente" state={{ draft: { kind: "message", text: step.body } }}>Ajustar o texto com o assistente</Link>
       ) : null}
       {/* Passo cancelado não volta para a fila (o port não reabre): confirma antes. */}
       {step.status === "scheduled" || step.status === "deferred" || step.status === "manual" ? (
