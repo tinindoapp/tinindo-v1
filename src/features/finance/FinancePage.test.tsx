@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
@@ -133,6 +133,43 @@ describe("Caixa: validação no envio, confirmação e aviso", () => {
     await act(async () => { fireEvent.click(bruno.getByRole("button", { name: /^Recebi R\$\s?40,00 no cartão/ })); });
     expect(pay).toHaveBeenCalledWith(expect.objectContaining({ amount_cents: 4000, method: "card" }), expect.any(String));
     expect(await screen.findByText(/Recebido R\$\s?40,00 \(Cartão\)/)).toBeInTheDocument();
+  });
+});
+
+describe("Caixa: uma ação não desmonta a tela (revisão 10/11, fe-modulos-a-05)", () => {
+  it("depois de 'Cobrar depois', 'Ver mais' continua aberto, o formulário aberto fica e o foco vai para o título da seção", async () => {
+    renderPage();
+    const pending = await screen.findByRole("region", { name: "Atendimentos concluídos sem cobrança" });
+    // "Ver mais" aberto nos recebimentos do mês.
+    const payments = within(screen.getByRole("region", { name: "Recebimentos no mês" }));
+    fireEvent.click(payments.getByRole("button", { name: /^Ver mais \d+ recebimentos$/ }));
+    expect(payments.queryByRole("button", { name: /^Ver mais/ })).toBeNull();
+    // Um formulário de recebimento aberto, com valor digitado.
+    const open = within(screen.getByRole("region", { name: "A receber" }));
+    fireEvent.click(open.getAllByRole("button", { name: /^Registrar recebimento/ })[0]!);
+    fireEvent.change(open.getByLabelText("Valor recebido (R$)"), { target: { value: "12,34" } });
+
+    const bruno = within(pending).getAllByRole("listitem").find((li) => /Bruno/.test(li.textContent ?? "") && /19\/10\/2026/.test(li.textContent ?? ""))!;
+    const later = within(bruno).getByRole("button", { name: /Cobrar depois/ });
+    later.focus();
+    await act(async () => { fireEvent.click(later); });
+    expect(await screen.findByText(/Cobrança de R\$\s?40,00 criada/)).toBeInTheDocument();
+    await waitFor(() => expect(within(screen.getByRole("region", { name: "Atendimentos concluídos sem cobrança" })).getAllByRole("listitem")).toHaveLength(2));
+    // A mesma seção (não foi desmontada e montada de novo).
+    expect(pending).toBeInTheDocument();
+
+    expect(screen.queryByText("Carregando o mês…")).toBeNull();
+    expect(payments.queryByRole("button", { name: /^Ver mais/ })).toBeNull();
+    expect(open.getByLabelText("Valor recebido (R$)")).toHaveValue("12,34");
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Atendimentos concluídos sem cobrança" }));
+  });
+
+  it("trocar de mês ainda mostra 'Carregando o mês…' até o mês novo chegar", async () => {
+    renderPage();
+    await screen.findByRole("region", { name: "Atendimentos concluídos sem cobrança" });
+    fireEvent.click(screen.getByRole("button", { name: "Mês anterior" }));
+    expect(screen.getByText("Carregando o mês…")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Caixa registrado em setembro de 2026" })).toBeInTheDocument();
   });
 });
 

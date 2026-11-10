@@ -1,6 +1,6 @@
 // Caixa registrado (P07): o que entrou, o que saiu e o que falta receber, com período e cobertura.
 // Separações que a tela nunca mistura: atendimento concluído ≠ cobrado ≠ recebido; crédito de pacote ≠ caixa.
-import { createContext, type FormEvent, type MouseEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { createContext, type FormEvent, type MouseEvent, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { ExpenseCategory, PackageDetail, PaymentRecord, Receivable, TimeRange, UnchargedBooking } from "@contracts";
 import { Button, Card, ConfirmAction, Field, Help, IconButton, PageHeader, Segmented, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
@@ -173,7 +173,9 @@ export function FinancePage() {
     customerName: (id) => base.customers.find((c) => c.id === id)?.name ?? (id ? "Cliente" : "Sem cliente cadastrado"),
     serviceName: (id) => base.services.find((s) => s.id === id)?.name ?? "Serviço",
   };
-  const current = data && data.month === month && data.nonce === nonce ? data : null;
+  // Depois de uma ação, o mês é relido (nonce) com o dado anterior na tela: as seções não desmontam, então o foco,
+  // "Ver mais" e formulários abertos continuam. "Carregando o mês…" só aparece na troca de mês.
+  const current = data && data.month === month ? data : null;
   const registerButton = (
     <Button aria-expanded={register !== null} aria-controls="fin-register" onClick={() => setRegister(register ? null : "expense")}>
       <Icon name="mais" size={20} />
@@ -320,8 +322,24 @@ function Uncharged({ list, packages }: { list: UnchargedBooking[]; packages: Pac
   );
 }
 
+/**
+ * Item que sai da lista depois da ação (cobrado, recebido, cancelado): se o foco estava nele, vai para o título da
+ * seção em vez de cair no body. A limpeza do layout effect roda antes de o React tirar o <li> do DOM.
+ */
+function useFocusHandoff(headingId: string) {
+  const ref = useRef<HTMLLIElement>(null);
+  useLayoutEffect(() => {
+    const li = ref.current;
+    return () => {
+      if (li?.contains(document.activeElement)) document.getElementById(headingId)?.focus();
+    };
+  }, [headingId]);
+  return ref;
+}
+
 function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: PackageDetail[]; ctx: Ctx }) {
   const port = usePort();
+  const itemRef = useFocusHandoff("fin-unch-title");
   // Uma chave por registro: repetir depois de falha reaproveita a cobrança já criada e não duplica nada.
   const { keyFor: chargeKey } = useIdempotencyKey();
   const { keyFor: payKey } = useIdempotencyKey();
@@ -367,7 +385,7 @@ function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: Pa
     });
 
   return (
-    <li className="tn-fin-item">
+    <li ref={itemRef} className="tn-fin-item">
       <div>
         <strong>{label}</strong>
         <span className="tn-muted tn-num">
@@ -413,7 +431,7 @@ function Receivables({ list }: { list: Receivable[] }) {
   const ctx = usePage();
   return (
     <section aria-labelledby="fin-rec-title" className="tn-fin-section">
-      <h2 id="fin-rec-title">A receber</h2>
+      <h2 id="fin-rec-title" tabIndex={-1}>A receber</h2>
       {list.length === 0 ? (
         <p className="tn-muted">Nada em aberto.</p>
       ) : (
@@ -429,6 +447,7 @@ function Receivables({ list }: { list: Receivable[] }) {
 
 function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
   const port = usePort();
+  const itemRef = useFocusHandoff("fin-rec-title");
   const { keyFor, reset: resetKey } = useIdempotencyKey();
   // "Agora" entra no pedido. Na nova tentativa precisa ser o mesmo instante: com outro, a chave mudaria
   // e o recebimento seria gravado duas vezes.
@@ -481,7 +500,7 @@ function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
   }
 
   return (
-    <li className="tn-fin-item">
+    <li ref={itemRef} className="tn-fin-item">
       <div>
         <strong>{r.description}</strong> <span className="tn-muted">· {ctx.customerName(r.customer_id)}</span>
         <div className="tn-muted tn-num">
