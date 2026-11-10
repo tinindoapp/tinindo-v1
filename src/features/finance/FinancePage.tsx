@@ -20,6 +20,7 @@ import {
   shiftMonth,
   unchargedTotal,
 } from "./money.ts";
+import { useAttemptValue, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { plural } from "../../lib/text/plural.ts";
 import { type FinanceBase, type FinancePort, newKey } from "./port.ts";
 
@@ -77,17 +78,6 @@ function explain(err: unknown): string {
     default:
       return "Não foi possível concluir. Nada foi alterado por esta tentativa.";
   }
-}
-
-/** Mesma chave para o mesmo pedido (repetir não duplica); pedido diferente, chave nova.
- *  Fica num ref, não em estado: dois toques antes do próximo render precisam ver a mesma chave. */
-export function useKeyFor() {
-  const last = useRef<{ sig: string; key: string } | null>(null);
-  return (payload: unknown) => {
-    const sig = JSON.stringify(payload);
-    if (last.current?.sig !== sig) last.current = { sig, key: newKey() };
-    return last.current.key;
-  };
 }
 
 interface MonthData {
@@ -327,9 +317,9 @@ function Uncharged({ list, packages }: { list: UnchargedBooking[]; packages: Pac
 function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: PackageDetail[]; ctx: Ctx }) {
   const port = usePort();
   // Uma chave por registro: repetir depois de falha reaproveita a cobrança já criada e não duplica nada.
-  const chargeKey = useKeyFor();
-  const payKey = useKeyFor();
-  const creditKey = useKeyFor();
+  const { keyFor: chargeKey } = useIdempotencyKey();
+  const { keyFor: payKey } = useIdempotencyKey();
+  const { keyFor: creditKey } = useIdempotencyKey();
   // Instante do recebimento fixado na tela: a repetição envia exatamente o mesmo pedido.
   const [receivedAt] = useState(() => port.now().toISOString());
   const [method, setMethod] = useState<Method>("pix");
@@ -433,7 +423,10 @@ function Receivables({ list }: { list: Receivable[] }) {
 
 function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
   const port = usePort();
-  const keyFor = useKeyFor();
+  const { keyFor, reset: resetKey } = useIdempotencyKey();
+  // "Agora" entra no pedido. Na nova tentativa precisa ser o mesmo instante: com outro, a chave mudaria
+  // e o recebimento seria gravado duas vezes.
+  const instant = useAttemptValue<string>();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState(centsToInput(r.open_cents));
   const [method, setMethod] = useState<Method>("pix");
@@ -451,12 +444,16 @@ function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
         ? `O valor passa do que falta receber (${formatCents(r.open_cents)}).`
         : null;
     if (!show({ amount: amountError }) || !cents) return;
-    const received_at = date === ctx.today ? port.now().toISOString() : noonOfLocalDay(date, ctx.base.timezone);
+    const received_at = date === ctx.today
+      ? instant.valueFor({ receivable_id: r.id, cents, method, date }, () => port.now().toISOString())
+      : noonOfLocalDay(date, ctx.base.timezone);
     const payload = { receivable_id: r.id, amount_cents: cents, method, received_at };
     setPending(true);
     setError(null);
     try {
       await port.recordPayment(payload, keyFor(payload));
+      resetKey();
+      instant.reset();
       ctx.notify("success", `Recebimento de ${formatCents(cents)} registrado (${METHOD_LABEL[method]}, manual).`);
       ctx.reload();
     } catch (err) {
@@ -601,7 +598,9 @@ function Payments({ list }: { list: PaymentRecord[] }) {
 function ExpenseForm({ onDone }: { onDone: () => void }) {
   const ctx = usePage();
   const port = usePort();
-  const keyFor = useKeyFor();
+  const { keyFor, reset: resetKey } = useIdempotencyKey();
+  // Mesmo instante na nova tentativa (ver ReceivableItem): senão a despesa seria gravada duas vezes.
+  const instant = useAttemptValue<string>();
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<ExpenseCategory>("supplies");
   const [date, setDate] = useState(ctx.today);
@@ -614,14 +613,19 @@ function ExpenseForm({ onDone }: { onDone: () => void }) {
     e.preventDefault();
     const cents = parseBRL(amount);
     if (!show({ amount: !cents && "Informe o valor da despesa." }) || !cents) return;
+    const text = description.trim() || null;
     const payload = {
-      amount_cents: cents, category, description: description.trim() || null,
-      paid_at: date === ctx.today ? port.now().toISOString() : noonOfLocalDay(date, ctx.base.timezone),
+      amount_cents: cents, category, description: text,
+      paid_at: date === ctx.today
+        ? instant.valueFor({ cents, category, text, date }, () => port.now().toISOString())
+        : noonOfLocalDay(date, ctx.base.timezone),
     };
     setPending(true);
     setError(null);
     try {
       await port.recordExpense(payload, keyFor(payload));
+      resetKey();
+      instant.reset();
       ctx.notify("success", `Despesa de ${formatCents(cents)} registrada.`);
       onDone();
       ctx.reload();
@@ -699,7 +703,7 @@ function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["
 function PackageForm({ onDone }: { onDone: () => void }) {
   const ctx = usePage();
   const port = usePort();
-  const keyFor = useKeyFor();
+  const { keyFor } = useIdempotencyKey();
   const active = ctx.base.services.filter((s) => s.active);
   const [customer, setCustomer] = useState("");
   const [service, setService] = useState(active[0]?.id ?? "");
@@ -838,7 +842,7 @@ function Packages({ list }: { list: PackageDetail[] }) {
 function ReceivableForm({ onDone }: { onDone: () => void }) {
   const ctx = usePage();
   const port = usePort();
-  const keyFor = useKeyFor();
+  const { keyFor } = useIdempotencyKey();
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [customer, setCustomer] = useState("");

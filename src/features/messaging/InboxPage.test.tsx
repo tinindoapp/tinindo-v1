@@ -113,6 +113,30 @@ describe("caixa de entrada", () => {
     expect(screen.queryByRole("heading", { name: "Caixa de entrada" })).not.toBeInTheDocument();
   });
 
+  it("responder: depois de uma falha de rede, repetir manda a mesma chave; a mensagem seguinte, chave nova", async () => {
+    const port = await connectedWithAna();
+    const contactId = (await port.inbox()).contacts[0]!.id;
+    const send = vi.spyOn(port, "send").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    conversation(port, contactId);
+    const reply = within(await screen.findByRole("form", { name: "Responder" }));
+    fireEvent.change(reply.getByLabelText("Sua resposta"), { target: { value: "Oi!" } });
+    fireEvent.click(reply.getByRole("button", { name: "Enviar" }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    // O texto fica no campo depois do erro: tocar em Enviar de novo é o mesmo pedido.
+    await waitFor(() => expect(reply.getByRole("button", { name: "Enviar" })).toBeEnabled());
+    expect(reply.getByLabelText("Sua resposta")).toHaveValue("Oi!");
+    fireEvent.click(reply.getByRole("button", { name: "Enviar" }));
+    expect(await reply.findByText(/Mensagem na fila\./)).toBeInTheDocument();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1]![1]).toBe(send.mock.calls[0]![1]);
+    expect(send.mock.calls[1]![0]).toEqual(send.mock.calls[0]![0]);
+    // Mandar "Oi!" outra vez depois do sucesso é outra mensagem.
+    fireEvent.change(reply.getByLabelText("Sua resposta"), { target: { value: "Oi!" } });
+    fireEvent.click(reply.getByRole("button", { name: "Enviar" }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(3));
+    expect(send.mock.calls[2]![1]).not.toBe(send.mock.calls[0]![1]);
+  });
+
   it("conversa: responder fica no rodapé e o aviso de fila sai dentro dele", async () => {
     const port = await connectedWithAna();
     const contactId = (await port.inbox()).contacts[0]!.id;

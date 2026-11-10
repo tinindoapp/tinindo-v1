@@ -5,7 +5,7 @@ import type { Profession } from "@contracts";
 import type { Onboarding, OnboardingGoal } from "@contracts";
 import { Button, ChoiceCard, Field, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { messageFor } from "./errors.ts";
-import { useIdempotencyKey } from "./idempotency.ts";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import {
   goalLabel,
   LATE_FEE_OPTIONS,

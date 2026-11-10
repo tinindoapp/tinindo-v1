@@ -7,6 +7,7 @@ import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, SetupH
 import { Icon } from "../../components/ui/icons.tsx";
 import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, formatTime, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, templateInfo, unreadLabel } from "./labels.ts";
 import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort, newKey } from "./port.ts";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { plural, pluralWord } from "../../lib/text/plural.ts";
 
 /** Depois de uma ação: o aviso de sucesso sai no toast e a tela recarrega. Erro de formulário fica no formulário. */
@@ -15,7 +16,7 @@ type Done = (message: string) => void;
 function ConnectForm({ port, onDone }: { port: MessagingPort; onDone: Done }) {
   const [provider, setProvider] = useState<ChannelProvider>("simulated");
   const [phone, setPhone] = useState("+5511999990001");
-  const [key, setKey] = useState(newKey);
+  const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const { formRef, errors, show } = useFormErrors<"phone">();
@@ -26,11 +27,10 @@ function ConnectForm({ port, onDone }: { port: MessagingPort; onDone: Done }) {
     setBusy(true);
     setFailure(null);
     try {
-      await port.connect(provider, value, key);
-      setKey(newKey());
+      await port.connect(provider, value, idem.keyFor({ provider, phone: value }));
+      idem.reset();
       onDone("Número registrado. O código de verificação sai pelo próprio canal: confira o telefone e informe abaixo.");
     } catch (err) {
-      setKey(newKey());
       setFailure(explain(err));
     } finally {
       setBusy(false);
@@ -85,7 +85,7 @@ function VerifyForm({ port, onDone }: { port: MessagingPort; onDone: Done }) {
 function SendForm({ port, convo, onSent }: { port: MessagingPort; convo: Conversation; onSent: () => void }) {
   const [text, setText] = useState("");
   const [sent, setSent] = useState<string | null>(null);
-  const [key, setKey] = useState(newKey);
+  const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const { formRef, errors, show } = useFormErrors<"text">();
@@ -97,13 +97,13 @@ function SendForm({ port, convo, onSent }: { port: MessagingPort; convo: Convers
     setBusy(true);
     setFailure(null);
     try {
-      await port.send({ contact_id: convo.contact.id, kind: "text", text: text.trim() }, key);
-      setKey(newKey());
+      const body = { contact_id: convo.contact.id, kind: "text" as const, text: text.trim() };
+      await port.send(body, idem.keyFor(body));
+      idem.reset();
       setText("");
       setSent("Mensagem na fila. Ela vira enviada, entregue ou lida conforme o provedor confirmar.");
       onSent();
     } catch (err) {
-      setKey(newKey());
       setFailure(explain(err));
     } finally {
       setBusy(false);
@@ -149,6 +149,7 @@ function TemplateForm({ port, convo, templates, onDone, onCancel }: { port: Mess
   const initial = (usable.find((t) => t.approved) ?? usable[0])?.code ?? "";
   const [code, setCode] = useState(initial);
   const [params, setParams] = useState<string[]>(() => prefill(initial));
+  const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const { formRef, errors, show } = useFormErrors();
@@ -162,7 +163,9 @@ function TemplateForm({ port, convo, templates, onDone, onCancel }: { port: Mess
     setBusy(true);
     setFailure(null);
     try {
-      await port.send({ contact_id: convo.contact.id, kind: "template", template_code: t.code, template_params: values }, newKey());
+      const body = { contact_id: convo.contact.id, kind: "template" as const, template_code: t.code, template_params: values };
+      await port.send(body, idem.keyFor(body));
+      idem.reset();
       onDone(`${info.name} na fila. Ele vira enviado, entregue ou lido conforme o provedor confirmar.`);
     } catch (err) {
       setFailure(explain(err));

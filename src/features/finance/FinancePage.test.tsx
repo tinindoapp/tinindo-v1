@@ -20,6 +20,62 @@ function renderPage() {
   return port;
 }
 
+/** Relógio que anda a cada leitura, como no servidor: na demonstração ele é fixo e esconde o defeito. */
+function tickingClock(port: ReturnType<typeof createDemoPort>) {
+  const start = port.now().getTime();
+  let ticks = 0;
+  vi.spyOn(port, "now").mockImplementation(() => new Date(start + (ticks += 1) * 1000));
+}
+
+describe("Caixa: nova tentativa depois de falha de rede não grava em dobro", () => {
+  it("recebimento de hoje: a segunda tentativa sai com a mesma chave e o mesmo corpo", async () => {
+    const port = renderPage();
+    tickingClock(port);
+    const pay = vi.spyOn(port, "recordPayment").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    const open = within(await screen.findByRole("region", { name: "A receber" }));
+    fireEvent.click(open.getAllByRole("button", { name: /^Registrar recebimento/ })[0]!);
+    const submit = open.getByRole("button", { name: "Registrar pagamento" });
+    await act(async () => { fireEvent.click(submit); });
+    expect(open.getByText(/Tentar de novo é seguro/)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(submit); });
+    expect(pay).toHaveBeenCalledTimes(2);
+    const [firstBody, firstKey] = pay.mock.calls[0]!;
+    const [secondBody, secondKey] = pay.mock.calls[1]!;
+    expect(secondKey).toBe(firstKey);
+    expect(secondBody).toEqual(firstBody);
+  });
+
+  it("despesa de hoje: a segunda tentativa sai com a mesma chave e o mesmo corpo", async () => {
+    const port = renderPage();
+    tickingClock(port);
+    const expense = vi.spyOn(port, "recordExpense").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    fireEvent.click(await screen.findByRole("button", { name: "Registrar" }));
+    const form = within(await screen.findByRole("form", { name: "Nova despesa" }));
+    fireEvent.change(form.getByLabelText("Valor da despesa (R$)"), { target: { value: "45,00" } });
+    const submit = form.getByRole("button", { name: "Registrar despesa" });
+    await act(async () => { fireEvent.click(submit); });
+    expect(form.getByText(/Tentar de novo é seguro/)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(submit); });
+    expect(expense).toHaveBeenCalledTimes(2);
+    expect(expense.mock.calls[1]![1]).toBe(expense.mock.calls[0]![1]);
+    expect(expense.mock.calls[1]![0]).toEqual(expense.mock.calls[0]![0]);
+  });
+
+  it("valor diferente é outro pedido: chave nova", async () => {
+    const port = renderPage();
+    tickingClock(port);
+    const pay = vi.spyOn(port, "recordPayment").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    const open = within(await screen.findByRole("region", { name: "A receber" }));
+    fireEvent.click(open.getAllByRole("button", { name: /^Registrar recebimento/ })[0]!);
+    const submit = open.getByRole("button", { name: "Registrar pagamento" });
+    await act(async () => { fireEvent.click(submit); });
+    fireEvent.change(open.getByLabelText("Valor recebido (R$)"), { target: { value: "1,00" } });
+    await act(async () => { fireEvent.click(submit); });
+    expect(pay).toHaveBeenCalledTimes(2);
+    expect(pay.mock.calls[1]![1]).not.toBe(pay.mock.calls[0]![1]);
+  });
+});
+
 describe("Caixa: validação no envio, confirmação e aviso", () => {
   it("cobrança sem descrição e valor: erros embaixo de cada campo e foco no primeiro", async () => {
     const port = renderPage();

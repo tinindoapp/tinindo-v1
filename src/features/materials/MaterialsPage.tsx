@@ -8,6 +8,7 @@ import { explain, formatCents, formatDate, formatPercent, formatQty, KIND_LABEL,
 import {
   type MarginReport, type MaterialBooking, type MaterialItem, type MaterialPurchase, type MaterialsBase, type MaterialsPort, type MaterialUsage, newKey, type PurchaseLine,
 } from "./port.ts";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string; undo?: () => void } | null;
@@ -82,7 +83,7 @@ function PurchaseForm({ port, base, items, onDone }: { port: MaterialsPort; base
   const [supplier, setSupplier] = useState("");
   const [lines, setLines] = useState([blank()]);
   const [expense, setExpense] = useState(true);
-  const [key, setKey] = useState(newKey);
+  const idem = useIdempotencyKey();
   const set = (n: number, patch: Partial<ReturnType<typeof blank>>) => setLines(lines.map((l, i) => (i === n ? { ...l, ...patch } : l)));
   const parsed: PurchaseLine[] = lines.map((l) => ({ item_id: l.item_id, quantity: parseNumber(l.quantity), total_cents: parseBRL(l.total) }));
   const valid = parsed.every((l) => l.item_id && l.quantity > 0 && l.total_cents >= 0) && new Set(parsed.map((l) => l.item_id)).size === parsed.length;
@@ -104,12 +105,15 @@ function PurchaseForm({ port, base, items, onDone }: { port: MaterialsPort; base
     if (!show(found)) return;
     setBusy(true);
     try {
-      const p = await port.purchase(supplier.trim() || null, base.now, parsed, expense, key);
-      setKey(newKey());
+      // Mesma chave enquanto a compra for a mesma (inclusive depois de erro): repetir não lança o estoque duas vezes.
+      const from = supplier.trim() || null;
+      const p = await port.purchase(from, base.now, parsed, expense, idem.keyFor({ supplier: from, at: base.now, lines: parsed, expense }));
+      idem.reset();
       onDone({ tone: "success", text: `Compra de ${formatCents(p.total_cents)} lançada no estoque${p.expense_id ? " e como despesa de materiais no Caixa" : ""}.` });
     } catch (err) {
-      setKey(newKey());
-      onDone({ tone: "danger", text: explain(err) });
+      // Só o aviso: o formulário fica como está, com os itens digitados e a mesma chave para a nova tentativa.
+      // (onDone recarrega a tela e remonta o formulário, o que trocaria a chave.)
+      toast({ message: explain(err), tone: "danger" });
     } finally {
       setBusy(false);
     }

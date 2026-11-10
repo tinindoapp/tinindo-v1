@@ -5,7 +5,7 @@ import { Profession } from "@contracts";
 import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";
-import { useIdempotencyKey } from "./idempotency.ts";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { LegalSheet, type LegalDoc } from "./LegalSheet.tsx";
 import { BRAZIL_TIMEZONES, detectTimezone, POLICY_VERSIONS, PROFESSION_PRESETS, SEGMENT_LABEL, type Segment } from "./presets.ts";
 import { useIdentityServices } from "./services.tsx";
