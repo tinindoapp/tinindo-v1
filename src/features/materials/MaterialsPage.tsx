@@ -4,11 +4,12 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { explain, formatCents, formatDate, formatPercent, formatQty, KIND_LABEL, parseBRL, parseNumber, UNIT_LABEL } from "./labels.ts";
+import { explain, formatCents, formatDate, formatPercent, formatQty, KIND_LABEL, parseNumber, UNIT_LABEL } from "./labels.ts";
 import {
   type MarginReport, type MaterialBooking, type MaterialItem, type MaterialPurchase, type MaterialsBase, type MaterialsPort, type MaterialUsage, newKey, type PurchaseLine,
 } from "./port.ts";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string; undo?: () => void } | null;
@@ -85,9 +86,11 @@ function PurchaseForm({ port, base, items, onDone }: { port: MaterialsPort; base
   const [expense, setExpense] = useState(true);
   const idem = useIdempotencyKey();
   const set = (n: number, patch: Partial<ReturnType<typeof blank>>) => setLines(lines.map((l, i) => (i === n ? { ...l, ...patch } : l)));
-  const parsed: PurchaseLine[] = lines.map((l) => ({ item_id: l.item_id, quantity: parseNumber(l.quantity), total_cents: parseBRL(l.total) }));
-  const valid = parsed.every((l) => l.item_id && l.quantity > 0 && l.total_cents >= 0) && new Set(parsed.map((l) => l.item_id)).size === parsed.length;
-  const total = parsed.reduce((t, l) => t + (Number.isFinite(l.total_cents) ? l.total_cents : 0), 0);
+  // Valor pago: vazio → null, inválido → undefined (src/lib/money.ts); cada linha diz o que falta embaixo do campo.
+  const read = lines.map((l) => ({ item_id: l.item_id, quantity: parseNumber(l.quantity), total_cents: parseBRL(l.total) }));
+  const parsed: PurchaseLine[] = read.map((l) => ({ ...l, total_cents: l.total_cents ?? 0 }));
+  const valid = read.every((l) => l.item_id && l.quantity > 0 && typeof l.total_cents === "number") && new Set(parsed.map((l) => l.item_id)).size === parsed.length;
+  const total = parsed.reduce((t, l) => t + l.total_cents, 0);
   const [busy, setBusy] = useState(false);
   const { formRef, errors, show } = useFormErrors<string>();
   async function submit(e: FormEvent) {
@@ -95,12 +98,13 @@ function PurchaseForm({ port, base, items, onDone }: { port: MaterialsPort; base
     // Cada linha diz o que falta, embaixo do campo; item repetido é apontado na segunda vez.
     const seen = new Set<string>();
     const found: Record<string, string | null> = {};
-    parsed.forEach((l, n) => {
+    read.forEach((l, n) => {
       if (!l.item_id) found[`item${n}`] = "Escolha o item.";
       else if (seen.has(l.item_id)) found[`item${n}`] = "Este item já está em outra linha.";
       seen.add(l.item_id);
       if (!(l.quantity > 0)) found[`qty${n}`] = "Informe a quantidade.";
-      if (!(l.total_cents >= 0)) found[`total${n}`] = "Informe o valor pago.";
+      if (l.total_cents === null) found[`total${n}`] = "Informe o valor pago.";
+      else if (l.total_cents === undefined) found[`total${n}`] = "Use só números, por exemplo 42,90.";
     });
     if (!show(found)) return;
     setBusy(true);

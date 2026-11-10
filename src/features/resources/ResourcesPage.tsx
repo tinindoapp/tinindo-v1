@@ -10,12 +10,12 @@ import {
 import {
   newKey, type ResourcesPort, type TeamBase, type TeamBooking, type TeamClass, type TeamCommissionRule, type TeamCommissions, type TeamResource, type TimeRange,
 } from "./port.ts";
+import { parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string; undo?: () => void } | null;
 const KINDS = ["professional", "room", "chair", "equipment"] as const;
 const parsePercent = (v: string) => (v.trim() === "" ? null : Math.round(Number(v.replace(",", ".")) * 100));
-const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
 const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 function ResourceForm({ port, resource, onDone }: { port: ResourcesPort; resource: TeamResource | null; onDone: (n: Notice) => void }) {
@@ -220,18 +220,21 @@ function ClassForm({ port, base, resources, onDone }: { port: ResourcesPort; bas
   const [capacity, setCapacity] = useState("6");
   const [price, setPrice] = useState("");
   const [busy, setBusy] = useState(false);
-  const { formRef, errors, show } = useFormErrors<"title" | "pro" | "capacity">();
+  const { formRef, errors, show } = useFormErrors<"title" | "pro" | "capacity" | "price">();
   async function submit(e: FormEvent) {
     e.preventDefault();
+    // Preço vazio (null) = preço do serviço; inválido (undefined) é apontado no campo.
+    const seat = parseBRL(price);
     if (!show({
       title: title.trim() ? null : "Informe o título da turma.",
       pro: proId ? null : "Cadastre uma profissional antes.",
       capacity: Number(capacity) >= 1 && Number(capacity) <= 200 ? null : "Use de 1 a 200 vagas.",
-    })) return;
+      price: seat === undefined ? "Use só números, por exemplo 45,00, ou deixe vazio." : null,
+    }) || seat === undefined) return;
     setBusy(true);
     try {
       const c = await port.createClass({ title: title.trim(), service_id: serviceId, professional_id: proId, room_id: roomId || null, starts_at: localInstant(day, time, base.timezone),
-        capacity: Number(capacity), seat_price_cents: price.trim() ? parseBRL(price) : null }, newKey());
+        capacity: Number(capacity), seat_price_cents: seat }, newKey());
       onDone({ tone: "success", text: `Turma “${c.title}” criada com ${c.professional_name}${c.room_name ? ` na ${c.room_name}` : ""}: ${c.capacity} vagas.` });
     } catch (err) {
       onDone({ tone: "danger", text: explain(err) });
@@ -251,7 +254,7 @@ function ClassForm({ port, base, resources, onDone }: { port: ResourcesPort; bas
       <Field label="Dia" type="date" value={day} onChange={(e) => setDay(e.target.value)} />
       <Field label="Início" type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} />
       <Field label="Vagas" inputMode="numeric" value={capacity} onChange={(e) => setCapacity(e.target.value)} error={errors.capacity} />
-      <Field label="Preço por vaga (R$)" inputMode="decimal" placeholder="preço do serviço" value={price} onChange={(e) => setPrice(e.target.value)} />
+      <Field label="Preço por vaga (R$)" inputMode="decimal" placeholder="preço do serviço" value={price} onChange={(e) => setPrice(e.target.value)} error={errors.price} />
       <Button type="submit" loading={busy}>Criar turma</Button>
     </form>
   );

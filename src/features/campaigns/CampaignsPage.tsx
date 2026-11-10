@@ -7,14 +7,12 @@ import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, Sta
 import { Icon } from "../../components/ui/icons.tsx";
 import { ci, DESIGN, explain, formatCents, formatDate, offerLabel, pct, segmentLabel, STATUS, VERDICT } from "./labels.ts";
 import { type Campaign, type CampaignDetail, type CampaignSegment, type CampaignsPort, newKey, type Preview } from "./port.ts";
+import { parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 /** Retorno de uma ação: aviso curto (Toast), sempre à vista; `null` só atualiza a tela. */
 type Notice = ToastInput | string | null;
 const failed = (e: unknown): Notice => ({ tone: "danger", message: explain(e) });
-
-/** Botão de ação de um toque: mostra o carregando enquanto a ação roda. */
-const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
 
 function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services: { id: string; name: string }[]; onDone: (n: Notice, close?: boolean) => void }) {
   const [name, setName] = useState("");
@@ -31,7 +29,7 @@ function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services
   const [key, setKey] = useState(newKey);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { formRef, errors, show } = useFormErrors<"name" | "kind" | "days">();
+  const { formRef, errors, show } = useFormErrors<"name" | "kind" | "days" | "cap">();
   const segment: CampaignSegment = kind === "inactive_days" ? { kind, days: Number(days) || 0 } : { kind };
   const segKey = JSON.stringify(segment);
   useEffect(() => {
@@ -45,18 +43,21 @@ function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services
     e.preventDefault();
     const d = Number(days);
     const daysOk = kind !== "inactive_days" || (Number.isInteger(d) && d >= 14 && d <= 365);
+    // Teto vazio (null) = sem teto; inválido (undefined) é apontado no campo.
+    const capCents = parseBRL(cap);
     const ok = show({
       name: !name.trim() && "Informe o nome da campanha.",
       days: !daysOk && "Informe de 14 a 365 dias.",
+      cap: capCents === undefined && "Use só números, por exemplo 200,00, ou deixe vazio.",
       kind: daysOk && preview?.audience_count === 0 && "Ninguém no público autorizado agora: escolha outro segmento.",
     });
-    if (!ok) return;
+    if (!ok || capCents === undefined) return;
     if (!preview) return setError("Ainda calculando o público. Tente de novo em instantes.");
     setBusy(true);
     setError(null);
     try {
       const c = await port.approve({ name: name.trim(), segment, audience_hash: preview.audience_hash, control_pct: Number(control), max_sends: Number(maxSends),
-        spend_cap_cents: cap.trim() ? parseBRL(cap) : null, window_days: Number(windowDays),
+        spend_cap_cents: capCents, window_days: Number(windowDays),
         offer: offerKind === "none" ? { kind: "none" } : { kind: "discount_pct", pct: Number(pctValue), service_id: serviceId || null } }, key);
       setKey(newKey());
       setName("");
@@ -86,7 +87,7 @@ function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services
       </p>
       <Field label="Grupo de controle (%)" inputMode="numeric" value={control} onChange={(e) => setControl(e.target.value)} />
       <Field label="Teto de envios" inputMode="numeric" value={maxSends} onChange={(e) => setMaxSends(e.target.value)} />
-      <Field label="Teto de gasto com a oferta (R$, opcional)" inputMode="decimal" value={cap} onChange={(e) => setCap(e.target.value)} />
+      <Field label="Teto de gasto com a oferta (R$, opcional)" inputMode="decimal" value={cap} error={errors.cap} onChange={(e) => setCap(e.target.value)} />
       <Field label="Janela de medição (dias)" inputMode="numeric" value={windowDays} onChange={(e) => setWindowDays(e.target.value)} />
       <Field as="select" label="Oferta" value={offerKind} onChange={(e) => setOfferKind(e.target.value as "none" | "discount_pct")}>
         <option value="none">Sem oferta (só o convite)</option>

@@ -24,13 +24,6 @@ export function formatCents(cents: number): string {
   return `R$ ${(cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** "35", "35,00", "R$ 1.200,50" → centavos; inválido → null. */
-export function parseCents(v: string): number | null {
-  const t = v.replace(/R\$|\s|\./g, "").replace(",", ".");
-  const n = Number(t);
-  return /^\d+(\.\d{1,2})?$/.test(t) && Number.isFinite(n) ? Math.round(n * 100) : null;
-}
-
 export function priceRange(from: number | null, to: number | null): string | null {
   if (from === null || to === null) return null;
   return from === to ? formatCents(from) : `${formatCents(from)} a ${formatCents(to)}`;

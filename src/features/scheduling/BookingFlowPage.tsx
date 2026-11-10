@@ -32,7 +32,9 @@ export function ReschedulePage() {
   const { bookingId = "" } = useParams();
   const port = usePort();
   const { ctx } = useBase();
-  const booking = useAsync(`booking:${bookingId}`, () => port.getBooking(bookingId));
+  // Mantém o atendimento anterior enquanto relê (409 de versão): o fluxo fica montado, com a explicação do conflito
+  // e o horário escolhido; a próxima tentativa já sai com a versão nova.
+  const booking = useAsync(`booking:${bookingId}`, () => port.getBooking(bookingId), true);
   return (
     <section aria-labelledby="flow-title" className="tn-sched">
       <Link to=".." relative="path" className="tn-sched-back">

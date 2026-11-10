@@ -5,9 +5,10 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, Stat, Stats, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { parseBRL } from "../../lib/money.ts";
 import { plural, pluralWord } from "../../lib/text/plural.ts";
 import {
-  addDays, BASE_LABEL, EXPENSE_BASES, explain, formatCents, formatDay, METHOD_LABEL, monthLabel, parseBRL, periodLabel, SOURCE_LABEL, STATUS_LABEL,
+  addDays, BASE_LABEL, EXPENSE_BASES, explain, formatCents, formatDay, METHOD_LABEL, monthLabel, periodLabel, SOURCE_LABEL, STATUS_LABEL,
 } from "./labels.ts";
 import {
   type AccCategory, type AccEntry, type AccountsBase, type AccountsPort, type AccPayable, type AccReconciliationRow, type AccSeries, type AccStatement, newKey,
@@ -30,18 +31,20 @@ function PayableForm({ port, base, categories, onDone }: { port: AccountsPort; b
   const { formRef, errors, show } = useFormErrors<"description" | "amount" | "due">();
   async function submit(e: FormEvent) {
     e.preventDefault();
+    const cents = parseBRL(amount);
     const ok = show({
       description: !description.trim() && "Diga o que é a conta (ex.: aluguel).",
-      amount: !(parseBRL(amount || "0") > 0) && "Informe o valor.",
+      amount: (cents === null && "Informe o valor.") || (cents === undefined && "Use só números, por exemplo 150,00.")
+        || (cents === 0 && "O valor precisa ser maior que zero."),
       due: (!due && "Informe o vencimento.") || (monthly && Number(due.slice(8, 10)) > 28 && "Conta mensal vence entre os dias 1 e 28."),
     });
-    if (!ok) return;
+    if (!ok || cents === null || cents === undefined) return;
     setBusy(true);
     try {
       const custom = cat.startsWith("cat:") ? cat.slice(4) : null;
       // Mesma chave enquanto o pedido for o mesmo: repetir depois de uma falha de rede não cria a conta
       // (nem as doze parcelas da conta mensal) duas vezes.
-      const payload = { description: description.trim(), amount_cents: parseBRL(amount), due_on: due, monthly, supplier: supplier.trim() || null,
+      const payload = { description: description.trim(), amount_cents: cents, due_on: due, monthly, supplier: supplier.trim() || null,
         category_id: custom, base_category: custom ? "other" as const : (cat.slice(5) as AccPayable["base_category"]) };
       const r = await port.savePayable(payload, idem.keyFor(payload));
       idem.reset();
@@ -207,10 +210,11 @@ function ReconcileRow({ r, day, port, onChange }: { r: AccReconciliationRow; day
   const label = `${METHOD_LABEL[r.method]} ${SOURCE_LABEL[r.source]}`;
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!show({ value: (value.trim() === "" || !(parseBRL(value) >= 0)) && "Informe o valor que aparece no extrato." })) return;
+    const cents = parseBRL(value);
+    if (!show({ value: (cents === null || cents === undefined) && "Informe o valor que aparece no extrato." }) || cents === null || cents === undefined) return;
     setBusy(true);
     try {
-      const diff = await port.reconcile(day, r.method, r.source, parseBRL(value), newKey());
+      const diff = await port.reconcile(day, r.method, r.source, cents, newKey());
       toast(diff === 0 ? `${label}: bate com o extrato.` : { tone: "warning", message: `${label}: diferença de ${formatCents(diff)} em relação ao registrado.` });
       setValue("");
       onChange();

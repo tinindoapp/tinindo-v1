@@ -193,7 +193,8 @@ test.describe("UAT barbeiro", () => {
     await expect(page.getByRole("heading", { name: "Caixa", level: 1 })).toBeVisible();
     await expect(page.getByText("Dados de exemplo.")).toBeVisible();
     const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
-    await expect(pending.getByRole("listitem")).toHaveCount(2);
+    // Os dois de segunda 19/10 e o Corte de 28/09: pendência não tem mês.
+    await expect(pending.getByRole("listitem")).toHaveCount(3);
     await expect(page.getByRole("region", { name: /Caixa registrado/ })).toContainText("Atendimento agendado ou concluído não conta como recebido");
   });
 
@@ -201,10 +202,10 @@ test.describe("UAT barbeiro", () => {
     await page.goto("/app");
     await openFromNav(page, "Caixa");
     const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
-    const item = pending.getByRole("listitem").filter({ hasText: "Bruno" });
+    const item = pending.getByRole("listitem").filter({ hasText: "Bruno" }).filter({ hasText: "19/10/2026" });
     await item.getByRole("button", { name: /^Recebi R\$/ }).click();
     await expect(page.getByText(/Recebido R\$\s?40,00/)).toBeVisible();
-    await expect(pending.getByRole("listitem").filter({ hasText: "Bruno" })).toHaveCount(0);
+    await expect(item).toHaveCount(0);
     const payments = page.getByRole("region", { name: "Recebimentos no mês" });
     await expect(payments.getByRole("listitem").filter({ hasText: "20/10/2026" }).filter({ hasText: "R$ 40,00" })).toHaveCount(1);
   });

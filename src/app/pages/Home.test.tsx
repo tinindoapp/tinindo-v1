@@ -83,3 +83,11 @@ describe("Hoje (auditoria de UX, itens 30 e 31)", () => {
   });
 });
 
+describe("Hoje: \"A cobrar\" é o que está em aberto, de qualquer mês (revisão 10/11, ux-nucleo-celular-03)", () => {
+  it("conta o atendimento de setembro sem cobrança junto com os de outubro", async () => {
+    renderHome(portAt("2026-10-20T11:20:00-03:00"));
+    const card = await screen.findByRole("link", { name: /^A cobrar/ }, SLOW);
+    expect(card).toHaveTextContent(/^A cobrar3R\$\s160,00 em aberto$/);
+  });
+});
+

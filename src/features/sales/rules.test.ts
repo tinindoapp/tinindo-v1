@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { centsToInput, effectiveStatus, explain, localToIso, parseBRL, quoteTotal, validUntilInDays } from "./rules.ts";
+import { centsToInput, effectiveStatus, explain, localToIso, quoteTotal, validUntilInDays } from "./rules.ts";
 
 describe("orçamentos · regras", () => {
   it("valores em centavos, sem float", () => {
-    expect(parseBRL("60")).toBe(6000);
-    expect(parseBRL("60,5")).toBe(6050);
-    expect(parseBRL("R$ 1.234,56")).toBe(123456);
-    expect(parseBRL("12,345")).toBeNull();
-    expect(parseBRL("-5")).toBeNull();
+    // A leitura do texto digitado é a do app inteiro: src/lib/money.test.ts.
     expect(centsToInput(6050)).toBe("60,50");
     expect(quoteTotal([{ quantity: 3, unit_price_cents: 1999 }, { quantity: 1, unit_price_cents: 1 }])).toBe(5998);
   });

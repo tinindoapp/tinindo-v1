@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
@@ -133,5 +133,66 @@ describe("Caixa: validação no envio, confirmação e aviso", () => {
     await act(async () => { fireEvent.click(bruno.getByRole("button", { name: /^Recebi R\$\s?40,00 no cartão/ })); });
     expect(pay).toHaveBeenCalledWith(expect.objectContaining({ amount_cents: 4000, method: "card" }), expect.any(String));
     expect(await screen.findByText(/Recebido R\$\s?40,00 \(Cartão\)/)).toBeInTheDocument();
+  });
+});
+
+describe("Caixa: uma ação não desmonta a tela (revisão 10/11, fe-modulos-a-05)", () => {
+  it("depois de 'Cobrar depois', 'Ver mais' continua aberto, o formulário aberto fica e o foco vai para o título da seção", async () => {
+    renderPage();
+    const pending = await screen.findByRole("region", { name: "Atendimentos concluídos sem cobrança" });
+    // "Ver mais" aberto nos recebimentos do mês.
+    const payments = within(screen.getByRole("region", { name: "Recebimentos no mês" }));
+    fireEvent.click(payments.getByRole("button", { name: /^Ver mais \d+ recebimentos$/ }));
+    expect(payments.queryByRole("button", { name: /^Ver mais/ })).toBeNull();
+    // Um formulário de recebimento aberto, com valor digitado.
+    const open = within(screen.getByRole("region", { name: "A receber" }));
+    fireEvent.click(open.getAllByRole("button", { name: /^Registrar recebimento/ })[0]!);
+    fireEvent.change(open.getByLabelText("Valor recebido (R$)"), { target: { value: "12,34" } });
+
+    const bruno = within(pending).getAllByRole("listitem").find((li) => /Bruno/.test(li.textContent ?? "") && /19\/10\/2026/.test(li.textContent ?? ""))!;
+    const later = within(bruno).getByRole("button", { name: /Cobrar depois/ });
+    later.focus();
+    await act(async () => { fireEvent.click(later); });
+    expect(await screen.findByText(/Cobrança de R\$\s?40,00 criada/)).toBeInTheDocument();
+    await waitFor(() => expect(within(screen.getByRole("region", { name: "Atendimentos concluídos sem cobrança" })).getAllByRole("listitem")).toHaveLength(2));
+    // A mesma seção (não foi desmontada e montada de novo).
+    expect(pending).toBeInTheDocument();
+
+    expect(screen.queryByText("Carregando o mês…")).toBeNull();
+    expect(payments.queryByRole("button", { name: /^Ver mais/ })).toBeNull();
+    expect(open.getByLabelText("Valor recebido (R$)")).toHaveValue("12,34");
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Atendimentos concluídos sem cobrança" }));
+  });
+
+  it("trocar de mês ainda mostra 'Carregando o mês…' até o mês novo chegar", async () => {
+    renderPage();
+    await screen.findByRole("region", { name: "Atendimentos concluídos sem cobrança" });
+    fireEvent.click(screen.getByRole("button", { name: "Mês anterior" }));
+    expect(screen.getByText("Carregando o mês…")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Caixa registrado em setembro de 2026" })).toBeInTheDocument();
+  });
+});
+
+describe("Caixa: pendência não tem mês (revisão 10/11, ux-nucleo-celular-03)", () => {
+  it("o atendimento de setembro sem cobrança aparece em outubro, do mais novo ao mais antigo", async () => {
+    renderPage();
+    const pending = within(await screen.findByRole("region", { name: "Atendimentos concluídos sem cobrança" }));
+    const items = pending.getAllByRole("listitem").map((li) => li.textContent ?? "");
+    expect(items).toHaveLength(3);
+    expect(items[0]).toMatch(/19\/10\/2026.*40,00/);
+    expect(items[1]).toMatch(/19\/10\/2026.*60,00/);
+    expect(items[2]).toMatch(/Bruno.*28\/09\/2026.*60,00/);
+  });
+
+  it("trocar o mês muda o caixa registrado, não as pendências", async () => {
+    const port = renderPage();
+    const uncharged = vi.spyOn(port, "uncharged");
+    await screen.findByRole("region", { name: "Atendimentos concluídos sem cobrança" });
+    fireEvent.click(screen.getByRole("button", { name: "Mês anterior" }));
+    expect(await screen.findByRole("heading", { name: "Caixa registrado em setembro de 2026" })).toBeInTheDocument();
+    const pending = within(screen.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }));
+    expect(pending.getAllByRole("listitem")).toHaveLength(3);
+    // O mesmo período aberto (um ano até o fim de hoje), seja qual for o mês escolhido.
+    expect(uncharged).toHaveBeenLastCalledWith({ starts_at: "2025-10-20T03:00:00.000Z", ends_at: "2026-10-21T03:00:00.000Z" });
   });
 });

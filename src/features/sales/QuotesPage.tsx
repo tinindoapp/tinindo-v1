@@ -106,7 +106,8 @@ function toDraft(f: FormState, base: SalesBase, now: Date): { draft: QuoteDraft 
     const quantity = Number(row.quantity);
     if (!row.description.trim()) errors[itemErr(row.key, "description")] = "Descreva o item.";
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) errors[itemErr(row.key, "quantity")] = "Quantidade de 1 a 99.";
-    if (price === null) errors[itemErr(row.key, "price")] = "Valor inválido. Use 60 ou 60,50.";
+    if (price === null) errors[itemErr(row.key, "price")] = "Informe o valor do item.";
+    else if (price === undefined) errors[itemErr(row.key, "price")] = "Valor inválido. Use 60 ou 60,50.";
     else items.push({ service_id: row.service_id || null, description: row.description.trim(), quantity, unit_price_cents: price });
   }
   let slot: QuoteDraft["slot"] = null;

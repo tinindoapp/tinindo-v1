@@ -1,18 +1,8 @@
 // Regras e formatação dos Orçamentos, puras e testadas. Tudo no fuso do negócio; dinheiro em centavos inteiros.
 import type { SalesQuoteStatus } from "@contracts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
-
-/** "60", "60,5", "1.234,56" ou "R$ 60,00" → centavos. null se inválido. */
-export function parseBRL(text: string): number | null {
-  const t = text.replace(/R\$|\s/g, "");
-  if (!/^\d{1,3}(\.\d{3})*(,\d{1,2})?$|^\d+(,\d{1,2})?$/.test(t)) return null;
-  const [int, dec = ""] = t.replace(/\./g, "").split(",") as [string, string?];
-  const cents = Number(int) * 100 + Number((dec ?? "").padEnd(2, "0"));
-  return Number.isSafeInteger(cents) ? cents : null;
-}
-export const centsToInput = (c: number) => (c / 100).toFixed(2).replace(".", ",");
+// Ler e escrever dinheiro é do app inteiro (src/lib/money.ts): vazio → null, inválido → undefined.
+export { centsToInput, formatCents, parseBRL } from "../../lib/money.ts";
 
 export const lineTotal = (i: { quantity: number; unit_price_cents: number }) => i.quantity * i.unit_price_cents;
 export const quoteTotal = (items: { quantity: number; unit_price_cents: number }[]) => items.reduce((s, i) => s + lineTotal(i), 0);

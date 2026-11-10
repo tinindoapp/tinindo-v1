@@ -24,8 +24,8 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   // Mês com só a primeira letra maiúscula.
   await expect(page.getByRole("group", { name: "Período" })).toContainText(/[A-ZÇ][a-zç]+ de \d{4}/);
   await expect(page.getByRole("group", { name: "Período" })).not.toContainText(/ De \d{4}/);
-  // Alerta dos atendimentos sem cobrança, com atalho para a seção.
-  await expect(summary(page)).toContainText(/2 atendimentos sem cobrança · R\$\s?\d/);
+  // Alerta dos atendimentos sem cobrança (de qualquer mês, inclusive o Corte de 28/09), com atalho para a seção.
+  await expect(summary(page)).toContainText(/3 atendimentos sem cobrança · R\$\s?\d/);
   await summary(page).getByRole("link", { name: /Cobrar agora/ }).click();
   await expect(page.getByRole("heading", { name: "Atendimentos concluídos sem cobrança" })).toBeFocused();
   // A ressalva longa fica recolhida em "Como esse número é feito".
@@ -34,10 +34,10 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   await expect(how).not.toHaveAttribute("open", "");
 
   const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
-  await expect(pending.getByRole("listitem")).toHaveCount(2);
+  await expect(pending.getByRole("listitem")).toHaveCount(3);
 
   // Barba do Bruno paga em dinheiro: o atalho "Recebi R$ 40,00 no Pix ▾" troca a forma e entra no caixa uma vez.
-  const bruno = pending.getByRole("listitem").filter({ hasText: "Bruno" });
+  const bruno = pending.getByRole("listitem").filter({ hasText: "Bruno" }).filter({ hasText: "19/10/2026" });
   await expect(bruno.getByRole("button", { name: /^Recebi R\$\s?40,00 no Pix/ })).toBeVisible();
   const more = bruno.getByRole("button", { name: /Outra forma de pagamento/ });
   await expect(more).toHaveAttribute("aria-expanded", "false");
@@ -46,7 +46,7 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
   await bruno.getByRole("button", { name: /^Recebi R\$\s?40,00 em dinheiro/ }).click();
   await expect(page.getByText(/Recebido R\$\s?40,00 \(Dinheiro\)/)).toBeVisible();
   await expect(received(page)).toHaveText("R$ 1.780,00");
-  await expect(pending.getByRole("listitem")).toHaveCount(1);
+  await expect(pending.getByRole("listitem")).toHaveCount(2);
 
   // Estorno: o recebimento original fica no histórico e sai do total.
   const payments = page.getByRole("region", { name: "Recebimentos no mês" });
@@ -138,12 +138,12 @@ test("caixa: pendências primeiro, formulários fechados até tocar em Registrar
 
   // Atalho de um toque: recebido no Pix, sem abrir formulário.
   const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
-  const bruno = pending.getByRole("listitem").filter({ hasText: "Bruno" });
+  const bruno = pending.getByRole("listitem").filter({ hasText: "Bruno" }).filter({ hasText: "19/10/2026" });
   const quick = bruno.getByRole("button", { name: /^Recebi R\$\s?40,00 no Pix/ });
   expect((await quick.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await quick.click();
   await expect(page.getByText(/Recebido R\$\s?40,00 \(Pix\)/)).toBeVisible();
-  await expect(pending.getByRole("listitem").filter({ hasText: "Bruno" })).toHaveCount(0);
+  await expect(bruno).toHaveCount(0);
 
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

@@ -28,7 +28,7 @@ export const CHECK_LABEL = {
   taken: "Este domínio já está verificado por outro negócio na Tinindo.",
   lookup_failed: "Não foi possível consultar o DNS agora. Tente de novo em instantes.",
 } as const;
-export const formatCents = (c: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(c / 100);
+export { formatCents } from "../../lib/money.ts";
 export const formatDateTime = (iso: string, tz = "America/Sao_Paulo") =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: tz }).format(new Date(iso));
 

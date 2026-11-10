@@ -1,6 +1,5 @@
 // Formatação da Lista de espera: tudo no fuso do negócio, nunca no do navegador.
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
+export { formatCents } from "../../lib/money.ts";
 export const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"] as const;
 
 export function formatSlot(slot: { starts_at: string; ends_at: string }, timeZone: string): string {

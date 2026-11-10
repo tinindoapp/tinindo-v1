@@ -1,8 +1,8 @@
 // Textos do módulo Metas e conteúdo. Progresso com denominador; acompanhamento é variação observada, nunca efeito.
 import type { Goal, GoalMetricKey, Insight, InsightRuleCode } from "@contracts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
+import { formatCents } from "../../lib/money.ts";
+export { formatCents };
 export const formatDate = (v: string, timeZone = "America/Sao_Paulo") =>
   new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(new Date(v));
 export const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);

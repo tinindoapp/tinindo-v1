@@ -7,10 +7,9 @@ import { Icon } from "../../components/ui/icons.tsx";
 import { cycleLabel, explain, formatCents, formatDate, RECEIVABLE_STATUS } from "./labels.ts";
 import { newKey, type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { centsToInput, parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
 
-const centsToInput = (c: number) => (c / 100).toFixed(2).replace(".", ",");
-const parseBRL = (v: string) => Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100);
 /** Erro de ação de um toque numa linha: aviso curto, sempre à vista. */
 const fail = (err: unknown) => toast({ tone: "danger", message: explain(err) });
 
@@ -28,13 +27,13 @@ function PlanForm({ port, base, plan, onDone }: { port: RecurrencePort; base: Re
   async function submit(e: FormEvent) {
     e.preventDefault();
     const n = Number(sessions);
-    const cents = parseBRL(price || "0");
+    const cents = parseBRL(price);
     const ok = show({
       name: !name.trim() && "Informe o nome do plano.",
       sessions: (!Number.isInteger(n) || n < 1 || n > 31) && "Informe de 1 a 31 sessões.",
-      price: !(cents > 0) && "Informe o preço por ciclo.",
+      price: (cents === undefined && "Use só números, por exemplo 240,00.") || ((cents === null || cents === 0) && "Informe o preço por ciclo."),
     });
-    if (!ok) return;
+    if (!ok || cents === null || cents === undefined) return;
     setBusy(true);
     setError(null);
     try {

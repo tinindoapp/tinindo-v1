@@ -1,23 +1,6 @@
-// Dinheiro e datas do Caixa. Centavos inteiros, nunca float. Funções puras (money.test.ts).
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
-export function formatCents(cents: number | null | undefined): string {
-  return cents === null || cents === undefined ? "—" : BRL.format(cents / 100);
-}
-
-export function centsToInput(cents: number): string {
-  return `${Math.trunc(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
-}
-
-/** "60" | "60,5" | "1.234,56" | "R$ 60,00" → centavos. Vazio → null; inválido → undefined. */
-export function parseBRL(raw: string): number | null | undefined {
-  const text = raw.replace(/R\$|\s/g, "");
-  if (!text) return null;
-  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
-  const m = /^(\d{1,13})(?:\.(\d{1,2}))?$/.exec(normalized);
-  if (!m) return undefined;
-  return Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0"));
-}
+// Datas e contas do Caixa. Centavos inteiros, nunca float. Funções puras (money.test.ts).
+// Ler e escrever dinheiro é do app inteiro (src/lib/money.ts); reexportado aqui para as telas do Caixa.
+export { centsToInput, formatCents, parseBRL } from "../../lib/money.ts";
 
 /** Data civil (YYYY-MM-DD) do instante no fuso do negócio. */
 export function localDate(value: Date | string, timeZone: string): string {
@@ -67,6 +50,22 @@ export function monthPeriod(month: string, timeZone: string): { starts_at: strin
   const [y, m] = month.split("-").map(Number) as [number, number];
   const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
   return { starts_at: startOfLocalDay(`${month}-01`, timeZone), ends_at: startOfLocalDay(`${next}-01`, timeZone) };
+}
+
+/**
+ * Período das pendências: atendimento concluído sem cobrança não tem mês. Vai do mesmo dia um ano atrás até o fim de
+ * hoje, no fuso do negócio (no máximo 367 dias; o servidor aceita até 400). O seletor de mês do Caixa não o muda.
+ */
+export function pendingPeriod(today: string, timeZone: string): { starts_at: string; ends_at: string } {
+  const [y, m, d] = today.split("-").map(Number) as [number, number, number];
+  const yearAgo = new Date(Date.UTC(y - 1, m - 1, m === 2 && d === 29 ? 28 : d)).toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  return { starts_at: startOfLocalDay(yearAgo, timeZone), ends_at: startOfLocalDay(tomorrow, timeZone) };
+}
+
+/** Pendências do mais novo ao mais antigo: o atendimento de hoje fica no topo. */
+export function newestFirst<T extends { starts_at: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => Date.parse(b.starts_at) - Date.parse(a.starts_at));
 }
 
 export function shiftMonth(month: string, delta: number): string {

@@ -1,13 +1,11 @@
 // Textos do módulo Materiais. Dinheiro em centavos; quantidades com a unidade; datas no fuso do negócio.
 import type { MaterialItem } from "@contracts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
+export { formatCents } from "../../lib/money.ts";
 export const formatQty = (q: number, unit: MaterialItem["unit"]) => `${q.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
 export const formatDate = (v: string, timeZone: string) => new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(new Date(v));
 export const formatPercent = (bps: number) => `${(bps / 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 export const parseNumber = (v: string) => (v.trim() === "" ? NaN : Number(v.replace(/\./g, "").replace(",", ".")));
-export const parseBRL = (v: string) => Math.round(parseNumber(v) * 100);
 export const UNIT_LABEL: Record<MaterialItem["unit"], string> = { un: "unidade", ml: "mililitro", g: "grama" };
 export const KIND_LABEL: Record<MaterialItem["kind"], string> = { consumable: "Consumível", product: "Produto" };
 

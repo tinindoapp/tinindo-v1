@@ -1,8 +1,7 @@
 // Textos do módulo Assinaturas. Dinheiro em centavos; datas no fuso do negócio; estado por palavra.
 import type { Receivable } from "@contracts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
+export { formatCents } from "../../lib/money.ts";
 export const formatDate = (v: string, timeZone: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(v));
 export const cycleLabel = (days: number) => (days === 7 ? "por semana" : days === 14 ? "a cada 2 semanas" : "por mês");

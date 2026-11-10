@@ -1,8 +1,7 @@
 // Textos do módulo Campanhas. Resultado por braço com intervalo; o veredito nunca afirma causa fora do desenho.
 import type { Campaign, CampaignOffer, CampaignSegment } from "@contracts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-export const formatCents = (c: number) => BRL.format(c / 100);
+export { formatCents } from "../../lib/money.ts";
 export const formatDate = (v: string, timeZone = "America/Sao_Paulo") =>
   new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(new Date(v));
 export const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
