@@ -59,6 +59,16 @@ export function dayIn(n: string, today: string): string | null {
   return null;
 }
 
+/** Dia para marcar um horário. Igual a dayIn, com uma regra a mais: "na quarta às 11h" dito numa quarta
+ *  depois das 11h é a quarta seguinte, não hoje no passado. Só vale quando o dia veio do nome do dia da
+ *  semana; "hoje" e data escrita (dd/mm) ficam como foram ditos. */
+export function slotDayIn(n: string, today: string, passed: (date: string) => boolean): string | null {
+  const date = dayIn(n, today);
+  if (date !== today || weekdayIn(n) === null) return date;
+  if (/\bhoje\b/.test(n) || /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/.test(n)) return date;
+  return passed(date) ? addDays(today, 7) : date;
+}
+
 export interface Period {
   window: Window;
   /** Datas locais [início, fim] inclusivas, para o texto. */
