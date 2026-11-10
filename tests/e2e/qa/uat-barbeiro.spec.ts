@@ -177,14 +177,23 @@ test.describe("UAT barbeiro", () => {
     await expect(page.getByRole("region", { name: "Ofertas" })).toContainText("Oferta aberta");
   });
 
-  test("8 · conclui o atendimento das 09:00 sem registrar pagamento", async ({ page }) => {
+  test("8 · Atendido oferece como receber; \"Cobrar depois\" conclui as 09:00 sem registrar pagamento", async ({ page }) => {
     await page.goto("/app/agenda");
     await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
     await page.getByRole("button", { name: "Atendido", exact: true }).click();
-    await expect(page.getByText("Isso registra que o atendimento aconteceu. Não registra pagamento.")).toBeVisible();
-    await page.getByRole("button", { name: "Sim, foi atendido" }).click();
-    await expect(page.getByText(/Atendimento concluído\. O pagamento não foi registrado/)).toBeVisible();
+    // P48: as saídas do Caixa no lugar da confirmação; concluir e receber continuam separados.
+    await expect(page.getByText("Um toque conclui o atendimento e registra no Caixa.")).toBeVisible();
+    await page.getByRole("button", { name: "Cobrar depois", exact: true }).click();
+    await expect(page.getByText(/Atendimento concluído\. Cobrança de R\$\s?60,00 em "A receber"/)).toBeVisible();
     await expect(page.getByRole("button", { name: "Atendido", exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: "Cobrar no Caixa" }).click();
+    const open = page.getByRole("region", { name: "A receber" });
+    // O link leva ao próprio atendimento: a cobrança dele fica marcada, com o recebimento aberto e o foco no valor.
+    const charged = open.locator("li[data-focus='true']");
+    await expect(charged).toHaveCount(1);
+    await expect(charged).toContainText("Falta R$ 60,00 de R$ 60,00");
+    await expect(charged.getByLabel("Valor recebido (R$)")).toBeFocused();
+    await expect(page.getByRole("region", { name: "Recebimentos no mês" }).getByRole("listitem").filter({ hasText: "20/10/2026" })).toHaveCount(0);
   });
 
   test("9a · Caixa não finge recebimento: concluído fica sem cobrança até registrar", async ({ page }) => {

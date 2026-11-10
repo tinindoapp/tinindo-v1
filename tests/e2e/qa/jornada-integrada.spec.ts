@@ -2,8 +2,9 @@ import { expect, type Page, test } from "@playwright/test";
 import { expectDemoLabel, noHorizontalScroll } from "./helpers.ts";
 
 // Auditoria da demonstração (docs/qa/AUDITORIA-DEMO-2026-10-25.md): o MESMO atendimento atravessa os módulos na aba.
-// Agenda (concluir) → Caixa (sem cobrança → recebido à mão → saldo) → cliente avalia. Concluir não recebe; clique duplo
-// não duplica. Roda nos dois projetos do Playwright (desktop e emulação de celular; não é aparelho real).
+// Agenda ("Atendido" → "Recebi R$ 60,00 no Pix", P48) → Caixa (recebido à mão → saldo) → cliente avalia. Concluir e
+// receber continuam sendo registros separados; clique duplo não duplica. Roda nos dois projetos do Playwright (desktop
+// e emulação de celular; não é aparelho real).
 
 /** Navegação do próprio app, sem recarregar (recarregar zera a demonstração, por desenho). */
 async function softGo(page: Page, path: string) {
@@ -15,35 +16,31 @@ async function softGo(page: Page, path: string) {
 
 const received = (page: Page) => page.locator(".tn-fin-sum div").filter({ has: page.locator("dt", { hasText: /^Recebido$/ }) }).locator("dd");
 
-test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → recebido à mão → saldo → avaliação", async ({ page }) => {
+test("mesmo atendimento: Atendido na agenda → Recebi no Pix → recebido no Caixa → saldo → avaliação", async ({ page }) => {
   await page.goto("/app/agenda");
   await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
   await page.getByRole("button", { name: "Atendido", exact: true }).click();
-  await page.getByRole("button", { name: "Sim, foi atendido" }).dblclick();
-  await expect(page.getByText(/Atendimento concluído\. O pagamento não foi registrado/)).toBeVisible();
+  // P48: no lugar da confirmação, as saídas do Caixa. Um toque conclui e registra; o toque duplo não duplica.
+  await page.getByRole("button", { name: /^Recebi R\$\s?60,00 no Pix$/ }).dblclick();
+  await expect(page.getByText(/Atendimento concluído e R\$\s?60,00 recebido no Pix\. Registro manual no Caixa\./)).toBeVisible();
   await noHorizontalScroll(page);
 
-  // Do atendimento concluído direto para o Caixa, sem recarregar.
+  // Do atendimento concluído direto para o Caixa, sem recarregar: o link leva ao próprio atendimento.
   await page.getByRole("link", { name: "Cobrar no Caixa" }).click();
+  await expect(page).toHaveURL(/\/app\/caixa\?atendimento=60000000-0000-4000-8000-000000000001$/);
   await expect(page.getByRole("heading", { name: "Caixa", level: 1 })).toBeVisible();
   await expectDemoLabel(page);
   const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
-  // Os dois de segunda 19/10, o de hoje e o Corte de 28/09 (pendência não tem mês).
-  await expect(pending.getByRole("listitem")).toHaveCount(4);
-  const visit = pending.getByRole("listitem").filter({ hasText: "20/10/2026" });
-  await expect(visit).toHaveCount(1);
-  await expect(visit).toContainText("Ana");
-  await expect(visit).toContainText("R$ 60,00");
-  // Concluir não é receber: saldo ainda é o dos exemplos.
-  await expect(received(page)).toHaveText("R$ 1.740,00");
-  await noHorizontalScroll(page);
-
-  await visit.getByRole("button", { name: /^Recebi R\$/ }).dblclick();
-  await expect(page.getByText(/Recebido R\$\s?60,00 \(.+\) de .*Ana/)).toBeVisible();
+  // Já cobrado e recebido: fora das pendências (ficam os dois de segunda 19/10 e o Corte de 28/09).
+  await expect(pending.getByRole("listitem")).toHaveCount(3);
   await expect(pending.getByRole("listitem").filter({ hasText: "20/10/2026" })).toHaveCount(0);
+  // Um recebimento só, de R$ 60,00 no dia, e o saldo do mês sobe uma vez.
   const payments = page.getByRole("region", { name: "Recebimentos no mês" });
   await expect(payments.getByRole("listitem").filter({ hasText: "20/10/2026" }).filter({ hasText: "R$ 60,00" })).toHaveCount(1);
   await expect(received(page)).toHaveText("R$ 1.800,00");
+  const today = page.getByRole("region", { name: "Recebido", exact: true }).locator("div").filter({ hasText: /^Hoje/ }).locator("dd");
+  await expect(today).toHaveText(/R\$\s?60,00/);
+  await noHorizontalScroll(page);
 
   // A cliente (Ana, na demonstração) avalia exatamente esse atendimento, uma vez.
   await softGo(page, "/avaliar");
@@ -170,7 +167,7 @@ test("minhas reservas: a cliente vê o que o dono agenda e conclui na mesma aba,
   await softGo(page, "/app/agenda");
   await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
   await page.getByRole("button", { name: "Atendido", exact: true }).click();
-  await page.getByRole("button", { name: "Sim, foi atendido" }).click();
+  await page.getByRole("button", { name: "Cobrar depois", exact: true }).click();
   await expect(page.getByText(/Atendimento concluído/)).toBeVisible();
   await softGo(page, "/app/conta/reservas");
   await expect(next.getByRole("listitem")).toHaveCount(3);

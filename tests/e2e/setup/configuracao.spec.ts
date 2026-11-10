@@ -6,19 +6,21 @@ import { noHorizontalScroll, softNavigate } from "../qa/helpers.ts";
 // dispensados e o cartão some. Depois, a frase do negócio vira rascunho revisável e os modelos viram serviços só
 // depois da confirmação. Com banco real a mesma jornada roda em tests/integration/46_p44_configuracao.
 
-test("negócio pronto pela Home: próximo passo → perfil no ar → link público; opcionais dispensados; cartão some", async ({ page }, info) => {
+test("negócio pronto pela Home: próximo passo → perfil no ar → link público; opcionais dispensados; linha some", async ({ page }, info) => {
   if (info.project.name === "mobile") await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/app");
+  // P48 (decisão D6): com atendimento no dia, a configuração é uma linha fina, abaixo do dia, com o próximo passo como link.
   const card = page.getByRole("region", { name: /Deixe seu negócio pronto/ });
   await expect(card).toBeVisible();
   await expect(card).toContainText("5 de 8");
-  await expect(card).toContainText("Próximo: Publicar seu perfil e mandar o link");
-  await expect(card).toContainText("O link público é como o cliente reserva com você.");
   await expect(card.getByRole("progressbar", { name: "Passos feitos" })).toHaveAttribute("aria-valuenow", "5");
+  await expect(card).not.toContainText("O link público é como o cliente reserva com você.");
+  const lineBox = (await card.boundingBox())!;
+  expect(lineBox.height).toBeLessThanOrEqual(96);
   await noHorizontalScroll(page);
 
-  // O botão do cartão leva direto à tela que resolve o passo.
-  await card.getByRole("link", { name: "Publicar perfil" }).click();
+  // O link do próximo passo leva direto à tela que resolve.
+  await card.getByRole("link", { name: /^Publicar perfil/ }).click();
   await expect(page.getByRole("heading", { name: "Seu perfil público" })).toBeVisible();
   await page.getByLabel("Endereço do perfil").fill("barbearia-pronta");
   await page.getByLabel("Bairro ou região").fill("Centro");
@@ -31,17 +33,21 @@ test("negócio pronto pela Home: próximo passo → perfil no ar → link públi
   await expect(page.getByRole("heading", { name: /Barbearia Exemplo A/ }).first()).toBeVisible();
   await noHorizontalScroll(page);
 
-  // De volta à Home (sem recarregar, para manter a demonstração): o passo ficou feito e o negócio está pronto.
+  // De volta à Home (sem recarregar, para manter a demonstração): o passo ficou feito e o próximo é opcional.
   await softNavigate(page, "/app");
   await expect(card).toContainText("6 de 8");
-  await expect(card).toContainText("Seu link público já recebe reservas.");
-  await expect(card).toContainText("Próximo (opcional): Pôr foto e WhatsApp no perfil");
+  await expect(card.getByRole("link", { name: /^Pôr foto e WhatsApp/ })).toHaveAttribute("href", "/app/perfil");
 
-  // Opcionais podem ser dispensados; obrigatórios não têm "Agora não".
-  await card.getByRole("button", { name: "Agora não" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "fica para depois" })).toBeVisible();
-  await expect(card).toContainText("Próximo (opcional): Conectar e verificar seu número");
-  await card.getByRole("button", { name: "Agora não" }).click();
+  // Opcionais são dispensados na tela Configuração (o título da linha leva até lá); obrigatórios não têm "Agora não".
+  await card.getByRole("link", { name: "Deixe seu negócio pronto" }).click();
+  await expect(page.getByRole("heading", { name: "Deixe seu negócio pronto", level: 1 })).toBeVisible();
+  const steps = page.getByRole("list", { name: "Passos da configuração" }).getByRole("listitem");
+  await steps.filter({ hasText: "Pôr foto e WhatsApp no perfil" }).getByRole("button", { name: "Agora não" }).click();
+  await expect(steps.filter({ hasText: "Pôr foto e WhatsApp no perfil" })).toContainText("dispensado");
+  await steps.filter({ hasText: "Conectar e verificar seu número" }).getByRole("button", { name: "Agora não" }).click();
+  await expect(steps.filter({ hasText: "Conectar e verificar seu número" })).toContainText("dispensado");
+  await softNavigate(page, "/app");
+  await expect(page.getByRole("heading", { name: "Atendimentos de hoje" })).toBeVisible();
   await expect(card).toHaveCount(0);
 });
 
