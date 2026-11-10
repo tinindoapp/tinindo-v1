@@ -49,9 +49,24 @@ test("A11Y-04 · trocar de tela leva o foco ao título; mudar só o dia da agend
 
 test("A11Y-01 · sem rolagem horizontal em 320 px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  for (const path of ["/app/clientes/importar", "/app/conta", "/app/conta/novo-negocio", "/app/perfil"]) {
+  for (const path of ["/app", "/app/clientes/importar", "/app/conta", "/app/conta/novo-negocio", "/app/perfil"]) {
     await page.goto(path);
     await expect(page.locator("main h1")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(320);
+  }
+});
+
+test("A11Y-01 · na Hoje, o valor em reais fica dentro do cartão em 320 e 375 px", async ({ page }) => {
+  for (const width of [320, 375]) {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto("/app");
+    const stat = page.getByRole("group", { name: "Resumo" }).getByRole("link", { name: /Recebido no mês/ });
+    await expect(stat).toBeVisible();
+    const fits = await stat.evaluate((el) => {
+      const card = el.getBoundingClientRect();
+      const value = el.querySelector(".tn-stat__value")!.getBoundingClientRect();
+      return value.right <= card.right && value.left >= card.left;
+    });
+    expect(fits, `largura ${width}`).toBe(true);
   }
 });

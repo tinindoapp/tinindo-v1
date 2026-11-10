@@ -169,7 +169,8 @@ export function ListItem({ to, icon, title, meta, trailing }: { to?: string; ico
 }
 
 /** Indicador numérico com rótulo e nota (o número sempre com contexto). */
-export function Stat({ label, value, hint, to }: { label: string; value: ReactNode; hint?: ReactNode; to?: string }) {
+/** `wide`: o ladrilho ocupa a linha inteira onde a tela usa colunas estreitas (valor em reais no celular). */
+export function Stat({ label, value, hint, to, wide }: { label: string; value: ReactNode; hint?: ReactNode; to?: string; wide?: boolean }) {
   const inner = (
     <>
       <span className="tn-stat__label">{label}</span>
@@ -177,7 +178,8 @@ export function Stat({ label, value, hint, to }: { label: string; value: ReactNo
       {hint ? <span className="tn-stat__hint">{hint}</span> : null}
     </>
   );
-  return to ? <Link to={to} className="tn-stat">{inner}</Link> : <div className="tn-stat">{inner}</div>;
+  const className = wide ? "tn-stat tn-stat--wide" : "tn-stat";
+  return to ? <Link to={to} className={className}>{inner}</Link> : <div className={className}>{inner}</div>;
 }
 
 export function Stats({ label, children }: { label: string; children: ReactNode }) {
