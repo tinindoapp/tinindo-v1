@@ -21,6 +21,7 @@ import {
   ServiceListOutput,
 } from "@contracts";
 import { ApiError, type createApiClient } from "../../lib/api/client.ts";
+import { demoVisitSummary, readVisitSummary, type VisitSummary } from "../../lib/visits.ts";
 import { fold } from "./format.ts";
 
 export type ServiceSave = z.input<typeof ServiceSaveInput>;
@@ -43,6 +44,12 @@ export interface CustomerHistory {
   complete: boolean;
 }
 
+/** Resumo de retorno para a lista: o "agora" e o fuso valem para contar os dias. */
+export interface CustomerVisits extends VisitSummary {
+  timezone: string;
+  now: string;
+}
+
 export interface CrmApi {
   /** true = demonstração sem servidor: leitura de exemplo, gravação desabilitada. */
   readOnly: boolean;
@@ -50,6 +57,8 @@ export interface CrmApi {
   listCustomers(q: { q?: string; include_archived?: boolean; cursor?: string; limit?: number }): Promise<CustomerListOutput>;
   /** Ficha do cliente; null quando não existe neste negócio. */
   getCustomer(id: string): Promise<CrmCustomer | null>;
+  /** Última visita e próximo horário de cada cliente, pela agenda (customer.list não traz; P49). */
+  visitSummary(): Promise<CustomerVisits>;
   /** Todos os atendimentos do cliente na agenda (anteriores e próximos), do mais recente para o mais antigo. */
   customerHistory(customerId: string): Promise<CustomerHistory>;
   upsertCustomer(input: CrmCustomerUpsertInput, idempotencyKey: string): Promise<z.infer<typeof CrmCustomerUpsertOutput>>;
@@ -101,6 +110,12 @@ export function createServerCrmApi(opts: {
         if (e instanceof ApiError && e.code === "NOT_FOUND") return null;
         throw e;
       }
+    },
+    // Agenda dos últimos 6 meses e dos próximos 2 (booking.list em janelas): última visita e próximo de cada um.
+    visitSummary: async () => {
+      const ctx = await call("/context", ContextResponse, { tenantId });
+      const now = new Date();
+      return { ...(await readVisitSummary(call, tenantId, ctx.data.timezone, now)), timezone: ctx.data.timezone, now: now.toISOString() };
     },
     // Histórico inteiro pela agenda (booking.list_by_customer): páginas de 100, do mais recente para o mais antigo.
     customerHistory: async (customerId) => {
@@ -179,6 +194,11 @@ export function createDemoCrmApi(): CrmApi {
       };
     },
     getCustomer: async (id) => customers.find((c) => c.id === id) ?? null,
+    // Mesma conta do servidor sobre a base de exemplo única (carregada sob demanda).
+    visitSummary: async () => {
+      const { DEMO_TZ, demoNow } = await import("../../lib/demo/dataset.ts");
+      return { ...(await demoVisitSummary()), timezone: DEMO_TZ, now: demoNow().toISOString() };
+    },
     // Histórico inteiro da base de exemplo única (src/lib/demo/dataset.ts), em volta do "agora" fixo.
     customerHistory: async (customerId) => {
       // Carregada só quando a ficha abre: a base de exemplo não entra no pacote da lista de clientes.

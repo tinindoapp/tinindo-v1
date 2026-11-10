@@ -1,5 +1,7 @@
 // Clientes: listar, buscar, criar, editar e arquivar. Duplicado é só sugerido, nunca mesclado. No cartão, ligar e
 // WhatsApp à mão; editar e arquivar no menu "⋯"; o nome abre a ficha (CustomerPage).
+// P49: cada linha diz a última visita ou o próximo horário, e o filtro "Sem voltar há 30+ dias" mostra quem sumiu.
+// A data vem da agenda (lib/visits.ts), porque customer.list não traz a última visita.
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { type Profession } from "@contracts";
@@ -8,8 +10,10 @@ import {
   CrmCustomerUpsertInput,
   DeclaredSource,
 } from "@contracts";
-import { ActionsMenu, Button, Card, Field, FormPanel, LinkButton, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
+import { ActionsMenu, Button, Card, Field, FormPanel, LinkButton, PageHeader, Segmented, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { formatDayShort, localParts } from "../../lib/time.ts";
+import { agoText, daysSince, isLapsed, LAPSED_DAYS, type VisitInfo } from "../../lib/visits.ts";
+import { createKeyRing, type CustomerVisits, errorMessage, useCrmApi } from "./api.ts";
 import { ContactButtons } from "./contact.tsx";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
@@ -41,8 +45,42 @@ export function useProfession(): Profession | null {
   return profession;
 }
 
+type Show = "todos" | "sumidos";
+const SHOW_OPTIONS = [
+  { value: "todos" as const, label: "Todos" },
+  { value: "sumidos" as const, label: `Sem voltar há ${LAPSED_DAYS}+ dias` },
+];
+
+/** "Próximo: ter., 27/10", "Última visita há 14 dias" ou "Sem visita nos últimos 6 meses". */
+export function visitLine(info: VisitInfo | undefined, visits: CustomerVisits): string {
+  const now = new Date(visits.now);
+  if (info?.next_at) return `Próximo: ${formatDayShort(localParts(info.next_at, visits.timezone).date)}`;
+  if (info?.last_visit_at) return `Última visita ${agoText(daysSince(info.last_visit_at, now, visits.timezone))}`;
+  return "Sem visita nos últimos 6 meses";
+}
+
+/** Última visita e próximo horário de todos (uma leitura da agenda por abertura da lista). */
+function useVisits() {
+  const api = useCrmApi();
+  const [visits, setVisits] = useState<CustomerVisits | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    api.visitSummary().then(
+      (v) => alive && setVisits(v),
+      () => alive && setFailed(true),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [api]);
+  return { visits, failed };
+}
+
 export function CustomersPage() {
   const api = useCrmApi();
+  const { visits, failed: visitsFailed } = useVisits();
+  const [show, setShow] = useState<Show>("todos");
   const profession = useProfession();
   const noun = PROFESSION_CONFIG[profession ?? "other"].customer;
   const [query, setQuery] = useState("");
@@ -86,6 +124,15 @@ export function CustomersPage() {
     const t = setTimeout(() => void load(), 200);
     return () => clearTimeout(t);
   }, [load]);
+
+  // Filtro de quem não volta: sobre as páginas já carregadas, com a mesma regra da aba Retorno.
+  const listed = useMemo(() => {
+    if (!items) return [];
+    if (show === "todos") return items;
+    if (!visits) return [];
+    const now = new Date(visits.now);
+    return items.filter((c) => isLapsed(visits.byCustomer[c.id], now, visits.timezone));
+  }, [items, show, visits]);
 
   const archiveKeys = useMemo(() => createKeyRing(), []);
   async function setArchived(c: CrmCustomer, archived: boolean): Promise<CrmCustomer> {
@@ -155,6 +202,8 @@ export function CustomersPage() {
             Mostrar arquivados
           </label>
         </div>
+        <Segmented label="Mostrar" hideLabel value={show} options={SHOW_OPTIONS} onChange={setShow} />
+        {visitsFailed ? <StatusBanner tone="warning">Não deu para ler a agenda agora: a última visita não aparece e o filtro de quem não volta fica vazio.</StatusBanner> : null}
       </div>
 
       {draft ? (
@@ -211,8 +260,13 @@ export function CustomersPage() {
             Ainda não configurado: com o link público no ar, {noun.one === "aluno" ? "o primeiro aluno" : "o primeiro cliente"} pode chegar sozinho. Veja o que falta para o seu negócio ficar pronto.
           </SetupHint>
         ) : null}
-        <ul className="tn-item-list">
-          {items?.map((c) => (
+        {!loadError && show === "sumidos" && items && items.length > 0 && listed.length === 0 ? (
+          <EmptyState title={`Ninguém sem voltar há ${LAPSED_DAYS} dias ou mais`}>
+            {visits ? "Quem veio nos últimos 6 meses voltou há menos tempo ou já tem horário marcado." : "Carregando as visitas da agenda…"}
+          </EmptyState>
+        ) : null}
+        <ul className="tn-item-list" aria-label={show === "sumidos" ? `Sem voltar há ${LAPSED_DAYS}+ dias` : undefined}>
+          {listed.map((c) => (
             <li key={c.id} className="crm-item">
               <div className="crm-item__main">
                 <Link to={c.id} className="crm-item__name">
@@ -224,6 +278,7 @@ export function CustomersPage() {
                     .filter(Boolean)
                     .join(" · ") || "Sem contato cadastrado"}
                 </div>
+                {visits ? <div className="crm-item__visit tn-num">{visitLine(visits.byCustomer[c.id], visits)}</div> : null}
               </div>
               <div className="tn-actions crm-item__actions">
                 <ContactButtons name={c.name} phone={c.phone} />

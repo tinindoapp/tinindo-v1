@@ -42,6 +42,7 @@ function fakeApi(over: Partial<CrmApi> = {}): CrmApi {
     listCustomers: vi.fn(async () => ({ items: [ana], next_cursor: null })),
     getCustomer: vi.fn(async (id: string) => (id === ana.id ? ana : null)),
     customerHistory: vi.fn(async () => history),
+    visitSummary: vi.fn(async () => ({ timezone: "America/Sao_Paulo", now: "2026-10-20T12:00:00.000Z", since: "2026-04-23T00:00:00Z", complete: true, byCustomer: {} })),
     upsertCustomer: vi.fn<CrmApi["upsertCustomer"]>(async (input) => ({
       customer: { ...ana, id: FX.customers.guestInA, name: input.name, phone: input.phone ?? null, version: 1 },
       possible_duplicates: [],
@@ -445,6 +446,62 @@ describe("importação", () => {
   });
 });
 
+describe("retorno na lista de clientes (P49)", () => {
+  const bia: CrmCustomer = { ...ana, id: FX.customers.guestInA, name: "Bia Exemplo", phone: "+5511912345678", email: null, declared_source: null };
+  const caio: CrmCustomer = { ...ana, id: "30000000-0000-4000-8000-0000000000c1", name: "Caio Exemplo", phone: null, email: null, declared_source: null };
+  const duda: CrmCustomer = { ...ana, id: "30000000-0000-4000-8000-0000000000c2", name: "Duda Exemplo", phone: null, email: null, declared_source: null };
+  const visits = {
+    timezone: "America/Sao_Paulo",
+    now: "2026-10-20T12:00:00.000Z",
+    since: "2026-04-23T00:00:00Z",
+    complete: true,
+    byCustomer: {
+      [ana.id]: { last_visit_at: "2026-10-06T13:00:00.000Z", next_at: null },
+      [bia.id]: { last_visit_at: "2026-08-01T13:00:00.000Z", next_at: null },
+      [caio.id]: { last_visit_at: "2026-07-01T13:00:00.000Z", next_at: "2026-10-27T13:00:00.000Z" },
+    },
+  };
+  const api = (over: Partial<CrmApi> = {}) =>
+    fakeApi({ listCustomers: vi.fn(async () => ({ items: [ana, bia, caio, duda], next_cursor: null })), visitSummary: vi.fn(async () => visits), ...over });
+  const row = (name: string) => screen.getByRole("link", { name }).closest("li")!;
+
+  it("cada linha diz a última visita há N dias ou o próximo dia marcado", async () => {
+    renderWith(api(), <CustomersPage />);
+    await screen.findByText("Última visita há 14 dias");
+    expect(row("Ana Exemplo")).toHaveTextContent("Última visita há 14 dias");
+    expect(row("Bia Exemplo")).toHaveTextContent("Última visita há 80 dias");
+    // Com horário marcado, vale o próximo (mesmo tendo sumido antes).
+    expect(row("Caio Exemplo")).toHaveTextContent("Próximo: ter., 27/10");
+    expect(row("Duda Exemplo")).toHaveTextContent("Sem visita nos últimos 6 meses");
+  });
+
+  it("filtro “Sem voltar há 30+ dias” mostra só quem veio, sumiu e não tem horário; WhatsApp à mão", async () => {
+    renderWith(api(), <CustomersPage />);
+    await screen.findByText("Última visita há 14 dias");
+    fireEvent.click(screen.getByRole("radio", { name: "Sem voltar há 30+ dias" }));
+    const list = screen.getByRole("list", { name: "Sem voltar há 30+ dias" });
+    expect(within(list).getAllByRole("listitem").map((li) => within(li).getAllByRole("link")[0]!.textContent)).toEqual(["Bia Exemplo"]);
+    expect(within(list).getByRole("link", { name: "WhatsApp de Bia Exemplo (abre o WhatsApp)" })).toHaveAttribute("href", "https://wa.me/5511912345678");
+    fireEvent.click(screen.getByRole("radio", { name: "Todos" }));
+    expect(screen.getByRole("link", { name: "Duda Exemplo" })).toBeInTheDocument();
+  });
+
+  it("filtro vazio tem frase", async () => {
+    renderWith(api({ listCustomers: vi.fn(async () => ({ items: [ana], next_cursor: null })) }), <CustomersPage />);
+    await screen.findByText("Última visita há 14 dias");
+    fireEvent.click(screen.getByRole("radio", { name: "Sem voltar há 30+ dias" }));
+    expect(screen.getByText("Ninguém sem voltar há 30 dias ou mais")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ana Exemplo" })).not.toBeInTheDocument();
+  });
+
+  it("sem a leitura da agenda, a lista aparece e o aviso explica", async () => {
+    renderWith(api({ visitSummary: vi.fn(async () => Promise.reject(new Error("fora"))) }), <CustomersPage />);
+    expect(await screen.findByText(/Não deu para ler a agenda agora/)).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Ana Exemplo" })).toBeInTheDocument();
+    expect(screen.queryByText(/Última visita/)).not.toBeInTheDocument();
+  });
+});
+
 describe("módulo no app (demonstração sem servidor)", () => {
   it("rota /app/clientes mostra clientes de exemplo, banner e formulários bloqueados", async () => {
     const router = createMemoryRouter(routes, { initialEntries: ["/app/clientes"] });
@@ -456,6 +513,8 @@ describe("módulo no app (demonstração sem servidor)", () => {
     expect(await screen.findByText(DEMO_CUSTOMERS[0]!.name)).toBeInTheDocument();
     expect(screen.getByText(/nada é salvo\. Os formulários ficam bloqueados/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Novo cliente" })).toBeDisabled();
+    // P49: a base de exemplo tem os dois com horário hoje (terça 20/10).
+    expect(await screen.findAllByText("Próximo: ter., 20/10")).toHaveLength(2);
     fireEvent.click(within(screen.getByRole("navigation", { name: "Telas de Clientes" })).getByRole("link", { name: "Serviços" }));
     expect(await screen.findByText("Barba")).toBeInTheDocument();
   });
