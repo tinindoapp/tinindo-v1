@@ -70,6 +70,20 @@ describe("avaliações", () => {
     expect(within(profile).getByText("Verifique sua identidade")).toBeInTheDocument();
   });
 
+  it("recado #89: o dono pede a verificação pelo app; depois vê o pedido aberto e não pede de novo", async () => {
+    const port = createDemoOwnerPort();
+    const request = vi.spyOn(port, "requestIdentity");
+    wrap(<OwnerReviewsPage port={port} />);
+    const profile = await screen.findByRole("region", { name: "Seu perfil" });
+    fireEvent.click(within(profile).getByText("Verifique sua identidade"));
+    fireEvent.click(within(profile).getByRole("radio", { name: "gov.br" }));
+    fireEvent.click(within(profile).getByRole("button", { name: "Pedir verificação" }));
+    expect(await within(profile).findByRole("status")).toHaveTextContent(/Pedido enviado em .*, pelo gov\.br\./);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0]![0]).toBe("gov_br");
+    expect(within(profile).queryByRole("button", { name: "Pedir verificação" })).not.toBeInTheDocument();
+  });
+
   it("dono: sem 3 avaliações, diz quando a média aparece", async () => {
     wrap(<OwnerReviewsPage port={createDemoOwnerPort()} />);
     const profile = await screen.findByRole("region", { name: "Seu perfil" });

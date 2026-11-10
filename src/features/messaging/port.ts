@@ -6,6 +6,7 @@ import type {
   ChannelStatusOutput,
   ConversationGetOutput,
   InboxListOutput,
+  InboxUnreadCountOutput,
   MessageSendInput,
   SimInboundInput,
   SimInboundOutput,
@@ -15,6 +16,7 @@ import type { z } from "zod";
 
 export type ChannelStatus = z.infer<typeof ChannelStatusOutput>;
 export type Inbox = z.infer<typeof InboxListOutput>;
+export type UnreadCount = z.infer<typeof InboxUnreadCountOutput>;
 export type InboxContact = Inbox["contacts"][number];
 export type Conversation = z.infer<typeof ConversationGetOutput>;
 export type SendInput = z.infer<typeof MessageSendInput>;
@@ -29,6 +31,8 @@ export interface MessagingPort {
   verify(code: string, key: string): Promise<ChannelStatus["connection"]>;
   disconnect(key: string): Promise<ChannelStatus["connection"]>;
   inbox(): Promise<Inbox>;
+  /** Só os números do selo da aba (recado #89): bem mais leve que `inbox()`. */
+  unreadCount(): Promise<UnreadCount>;
   conversation(contactId: string): Promise<Conversation>;
   send(input: SendInput, key: string): Promise<ChannelMessage>;
   handoff(contactId: string, handling: "assistant" | "human", key: string): Promise<ChannelContact>;

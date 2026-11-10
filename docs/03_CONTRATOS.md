@@ -24,7 +24,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `customer.upsert` | dados, versão quando existente | Contato privado; dedupe sugerido, nunca merge cego |
 | `service.save` | duração, buffers, preço, piso | Catálogo validado e versionado |
 | `customer.archive` | customer_id, expected_version, archived, key | Arquiva/desarquiva; nunca apaga |
-| `customer.list` | busca, include_archived, cursor, limit | Clientes do tenant (servido em `GET /crm/customers`) |
+| `customer.list` | busca, include_archived, cursor, limit | Clientes do tenant (servido em `GET /crm/customers`), com `phone` (E.164 ou null). Orçamentos usa o telefone para o destinatário do WhatsApp e para a busca (recado #89) |
 | `service.list` | include_inactive, cursor, limit | Serviços do tenant (servido em `GET /crm/services`) |
 | `customer.import_preview` | linhas já interpretadas | Possíveis duplicados por linha; não grava |
 | `customer.import` | linhas + decisão por duplicado, key | created/skipped/rejected com linha, campo e motivo |
@@ -127,6 +127,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `channel.verify` | código, key | Ativa a conexão; tentativa errada fica contada (envelope 422) |
 | `channel.disconnect` | key | Desconecta; fila pendente vira falha |
 | `inbox.list` | — | Contatos com janela, opt-out, não lidas e última mensagem |
+| `inbox.unread_count` | — | Só `{ unread, contacts }`: total de não lidas e contatos com alguma (recado #89). Sem nome, telefone nem texto; só o dono. Usado pelo selo da aba "Mensagens", relido a cada troca de tela e a cada minuto com a aba visível |
 | `conversation.get` | contact_id | Mensagens do contato; zera não lidas |
 | `message.send` | contato, texto ou modelo + parâmetros, key | Entra na fila (`queued`); enviado só quando o despacho confirmar |
 | `conversation.handoff` | contact_id, assistant/human, key | Humano assume ou devolve |
@@ -203,7 +204,8 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `review.submit` | booking_id, rating, body?, key | Cliente registra a experiência de um atendimento concluído do cadastro vinculado; uma por atendimento |
 | `review.withdraw` | review_id, key | O autor retira a própria avaliação |
 | `review.report` | review_id, reason, note?, key | Denúncia; não esconde nada sozinha (moderação pelo backend) |
-| `review.owner_list` | — | Dono: avaliações recebidas (sem autor), selos e denúncias abertas |
+| `review.owner_list` | — | Dono: avaliações recebidas (sem autor), selos, denúncias abertas e `identity_request` (pedido de verificação aberto ou null) |
+| `identity.request` | preferred_method (`document_video_call` \| `gov_br`), key | Dono pede à equipe a verificação de identidade (recado #89). Um pedido aberto por negócio: pedir de novo devolve o mesmo. Já verificado → POLICY_REJECTED (`already_verified`). Nenhum documento passa pelo app. A equipe verifica por `identity_verify_set` (backend), o que fecha o pedido |
 | `review.reply` | review_id, expected_version, body, key | Resposta pública do profissional; nota e texto do cliente não mudam |
 | `review.public_list` | slug | Avaliações publicadas e selos do perfil (sem login; sem autor; média só com 3+) |
 | `resources.list` | — | Profissionais, salas, cadeiras e equipamentos da equipe, regras de comissão e fuso |

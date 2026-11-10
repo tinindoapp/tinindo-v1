@@ -89,6 +89,14 @@ export const InboxListOutput = z.object({
     last_message: z.object({ direction: z.enum(["inbound", "outbound"]), body: z.string(), status: ChannelMessageStatus }).nullable(),
   })).max(200),
 });
+/** Recado #89: só os números do selo da aba "Mensagens". Sem nome, telefone nem texto. */
+export const InboxUnreadCountInput = z.object({});
+export const InboxUnreadCountOutput = z.object({
+  /** Total de mensagens recebidas e ainda não abertas no negócio. */
+  unread: z.number().int().min(0),
+  /** Quantos contatos têm pelo menos uma não lida. */
+  contacts: z.number().int().min(0),
+});
 export const ConversationGetInput = z.object({ contact_id: Uuid });
 export const ConversationGetOutput = z.object({ contact: ChannelContact, messages: z.array(ChannelMessage).max(200) });
 

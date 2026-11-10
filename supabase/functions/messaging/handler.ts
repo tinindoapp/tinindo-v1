@@ -27,6 +27,8 @@ import {
   IdempotencyKey,
   InboxListInput,
   InboxListOutput,
+  InboxUnreadCountInput,
+  InboxUnreadCountOutput,
   MessageSendInput,
   MessageSendOutput,
   SimInboundInput,
@@ -63,6 +65,7 @@ export const MESSAGING_ROUTES: Record<string, Route> = {
   "channel.verify": route({ rpc: "channel_verify", input: ChannelVerifyInput, output: ChannelConnectionOutput, command: true, args: (i) => ({ p_code: i.code }) }),
   "channel.disconnect": route({ rpc: "channel_disconnect", input: ChannelDisconnectInput, output: ChannelConnectionOutput, command: true, args: () => ({}) }),
   "inbox.list": route({ rpc: "channel_inbox", input: InboxListInput, output: InboxListOutput, command: false, args: () => ({}) }),
+  "inbox.unread_count": route({ rpc: "channel_unread_count", input: InboxUnreadCountInput, output: InboxUnreadCountOutput, command: false, args: () => ({}) }),
   "conversation.get": route({ rpc: "channel_conversation", input: ConversationGetInput, output: ConversationGetOutput, command: false, args: (i) => ({ p_contact_id: i.contact_id }) }),
   "message.send": route({
     rpc: "channel_send", input: MessageSendInput, output: MessageSendOutput, command: true,

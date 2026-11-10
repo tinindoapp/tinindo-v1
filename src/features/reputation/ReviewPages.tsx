@@ -2,10 +2,10 @@
 // pública do perfil. Selos separados: identidade verificada, atendimentos verificados, competência certificada (ainda não).
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { ActionsMenu, Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { ActionsMenu, Button, Card, ChoiceCard, ConfirmAction, Field, Help, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { useSession } from "../../app/session.tsx";
-import { type CustomerReviewsPort, newKey, type OwnerReviewsPort, type PublicReviewsPort, type ReportReason, type ReviewOwnerList, type ReviewPending, type ReviewPublicList } from "./port.ts";
+import { type CustomerReviewsPort, type IdentityMethod, newKey, type OwnerReviewsPort, type PublicReviewsPort, type ReportReason, type ReviewOwnerList, type ReviewPending, type ReviewPublicList } from "./port.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 const MONTH = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -16,6 +16,7 @@ const stars = (n: number) => `${"★".repeat(n)}${"☆".repeat(5 - n)}`;
 
 function explain(err: unknown): string {
   const e = err as { code?: string; field?: string } | null;
+  if (e?.code === "POLICY_REJECTED" && e.field === "already_verified") return "Sua identidade já foi verificada.";
   if (e?.code === "POLICY_REJECTED") return e.field === "already_reviewed" ? "Este atendimento já foi avaliado." : e.field === "window" ? "O prazo de 30 dias para avaliar acabou." : "As regras não permitem esta ação.";
   if (e?.code === "STALE_VERSION") return "Isto mudou em outro lugar. Atualizamos a tela: tente de novo.";
   if (e?.code === "NOT_FOUND") return "Não encontrado.";
@@ -222,6 +223,51 @@ function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number];
   );
 }
 
+const METHOD_LABEL: Record<IdentityMethod, string> = { document_video_call: "Videochamada com documento", gov_br: "gov.br" };
+const METHOD_PHRASE: Record<IdentityMethod, string> = { document_video_call: "por videochamada com documento", gov_br: "pelo gov.br" };
+const REQUESTED_AT = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+
+/** Recado #89: pedir a verificação pelo app. Um pedido aberto por negócio; o app não recebe documento. */
+function IdentityRequestForm({ port, request, onDone }: { port: OwnerReviewsPort; request: ReviewOwnerList["identity_request"]; onDone: (message: string) => void }) {
+  const [method, setMethod] = useState<IdentityMethod>("document_video_call");
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  if (request) {
+    return (
+      <p className="tn-muted" role="status">
+        Pedido enviado em <span className="tn-num">{REQUESTED_AT.format(new Date(request.requested_at))}</span>, {METHOD_PHRASE[request.preferred_method]}.
+        A equipe da Tinindo entra em contato para marcar a conferência.
+      </p>
+    );
+  }
+  const submit = async () => {
+    setBusy(true);
+    setFailure(null);
+    try {
+      await port.requestIdentity(method, newKey());
+      onDone("Pedido de verificação enviado à equipe da Tinindo.");
+    } catch (err) {
+      setFailure(explain(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="tn-stack" data-gap="sm">
+      <fieldset className="tn-stack" data-gap="sm">
+        <legend>Como prefere confirmar</legend>
+        {(Object.keys(METHOD_LABEL) as IdentityMethod[]).map((m) => (
+          <ChoiceCard key={m} name="rev-identity-method" value={m} checked={method === m} title={METHOD_LABEL[m]} onChange={(on) => on && setMethod(m)} />
+        ))}
+      </fieldset>
+      {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
+      <div className="tn-actions">
+        <Button loading={busy} loadingText="Enviando…" onClick={() => void submit()}>Pedir verificação</Button>
+      </div>
+    </div>
+  );
+}
+
 export function OwnerReviewsPage({ port }: { port: OwnerReviewsPort }) {
   const [data, setData] = useState<ReviewOwnerList | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -258,8 +304,9 @@ export function OwnerReviewsPage({ port }: { port: OwnerReviewsPort }) {
                   <p>
                     A equipe da Tinindo confere a identidade de quem atende por videochamada com documento ou pelo gov.br.
                     Depois disso, o selo “Identidade verificada pela equipe” aparece no seu perfil. Nenhum documento fica
-                    guardado. Para pedir a verificação, fale com a equipe da Tinindo.
+                    guardado.
                   </p>
+                  <IdentityRequestForm port={port} request={data.identity_request} onDone={done} />
                 </details>
               ) : null}
             </div>
