@@ -1,0 +1,387 @@
+{
+ "area": "achados-anteriores",
+ "veredito": "misto",
+ "veredito_justificativa": "O código de src/ e supabase/ não mudou desde a revisão de 04/11 (git log b7b58fc..HEAD -- src supabase sai vazio; o único commit novo é de docs), então os 10 problemas altos e os médios do consolidado continuam todos abertos, e os PRs #91 e #92 não tocam em nenhum deles. O processo de correção anterior funcionou onde foi aplicado (os 74 itens da auditoria de UX de 27/10 estão marcados como feitos e a amostra conferida confirma), mas é simples demais na prevenção: os testes cobrem listas fixas de rotas, e por isso os módulos novos (P44, P45, P46) reintroduziram defeitos já corrigidos (contraste do selecionado, rolagem em 320 px, alvos de 24 px). No código, a idempotência do front é exagerada em cópias (3 helpers equivalentes, 18 cópias de newKey, 145 chamadas) e rasa no que importa (7 pontos duplicam dado em nova tentativa). A maior parte se resolve com 4 correções agrupadas, não com 40 itens soltos.",
+ "manter": [
+  "Idempotência no servidor (app.idempotency_claim/complete, hash do pedido, replay): a revisão de 04/11 rodou 1.779 pgTAP, 27 cenários de concorrência e 142 de integração sem falha. O defeito de duplicação está só no front (a chave muda antes da hora); não mexer nas RPCs por causa dele.",
+  "Os três helpers de chave por conteúdo que já existem e estão corretos: useIdempotencyKey (src/features/identity/idempotency.ts:5), createKeyRing (src/features/crm/api.ts:234) e useKeyFor (src/features/finance/FinancePage.tsx:84). A correção é promover um deles a src/lib e usar em toda a base, não inventar um quarto.",
+  "Os tokens --tn-selected-bg, --tn-selected-text e --tn-selected-border (src/styles/global.css:23-25) e os 8 usos corretos em ui.css, scheduling.css e network.css. O defeito do passo invisível é um uso sem o par de texto em setup.css:19, não o token.",
+  "O contrato oficial setup.progress (supabase/functions/_shared/contracts/setup.ts:15-49) e o port do módulo setup (src/features/setup/serverPort.ts:14), que já valida com ele. É o guia do assistente que deve passar a usá-lo.",
+  "A reserva pelo link com hold curto, código de 6 dígitos, limite de 6 pedidos por hora por telefone (20261029033000:111-114) e a troca de pedido pendente com evento booking.hold_released. A jornada precisa de 3 ajustes nas bordas, não de redesenho.",
+  "Os 74 itens da auditoria de UX de 27/10 já aplicados (Toast, IconButton, Field, Segmented, folha inferior, Confirmar/Faltou, Próximo atendimento). Conferidos por amostra no código atual; a refatoração não deve desfazê-los.",
+  "O texto do unknown do analisador de frase (\"Não entendi os dias. Complete abaixo\", SetupPage.tsx:128-130) e a regra \"nunca inventa\": o caminho certo já existe, falta o analisador cair nele nos casos que hoje erra calado.",
+  "A regra de que concluir atendimento não é receber (BookingDetailPage.tsx:289) e o Caixa como lugar do recebimento. O achado A12 pede um atalho melhor, não juntar as duas coisas."
+ ],
+ "achados": [
+  {
+   "id": "achados-anteriores-01",
+   "titulo": "Aberto (consolidado 1, A1 a A5): nova tentativa duplica compra, mensagem, recebimento, despesa, conta mensal e plano, e a tela diz que é seguro",
+   "gravidade": "critica",
+   "tipo": "defeito",
+   "evidencia": "Lido no código de hoje (linhas iguais às de 04/11). MaterialsPage.tsx:85 guarda a chave em estado e :110-111 fazem setKey(newKey()) dentro do catch; a mensagem é 'Tentar de novo é seguro' (materials/labels.ts:38). InboxPage.tsx:105-106 trocam a chave no catch e mantém o texto no campo; :165 usa newKey() a cada toque no envio de modelo. FinancePage.tsx:454 põe received_at = port.now().toISOString() no payload e :459 tira a chave desse payload (o mesmo em :619 e :624 com paid_at); a mensagem em :76 diz 'o pedido usa a mesma chave e não duplica'. AccountsPage.tsx:40-41 e RecurrencePage.tsx:39 passam newKey() direto na chamada. O texto 'Tentar de novo é seguro' aparece em 23 arquivos de src (grep).",
+   "recomendacao": "Passo 1 (urgente, pequeno): nos 7 pontos acima, manter a chave no erro e trocar só no sucesso ou quando o conteúdo muda; no Caixa, fixar o horário quando o formulário abre (como FinancePage.tsx:334 já faz) ou tirar received_at/paid_at da assinatura da chave. Passo 2: mover um helper único para src/lib/idempotency.ts (ver achado 12). Passo 3: nos labels.ts, só prometer 'tentar de novo é seguro' onde a chave é estável. Teste que deveria ter pego: em cada formulário, um teste de componente com o port falhando uma vez com PROVIDER_UNAVAILABLE e o segundo envio conferindo que a chave é a mesma (o useKeyFor.test.tsx:9 de hoje usa payload sem received_at e por isso passa); e um cenário de integração 'commit + resposta perdida + novo envio = 1 linha'.",
+   "caminhos": [
+    "src/features/materials/MaterialsPage.tsx",
+    "src/features/messaging/InboxPage.tsx",
+    "src/features/finance/FinancePage.tsx",
+    "src/features/finance-advanced/AccountsPage.tsx",
+    "src/features/recurrence/RecurrencePage.tsx",
+    "src/features/*/labels.ts",
+    "src/features/finance/useKeyFor.test.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-02",
+   "titulo": "Aberto (consolidado 5): depois de 5 códigos errados o cliente fica bloqueado; pedir de novo herda as tentativas e o código certo é recusado",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "supabase/migrations/20261026164500_p43_public_booking.sql:235 recusa quando attempts >= 5; supabase/migrations/20261029033000_p43_replace_pending_request.sql:155 cria o pedido novo com coalesce(v_pending.attempts, 0), ou seja, já no limite. Reproduzido na demonstração em 10/11 (trabalho/achados-anteriores/repro2.json, C5_bloqueio): tentativas 1 a 5 'Código incorreto', a 6ª 'Muitas tentativas com código errado. Peça o horário de novo.'; depois de trocar para 13:45, o código certo devolve a mesma recusa (captura c5_codigo_certo_bloqueado.png) e o horário das 13:00 não volta a ficar livre. O emulador da demonstração repete a regra do servidor: src/features/network/api.ts:395 (herda attempts) e :404 (recusa com 5).",
+   "recomendacao": "Nova migration (append-only) que recria public_booking_request: o pedido que substitui outro nasce com attempts = 0 (o limite de 6 pedidos por hora por telefone, linhas 111-114, já contém o abuso) e, ao bater 5 tentativas, o hold é liberado na hora (status 'expired', evento booking.hold_released) em vez de segurar o horário até vencer. Repetir a regra no emulador da demonstração (src/features/network/api.ts:395-406). Teste que deveria ter pego: caso novo em supabase/tests/database/25_public_booking.test.sql (5 erros, troca de pedido, código certo confirma) e o mesmo caminho no e2e tests/e2e/network/public-booking.spec.ts.",
+   "caminhos": [
+    "supabase/migrations/ (nova)",
+    "supabase/tests/database/25_public_booking.test.sql",
+    "src/features/network/api.ts",
+    "tests/e2e/network/public-booking.spec.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-03",
+   "titulo": "Aberto (consolidado 6): corrigir o WhatsApp no link faz o cliente perder o próprio horário, e o código já foi para o número errado",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "20261029033000_p43_replace_pending_request.sql:121 procura o pedido pendente só por contact_phone_e164 = p_contact_phone; com o número corrigido o pedido antigo não é achado e o hold dele continua bloqueando o horário. PublicProfileView.tsx:634-646 ('Corrigir') só volta ao passo dos dados; :320 reenvia sem referência ao pedido anterior. Reproduzido em 10/11 (repro2.json, C6_corrigir_numero; captura c6_corrigir.png): depois de corrigir o número aparece 'Este horário acabou de ser reservado por outra pessoa. Escolha outro.' e as 13:00 somem da lista.",
+   "recomendacao": "Contrato public.book ganha o campo opcional replaces_request_id (o request_id que a própria aba recebeu); a RPC libera esse pedido quando ele está pendente e ainda sem tentativa de código errada, antes de criar o novo. PublicProfileView envia o campo quando 'Corrigir' foi usado. Teste que deveria ter pego: e2e 'pedir, corrigir o número, confirmar com o código novo' em tests/e2e/network/public-booking.spec.ts e pgTAP do mesmo caminho em 25_public_booking.test.sql.",
+   "caminhos": [
+    "supabase/functions/_shared/contracts/network.ts",
+    "supabase/migrations/ (nova)",
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/network/api.ts",
+    "tests/e2e/network/public-booking.spec.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-04",
+   "titulo": "Aberto (consolidado 7): a tela diz 'Enviamos um código' mesmo quando o envio falhou, e não existe 'reenviar código'",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "O contrato devolve o estado do envio (supabase/functions/_shared/contracts/network.ts:182, delivery: queued, sending, sent, failed, delivery_unknown). Em PublicProfileView.tsx a palavra delivery só aparece na linha 343 (dado fixo da demonstração); o aviso da linha 630 é sempre 'Enviamos um código de 6 dígitos para o seu WhatsApp'. Medido em 10/11 (repro2.json, tela_codigo): diz_enviamos true, tem_reenviar false; botões da tela: Corrigir, Voltar, Confirmar horário.",
+   "recomendacao": "Na etapa do código, escolher o texto por request.data.delivery: 'Estamos enviando…' (queued, sending), 'Enviamos…' (sent), 'Não conseguimos enviar o código para este número' com 'Corrigir' e 'Tentar de novo' (failed, delivery_unknown). Acrescentar 'Reenviar código' com espera de 60 s, que chama o mesmo public.book com replace_existing (já existe) e respeita o limite por telefone. Teste que deveria ter pego: teste de componente em src/features/network/network.test.tsx com delivery 'failed' esperando o texto de falha e o botão.",
+   "caminhos": [
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/network/api.ts",
+    "src/features/network/network.test.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-05",
+   "titulo": "Aberto (consolidado 3): 'Me ajuda a configurar' nunca carrega com servidor, porque o guia valida com um schema próprio que rejeita o contrato",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "src/features/agent/setupGuide.ts:9-24 define SetupStep com code, why obrigatório e href; o contrato oficial (supabase/functions/_shared/contracts/setup.ts:15-49) usa step, why anulável e next, sem href. src/features/agent/serverPort.ts:29 valida a resposta de /setup/setup.progress com o schema local e :30-32 engole o erro devolvendo null. Rodado em 10/11 (trabalho/achados-anteriores/repro-describe.log, últimas linhas): 'contrato aceita a amostra: true; schema do guia aceita a resposta do contrato: false', com erros em steps.0.code, steps.0.why e steps.0.href. O teste AssistPanels.test.tsx:47 só cobre setupProgress devolvendo null.",
+   "recomendacao": "Apagar SetupStep, SetupProgress e DEMO_SETUP de setupGuide.ts; o AgentPort.setupProgress passa a usar SetupProgressOutput de @contracts e o rótulo, o porquê e o link de cada passo vêm do STEP_CATALOG (src/features/setup/labels.ts), que a tela de configuração já usa. Na demonstração, o guia lê do mesmo demoPort do módulo setup (resolve junto o '4 de 8' contra '5 de 8' do achado 13). Teste que deveria ter pego: teste de contrato que passa a fixture de setup.progress pelo port do assistente, e um caso em AssistPanels.test.tsx com resposta no formato do contrato.",
+   "caminhos": [
+    "src/features/agent/setupGuide.ts",
+    "src/features/agent/serverPort.ts",
+    "src/features/agent/demoPort.ts",
+    "src/features/agent/AssistPanels.tsx",
+    "src/features/agent/AssistPanels.test.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-06",
+   "titulo": "Aberto (consolidado 4): a frase do negócio é entendida errado e salva com 'Salvo' (negação, dois turnos, 'com 4 sessões')",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "supabase/functions/_shared/domain/setup/describe.ts não trata negação (grep por 'nao', 'exceto', 'folga' só acha a linha 86, 'sem folga'); :76 aceita 'com N' sem exigir 'pessoas' depois; :136-138 pegam um único intervalo de horas. Rodado em 10/11 com o analisador real (repro-describe.log): 'Não atendo domingo e segunda. Sou barbeiro, das 9 às 20' devolve weekdays [0,1] e unknown []; 'das 6 às 12 e das 17 às 21' devolve só 06:00-12:00; 'pacote de hidratação com 4 sessões' devolve team_size 4; 'terça a sexta 10 às 20 e sábado 8 às 16' perde o sábado. SetupPage.tsx:112 mostra 'Salvo: …'. O describe.test.ts tem 6 casos, nenhum com negação, dois turnos ou horário diferente por dia.",
+   "recomendacao": "Em describe.ts: (1) 'não atendo / fecho / folgo / exceto / menos' + dias vira o complemento dos dias; (2) dois intervalos de horas no mesmo dia viram início, fim e pausa entre eles; horários diferentes por dia vão para unknown ('hours') em vez de escolher um; (3) 'com N' só conta como equipe quando seguido de pessoas, profissionais etc. (4) quando houver qualquer trecho não consumido com número ou dia, marcar unknown para a tela pedir conferência antes de salvar. Teste que deveria ter pego: tabela de frases reais das três personas (as 6 do repro-describe.log mais as do docs/12) em describe.test.ts.",
+   "caminhos": [
+    "supabase/functions/_shared/domain/setup/describe.ts",
+    "supabase/functions/_shared/domain/setup/describe.test.ts",
+    "src/features/setup/SetupPage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-07",
+   "titulo": "Aberto (consolidado 2): o próximo passo em /app/configurar fica invisível, texto da cor do fundo nos dois temas",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "src/features/setup/setup.css:19 aplica background: var(--tn-selected-bg) no passo [data-next] sem color: var(--tn-selected-text) (os outros 8 usos do token em ui.css, scheduling.css e network.css trazem o par). Medido em 10/11 (repro1.json, C2): tema claro fundo rgb(17,17,17), título rgb(17,17,17), link rgb(17,17,17); tema escuro fundo e título rgb(247,247,245). Captura c2_passo_light.png: só o número e o texto de apoio aparecem.",
+   "recomendacao": "Em setup.css:19 trocar o fundo cheio por destaque de borda (border-color: var(--tn-selected-border); background: var(--tn-surface)) ou, se o fundo cheio ficar, declarar color: var(--tn-selected-text) e herdar em __title, __why e __go. Recomendo a borda: fundo preto no cartão inteiro compete com o botão principal, que também é preto. Teste que deveria ter pego: verificação estática em scripts/ que falha quando uma regra usa --tn-selected-bg sem --tn-selected-text, mais o axe de contraste em /app/configurar nos dois temas dentro da varredura do achado 09.",
+   "caminhos": [
+    "src/features/setup/setup.css",
+    "tests/e2e/setup/"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-08",
+   "titulo": "Aberto (consolidado 8 e F4): 'Minhas reservas' e 'Avaliar' são inalcançáveis; nenhuma tela gera o código de vínculo e o login não volta ao destino",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "grep por customer_link.issue em src não acha nenhuma chamada; src/features/identity/services.tsx só tem redeem (:175) e revoke (:181). src/app/AppShell.tsx:146 manda quem está sem sessão para /entrar sem guardar a origem, e src/app/pages/SignIn.tsx:16 sempre navega para /app. A confirmação da reserva pública cita 'Minhas reservas' (repro2.json, M1: cita_minhas_reservas true), que o cliente não consegue abrir.",
+   "recomendacao": "(1) AppShell guarda a origem (state.from com pathname, search e hash) e SignIn volta para ela, aceitando só caminhos internos. (2) Botão 'Mandar link de acesso' na ficha do cliente (/app/clientes/:id): chama customer_link.issue e abre o WhatsApp com o link completo /app/conta/vincular#c=<código> (no fragmento, como os links #t= já fazem); RedeemLinkPage.tsx:20 hoje só lê o código do campo digitado e passa a preencher a partir do fragmento. (3) Enquanto (2) não existir, tirar 'Tem login? Veja em Minhas reservas' da confirmação pública. Teste que deveria ter pego: teste de rota em src/app (sem sessão em /avaliar?x → entrar → volta a /avaliar?x) e e2e do vínculo de ponta a ponta.",
+   "caminhos": [
+    "src/app/AppShell.tsx",
+    "src/app/pages/SignIn.tsx",
+    "src/features/identity/services.tsx",
+    "src/features/crm/",
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/identity/RedeemLinkPage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-09",
+   "titulo": "Correções antigas regridem nos módulos novos porque os testes cobrem listas fixas de rotas (A11Y-01, UX 9, UX 59 voltaram em P44 a P46)",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "tests/e2e/foundation/a11y.spec.ts:52 testa a rolagem em 320 px em 4 rotas fixas (/app/clientes/importar, /app/conta, /app/conta/novo-negocio, /app/perfil); a Home ficou de fora e hoje rola (achado 10). A auditoria de UX marca os 74 itens como feitos, mas o item 9 (selecionado com uma aparência só) regrediu em setup.css:19 e o item 59 (links de 44 px) regrediu em 12 alvos medidos em 10/11 (repro1.json, R07_alvos: 17 a 24 px em /app/mensagens, /app/relacionamento, /app/site, /app/conta, /app/conta/reservas, /avaliar). Nenhum teste confere a regra do par selected-bg e selected-text: o único arquivo de teste que cita o token é tests/e2e/network/reserva-etapas.spec.ts, que olha só a tela de reserva.",
+   "recomendacao": "Um spec de varredura que lê as rotas de src/app/navigation.ts e do roteador (não uma lista escrita à mão) e, para cada rota em 320 e 375 px e nos dois temas, confere: scrollWidth <= largura, axe color-contrast sem violação, e alvos interativos com 44 px. Rota nova entra sozinha. Rodar no CI como job próprio, fora do caminho rápido. É o teste que teria pego os achados 07 e 10 e os alvos de 24 px.",
+   "caminhos": [
+    "tests/e2e/foundation/a11y.spec.ts",
+    "tests/e2e/foundation/ (novo spec de varredura)",
+    "src/app/navigation.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-10",
+   "titulo": "Aberto (consolidado 9): a Home rola para o lado em 320 px e o valor 'Recebido no mês' passa da borda do cartão em 375 px",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "src/app/pages/pages.css:20 fixa 3 colunas (repeat(3, minmax(0, 1fr))) e :23 põe white-space: nowrap no valor. Medido em 10/11 (repro1.json): em 320 px scrollWidth 330 contra innerWidth 320, com 'R$ 1.740,00' terminando em x=330 e o cartão em x=304; em 375 px o valor termina em x=367 e o cartão em x=359 (8 px para fora). É a primeira tela do profissional e o valor de exemplo é comum; com R$ 10.000,00 piora.",
+   "recomendacao": "Em pages.css:20-23: abaixo de 400 px, o cartão de dinheiro ocupa a linha inteira (grid-template-columns: 1fr 1fr com o terceiro em grid-column: 1 / -1), ou o valor usa font-size com clamp() e overflow-wrap: anywhere em vez de nowrap. Teste que deveria ter pego: incluir /app na varredura de 320 e 375 px (achado 09), com um valor de 6 dígitos na base de exemplo.",
+   "caminhos": [
+    "src/app/pages/pages.css",
+    "tests/e2e/foundation/a11y.spec.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-11",
+   "titulo": "Aberto (A3, médio): a política de cancelamento é passo obrigatório 'porque o cliente vê', mas o link público não a mostra; a confirmação sai sem preço nem local",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "src/features/setup/labels.ts:20 diz 'A política aparece para o cliente antes de reservar'. Em src/features/network/PublicProfileView.tsx não há nenhuma ocorrência de 'política' nem 'cancel' (grep). Medido em 10/11 (repro2.json): perfil_mostra_politica false; tela do código sem preço e sem política; confirmação com tem_preco false, tem_endereco_ou_local false, tem_politica false.",
+   "recomendacao": "Expor no perfil público a antecedência de cancelamento já gravada (uma linha no resumo antes de 'Confirmar horário': 'Para desmarcar, avise com X horas de antecedência') e repetir na confirmação, junto do preço base quando 'Mostrar preços' está ligado e do bairro. Exige incluir o campo na leitura pública (contrato network e RPC do perfil). Se os donos não quiserem mostrar a política, trocar o texto do passo em labels.ts:20 para não prometer. Teste que deveria ter pego: e2e que define a política na Conta e espera o texto no /p/:slug.",
+   "caminhos": [
+    "src/features/network/PublicProfileView.tsx",
+    "supabase/functions/_shared/contracts/network.ts",
+    "supabase/migrations/ (nova, leitura pública)",
+    "src/features/setup/labels.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-12",
+   "titulo": "Aberto (A7): 3 helpers iguais de chave, 18 cópias de newKey e 145 chamadas newKey() no toque; em cerca de 80 telas repetir mostra erro depois de sucesso",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "Contado em 10/11: grep 'newKey()' em src (sem testes) dá 145 ocorrências em 30 arquivos; 'export const newKey' aparece em 18 port.ts. Os helpers por conteúdo são três e equivalentes: identity/idempotency.ts:5, crm/api.ts:234, finance/FinancePage.tsx:84, usados só em identity, crm e finance. Exemplos do sintoma: MaterialsPage.tsx:64 (ajuste com newKey() e botão sem loading na linha 74), AccountsPage.tsx:72 (new Date() no payload e newKey()).",
+   "recomendacao": "Criar src/lib/idempotency.ts com um único useIdempotencyKey (keyFor(payload) e reset()), apagar as duas outras cópias e as 18 de newKey, e migrar módulo a módulo (um PR por 4 ou 5 módulos, começando pelos do núcleo: scheduling, finance, messaging, crm). Regra de lint local (no-restricted-syntax) que proíbe crypto.randomUUID() e newKey() como argumento de chamada de port fora de src/lib. Pôr loading no botão 'Ajustar' de MaterialsPage. Teste que deveria ter pego: a regra de lint e o teste de componente descrito no achado 01, como utilitário compartilhado.",
+   "caminhos": [
+    "src/lib/idempotency.ts (novo)",
+    "src/features/*/port.ts",
+    "src/features/*/*Page.tsx",
+    "eslint.config.js"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-13",
+   "titulo": "Aberto (consolidado 10, A5): configuração com três fontes na demonstração; o que se salva não chega à Agenda e o guia diz 4 de 8 com a Home em 5 de 8",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "src/features/setup/demoPort.ts guarda expediente e serviços em estado próprio (linhas 40-53 e 106-122) e não escreve nos dados que Agenda, Serviços e link público leem. src/features/agent/setupGuide.ts:32 tem um DEMO_SETUP fixo com outra lista de passos. Medido em 10/11 (repro1.json, A5_progresso_home_x_assistente): Home '5 de 8', guia do assistente '4 de 8 passos prontos'.",
+   "recomendacao": "Uma fonte só: o demoPort do setup grava nos mesmos armazenamentos da demonstração que scheduling e crm leem (src/lib/demo), e o progresso é calculado a partir deles; o assistente lê esse mesmo port (achado 05). Teste que deveria ter pego: e2e em tests/e2e/setup que aplica um modelo de serviços e espera vê-los em /app/clientes/servicos e no /p/:slug da mesma aba, e que compara o progresso da Home com o do guia.",
+   "caminhos": [
+    "src/features/setup/demoPort.ts",
+    "src/lib/demo/",
+    "src/features/agent/demoPort.ts",
+    "tests/e2e/setup/"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "achados-anteriores-14",
+   "titulo": "Aberto (A6): channel.verify com código errado grava resposta nula; repetir com a mesma chave devolve 500 em vez de 422",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "supabase/migrations/20261022120000_p12_messaging.sql:338 chama app.idempotency_complete(p_tenant_id, v_uid, 'channel.verify', p_idem_key, 422, null). Nenhuma migration posterior recria channel_verify (grep: só aparece na do P12 e, por nome parecido, na do P43). A revisão de 04/11 reproduziu no Postgres ('registro de idempotência sem resposta'); não rodei de novo nesta retomada.",
+   "recomendacao": "Nova migration que recria channel_verify gravando o corpo do erro (jsonb_build_object('error','POLICY_REJECTED','field','code')) e, em app.idempotency_claim, devolver o erro gravado na repetição. Procurar o mesmo padrão '422, null' em RPCs novas (hoje é a única ocorrência). Teste que deveria ter pego: caso de replay com código errado em supabase/tests/database/13_messaging.test.sql.",
+   "caminhos": [
+    "supabase/migrations/ (nova)",
+    "supabase/tests/database/13_messaging.test.sql"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "achados-anteriores-15",
+   "titulo": "Aberto (médio): o código enviado ao cliente não diz o negócio, e a prévia de /pagar, /orcamento e /oferta no WhatsApp traz o slogan para profissionais",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "supabase/migrations/20261026164500_p43_public_booking.sql:18-19: 'Seu código para confirmar {{1}} em {{2}} é {{3}}', e :329 preenche com serviço, data e código, sem o nome do negócio. index.html:27-29 traz a prévia padrão 'Tinindo · Agenda, clientes e dinheiro do seu negócio em ordem.' para toda rota que o worker não reescreve (worker/og.ts:36 só reconhece /p/:slug e /s/:slug). Medido em 10/11 (repro1.json, OG_padrao).",
+   "recomendacao": "Novo modelo de mensagem com o nome do negócio no começo ('{{negócio}}: seu código para confirmar…'), por migration nova, e o mesmo em lembrete, cobrança e orçamento. No worker/og.ts, uma prévia neutra para /pagar, /orcamento, /oferta e /convite ('Você recebeu um link de <negócio>' quando der para saber, ou 'Link enviado por um profissional pela Tinindo'). Modelos novos precisam de aprovação no provedor do WhatsApp quando o canal real entrar. Teste que deveria ter pego: caso em worker/og.test.ts para /pagar e pgTAP do texto renderizado.",
+   "caminhos": [
+    "supabase/migrations/ (nova)",
+    "worker/og.ts",
+    "worker/og.test.ts",
+    "index.html"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-16",
+   "titulo": "Aberto (R-04, F3): o menu do celular não prende o foco e, depois de 'Agora não', o foco cai no body",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "src/app/AppShell.tsx:201-202: o painel é um nav com data-open, sem inert no resto, sem aria-modal nem armadilha de foco (grep por inert, aria-modal, role=dialog e trap em AppShell.tsx: nada). Medido em 10/11 (repro1.json, M8_menu_foco): 30 de 60 Tabs com o menu aberto pararam fora do menu. F3_foco_agora_nao: depois de 'Agora não: Faltas concentradas na quarta' (src/features/growth-advice/Insights.tsx:68) o elemento ativo é BODY.",
+   "recomendacao": "Com o menu aberto, marcar main, cabeçalho e barra de abas com inert (AppShell.tsx, no efeito das linhas 112-126) e devolver o foco ao botão Menu ao fechar. Em Insights.tsx, depois de dispensar, focar o próximo cartão ou o título da seção. Teste que deveria ter pego: e2e de teclado em tests/e2e/foundation (abrir o menu, 30 Tabs, todos dentro de #tn-menu) e teste de componente do cartão de insights conferindo document.activeElement.",
+   "caminhos": [
+    "src/app/AppShell.tsx",
+    "src/features/growth-advice/Insights.tsx",
+    "tests/e2e/foundation/"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-17",
+   "titulo": "Aberto (A11, A12): reserva pelo link entra como 'Sem cliente cadastrado' sem botão para salvar, e depois de 'Atendido' o atalho leva ao Caixa genérico",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "src/features/scheduling/AgendaPage.tsx:122 e BookingDetailPage.tsx:135 mostram 'Sem cliente cadastrado' quando não há customer_id; o nome informado no link só aparece no detalhe (:234) e não há ação de cadastro. BookingDetailPage.tsx:290 leva a /app/caixa sem indicar o atendimento. Medido em 10/11 (repro2.json, M1): agenda_sem_cliente 3, detalhe_tem_salvar_cliente false.",
+   "recomendacao": "Na lista da Agenda, mostrar o nome informado com a marca 'pelo link'. No detalhe, botão 'Salvar como cliente' que abre a folha de cliente já preenchida com nome e WhatsApp e liga o atendimento ao cliente criado. O atalho de cobrança passa a /app/caixa?atendimento=<id>, e o Caixa abre a folha 'Recebi' desse atendimento. É o elo recebimento do ciclo que o docs/00 define como métrica principal. Teste que deveria ter pego: tests/e2e/qa/jornada-integrada.spec.ts com os passos reservar pelo link, salvar cliente, concluir e receber.",
+   "caminhos": [
+    "src/features/scheduling/AgendaPage.tsx",
+    "src/features/scheduling/BookingDetailPage.tsx",
+    "src/features/finance/FinancePage.tsx",
+    "tests/e2e/qa/jornada-integrada.spec.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "achados-anteriores-18",
+   "titulo": "Aberto (médio): assistente responde com confiança o que não entendeu ('por que tenho faltas na quarta?' vira agenda de amanhã) e não sabe publicar o link",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "Medido em 10/11 em /app/assistente (repro1.json, M4_assistente_respostas): 'por que tenho faltas na quarta?' devolve 'Amanhã (quarta-feira, 21 de outubro) você não tem nenhum atendimento marcado'; 'como publico meu link?' devolve 'Não entendi o pedido' (texto em supabase/functions/_shared/domain/agent/engine.ts:314). O pedido de nota fiscal é recusado corretamente. tests/agent-evals/cases.json não tem nenhum caso com 'por que' nem 'como faço' (grep -ci: 0).",
+   "recomendacao": "No classificador de engine.ts, 'por que / por quê / como faço / como publico / onde' não podem cair em consulta de agenda só por citar um dia: perguntas de explicação vão para o insight correspondente quando existir (P45 já calcula 'faltas concentradas na quarta') ou para 'unknown' com atalhos úteis (o texto de 'Não entendi' ganha links para Configurar e Perfil). Acrescentar esses casos em tests/agent-evals/cases.json. Teste que deveria ter pego: os 40 casos de avaliação não têm pergunta com 'por que' sobre um dia da semana nem perguntas de 'como faço'.",
+   "caminhos": [
+    "supabase/functions/_shared/domain/agent/engine.ts",
+    "tests/agent-evals/cases.json",
+    "src/features/agent/answer.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "achados-anteriores-19",
+   "titulo": "Aberto (A8, a decidir): atendimento marcado pela tela Equipe não emite evento; não gera lembrete nem libera vaga para a lista de espera",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "supabase/migrations/20261027220500_p28_team_resources.sql não tem nenhuma chamada a emit_event (grep -c: 0), enquanto a régua de lembretes e a lista de espera só reagem a eventos booking.* da tabela bookings. A revisão de 04/11 classificou como suspeita de lacuna; o recorte não está escrito em tasks/P28.md.",
+   "recomendacao": "Opções: (a) emitir eventos nas RPCs de equipe e ligar régua e lista de espera (M, migration nova e consumidores); (b) declarar por escrito que a tela Equipe é só reserva de recurso, sem lembrete, e avisar na tela; (c) tirar Equipe da navegação do piloto, já que o público declarado é atendimento individual. Recomendo (c) agora e (a) quando houver equipe no piloto: evita manter dois caminhos de agenda com comportamentos diferentes.",
+   "caminhos": [
+    "supabase/migrations/ (nova, se a)",
+    "src/features/resources/",
+    "src/app/navigation.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "achados-anteriores-20",
+   "titulo": "Abertas todas as pendências jurídicas (docs/legal/PENDENCIAS.md A a G; issue #87): política e termos ainda com dados 'por definir'",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "docs/legal/PENDENCIAS.md lista as pendências A1 a A5 (razão social, CNPJ, sede, encarregado, e-mails), B1 a B6, C1 a C5, D1 a D6, E1 a E9 ('nenhum prazo foi aprovado', linha 49), F1 a F4 e G, nenhuma marcada como resolvida. grep 'por definir' acha ocorrências em docs/legal/politica-de-privacidade.md e docs/legal/termos-de-uso.md. Os rascunhos estão marcados para não publicar; a folha do app (src/features/identity/LegalSheet.tsx) diz que a versão final está em revisão e o aceite em CreateBusinessPage.tsx registra a versão do piloto (docs/handoffs/UX-ONDA3.md, decisão 1).",
+   "recomendacao": "Os donos precisam fechar pelo menos A1 a A4 (quem opera, CNPJ, contato), E1 (janela de exportação) e F4 (exportar e excluir dados por negócio, que é engenharia) antes de qualquer profissional pôr dados reais de clientes. Opções: (a) fechar o mínimo com advogado antes de ampliar o piloto; (b) seguir só com dados fictícios e conhecidos até lá. Recomendo (a) com a lista mínima acima; o restante (B, C, D) pode seguir em paralelo. Não é item de refatoração, mas trava a liberação (P42).",
+   "caminhos": [
+    "docs/legal/PENDENCIAS.md",
+    "docs/legal/politica-de-privacidade.md",
+    "docs/legal/termos-de-uso.md",
+    "src/features/identity/LegalSheet.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "media"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Reserva de equipe sem lembrete nem lista de espera (achado 19): (a) ligar eventos, (b) declarar o recorte na tela, (c) tirar Equipe da navegação do piloto. Recomendo (c) agora e (a) quando houver equipe no piloto.",
+  "Pendências jurídicas (achado 20, issue #87): fechar o mínimo (quem opera, CNPJ, contato, janela de exportação, exportar e excluir por negócio) antes de dados reais, ou manter o piloto só com dados de conhecidos. Recomendo fechar o mínimo antes de ampliar.",
+  "Política de cancelamento no link público (achado 11): mostrar a antecedência e o preço base antes de confirmar, ou parar de dizer ao dono que o cliente vê. Recomendo mostrar.",
+  "Issue #90 continua sem resposta (aprovar e executar num toque no assistente; senha de 10 caracteres): as duas mudanças já estão no código da onda 3 à espera de confirmação. Recomendo confirmar o toque único (o modelo não grava; quem executa é o servidor com a proposta aprovada) e manter a senha de 10.",
+  "PRs #91 e #92: resolvem pedidos da onda 3 (sinal de operador, telefone em Orçamentos, não lidas, pedido de verificação de identidade) e nenhum dos 10 problemas altos. Recomendo integrar antes da refatoração, renomeando as migrations para depois de 20261103150000 e os pgTAP 31, 32 e 33 para 33, 34 e 35, porque a main já tem 31_setup e 32_insights e migrations mais novas."
+ ],
+ "nao_coberto": [
+  "Não rodei pgTAP, integração nem concorrência nesta retomada (orçamento curto): os achados de banco (02, 03, 14, 19) foram conferidos por leitura das migrations e, no 02 e 03, pela reprodução na demonstração, que emula o servidor. O 14 se apoia na reprodução em Postgres feita pela revisão de 04/11.",
+  "As medidas de tela (repro1.json e repro2.json) são da primeira tentativa desta auditoria, feita em 10/11 sobre o mesmo commit 8e113c4; conferi por amostra três capturas (c2_passo_light, c9_home_375, c6_corrigir) e os trechos de código correspondentes, não refiz a medição.",
+  "Itens baixos da revisão de 04/11 conferidos só por leitura ou pela medida anterior, sem reprodução nova: F5, F7 a F11, R-06, R-08, R-09, A8 a A10 e A13 a A21 do relatório 01, A9 a A11 do relatório 03. Estão na tabela do relatório com a situação e a base de cada um.",
+  "Os 74 itens da auditoria de UX de 27/10: conferi por amostra (cerca de 12 itens por grep e pelas marcas 'item N' no código) e pelas regressões medidas; não reconferi os 74 um a um.",
+  "Servidor real, Safari do iPhone, leitor de tela real, o Worker da Cloudflare em produção e o assistente com provedor ligado continuam sem teste, como em 04/11.",
+  "Não li os corpos dos PRs #91 e #92 no GitHub nem as issues; usei só o diff local contra origin/main e o teste de merge (os dois entram sem conflito)."
+ ]
+}

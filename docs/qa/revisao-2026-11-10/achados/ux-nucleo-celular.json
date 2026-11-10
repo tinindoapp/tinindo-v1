@@ -1,0 +1,296 @@
+{
+ "area": "ux-nucleo-celular",
+ "veredito": "misto",
+ "veredito_justificativa": "A mecânica das telas do núcleo está no tamanho certo para o celular: alvos de 44 px, campos de 16 px, teclado decimal no dinheiro, 'Recebi R$ 60,00 no Pix' em um toque, 'Faltou' com Desfazer, remarcar em 6 toques sem digitar. O que falha é a prioridade e a costura do ciclo: a tela Hoje abre com configuração e três sugestões e os atendimentos só começam em y=1107 de uma tela de 844; marcar 'Atendido' não leva ao recebimento (5 toques, 2 rolagens e 1 decisão em duas abas); pendências de cobrança de meses anteriores somem das telas; 'retorno' não existe na lista de clientes. Ao mesmo tempo a navegação está exagerada: 5 sub-abas por aba (a quinta cortada) com módulos periféricos e um menu de 30 links. Ou seja: raso onde o piloto mede (atendimento, recebimento, retorno) e largo demais em volta.",
+ "manter": [
+  "Atalho 'Recebi R$ 60,00 no Pix' com a seta para trocar a forma (src/features/finance/FinancePage.tsx:385-409): um toque registra valor, forma e data; é o melhor padrão do app e deve ser reaproveitado, não reescrito.",
+  "'Faltou' executa na hora e o aviso oferece 'Desfazer'; 'Atendido' e 'Faltou' aparecem no próprio cartão da Agenda depois do início (src/features/scheduling/AgendaPage.tsx:225-228, attendance.tsx). Marcar falta custa 2 toques sem rolar.",
+  "Barra fixa 'Confirmar' com o resumo 'Corte · 15:45 · R$ 51,00' no Novo agendamento e no Reagendar (BookingFlowPage.tsx:324): a ação principal fica no alcance do polegar em qualquer ponto da página.",
+  "Reagendar reaproveita a tela de horários, tem 'Dia anterior/Próximo dia' e fecha em 6 toques sem digitação (log-t6-t8.txt, T8).",
+  "Seletor de cliente do agendamento com busca por nome ou WhatsApp, '+ Novo' (cadastro rápido) e 'Sem cadastro' (BookingFlowPage.tsx:341-409); erro com foco no campo ('Escolha o cliente, cadastre um novo ou marque Sem cadastro').",
+  "Alvos de toque de 44 px ou mais e campos com fonte de 16 px em todas as telas medidas; inputMode decimal/numeric nos campos de dinheiro e de minutos (FinancePage.tsx:491,636,872; crm/ServicesPage.tsx:307-316).",
+  "Barra de abas com 5 itens de 78×64 px, rótulo sempre visível e FAB '+' na Agenda (log-t6-t8.txt TABBAR; agenda-01-dia-dobra1.png).",
+  "Visão Semana como lista de 7 dias com contagem e ocupação, sem grade e sem rolagem lateral em 390 px (docW 390; agenda-03-semana.png).",
+  "Textos honestos sobre dinheiro: 'Registro manual', 'O pagamento não foi registrado', 'Não é lucro nem saldo do banco'."
+ ],
+ "achados": [
+  {
+   "id": "ux-nucleo-celular-01",
+   "titulo": "Hoje abre com configuração e três sugestões; 'Atendimentos de hoje' só começa em y=1107 (segunda dobra)",
+   "gravidade": "alta",
+   "tipo": "redesenhar",
+   "evidencia": "Medida em 390x844 (trabalho/ux-nucleo-celular/log-01-home.txt): cartão 'Deixe seu negócio pronto' top 168 h 235; 'Para você esta semana' top 427 h 412; resumo top 839; ações rápidas top 970; 'Atendimentos de hoje' top 1107; 'Pendências' top 1767; página com 2084 px. Área útil entre a barra do topo e a barra de abas: y 84 a 778. Capturas home-01-dobra1.png (nenhum atendimento na primeira tela) e home-02-dobra2.png. Ordem no código: src/app/pages/Home.tsx:146 (SetupCard), 148 (InsightsCard), 153-158 (resumo), 160-164 (ações rápidas), 166 (Atendimentos de hoje), 202 (Pendências). O cartão 'Próximo' só tem o botão 'Abrir' (log-t2-faltou.txt).",
+   "recomendacao": "Reordenar Home.tsx: (1) cartão 'Próximo' no topo, com 'Atendido' e 'Faltou' no próprio cartão quando o horário já começou (reusar AttendanceActions de scheduling/attendance.tsx) e 'Abrir'; (2) lista do dia; (3) 'Pendências' com valor (a cobrar, reservas provisórias); (4) resumo de números em uma linha; (5) configuração reduzida a uma linha ('Configuração 5 de 8 · Publicar perfil') enquanto houver atendimento no dia; (6) no máximo uma sugestão, abaixo de tudo, com 'Ver todas'. Tirar a grade de ações rápidas: 'Novo agendamento' vira o mesmo FAB da Agenda; 'Registrar recebimento' já está em Pendências; 'Perguntar ao assistente' sai do Hoje. Sem atendimento no dia e com configuração incompleta, o cartão de configuração pode voltar ao topo.",
+   "caminhos": [
+    "src/app/pages/Home.tsx",
+    "src/app/pages/pages.css",
+    "src/features/setup/SetupCard.tsx",
+    "src/features/growth-advice/Insights.tsx",
+    "src/features/scheduling/attendance.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-02",
+   "titulo": "Marcar 'Atendido' não leva ao recebimento: 5 toques, 2 rolagens e 1 decisão em duas abas para registrar R$ 60 no Pix",
+   "gravidade": "alta",
+   "tipo": "redesenhar",
+   "evidencia": "Percurso dirigido (t3-receber.cjs, log-t3-receber.txt): Hoje → rolar → 'Abrir' → 'Atendido' → 'Sim, foi atendido' → aviso 'cobre e registre o recebimento no Caixa quando receber' → 'Cobrar no Caixa' → o Caixa abre no topo (scrollY 0) e o atendimento é o 3º item, com o botão em y=1036 → 'Recebi R$ 60,00 no Pix'. Há dois botões com o mesmo nome acessível 'Recebi R$ 60,00 no Pix · Corte · Cliente Exemplo Ana' (19/10 e 20/10): a pessoa precisa conferir a data. O link é fixo, sem o atendimento: src/features/scheduling/BookingDetailPage.tsx:290 (to='/app/caixa'). Capturas t3-01-confirmar-atendido.png, t3-02-atendido-toast.png, t3-04-caixa-item.png. Pelo cartão da Agenda nada leva à cobrança (item médio do 00-CONSOLIDADO, 'Depois de Atendido nada leva à cobrança').",
+   "recomendacao": "Trocar a confirmação vazia de 'Atendido' por uma pergunta útil no mesmo lugar (detalhe, cartão da Agenda e cartão 'Próximo' do Hoje): 'Recebi R$ 60,00 no Pix' com a seta de forma, 'Cobrar depois' e, se houver, 'Usar crédito do pacote'. Um toque conclui o atendimento e registra o recebimento (duas operações em sequência, cada uma com a sua chave de idempotência; a regra continua no servidor). Extrair o botão de FinancePage.tsx:385-409 para um componente compartilhado em vez de duplicar. Enquanto isso não entra: 'Cobrar no Caixa' passa a levar para /app/caixa?atendimento=<id>, e o Caixa rola até o item e o destaca; a lista 'sem cobrança' ordena o mais recente primeiro.",
+   "caminhos": [
+    "src/features/scheduling/attendance.tsx",
+    "src/features/scheduling/BookingDetailPage.tsx",
+    "src/features/scheduling/AgendaPage.tsx",
+    "src/features/finance/FinancePage.tsx",
+    "src/app/pages/Home.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-03",
+   "titulo": "Atendimento sem cobrança de mês anterior some do Hoje e do Caixa: a lista e o 'A cobrar' são filtrados pelo mês",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "log-t5-semana.txt: em outubro o Caixa lista 2 pendências (R$ 100,00); ao tocar 'Mês anterior' aparece outra, 'Corte · Cliente Exemplo Bruno 28/09/2026 · R$ 60,00', que não aparece em outubro (captura t5-03-caixa-setembro.png). O Hoje mostra 'A cobrar · 2 · R$ 100,00', sem período (home-02-dobra2.png). Código: src/features/finance/FinancePage.tsx:134 (period = monthPeriod(month)) e :139 (port.uncharged(period)); src/app/pages/Home.tsx:95-97 (uncharged(monthPeriod(month)) para o cartão 'A cobrar'). Verificado na demonstração; o serverPort envia o mesmo período (finance/serverPort.ts:54-55).",
+   "recomendacao": "Pendência não tem mês: 'Atendimentos concluídos sem cobrança' e 'A cobrar' devem trazer tudo o que está em aberto até hoje, do mais novo ao mais antigo (o de hoje no topo), com a data e 'há N dias'. Chamar uncharged com um período aberto (por exemplo os últimos 12 meses até agora) em Home.tsx e em FinancePage.tsx, e deixar o seletor de mês valer só para 'Caixa registrado', 'Recebimentos' e 'Despesas'. Se o contrato finance.uncharged limitar o intervalo, ajustar o contrato com teste. Rotular o cartão do Hoje como 'A cobrar (em aberto)'.",
+   "caminhos": [
+    "src/features/finance/FinancePage.tsx",
+    "src/app/pages/Home.tsx",
+    "src/features/finance/demoPort.ts",
+    "supabase/functions/_shared/contracts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-04",
+   "titulo": "'Agendar às 15:40' no horário livre da Agenda abre o Novo agendamento sem horário marcado (início fora da grade de 15 min)",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "t1-encaixar.cjs / log-t1-encaixar.txt: o link 'Agendar às 15:40' leva a /app/agenda/novo?data=2026-10-20&inicio=15:40 e a tela chega com pressed=[], resumo 'Corte · escolha o horário', sem bloco de revisão, no topo (scrollY 0); os horários oferecidos são 13:00 … 14:15, 15:45 … 18:30 (não existe 15:40). O link 'Agendar às 13:00' chega com 13:00 marcado e a revisão aberta. Capturas t1-b1-agenda-livre-1540.png e t1-b2-novo-sem-horario-marcado.png. Causa no código: AgendaPage.tsx:241-244 monta o link com o início do intervalo livre (fim do atendimento anterior + intervalo); BookingFlowPage.tsx:102 só aceita igualdade exata com um horário da lista. Grade de 15 min na demonstração (scheduling/fixturePort.ts:46) e no banco (supabase/migrations/20261018130000_p03_scheduling.sql:24-25). Todo intervalo que começa depois de um serviço com intervalo de 10 min cai nesse caso.",
+   "recomendacao": "Em BookingFlowPage.tsx:102, quando 'inicio' não bate com um horário, escolher o primeiro horário oferecido igual ou posterior a ele (e avisar 'Primeiro horário possível: 15:45'). Em AgendaPage.tsx:243, mostrar no rótulo o horário que de fato será marcado. Rolar até 'Dia e horário' quando chegar sem horário marcado. Teste e2e: tocar em 'Agendar' de um intervalo fora da grade e exigir um horário com aria-pressed.",
+   "caminhos": [
+    "src/features/scheduling/BookingFlowPage.tsx",
+    "src/features/scheduling/AgendaPage.tsx",
+    "tests/e2e"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-05",
+   "titulo": "Retorno não existe na aba Clientes: a lista não mostra última visita nem filtra quem não volta há 30 dias",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "t4-clientes.cjs / log-t4-clientes.txt: 'lista de clientes fala de retorno/última visita? false'; cada linha traz só telefone, e-mail e origem (src/features/crm/CustomersPage.tsx:209), com 'Ligar', 'WhatsApp' e '…'; os únicos controles são a busca e 'Mostrar arquivados' (t4-01-clientes.png). O que existe fica em Clientes → sub-aba 'Lembretes' (cortada na tela: 'Lemb') → tela 'Relacionamento' de 3310 px, seção 'Reativação (campanha)' em y=2895, que é envio de campanha para quem tem consentimento de marketing (LifecyclePage.tsx:202-203), não uma lista para o profissional olhar. A ficha tem o histórico (19 visitas), mas sem 'última visita há N dias'.",
+   "recomendacao": "Na lista de Clientes: mostrar em cada linha 'Última visita: há N dias' ou 'Próximo: qui., 22/10'; filtros em chips acima da lista: 'Todos', 'Sem voltar há 30+ dias', 'Com horário marcado', 'Novos'; ordenar o filtro de sumidos pelo maior tempo; na linha do sumido, o botão principal é 'Chamar no WhatsApp' com mensagem pronta e 'Agendar'. O número de dias vem da configuração de reativação (lifecycle reactivation_days), com 30 como padrão. Exige o campo de última e próxima visita na listagem de clientes (contrato do CRM): tratar como mudança de contrato com teste.",
+   "caminhos": [
+    "src/features/crm/CustomersPage.tsx",
+    "src/features/crm/shared.tsx",
+    "supabase/functions/_shared/contracts",
+    "src/features/lifecycle/LifecyclePage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-06",
+   "titulo": "Dinheiro só por mês: 'quanto recebi na semana' fica em Menu → Crescer → Resultado, e lá o padrão é 28 dias e exclui hoje",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "log-t5-semana.txt: no Caixa o período só tem 'Mês anterior' e 'Próximo mês' (FinancePage.tsx:194-196), hasWeek=false; o resumo 'Caixa registrado em outubro' começa em y=1642 a 1862, depois de duas listas de pendências (log-t3-receber.txt: página de 3790 px). O Hoje mostra só 'Recebido no mês' (Home.tsx:157). A resposta por semana existe em /app/resultado ('Últimos 7 dias (até ontem)'), dentro do Menu de 30 links, grupo Crescer; a tela abre em 28 dias (analytics/ResultPage.tsx:85). No cartão do Hoje o valor 'R$ 1.740,00' passa da borda (valor termina em x=377, cartão em x=374; t5-01-hoje-resumo.png), o que é o item 9 do 00-CONSOLIDADO (pages.css:20-24).",
+   "recomendacao": "No topo do Caixa, antes das pendências, uma linha com três números tocáveis: 'Hoje', 'Semana' (segunda a hoje) e 'Mês', cada um com o período escrito ('19 a 20/10'); tocar troca o período das listas de recebimentos e despesas. No Hoje, trocar o cartão 'Recebido no mês' por 'Recebido na semana' com 'mês: R$ X' embaixo, em duas colunas em vez de três (resolve também o item 9). O resumo sai de semana fechada do servidor (summary já aceita período).",
+   "caminhos": [
+    "src/features/finance/FinancePage.tsx",
+    "src/features/finance/money.ts",
+    "src/app/pages/Home.tsx",
+    "src/app/pages/pages.css"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-07",
+   "titulo": "Sub-abas e menu largos demais para o celular: 5 sub-abas por aba (a quinta cortada), módulos periféricos ao lado do núcleo e menu de 30 links",
+   "gravidade": "media",
+   "tipo": "remover_ou_esconder",
+   "evidencia": "log-02-agenda.txt (subnavItems): Agenda, Horários, Espera, Preços, Domicílio; 'Domicílio' começa em x=386 de 390 (fora da tela). Em Clientes aparece 'Lemb' cortado (t4-01-clientes.png); em Dinheiro, 'Assinatur' cortado e 'Notas fiscais' fora (x-02-caixa-dobra1.png). Definição: src/app/navigation.ts:26-33 (agenda), 36-43 (clientes), 50-51 (dinheiro). Rótulos que não batem: sub-aba 'Lembretes' abre a tela 'Relacionamento'; 'Espera' no celular e 'Lista de espera' no menu. Menu: 30 links em 6 grupos, 1895 px de conteúdo em 743 px visíveis (log-t5-semana.txt, t5-04-menu.png). A faixa de sub-abas ocupa 56 px no topo de toda tela.",
+   "recomendacao": "Sub-abas só com as telas do ciclo: Agenda [Agenda, Horários]; Clientes [Clientes, Serviços]; Dinheiro [Caixa]. Espera, Preços (regras de desconto), Domicílio, Orçamentos, Relacionamento, Avaliações, Contas, Pagamentos, Assinaturas e Notas fiscais ficam só no Menu, num grupo 'Mais recursos', e voltam para a faixa quando o negócio usa (por exemplo, tem regra de desconto ativa). Um rótulo só por tela (trocar 'Lembretes' por 'Relacionamento' ou o contrário). Quais módulos ficam visíveis no piloto é decisão dos donos (ligada ao corte de escopo).",
+   "caminhos": [
+    "src/app/navigation.ts",
+    "src/app/AppShell.tsx",
+    "src/app/AppShell.test.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-08",
+   "titulo": "Bloquear a tarde de sexta: formulário no fim de Horários (y=1218), 4 campos com motivo obrigatório, sem atalho, e a Semana mostra 'Livre'",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "log-t6-t8.txt (T6): Agenda → Horários → rolar duas telas ('Bloqueios' em y=1078, campos em y=1218, depois dos 7 dias do expediente) → Dia (padrão hoje), Das (14:00), Até (16:00), Motivo (vazio) → 'Bloquear'. Sem motivo: 'Diga o motivo do bloqueio (só você vê).' (HoursPage.tsx:322). Três seletores nativos mais digitação; nenhum atalho de 'manhã', 'tarde' ou 'dia inteiro'; 'Para bloquear vários dias, crie um bloqueio por dia' (t6-02-bloqueio-form.png). Depois de criar 'Folga, sexta 23/10, 13:00–19:00', a visão Semana mostra 'Sex 23 · Livre' e 'Qui 22 · 1 atendimento' sem citar os bloqueios (T6 SEMANA; AgendaPage.tsx:300-303).",
+   "recomendacao": "Levar o bloqueio para onde a pessoa olha a agenda: no cartão 'Horário livre' da Agenda, ao lado de 'Agendar', a ação 'Bloquear' abre uma folha com o dia já preenchido, chips 'Manhã', 'Tarde', 'Dia inteiro' (calculados do expediente do dia) e 'Outro horário'; motivo opcional (grava 'Bloqueio' quando vazio). Em Horários, subir 'Bloqueios' para antes do expediente semanal ou separar em duas sub-seções com âncora. Na Semana, mostrar 'Bloqueado 13:00–19:00' na linha do dia em vez de 'Livre'.",
+   "caminhos": [
+    "src/features/scheduling/HoursPage.tsx",
+    "src/features/scheduling/AgendaPage.tsx",
+    "src/features/scheduling/parts.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-09",
+   "titulo": "Trocar o preço do corte: a sub-aba 'Preços' leva a regras de desconto, o preço fica em Clientes → Serviços, num formulário de 8 campos",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "log-t6-t8.txt (T7): a sub-aba 'Preços' da Agenda abre /app/precos com 'Simulador de desconto', 'Regras ativas' e 'Nova regra por horário' (17 campos, 2387 px) e não tem o preço do serviço (t7-03-precos-dobra1.png). O preço base é editado em Clientes → Serviços → 'Editar' (t7-01-servicos-dobra1.png), cujo formulário tem Nome, Duração, Intervalo antes, Intervalo depois, Preço base, Piso (obrigatório), Custo estimado e Taxa de pagamento (src/features/crm/ServicesPage.tsx:306-316). Não dirigi a edição: na demonstração 'Editar' fica desabilitado (T7: disabled true); a contagem de campos vem do código.",
+   "recomendacao": "Na lista de Serviços, o preço vira o alvo de edição direta: tocar em 'R$ 60,00' abre só o campo de preço com teclado decimal e 'Salvar' (2 toques mais o valor). No formulário completo, deixar visíveis Nome, Duração e Preço; 'Intervalos, piso, custo e taxa' ficam em 'Mais opções', com piso igual ao preço por padrão. Renomear a sub-aba 'Preços' para 'Descontos' (ou tirá-la da faixa, achado 07) e pôr nela um link 'Preço de cada serviço'.",
+   "caminhos": [
+    "src/features/crm/ServicesPage.tsx",
+    "src/app/navigation.ts",
+    "src/features/pricing"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "ux-nucleo-celular-10",
+   "titulo": "Agenda do dia gasta 541 px de cabeçalho antes do primeiro atendimento; cabe um cartão e meio na primeira tela",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "log-02-agenda.txt: sub-abas top 84 h 56; título 'Agenda' top 156; notas ('Dados de exemplo… Horários de Brasília' e 'Como funciona') top 218 h 86; barra Dia/Semana e setas top 320 h 54; título do dia top 390 h 50; ocupação e 'Ver números do dia' top 456 h 69; linha do tempo só em y=541 (a área útil termina em 778). Captura agenda-01-dia-dobra1.png. A linha do tempo tem 1002 px para 9 itens; 'Agendar às 15:40' fica em y=1490 (duas rolagens). O mesmo bloco de notas se repete em Novo agendamento e Atendimento (t1-b2-novo-sem-horario-marcado.png).",
+   "recomendacao": "Em SchedulingLayout/AgendaPage: juntar o título e o dia numa linha só ('Hoje · ter., 20/10') com as setas; tirar o h1 'Agenda' no celular (a aba já diz); mover 'Como funciona' e o aviso de fuso para um ícone de informação; ocupação em uma linha sem o link separado; barra de dia/semana fixa ao rolar. Meta: primeiro cartão acima de y=300 e três cartões na primeira tela. Cartões de atendimento sem ação podem cair de 99 para cerca de 72 px.",
+   "caminhos": [
+    "src/features/scheduling/AgendaPage.tsx",
+    "src/features/scheduling/SchedulingLayout.tsx",
+    "src/features/scheduling/parts.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-11",
+   "titulo": "Revisão do agendamento fala com o profissional como se fosse o cliente (validade do valor, política) e não deixa ajustar o preço",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "log-t1-encaixar.txt (revisão): 'Valor válido até 09:10. Ver o valor não segura o horário: ele só fica reservado quando você confirmar.' e 'Política de cancelamento (exemplo)…' aparecem para o profissional que agenda no próprio balcão (BookingFlowPage.tsx:308-312); a página vai de 1559 para 1989 px e a barra 'Confirmar' cobre parte do bloco (t1-a3-revisao.png). O valor veio 'R$ 51,00 (de R$ 60,00) · Desconto de horário aprovado' sem campo para o profissional cobrar outro valor; a tela não tem nenhum campo de preço (log-03-novo.txt, inputs).",
+   "recomendacao": "No fluxo interno (profissional logado), o bloco 'Revise e confirme' fica só com Cliente, Serviço, Quando e Valor; sai o parágrafo de validade e sai a política (ficam no link público, onde o cliente lê). A regra de preço continua no servidor. Se os donos quiserem preço combinado na hora (comum em coloração e em encaixe), isso é uma operação nova com piso validado no servidor: ver a decisão correspondente.",
+   "caminhos": [
+    "src/features/scheduling/BookingFlowPage.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-12",
+   "titulo": "Caixa: 'Registrar' abre em Despesa e não tem recebimento direto; o atalho 'Registrar recebimento' do Hoje cai no topo de uma página de 3790 px",
+   "gravidade": "media",
+   "tipo": "redesenhar",
+   "evidencia": "log-t3-receber.txt e x-03-caixa-registrar.png: o painel 'Registrar' abre com 'Despesa' marcada (FinancePage.tsx:182) e as opções são Despesa, Cobrança avulsa e Venda de pacote (FinancePage.tsx:39-43); receber um valor fora da agenda exige criar a cobrança (Descrição, Valor, Cliente) e depois marcar como recebida. O atalho 'Registrar recebimento' do Hoje é um link para /app/caixa (Home.tsx:162), sem abrir nada. O cabeçalho do Caixa gasta 138 px com a frase 'Recebíveis, recebimentos manuais e pacotes de sessões.' e a página tem 9 blocos em 3790 px (pendências, a receber, resumo, recebimentos, despesas, pacotes). A despesa em si está boa: 4 campos, valor com teclado decimal e foco, data de hoje, descrição opcional.",
+   "recomendacao": "Painel 'Registrar' com quatro opções na ordem de uso: 'Recebi' (valor, forma, cliente opcional: cria a cobrança e o recebimento de uma vez), 'Despesa', 'A receber', 'Pacote'; abrir em 'Recebi'. O atalho do Hoje abre /app/caixa?registrar=recebi. No Caixa, ordem dos blocos: resumo do período (achado 06), 'Sem cobrança', 'A receber', depois recebimentos e despesas recolhidos (5 itens e 'ver todos'); 'Pacotes de sessões' só aparece se houver pacote. Tirar a frase do cabeçalho.",
+   "caminhos": [
+    "src/features/finance/FinancePage.tsx",
+    "src/app/pages/Home.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-13",
+   "titulo": "Ficha do cliente tem 3093 px, lista as 19 visitas sem link e não tem a ação 'Agendar'",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "log-t4-clientes.txt (ficha): docH 3093; cartão 'Atendimentos' com 2299 px ('Próximos (3)', 'Anteriores (16)'); visitLinks=0 (nenhuma visita abre o atendimento); ações da ficha: 'Clientes' (voltar), 'Ligar', 'WhatsApp'. src/features/crm/CustomerPage.tsx tem um único Link, o de voltar (linha 67), e as listas nas linhas 145-146. O Novo agendamento não aceita cliente na URL: BookingFlowPage.tsx só lê 'data' e 'inicio' (linhas 74 e 78). Captura t4-04-ficha-dobra1.png.",
+   "recomendacao": "Topo da ficha: nome, 'Última visita há N dias · costuma voltar a cada N dias · N faltas' e três ações: 'Agendar' (principal, abre /app/agenda/novo?cliente=<id> com o cliente e o último serviço marcados), 'WhatsApp', 'Ligar'. 'Próximos' inteiro e 'Anteriores' com 5 itens e 'Ver todos'; cada visita abre o atendimento. BookingFlowPage passa a ler 'cliente' e 'servico' da URL.",
+   "caminhos": [
+    "src/features/crm/CustomerPage.tsx",
+    "src/features/scheduling/BookingFlowPage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "ux-nucleo-celular-14",
+   "titulo": "Encaixe de verdade e sessão recorrente não cabem no Novo agendamento: só horários da grade livre e um atendimento por vez",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "Tarefa 'encaixar às 15h' (log-t1-encaixar.txt): 'botão 15:00 existe? 0'; a tela só oferece horários livres da grade de 15 min (13:00 … 14:15, 15:45 …) e não há campo de hora nem opção de encaixar em cima de outro atendimento. Para o personal: grep de 'recorr|recurr|Repetir' em BookingFlowPage.tsx e BookingDetailPage.tsx não retorna nada; a recorrência mora em outro módulo (features/recurrence, rota 'assinaturas', sub-aba de Dinheiro: recurrence/module.tsx:36-37), que não percorri. Inferência: marcar 'toda terça e quinta às 7h' pela Agenda custa cerca de 5 toques por sessão.",
+   "recomendacao": "Decidir duas coisas. (a) Encaixe: manter só a grade livre (como está), ou permitir 'Outro horário' com aviso de sobreposição validado no servidor. Recomendo permitir, com confirmação explícita, porque encaixe é rotina de barbeiro e hoje a pessoa resolveria por fora do app. (b) Repetição: acrescentar 'Repetir toda semana por N semanas' no Novo agendamento (cria os atendimentos com checagem de conflito no servidor), ou apontar da Agenda para Assinaturas. Recomendo a opção de repetir no próprio fluxo para o personal; é mudança de contrato e pede teste de concorrência.",
+   "caminhos": [
+    "src/features/scheduling/BookingFlowPage.tsx",
+    "src/features/recurrence",
+    "supabase/functions/scheduling",
+    "supabase/functions/_shared/contracts/scheduling.ts"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "alto",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "ux-nucleo-celular-15",
+   "titulo": "A demonstração não deixa percorrer o ciclo inteiro: Clientes e Serviços ficam bloqueados e mostram outros clientes que a Agenda e o Caixa",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "t4-01-clientes.png: aviso 'Demonstração sem servidor: dados de exemplo, nada é salvo. Os formulários ficam bloqueados.' e 'Novo cliente' desabilitado; em Serviços, 'Novo serviço', 'Editar' e 'Arquivar' desabilitados (log-t6-t8.txt, T7). Já Agenda, Horários e Caixa gravam na aba ('Dados de exemplo. As mudanças valem só nesta aba.'). A aba Clientes lista 'Cliente AB (exemplo)' e 'Visitante sem login (exemplo)'; o seletor do Novo agendamento diz '2 clientes no cadastro' e mostra 'Cliente Exemplo Ana' e 'Cliente Exemplo Bruno' (t1-b2-novo-sem-horario-marcado.png). Mesma raiz do item 10 do 00-CONSOLIDADO (cada módulo com a sua demonstração).",
+   "recomendacao": "Uma base de demonstração só para clientes, serviços, agenda e caixa (mesmos ids), com o CRM gravando na aba como a Agenda já faz. É pré-requisito para validar com o profissional o ciclo cliente → serviço → horário → atendimento → recebimento sem servidor, e para testar e2e as telas de Novo cliente e de preço do serviço no celular.",
+   "caminhos": [
+    "src/features/crm",
+    "src/features/scheduling/fixturePort.ts",
+    "src/features/finance/demoPort.ts",
+    "src/features/setup/demoPort.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Sub-abas do celular (achado 07): (a) manter 5 por aba; (b) só as telas do ciclo (Agenda e Horários; Clientes e Serviços; Caixa) e o resto no Menu; (c) o resto aparece na faixa só quando o negócio usa. Recomendo (b) agora e (c) depois.",
+  "Cartão de configuração no Hoje (achado 01): (a) sempre no topo até completar os 8 passos; (b) no topo só quando não há atendimento no dia, e uma linha discreta quando há. Recomendo (b): às 8h o profissional precisa do próximo cliente, não do perfil público.",
+  "Encaixe (achado 14): (a) só horários livres da grade; (b) permitir 'Outro horário' com aviso de sobreposição validado no servidor. Recomendo (b).",
+  "Sessões recorrentes do personal (achado 14): (a) 'Repetir toda semana' dentro do Novo agendamento; (b) manter só em Assinaturas. Recomendo (a).",
+  "Preço combinado na hora (achado 11): (a) o preço é sempre o calculado pelo servidor; (b) o profissional pode ajustar no agendamento ou ao receber, respeitando o piso. Recomendo (b) no momento de receber (valor editável no 'Recebi'), que é onde o valor real aparece.",
+  "Quarta aba 'Mensagens' (barra de abas): com o WhatsApp como canal do piloto, vale manter uma aba inteira para mensagens ou trocá-la por 'Mais' (o menu no alcance do polegar)? Recomendo decidir depois de olhar o uso no piloto; não mexer agora."
+ ],
+ "nao_coberto": [
+  "Novo cliente e edição de serviço (preço): na demonstração os formulários do CRM ficam desabilitados; a contagem de campos veio do código, não do percurso.",
+  "Tema escuro, 320 px e 375 px: tudo foi medido em 390x844 no tema claro (a revisão de 04/11 cobriu tamanhos e temas).",
+  "Teclado virtual real, área segura do iPhone e formato de data e hora dos seletores nativos: o Chromium sem tela mostra '10/20/2026' e '02:00 PM' por causa da localidade da máquina; não tratei como defeito.",
+  "Importar planilha: só a primeira tela (arquivo CSV ou colar texto, 'Ver prévia'); não importei um arquivo.",
+  "Assinaturas (recorrência) e pacotes do personal: não percorri; o achado 14 sobre recorrência é inferência a partir do código do fluxo de agendamento.",
+  "Estados de carregamento, erro e sem conexão das telas do núcleo: vi só busca vazia e validação de formulário.",
+  "Comportamento com servidor real (homologação): tudo foi dirigido na demonstração offline; os achados 03 e 04 têm a causa confirmada também no código que fala com o servidor, mas não foram reproduzidos nele.",
+  "Lista de espera, Domicílio, Orçamentos, Avaliações, Contas, Pagamentos e Notas fiscais: fora da missão; só aparecem como itens de navegação."
+ ]
+}

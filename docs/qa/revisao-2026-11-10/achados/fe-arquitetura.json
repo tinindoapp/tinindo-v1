@@ -1,0 +1,368 @@
+{
+ "area": "fe-arquitetura",
+ "veredito": "misto",
+ "veredito_justificativa": "O esqueleto está no tamanho certo e não deve ser trocado: sessão em 127 linhas, cliente de API em 89 linhas com validação zod do envelope, registro central de módulos, zero import entre módulos, kit de formulário usado em 240 campos, 0 divergência entre as 226 rotas chamadas e o registro de contratos. O meio está simples demais: src/lib tem 3 utilitários, então cada um dos 27 módulos copiou o seu kit (12 leitores de dinheiro com 5 comportamentos, 18 formatCents, 24 geradores de chave, 42 createApiClient, 15 buscas a /context) e não há cache, revalidação nem divisão do pacote (1,59 MB num arquivo só). E a demonstração está exagerada: 6.007 linhas (19% do código) reescrevem as regras do servidor no navegador, vão para o pacote de produção (13,9%) e são o único alvo dos 52 arquivos e2e, enquanto só 1 dos 24 serverPort tem teste.",
+ "manter": [
+  "Regra 'módulo não importa módulo' no eslint.config.js:42-53: está respeitada (0 import cruzado em src/features) e é o que permite esconder ou remover módulo sem efeito colateral. O que falta é a camada comum (src/lib), não afrouxar a regra.",
+  "Porta como interface (port.ts) entre tela e transporte: a tela recebe a porta por prop, o que deixa as telas testáveis sem rede. Manter a interface; mudar só quem a implementa e como é montada.",
+  "src/lib/api/client.ts (89 linhas): valida o envelope v1 com zod na volta, propaga negócio, request id e Idempotency-Key, e converte tudo em ApiError com código. Não trocar por biblioteca de HTTP.",
+  "Contratos compartilhados por alias @contracts (uma fonte para navegador e Deno) e validação da resposta em tempo de execução: as 226 rotas chamadas pelo front batem com o registro OPERATIONS (0 divergência medida).",
+  "src/app/session.tsx (127 linhas, Context puro): negócio escolhido como preferência de interface, servidor revalida em cada chamada. Não introduzir biblioteca de estado global (Redux, Zustand): não há estado global que a peça.",
+  "Registro central src/app/modules.ts + ModuleDefinition + buildNavigation (navigation.ts): uma linha por módulo, navegação derivada. É o ponto certo para ligar ativação por módulo e carregamento por rota.",
+  "Kit de formulário em src/components/ui/form.tsx (Field, useFormErrors, focusFirstInvalid): 240 usos de <Field> contra 25 <input> soltos, 68 formulários com noValidate e erro por campo. É um padrão de verdade; não trocar por react-hook-form.",
+  "useAsync, PortContext e BaseContext de src/features/scheduling/SchedulingLayout.tsx:75-140: é o desenho certo de carregamento (chave, guarda de corrida, reload, base carregada uma vez). Deve ser promovido para a camada comum, não reescrito.",
+  "Disciplina de fuso: as funções de data recebem timeZone explícito (160 referências) e dinheiro trafega em centavos inteiros. Consolidar as cópias sem mudar essa regra.",
+  "TypeScript estrito (strict, noUncheckedIndexedAccess, verbatimModuleSyntax) e a trava de chave secreta em src/app/env.ts:24 e no lint. Manter como está.",
+  "createKeyRing (src/features/crm/api.ts:234-247) e useIdempotencyKey (src/features/identity/idempotency.ts): chave por conteúdo, mantida no erro e trocada só com reset. É a semântica certa para o hook único."
+ ],
+ "achados": [
+  {
+   "id": "fe-arquitetura-01",
+   "titulo": "O mesmo valor digitado vira quantias diferentes conforme a tela: \"10.50\" é R$ 10,50 no Caixa e R$ 1.050,00 em Contas, Materiais e Configuração",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "Verificado de duas formas. (1) Na interface da demonstração: trabalho/fe-arquitetura/money-ui.cjs digita \"10.50\" em Valor (R$) de /app/contas e a linha criada mostra 'Teste auditoria vence 20/10/2026 · Outras despesas R$ 1.050,00' (saída em money-ui.out.txt, recorte da linha em money-contas-linha.png). (2) Rodando as funções reais (trabalho/fe-arquitetura/money-parse.mjs): finance/money.ts:13 e crm/format.ts:61 devolvem 1050 para \"10.50\"; materials/labels.ts:9-10, finance-advanced/labels.ts:6, setup/labels.ts:37 e a expressão copiada em recurrence/RecurrencePage.tsx:12, resources/ResourcesPage.tsx:18, campaigns/CampaignsPage.tsx:17, growth-advice/GoalsPage.tsx:20 e fiscal/FiscalPage.tsx:142 devolvem 105000; sales/rules.ts:8 devolve null. Há mais divergência: campo vazio vira 0 em finance-advanced e nas quatro telas, NaN em materials e null no Caixa; \"R$ 60,00\" vira NaN em materials e finance-advanced. São 12 leitores (os 11 acima mais analytics/CostPage.tsx:9) com 5 comportamentos. Oito deles (os sete de 105000 e o do setup) usam Math.round(Number(...)*100), contra o ADR-0004 ('nunca float'). O setup lê o preço dos serviços na configuração inicial, então o erro alcança o fluxo central. Não consta nas revisões de 04/11 nem de 27/10.",
+   "recomendacao": "Criar src/lib/money.ts com um único parseBRL (o de finance/money.ts:13-20, sem float: vazio → null, inválido → undefined, ponto sem vírgula é decimal) e um único formatCents e centsToInput; apagar os 12 leitores e os 18 formatCents locais e importar de lá. Mover finance/money.test.ts para src/lib/money.test.ts e acrescentar a tabela de entradas do money-parse.mjs como teste (\"10,50\", \"10.50\", \"1.234,56\", \"1.234\", \"R$ 60,00\", \"abc\", \"\", \"0,1\"). Em cada tela, tratar null e undefined com useFormErrors em vez de comparar com NaN.",
+   "caminhos": [
+    "src/lib/money.ts",
+    "src/features/finance/money.ts",
+    "src/features/crm/format.ts",
+    "src/features/sales/rules.ts",
+    "src/features/materials/labels.ts",
+    "src/features/finance-advanced/labels.ts",
+    "src/features/setup/labels.ts",
+    "src/features/recurrence/RecurrencePage.tsx",
+    "src/features/resources/ResourcesPage.tsx",
+    "src/features/campaigns/CampaignsPage.tsx",
+    "src/features/growth-advice/GoalsPage.tsx",
+    "src/features/fiscal/FiscalPage.tsx",
+    "src/features/analytics/CostPage.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-02",
+   "titulo": "Chave de idempotência: 24 geradores de chave copiados, 3 implementações de chave por conteúdo e 159 de 165 chamadas geram a chave no toque",
+   "gravidade": "alta",
+   "tipo": "refatorar",
+   "evidencia": "É a causa estrutural do item 1 do consolidado de 04/11 (docs/qa/revisao-2026-11-04/00-CONSOLIDADO.md:55 e 03-escrita-em-banco.md:22-29, que já provou gravação em dobro em compra de materiais, conta mensal e recebimento). Medido agora: 'export const newKey = () => crypto.randomUUID()' em 21 port.ts, mais finance/port.ts:57, scheduling/port.ts:108 e network/useNetworkApi.ts:56; chave por conteúdo implementada três vezes (finance/FinancePage.tsx:84 useKeyFor, crm/api.ts:234 createKeyRing, identity/idempotency.ts:5 useIdempotencyKey); das 165 chamadas a newKey()/newIdempotencyKey() em telas, 159 estão em linha no clique e 6 em useState/useRef/useMemo. O cliente aceita comando sem chave: client.ts:41 declara idempotencyKey opcional, embora OPERATIONS marque idempotent:true em 152 comandos.",
+   "recomendacao": "Criar src/lib/idempotency.ts com um único useCommandKey() (semântica do createKeyRing: mesma chave enquanto o conteúdo for o mesmo, mantida no erro, reset só no sucesso) e um useCommand(fn) que junta chave, estado 'ocupado' e bloqueio de segundo toque. Trocar as 159 chamadas em linha, começando pelos comandos que criam dado sem unicidade natural (lista da tabela de 03-escrita-em-banco.md). Apagar os 24 geradores e proibir crypto.randomUUID em src/features por no-restricted-syntax no eslint. Mover finance/useKeyFor.test.tsx para src/lib e acrescentar o caso 'erro de rede seguido de novo toque usa a mesma chave' com payload que inclui a data.",
+   "caminhos": [
+    "src/lib/idempotency.ts",
+    "src/features/*/port.ts",
+    "src/features/finance/FinancePage.tsx",
+    "src/features/crm/api.ts",
+    "src/features/identity/idempotency.ts",
+    "eslint.config.js",
+    "src/lib/api/client.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-03",
+   "titulo": "O caminho real (serverPort) quase não tem teste no front: os 52 arquivos e2e rodam só contra a demonstração e 1 de 24 serverPort tem teste",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "playwright.config.ts:18-19 sobe 'npx vite preview' do dist sem variáveis de ambiente, ou seja, sempre em demonstração (session.tsx:56-60: sem cliente Supabase o estado é offline_demo). 'grep -rl serverPort' em testes devolve só src/features/scheduling/serverPort.test.ts; fábricas de servidor aparecem em mais dois testes (crm/ficha.test.tsx, network/network.test.tsx). Em contrapartida há 25 arquivos e 1.537 linhas de teste da emulação (demoPort.test.ts, fixturePort.test.ts, lib/demo). Os 1.407 linhas de serverPort são o código que o piloto de fato executa. O que protege hoje: testes de contrato (29) e de integração handler↔banco (23), que não passam pelo adaptador do front; o cruzamento rota × registro que rodei deu 0 divergência, mas o corpo enviado não é conferido (client.ts:39, body: unknown). A revisão de 04/11 já achou diferença demonstração × servidor (coluna 'Demo×servidor' de 03-escrita-em-banco.md).",
+   "recomendacao": "Duas redes baratas antes de refatorar. (a) Um teste genérico em tests/contracts que instancia cada createServerPort com um 'call' falso, chama cada método com dado de fixture e confere que a rota existe em OPERATIONS e que o corpo passa em OPERATIONS[op].input e a chave vai quando idempotent é true. (b) Um spec e2e do ciclo central (cliente → serviço → agendar → concluir → receber) contra o Supabase local do scripts/db-integration.sh, em projeto Playwright separado ('server'), rodado no CI junto da integração. A partir daí, teste novo de regra vai para o servidor, não para a emulação.",
+   "caminhos": [
+    "tests/contracts",
+    "tests/e2e",
+    "playwright.config.ts",
+    "src/features/*/serverPort.ts",
+    "scripts/db-integration.sh"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-04",
+   "titulo": "Cada tela busca os seus dados sozinha: sem cache, sem revalidação ao voltar para a aba, e a base de clientes é baixada de novo por 7 módulos",
+   "gravidade": "alta",
+   "tipo": "refatorar",
+   "evidencia": "Medido em src (sem testes): 90 useEffect e 676 useState em src/features, 0 useReducer, 64 guardas manuais 'let alive/cancelled', 29 estados 'nonce' para recarregar, 0 AbortController, 0 ocorrência de visibilitychange, focus, online ou setInterval (nada revalida quando o profissional volta ao app aberto no celular). Três jeitos de carregar convivem: efeito com guarda (ex.: referrals/ReferralsPage.tsx:27-36), useEffect(load,[load]) sem guarda (field-service/FieldPage.tsx:105-109 e 315, setup/SetupPage.tsx:202 e 274) e setTimeout(load,0) (crm/ServicesPage.tsx:95-98). Só a Agenda tem hook próprio (scheduling/SchedulingLayout.tsx:95-116 useAsync). Dados de referência são rebaixados por módulo: o laço de paginação de clientes (até 10 páginas de 100) está copiado em scheduling/serverPort.ts:54-60, sales/serverPort.ts:36, finance/serverPort.ts:36-43, recurrence/serverPort.ts:32, waitlist/serverPort.ts:38, resources/serverPort.ts:36 e crm/api.ts; a lista de serviços é pedida em 9 serverPort; /context em 15 pontos. Em finance/serverPort.ts:32-43 as três buscas são em série antes de o Caixa aparecer. O selo de não lidas baixa a caixa de entrada inteira a cada troca de rota (messaging/unread.ts:27-37, AppShell.tsx:109). Inferência (não medido com servidor): Hoje → Agenda → Caixa pede contexto, serviços e clientes pelo menos duas a três vezes.",
+   "recomendacao": "Camada própria e pequena, sem biblioteca nova (cerca de 150 linhas): (1) mover useAsync de scheduling para src/lib/data/useResource.ts, acrescentando revalidação em visibilitychange e a opção de manter o dado enquanto recarrega; (2) src/app/tenant-data.tsx com um provedor por negócio que guarda contexto, serviços e clientes (uma busca, reaproveitada por todos os módulos; invalidada por evento quando o CRM grava); (3) trocar os efeitos manuais pelo hook, módulo a módulo, começando por Agenda, Clientes e Caixa. TanStack Query faria o mesmo com cerca de 13 KB a mais e um terceiro idioma de estado; só vale se depois disso ainda faltar invalidação entre telas. Teste: unitário do hook (corrida, reload, foco) e os e2e existentes de cada módulo.",
+   "caminhos": [
+    "src/lib/data/useResource.ts",
+    "src/app/tenant-data.tsx",
+    "src/features/scheduling/SchedulingLayout.tsx",
+    "src/features/*/serverPort.ts",
+    "src/features/messaging/unread.ts",
+    "src/features/*/*Page.tsx"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-05",
+   "titulo": "A demonstração virou um segundo backend: 6.007 linhas (19% do código) reescrevem regras do servidor no navegador, além do que o ADR-0006 decidiu",
+   "gravidade": "alta",
+   "tipo": "decisao",
+   "evidencia": "30 arquivos dedicados (23 demoPort.ts, scheduling/fixturePort.ts de 545 linhas, demoData, demoCustomerBookings, network/demo-slots, growth-advice/demoInsights, lib/demo/dataset e journey) somam 6.007 das 31.585 linhas de src sem teste, fora os trechos de demonstração dentro de crm/api.ts:145-217, network/api.ts:179-451 e identity/services.tsx. Mais 1.537 linhas de teste da emulação (21% das linhas de teste de src). O ADR-0006 linha 19 decidiu outra coisa: 'sem Supabase configurado, o app roda offline com fixtures e não grava nada'. Só Clientes e Conta seguem isso (crm/api.ts:158-165, readOnly: true, com os botões de criar e editar cliente desabilitados em CustomersPage.tsx:120-236; identity/services.tsx:37 e 92-96). Os 23 demoPort têm estado mutável (grep por push, set e let em cada um), assim como o fixturePort da Agenda e network/api.ts:204, e emulam gravação e regra (ex.: referrals/demoPort.ts:1-9 repete limites e bloqueios do banco). Resultado: cada operação nova é escrita duas vezes (SQL e TypeScript), a emulação tem mais teste que o caminho real (achado 03) e o primeiro passo do ciclo central (cadastrar cliente) é justamente o que a demonstração não deixa fazer, enquanto fiscal, materiais e domicílio gravam.",
+   "recomendacao": "Decisão dos donos, com três opções. A: manter a emulação completa e seguir pagando o custo em dobro. B (recomendada agora): congelar. Emulação com gravação só nos módulos do ciclo central (agenda, clientes, serviços, preço, caixa, retorno); os demais passam a leitura de exemplo validada pelo contrato, com gravação desabilitada como o CRM já faz; nenhum demoPort novo; tudo sai do pacote de produção (achado 07). C (quando a homologação da issue #74 estiver em dia): a demonstração passa a ser um negócio de exemplo no backend real, recriado por semente, e a emulação offline fica só como leitura. B remove por volta de 3 mil linhas e C por volta de 5 mil, sem perder o que os fundadores mostram hoje.",
+   "caminhos": [
+    "src/features/*/demoPort.ts",
+    "src/features/scheduling/fixturePort.ts",
+    "src/lib/demo",
+    "docs/adr/0006-ambientes-hosting-lovable-e-segredos.md",
+    "tests/e2e"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "fe-arquitetura-06",
+   "titulo": "Um pacote único de 1,59 MB (447 KB gzip) para as 55 rotas: quem abre um link de pagamento ou o perfil público baixa os 27 módulos do dono",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "dist/assets tem um só index-BAq6pvoJ.js de 1.589.139 bytes (447.216 em gzip) e um CSS de 115.647 bytes. Em src há 0 React.lazy e 1 import() dinâmico (crm/api.ts:180). router.tsx:3-10 e modules.ts:4-30 importam os 27 module.tsx de forma estática, e cada module.tsx importa as suas telas. Atribuição por sourcemap (trabalho/fe-arquitetura/bundle-attr.cjs): src/features 788.812 bytes (49,6%), react-dom 13,1%, supabase-js e dependências 13,5% (inclui realtime e phoenix, 56 KB, sem nenhum uso de .channel( em src), zod 6,0%, react-router 5,8%, contratos 4,1%. As rotas públicas /pagar, /oferta, /orcamento e /p/:slug (router.tsx:31-43) usam o mesmo arquivo.",
+   "recomendacao": "Separar em cada módulo o manifesto (module.ts: id, owner, path, navLabel, sem telas) das telas (routes.tsx), e registrar as rotas com a opção lazy do react-router: { path: m.path, lazy: () => import('../features/x/routes.tsx') }. As rotas públicas viram um pedaço por página. Ganho estimado (inferência pela atribuição): o carregamento inicial cai para perto da metade. Proteção: um teste de orçamento de pacote no CI (falha se o pedaço inicial passar de um teto) e os e2e de navegação existentes (tests/e2e/qa). Depende do achado 12 (Home e AppShell importam interior de módulo).",
+   "caminhos": [
+    "src/app/router.tsx",
+    "src/app/modules.ts",
+    "src/app/module-types.ts",
+    "src/features/*/module.tsx",
+    "vite.config.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-07",
+   "titulo": "Código que só serve à demonstração vai para o pacote de produção: 221 KB (13,9%), incluindo o motor do assistente do servidor",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "Atribuição por sourcemap do dist atual: arquivos demoPort, fixturePort, demoData, demoInsights, demo-slots, lib/demo e contracts/fixtures.ts somam 185.066 bytes (11,6%); supabase/functions/_shared/domain/agent (36.541 bytes, 2,3%) só entra porque agent/demoPort.ts:7-10 importa runAgent. Em produção esse código é morto: env.ts:27-29 exige Supabase em produção e todo module.tsx só cria a porta de demonstração quando não há Supabase (ex.: referrals/module.tsx:17). Como o import é estático e a condição é resolvida em tempo de execução (env.ts:37), o empacotador não consegue descartar (inferência pelo código; não gerei um build de produção por regra da auditoria).",
+   "recomendacao": "Montar a porta num único ponto (achado 09) e carregar a demonstração por import() dinâmico: const { createDemoPort } = await import('./demoPort.ts'). Com isso a demonstração vira pedaços separados que produção nunca baixa. Tirar tenantA de session.tsx:5 e dos module.tsx (achado 10) para que contracts/fixtures.ts também saia. Proteção: teste no CI que falha se o pedaço inicial contiver a cadeia 'Barbearia Exemplo'.",
+   "caminhos": [
+    "src/features/*/module.tsx",
+    "src/app/session.tsx",
+    "src/features/agent/demoPort.ts",
+    "vite.config.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "fe-arquitetura-08",
+   "titulo": "A regra de não importar módulo é respeitada, mas sem camada comum cada módulo copiou o seu kit: 18 formatCents, 16 formatadores de data, erro em 26 arquivos",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "0 import entre módulos (grep 'from \"../<módulo>/' em src/features sem resultado). src/lib tem só api/client.ts, demo/ e text/plural.ts. Cópias medidas por grep: formatCents definido em 18 arquivos; formatDate em 9 e formatDateTime em 7 (labels.ts, format.ts, rules.ts); Intl.DateTimeFormat instanciado 76 vezes em 35 arquivos; função de tradução de erro (explain, errorMessage) em 26 arquivos; o texto 'Tentar de novo é seguro' em 23; 'Selecione um negócio' em 25; MAX_PAGES = 10 declarado 5 vezes; a leitura do token do link público copiada em waitlist/OfferPage.tsx:10-30, sales/QuoteLinkPage.tsx:9-29 e payments/PayLinkPage.tsx:9-29 (21 linhas iguais). jscpd 4.x (trabalho/fe-arquitetura/jscpd-out): 121 clones, 107 deles entre módulos (928 linhas, 2,96%); com mínimo de 30 tokens, 405 clones e 6,94%.",
+   "recomendacao": "Criar o núcleo comum em src/lib e importar dele (a regra do lint já permite ../../lib): money.ts (achado 01), dates.ts (formatDate, formatDateTime, formatDay, localDate, addDays, todayIn, sempre com timeZone), errors.ts (um explain(e, textosDoMódulo) com o texto padrão por ErrorCode), idempotency.ts (achado 02), public-link.ts (takeToken). Cada labels.ts fica só com os rótulos do domínio. Fazer junto com a mudança de comportamento de cada tema (dinheiro primeiro), um PR por utilitário, com os testes unitários existentes de cada labels/format movidos para src/lib.",
+   "caminhos": [
+    "src/lib/money.ts",
+    "src/lib/dates.ts",
+    "src/lib/errors.ts",
+    "src/lib/public-link.ts",
+    "src/features/*/labels.ts",
+    "src/features/*/format.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-09",
+   "titulo": "A escolha entre demonstração e servidor está escrita à mão em cada module.tsx: 42 createApiClient, 42 testes de '!appEnv.supabase' e 38 de 'offline_demo'",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "createApiClient( aparece 42 vezes em src sem teste, 36 delas em module.tsx (payments e reputation criam 3 clientes cada; Home.tsx:120 e messaging/unread.ts:24 criam os seus). O bloco 'se demonstração cria demoPort; se não há negócio devolve null; senão cria serverPort' se repete em 25 arquivos com a mensagem 'Selecione um negócio' (ex.: referrals/module.tsx:14-30, payments/module.tsx:19-44, lifecycle/module.tsx:17-42). jscpd: 34 clones module.tsx ↔ module.tsx. Não há um ponto único para trocar o transporte, medir chamadas, tratar 401 ou ligar a demonstração por carga dinâmica.",
+   "recomendacao": "Criar src/app/api.tsx com ApiProvider (um createApiClient por sessão) e dois ganchos: useApi() → { modo: 'demo' | 'server', call, tenantId } e usePort(fábricas) que devolve a porta ou o estado 'sem negócio'; e um componente ModuleGate com a mensagem única. Cada module.tsx cai para o manifesto mais uma linha de fábrica. Proteção: src/app/AppShell.test.tsx, os testes de módulo que já injetam porta e os e2e de cada módulo (não mudam, pois a porta continua a mesma).",
+   "caminhos": [
+    "src/app/api.tsx",
+    "src/features/*/module.tsx",
+    "src/app/pages/Home.tsx",
+    "src/features/messaging/unread.ts",
+    "src/features/network/useNetworkApi.ts",
+    "src/features/identity/services.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-10",
+   "titulo": "A sessão não conhece o fuso, o papel nem a profissão do negócio: /context é buscado em 15 pontos e três módulos começam com o fuso da fixture",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "session.tsx:40-53 lê tenant_memberships direto pela tabela (id, papel, nome) e não chama /context, que já devolve role, tenant_name, timezone e currency (contracts/context.ts:32-39). O fuso é então buscado por conta própria em 11 serverPort, em crm/api.ts:120 e em três module.tsx. Nesses três (payments/module.tsx:21 e 32, lifecycle/module.tsx:19 e 30, messaging/module.tsx:21 e 32) o estado começa com tenantA.timezone, uma fixture de teste importada no caminho de produção, e a falha de /context é engolida ('() => undefined'): a tela segue com America/Sao_Paulo sem avisar. A profissão é lida por uma terceira via (crm/module.tsx:34, consulta direta a tenants). Relaciona-se com escopo-produto-13.",
+   "recomendacao": "Depois de escolher o negócio, a sessão chama /context uma vez e expõe { timezone, role, tenantName, profession } (acrescentar profession ao ContextResponse é mudança de contrato aditiva, a combinar com o dono do contrato). Remover as 15 buscas e os três useState(tenantA.timezone); enquanto o contexto não chega, a tela mostra 'Carregando', não um fuso presumido. Proteção: teste unitário de session.tsx com cliente falso e os testes de serverPort do achado 03.",
+   "caminhos": [
+    "src/app/session.tsx",
+    "src/features/*/serverPort.ts",
+    "src/features/payments/module.tsx",
+    "src/features/lifecycle/module.tsx",
+    "src/features/messaging/module.tsx",
+    "src/features/crm/module.tsx",
+    "supabase/functions/_shared/contracts/context.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-11",
+   "titulo": "O cliente de API ignora o registro OPERATIONS: rota, corpo, saída e exigência de chave são reescritos à mão em 226 pontos",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "contracts/operations.ts:62-71 descreve cada uma das 244 operações com module, kind, idempotent, input e output. O cliente não usa isso: client.ts:47-51 recebe um caminho em texto e um schema qualquer, com body: unknown (linha 39) e idempotencyKey opcional (linha 41). Contagem do script ops-check2.mjs: 42 rotas completas em literal e 184 nomes de operação passados a um ajudante local, em 21 arquivos (ex.: finance/serverPort.ts:27 'const fin = (op) => `/finance/${op}`'). Hoje está correto (0 divergência rota × registro), mas nada impede em tempo de compilação enviar o corpo errado, ler com o schema de outra operação ou esquecer a chave num comando.",
+   "recomendacao": "Acrescentar a src/lib/api/client.ts uma função op(nome, entrada, { key }) tipada pelo registro: a rota sai de OPERATIONS[nome].module, a entrada é z.input do input, a saída é validada pelo output, e a chave é obrigatória no tipo quando idempotent é true. Migrar os serverPort aos poucos (a função antiga continua para /context e para as leituras por GET do crm; conferir no handler de cada módulo se a consulta é GET ou POST antes de migrar). Proteção: src/lib/api/client.test.ts ampliado e o teste genérico de serverPort do achado 03.",
+   "caminhos": [
+    "src/lib/api/client.ts",
+    "src/lib/api/client.test.ts",
+    "src/features/*/serverPort.ts",
+    "supabase/functions/_shared/contracts/operations.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "fe-arquitetura-12",
+   "titulo": "src/app importa o interior dos módulos: a tela Hoje puxa 13 arquivos de 4 módulos e o shell importa Mensagens; não há interface pública de módulo",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "app/pages/Home.tsx:11-25 importa de finance (module.tsx, money.ts, port.ts, serverPort.ts), growth-advice (demoPort, port, serverPort, Insights), scheduling (SchedulingLayout, port, serverPort, agenda, parts, time) e setup (module.tsx), e monta três portas por conta própria (Home.tsx:115-122). AppShell.tsx:6 e 10 importa messaging/unread.ts e InboxExtraProvider. router.tsx:3-10 importa 8 conjuntos de rotas públicas, um por nome. A regra do lint cobre só src/features (eslint.config.js:43), então nada define o que um módulo expõe. Consequência: Agenda, Caixa e Sugestões ficam presos ao pedaço inicial mesmo com carregamento por rota, e esconder um módulo exige mexer em src/app.",
+   "recomendacao": "Ampliar ModuleDefinition (module-types.ts) com publicRoutes e widgets (cartão da Hoje, selo do menu) e fazer src/app consumir só o manifesto: router.tsx junta MODULES.flatMap(m => m.publicRoutes), a Hoje renderiza os widgets registrados, o selo vem de m.badge. Acrescentar ao lint: src/app só importa de src/features/*/module.ts. Proteção: src/app/pages/Home.test.tsx, src/app/AppShell.test.tsx e os e2e de foundation e qa.",
+   "caminhos": [
+    "src/app/module-types.ts",
+    "src/app/router.tsx",
+    "src/app/pages/Home.tsx",
+    "src/app/AppShell.tsx",
+    "src/features/*/module.tsx",
+    "eslint.config.js"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-13",
+   "titulo": "Só existe fronteira de erro na raiz: uma exceção de tela em qualquer módulo derruba o menu e manda recarregar, o que apaga a demonstração",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "router.tsx:23 é o único errorElement do app (grep: 1 ocorrência; 0 ErrorBoundary, componentDidCatch ou getDerivedStateFromError em src). O componente RouteError (app/pages/Fallbacks.tsx:17-29) troca a página inteira por um cartão 'Algo deu errado. Recarregue a página', sem o shell. Na demonstração o estado vive na aba, então recarregar apaga o que a pessoa fez. Nada registra o erro (sem request id, sem envio).",
+   "recomendacao": "Em router.tsx:49 dar um errorElement a cada módulo: { path: m.path, errorElement: <ModuleError />, children: m.routes }. ModuleError fica dentro do AppShell (menu e abas continuam), diz qual tela falhou, oferece 'Tentar de novo' (revalidar a rota) e 'Voltar para Hoje', e registra o erro no console com a rota. Teste: unitário com uma rota que lança no render e a asserção de que a navegação continua na tela.",
+   "caminhos": [
+    "src/app/router.tsx",
+    "src/app/pages/Fallbacks.tsx",
+    "src/app/AppShell.test.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-14",
+   "titulo": "O padrão de porta tem quatro formatos, e os diferentes são os módulos do núcleo: Agenda (fixturePort), Clientes e Perfil (api.ts), Conta (services.tsx)",
+   "gravidade": "baixa",
+   "tipo": "refatorar",
+   "evidencia": "Levantamento dos 27 módulos (ls por pasta): 23 têm o trio port.ts + serverPort.ts + demoPort.ts + module.tsx (agent, analytics, campaigns, discovery, field-service, finance, finance-advanced, fiscal, growth-advice, lifecycle, materials, messaging, payments, presence, pricing, recurrence, referrals, reputation, resources, sales, service-ops, setup, waitlist). scheduling usa port.ts + serverPort.ts + fixturePort.ts (545 linhas) + demoData.ts + SchedulingLayout.tsx com contexto e hook próprios. crm não tem porta: api.ts (247 linhas) junta interface, servidor, demonstração só de leitura, contexto React e createKeyRing. network tem api.ts (451 linhas) e useNetworkApi.ts. identity usa services.tsx com supabase-js direto. Dentro do trio há ainda três desvios: getDemoPort exportado para a Hoje (finance/module.tsx:18, SchedulingLayout.tsx:29), portas de link público (payments, sales, waitlist) e busca de /context no module.tsx (achado 10).",
+   "recomendacao": "Não reescrever. Ao tocar cada um pelos achados 02, 04 e 09: em crm e network, só separar api.ts em port.ts, serverPort.ts e demoPort.ts (mover código, sem mudar comportamento); em scheduling, renomear fixturePort.ts para demoPort.ts e subir useAsync e os contextos para a camada comum; identity fica como está (autenticação é caso à parte) e ganha uma nota no ADR. Registrar o padrão num ADR curto, porque hoje nenhum ADR o descreve (só 0008, 0009 e 0010 citam 'emulação'). Proteção: os testes existentes de cada módulo (ficha.test.tsx, network.test.tsx, fixturePort.test.ts, serverPort.test.ts).",
+   "caminhos": [
+    "src/features/crm/api.ts",
+    "src/features/network/api.ts",
+    "src/features/network/useNetworkApi.ts",
+    "src/features/scheduling/fixturePort.ts",
+    "src/features/scheduling/SchedulingLayout.tsx",
+    "docs/adr"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-arquitetura-15",
+   "titulo": "Quatro pontos leem tabelas e RPCs direto pelo supabase-js, sem contrato nem validação da resposta",
+   "gravidade": "baixa",
+   "tipo": "refatorar",
+   "evidencia": "session.tsx:41-52 (tenant_memberships, com conversões 'as string' nas linhas 49-51), identity/services.tsx:132-170 (tenants, tenant_onboarding, provider_services, availability_rules, public_profiles, rpc my_customer_links e my_bookings), crm/module.tsx:34 (tenants.profession) e network/useNetworkApi.ts:29 (tenants). Tudo o mais passa por client.ts com validação zod. O acesso é protegido por RLS (não é falha de segurança), mas cria uma segunda fronteira de tipos, sem contrato versionado, que quebra em silêncio se uma coluna mudar (session.tsx:47 devolve lista vazia em qualquer erro, e o app mostra 'sem negócio').",
+   "recomendacao": "Passar essas leituras para operações de contrato (a sessão usa /context, achado 10; o progresso da configuração já tem setup.progress) e deixar o supabase-js só para autenticação e para o envio de foto. Em session.tsx, diferenciar 'erro ao carregar negócios' de 'nenhum negócio'. Proteção: testes de identity existentes e um teste novo de session.tsx para o caso de erro.",
+   "caminhos": [
+    "src/app/session.tsx",
+    "src/features/identity/services.tsx",
+    "src/features/crm/module.tsx",
+    "src/features/network/useNetworkApi.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "fe-arquitetura-16",
+   "titulo": "Corrida real no roteiro do Domicílio: trocar o dia duas vezes seguidas pode deixar na tela o roteiro do dia anterior",
+   "gravidade": "baixa",
+   "tipo": "defeito",
+   "evidencia": "field-service/FieldPage.tsx:105-109: 'const load = useCallback(() => { port.route(day).then((r) => { setRoute(r); setError(null); }, ...) }, [port, day]); useEffect(load, [load]);' não tem guarda de resposta atrasada nem limpeza. Se a resposta do primeiro dia chegar depois da do segundo, ela sobrescreve o estado. O mesmo formato sem guarda está em FieldPage.tsx:315 e setup/SetupPage.tsx:202 e 274 (nesses a dependência não muda com filtro, então o risco é só atualizar estado depois de sair da tela). Verificado por leitura; não reproduzi com atraso de rede.",
+   "recomendacao": "Resolver junto com o achado 04: trocar por useResource(`route:${day}`, () => port.route(day)), que já descarta resposta de chave antiga. Se o módulo for escondido pela decisão de escopo, não corrigir à parte.",
+   "caminhos": [
+    "src/features/field-service/FieldPage.tsx",
+    "src/features/setup/SetupPage.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "fe-arquitetura-17",
+   "titulo": "Código de domínio do servidor entra no front por caminho relativo (../../../supabase/functions/_shared/domain), fora do alias e sem lista do que pode",
+   "gravidade": "baixa",
+   "tipo": "refatorar",
+   "evidencia": "agent/demoPort.ts:7-10 (runAgent, time, types e http/command.ts), setup/SetupPage.tsx:10 (describeBusiness, draftToWeeklyWindows), pricing/demoPort.ts:19 e pricing/PricingPage.tsx:6 e 92 (computePrice para a prévia de preço na tela). Reaproveitar função pura do servidor é bom (evita a regra em dobro), mas hoje qualquer arquivo de _shared pode ser importado, inclusive http/, e docs/01_ARQUITETURA.md:34 diz que o front não calcula preço oficial: a prévia de PricingPage precisa continuar sendo só prévia.",
+   "recomendacao": "Criar o alias @domain em vite.config.ts e tsconfig.app.json apontando para supabase/functions/_shared/domain e proibir no lint o caminho relativo para supabase/ a partir de src. Mover canonicalJson e sha256Hex para um arquivo puro em domain (hoje vêm de http/command.ts). Reaproveitar mais: a emulação de preço e de agenda deveria chamar o domínio em vez de regra de exemplo própria (ADR-0010:20).",
+   "caminhos": [
+    "vite.config.ts",
+    "tsconfig.app.json",
+    "eslint.config.js",
+    "src/features/agent/demoPort.ts",
+    "src/features/setup/SetupPage.tsx",
+    "src/features/pricing/PricingPage.tsx",
+    "src/features/pricing/demoPort.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Demonstração offline: (A) manter a emulação completa dos 27 módulos; (B) congelar: gravação emulada só no ciclo central, leitura de exemplo no resto, nada novo, fora do pacote de produção; (C) trocar por um negócio de exemplo no backend real quando a homologação estiver em dia. Recomendo B agora e C depois da issue #74.",
+  "Ordem do trabalho: a refatoração de arquitetura (achados 04, 06, 09, 12) rende mais se vier depois da decisão de escopo (escopo-produto-01 e 10): módulo escondido não precisa ser migrado. Recomendo decidir o escopo primeiro e migrar só o núcleo; os demais ficam como estão até voltarem.",
+  "Entrada de dinheiro com ponto: recomendo a regra do Caixa em todo o app (\"10.50\" vale R$ 10,50; \"1.234\" sem vírgula é recusado com mensagem). A alternativa é recusar qualquer ponto sem vírgula. É detalhe de produto, mas precisa ser uma regra só."
+ ],
+ "nao_coberto": [
+  "Não rodei o app contra um servidor real: contagem de requisições por tela e o efeito de cache são inferência pela leitura dos serverPort, não medida de rede.",
+  "Não gerei build de produção (regra: não regravar dist). A afirmação de que o código de demonstração não é descartado em produção vem da leitura dos imports e do sourcemap do dist de demonstração.",
+  "Li a anatomia completa de referrals, payments, lifecycle e partes de finance, scheduling, crm, network, messaging e field-service; os demais módulos foram cobertos por grep estrutural, não por leitura.",
+  "docs/01_ARQUITETURA.md e os ADRs 0004, 0006 e 0024 foram lidos por busca de termos, não inteiros; ADR-0002, 0003 e 0005 não foram abertos.",
+  "Não avaliei CSS (2.504 linhas), acessibilidade nem o worker de prévia de link; são de outras áreas.",
+  "Não medi tempo de carregamento em rede lenta nem cobertura de código; a galeria de capturas não foi usada (a única captura desta área é trabalho/fe-arquitetura/money-contas.png).",
+  "A estimativa de linhas removidas nas opções B e C da demonstração é ordem de grandeza, sem levantamento arquivo a arquivo."
+ ]
+}

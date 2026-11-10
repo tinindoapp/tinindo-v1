@@ -1,0 +1,249 @@
+{
+ "area": "be-banco",
+ "veredito": "misto",
+ "veredito_justificativa": "O núcleo do piloto está no tamanho certo e bem protegido: RLS nas 123 tabelas sem nenhuma política ou permissão de escrita, 274 funções de public com SECURITY DEFINER e search_path vazio, as 232 RPCs de usuário logado com autorização no corpo, dinheiro em bigint de centavos, timestamptz, restrição de exclusão na agenda e as 5 consultas quentes abaixo de 1 ms com 2.400 reservas por negócio. A largura é exagerada para 6 a 10 profissionais: 123 tabelas, 539 funções e 21.256 linhas de SQL, das quais só 6.034 (28%) são do núcleo; a periferia não pesa em consulta, mas pesa no jobs_run de cada minuto e em toda mudança transversal. Há dois defeitos de fluxo principal (livro do caixa corta em 200 pela ordem errada; busca de cliente não ignora acento) e uma fragilidade estrutural (jobs_run sem isolamento entre módulos).",
+ "manter": [
+  "RLS ligada nas 123 tabelas, 100 políticas só de SELECT e nenhuma permissão de escrita em tabela para anon ou authenticated: toda escrita passa por RPC. Medido no catálogo (pg_policies, role_table_grants).",
+  "As 274 funções de public são SECURITY DEFINER com search_path vazio e as 232 RPCs de usuário logado chamam um auxiliar de autorização (app.is_member ou *_owner) no corpo: varredura por expressão regular encontrou 0 sem.",
+  "Restrição de exclusão bookings_no_overlap (gist por negócio, recurso e intervalo) com os checks bookings_capacity_by_status e bookings_occupied, e expiração preguiçosa de hold (app.sched_busy ignora hold vencido; app.sched_release_expired libera antes de gravar): a agenda fica correta mesmo sem o job.",
+  "Dinheiro em bigint de centavos (42 colunas, teto 2^53-1) e checks cruzados de receivables (status casa com paid_cents, paid_cents <= amount_cents, um recebível por reserva).",
+  "Livros append-only por gatilho forbid_mutation (30 tabelas) com estorno único por lançamento (índices *_one_reversal).",
+  "Idempotência com unicidade em (negócio, ator, operação, chave) NULLS NOT DISTINCT, hash do pedido e erro explícito IDEMPOTENCY_MISMATCH; webhooks únicos por (provedor, id externo).",
+  "text + CHECK em vez de enum (126 checks de estado): evolui com migration simples e combina com o append-only. Não converter para enum.",
+  "timestamptz em todas as 287 colunas de instante, fuso por negócio em tenants.timezone validado por gatilho, e nenhum current_date ou now()::date nas funções.",
+  "Índices do núcleo (bookings_tenant_start, gist de ocupação, payment_entries_period, receivables_open, customers_tenant_phone): os EXPLAIN com volume usam todos e ficam abaixo de 1 ms.",
+  "Funções curtas: nenhuma das 539 passa de 150 linhas (a maior, app.an_metrics, tem 122)."
+ ],
+ "achados": [
+  {
+   "id": "be-banco-01",
+   "titulo": "Livro do caixa corta em 200 pelo vencimento mais antigo e faz sumir da tela os recebíveis em aberto mais novos",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "supabase/migrations/20261018140000_p07_finance.sql:797-801 (abertos de qualquer data + criados no período, order by r.due_at nulls last, r.created_at limit 200). A tela usa esse retorno para a lista A receber: src/features/finance/FinancePage.tsx:206 e src/features/payments/serverPort.ts:26. Teste reexecutado (trabalho/be-banco/t_ledger_truncado.sql e .out): negócio com 210 atendimentos cobrados no mês, 200 pagos e os 10 mais recentes em aberto; finance_summary devolve 10 em aberto (R$ 600,00) e finance_ledger devolve 200 recebíveis e 0 em aberto. O teto de 200 está no contrato (supabase/functions/_shared/contracts/finance.ts:127).",
+   "recomendacao": "Migration nova com create or replace de public.finance_ledger trocando só a ordenação da subconsulta de recebíveis: order by (r.status in ('open','partially_paid')) desc, case when r.status in ('open','partially_paid') then r.due_at end nulls last, r.created_at desc limit 200. SQL completo e testado em sql-propostos/03_finance_ledger.sql (mesma forma de saída, contrato intacto). Em seguida, como mudança de contrato, acrescentar truncated por lista para a tela avisar quando houver corte.",
+   "caminhos": [
+    "supabase/migrations/ (migration nova)",
+    "supabase/tests/database/05_finance.test.sql",
+    "supabase/functions/_shared/contracts/finance.ts",
+    "src/features/finance/FinancePage.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-02",
+   "titulo": "Busca de cliente não ignora acento: \"joao\" não acha \"João\"; ordem alfabética depende da collation do banco",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "supabase/migrations/20261018120100_p02_crm.sql:13-15 (app.crm_name_key só faz lower e junta espaços) e :334 (strpos(c.name_key, v_q)). Teste trabalho/be-banco/t_busca_acento.sql e .out com o cliente \"João Conceição\": busca \"joão\" = 1, \"JOÃO\" = 1, \"joao\" = 0, \"conceicao\" = 0, \"4321\" = 1. Inferência a conferir na homologação: no banco local (datcollate C.UTF-8) order by lower(nome) devolve ana, Bruno, Zeca, Álvaro, Érica.",
+   "recomendacao": "Migration nova: função imutável app.crm_search_key (lower + translate dos acentos, sem a extensão unaccent, que é STABLE), coluna gerada customers.search_key, índice (tenant_id, search_key, id) e create or replace de public.crm_customer_list filtrando, ordenando e paginando por search_key com o termo normalizado. SQL completo e testado em sql-propostos/02_crm_busca_sem_acento.sql (\"joao\", \"conceicao\", \"JOÃO\" e \"4321\" acham 1 cada). Acrescentar o caso ao pgTAP do CRM. Conferir a collation da homologação com select datcollate from pg_database where datname = current_database().",
+   "caminhos": [
+    "supabase/migrations/ (migration nova)",
+    "supabase/tests/database/02_crm.test.sql"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-03",
+   "titulo": "jobs_run roda 8 rotinas de módulos numa transação sem isolamento: erro em um módulo periférico para a fila, os lembretes e as expirações",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "supabase/migrations/20261103150000_p45_insights.sql:1024 (versão vigente), chamadas sem bloco de exceção nas linhas 1040-1045, 1072 e 1074; a função foi redefinida em 7 migrations (p06:652, p13:452, p20:182, p21:241, p19:521, p22:529, p45:1024). Simulação em trabalho/be-banco/t_jobs_isolamento.sql e .out: com erro forçado em app.gi_tick, a main responde \"jobs_run ABORTOU inteira: falha simulada no motor de insights\" e o hold vencido de teste continua held. Custo atual no banco de volume (32 negócios): 408, 295 e 35 ms em 3 execuções.",
+   "recomendacao": "Migration nova com a tabela public.job_ticks (nome, função, lote, fase, posição, enabled), a função app.jobs_run_ticks, que executa cada rotina em bloco begin/exception próprio, e a última reescrita de public.jobs_run usando o registro, mantendo as chaves atuais do retorno e acrescentando tick_errors. SQL de 92 linhas, testado, em sql-propostos/06_jobs_registro.sql (com o mesmo erro simulado: expired_holds=1 e tick_errors com a rotina que falhou). Pacote novo passa a inserir uma linha no registro em vez de reescrever a função. A Edge Function jobs deve registrar tick_errors como erro.",
+   "caminhos": [
+    "supabase/migrations/ (migration nova)",
+    "supabase/functions/jobs/handler.ts",
+    "supabase/tests/database/07_waitlist.test.sql",
+    "docs/adr/0011-lista-de-espera-e-jobs.md"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-04",
+   "titulo": "O REVOKE padrão do schema app não tem efeito: 38 funções auxiliares com EXECUTE para PUBLIC, 10 delas SECURITY DEFINER",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "supabase/migrations/20261017120000_foundation.sql:17 (alter default privileges in schema app revoke execute on functions from public): privilégio padrão por schema não remove o EXECUTE global de PUBLIC. No catálogo depois das 38 migrations: pg_default_acl vazio e 38 de 265 funções de app com proacl nulo (trabalho/be-banco/catalogo3.out, lista com anon=true). Teste trabalho/be-banco/t_app_secdef.sql e .out: usuário do negócio A vê 0 linhas do cliente de outro negócio pela RLS, e app.rc_sub_json (supabase/migrations/20261022150000_p20_recurrence.sql:114, sem revoke) devolve o nome dele (\"Antônio Santos 94\"). Atenuante verificado: a API só expõe public e graphql_public (supabase/config.toml:13), então hoje não é alcançável pelo aplicativo.",
+   "recomendacao": "Migration nova: alter default privileges revoke execute on functions from public; (forma global, a única com efeito) e revoke execute on all functions in schema app from public, anon;. Testado em sql-propostos/01_app_privilegios.sql: sobram só os 6 auxiliares com grant explícito para authenticated, RLS e RPCs do núcleo continuam funcionando e app.rc_sub_json passa a dar permission denied. Acrescentar ao pgTAP da fundação a asserção de que anon não executa nenhuma função de app. Conferir no painel da homologação se os schemas expostos são os do config.toml.",
+   "caminhos": [
+    "supabase/migrations/ (migration nova)",
+    "supabase/tests/database/00_foundation.test.sql"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-05",
+   "titulo": "Nenhuma tabela técnica tem retenção e não existe exportação nem exclusão por negócio, exigidas pelo docs/02 antes de dados reais",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "docs/02_DADOS_E_INVARIANTES.md:81 (definir retenção antes de dados reais; exportação por negócio e exclusão com trilha). No catálogo: nenhuma função com nome de export, erase, purge, retention ou anonym; DELETE só em 9 funções de configuração (trabalho/be-banco/catalogo3.out, seção \"funcoes que fazem DELETE\"). idempotency_records guarda o corpo da resposta em response jsonb sem prazo; outbox_events com status done nunca sai; channel_webhook_events, payment_webhook_events, lifecycle_processed_events, channel_messages e agent_runs só crescem. 245 das 257 FKs são RESTRICT e audit_events tem gatilho contra DELETE e TRUNCATE, então excluir um negócio é impossível sem desligar gatilhos.",
+   "recomendacao": "Donos decidem os prazos (proposta: idempotência 30 dias após concluída; eventos done, webhooks e eventos processados 90 dias; mensagens e execuções do agente 12 meses; auditoria e livros-caixa ficam). Com os prazos, aplicar app.retention_tick registrada em job_ticks: SQL testado em sql-propostos/07_retencao.sql (depende da 06). Exportação e exclusão por negócio viram um pacote próprio (função só para service_role, com trilha em audit_events).",
+   "caminhos": [
+    "supabase/migrations/ (migration nova)",
+    "docs/02_DADOS_E_INVARIANTES.md",
+    "docs/04_SEGURANCA.md"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-06",
+   "titulo": "Vinte listas com limit 200 fixo e nenhum sinal de corte para a tela",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "grep -h \"limit 200\" supabase/migrations/*.sql devolve 20 ocorrências em 12 arquivos: p07_finance:801, 804, 807, 854; p06_waitlist_jobs:511; p08_agent:391; p11_sales:456; p15_service_ops:717, 957, 961; p12_messaging:393, 415; p14_payments:345, 347; p13_lifecycle:568; p20_recurrence:438; my_bookings:30; p28_team_resources:1066; p30_materials:642, 661. Nenhuma devolve indicação de corte; só crm_customer_list e scheduling_booking_list têm cursor.",
+   "recomendacao": "Padrão único nas próximas migrations: buscar limite + 1, devolver truncated: true quando vier a mais, e a tela dizer \"mostrando os 200 mais recentes\". Começar pelas quatro listas do caixa (junto com be-banco-01) e por my_bookings. É mudança de contrato, do integrador.",
+   "caminhos": [
+    "supabase/migrations/ (migrations novas)",
+    "supabase/functions/_shared/contracts/",
+    "src/features/finance/"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-07",
+   "titulo": "Largura do modelo frente ao piloto: 123 tabelas e 539 funções, 72% do SQL fora do núcleo",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "Catálogo (trabalho/be-banco/catalogo1.out e catalogo3.out): 123 tabelas, 274 + 265 funções, 97 gatilhos. wc -l das migrations: núcleo (foundation, p01, p02, customer_links, p03, p07, p05, p06, my_bookings, p43 e ajustes) soma 6.034 de 21.256 linhas. Periferia por prefixo de tabela: channel 7, presence 7, team 7, fin 6, payment 6, agent 5, material 5, fiscal 5, lifecycle 5, field 4. Custo medido: jobs_run executa as rotinas de todos os módulos a cada minuto (be-banco-03); funções do núcleo reescritas pela periferia (app.network_profile_json 4 vezes; scheduling_booking_confirm, scheduling_booking_reschedule e app.sched_insert_booking pelo pacote de preço).",
+   "recomendacao": "Não remover tabela nem função (append-only, sem ganho). Congelar: nenhuma migration nova em módulo que a navegação do piloto não mostra; desligar em job_ticks as rotinas de módulos escondidos; se os donos esconderem um módulo, revogar em migration o EXECUTE de authenticated nas RPCs dele (devolver é um grant). Quais módulos ficam é decisão dos donos, junto com o relatório de escopo. Recomendação: manter ativos agenda, clientes, preço, caixa, lista de espera e agendamento público; congelar o resto.",
+   "caminhos": [
+    "supabase/migrations/",
+    "docs/07_FASES_E_PACOTES.md"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "media"
+  },
+  {
+   "id": "be-banco-08",
+   "titulo": "Histórico de funções difícil de ler: 566 definições em 38 migrations, 20 funções redefinidas e nenhum retrato versionado do estado atual",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "grep -ioE \"create (or replace )?function +[a-z_.]+\" supabase/migrations/*.sql conta 566 definições para 539 funções vivas. Redefinidas em mais de uma migration: public.jobs_run (7), app.network_profile_json (4) e 18 com 2 versões (lista em relatorios/21-be-banco.md). Para ler o corpo vigente é preciso achar a última migration que tocou a função; o dump do esquema tem 1,4 MB (trabalho/be-banco/schema.sql). Há 21 auxiliares *_owner, um por módulo (app.pay_owner tem 5 linhas: is_member com papel owner ou PT403).",
+   "recomendacao": "Sem violar o append-only: (1) scripts/db-snapshot.sh aplica as migrations num banco descartável e grava db/snapshot/functions/<schema>.<nome>.sql e db/snapshot/tables/<tabela>.sql; o CI falha se o retrato estiver desatualizado, e a revisão de PR passa a ler o diff do retrato; (2) migration de alteração traz só as funções alteradas, com comentário \"substitui <arquivo>:<linha>; muda: <o quê>\"; (3) despachantes por registro em tabela (jobs_run, app.jobs_handle, app.ga_rules) em vez de reescrita; (4) função nova usa app.is_member(tenant, array['owner']) ou um único app.require_owner, sem criar outro *_owner.",
+   "caminhos": [
+    "scripts/",
+    "db/snapshot/ (novo)",
+    ".github/workflows/",
+    "docs/08_DESENVOLVIMENTO_PARALELO.md"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-09",
+   "titulo": "docs/02 descreve 28 tabelas, 7 com nomes que não existem; o banco tem 123",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "docs/02_DADOS_E_INVARIANTES.md:15-42 lista services, availability_exceptions, price_rules, payment_allocations, consents, action_proposals e plan_entitlements; no catálogo os nomes são provider_services, availability_blocks, pricing_rules, contact_consents e agent_proposals, e payment_allocations e plan_entitlements não existem. Um laço com grep -w sobre as 123 tabelas do catálogo encontrou 28 citadas no documento. db/proposals só tem P01, P02 e P09, embora db/proposals/README.md diga que todo pacote escreve ali.",
+   "recomendacao": "Gerar db/snapshot/DICIONARIO.md a partir do catálogo junto com o retrato da be-banco-08 (tabela, colunas, checks, FKs, política) e reduzir o docs/02 às invariantes, apontando para o gerado. Corrigir os sete nomes. Registrar no README de db/proposals que o fluxo foi encerrado (as migrations entraram direto pelo integrador).",
+   "caminhos": [
+    "docs/02_DADOS_E_INVARIANTES.md",
+    "db/proposals/README.md",
+    "scripts/"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-10",
+   "titulo": "Seis FKs simples de auto-referência (estornos e pedido substituído) fogem da regra de FK composta do AGENTS.md",
+   "gravidade": "baixa",
+   "tipo": "defeito",
+   "evidencia": "AGENTS.md:28 (RLS e FKs compostas). FKs só por id entre tabelas com tenant_id: supabase/migrations/20261018140000_p07_finance.sql:51 (session_entries.reversal_of), :130 (payment_entries), :153 (expense_entries); 20261027220500_p28_team_resources.sql:178; 20261027223200_p30_materials.sql:104; 20261029033000_p43_replace_pending_request.sql:17 (public_booking_requests.replaced_request_id, tabela sem UNIQUE (tenant_id, id)). Consulta em trabalho/be-banco/catalogo2.out, seção \"FKs simples entre tabelas que ambas tem tenant_id\". Hoje só funções gravam nessas tabelas, por isso baixa.",
+   "recomendacao": "Migration nova acrescentando, para cada uma, foreign key (tenant_id, reversal_of) references <tabela> (tenant_id, id) not valid seguido de validate constraint; em public_booking_requests criar antes o unique (tenant_id, id). SQL completo e testado (os dados do volume validaram) em sql-propostos/04_fk_compostas_estorno.sql.",
+   "caminhos": [
+    "supabase/migrations/ (migration nova)"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-11",
+   "titulo": "Índices do núcleo: faltam dois de FK (pagamento por recebível, recebível por cliente) e um é redundante",
+   "gravidade": "baixa",
+   "tipo": "reforcar",
+   "evidencia": "trabalho/be-banco/fk_sem_indice.out: 120 das 257 FKs sem índice que comece pelas colunas da FK, entre elas payment_entries (tenant_id, receivable_id) e receivables (tenant_id, customer_id). catalogo3.out: bookings_customer e bookings_customer_starts têm o mesmo prefixo e o mesmo predicado. EXPLAIN com volume (explain_volume.out): agenda do dia 0,13 ms por bookings_tenant_start; ocupação 0,46 ms por bookings_no_overlap; busca de cliente 0,31 ms; recebido no mês 0,18 ms por payment_entries_period; a receber 0,24 ms por receivables_open.",
+   "recomendacao": "Migration nova: create index payment_entries_receivable on public.payment_entries (tenant_id, receivable_id) where receivable_id is not null; create index receivables_customer on public.receivables (tenant_id, customer_id, created_at desc); drop index public.bookings_customer;. Testado em sql-propostos/05_indices.sql. Não criar índice para as outras FKs agora: no volume do piloto o ganho é zero.",
+   "caminhos": [
+    "supabase/migrations/ (migration nova)"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-12",
+   "titulo": "O seed tem 3 clientes e nenhuma reserva: não serve para medir plano, e não há volume versionado",
+   "gravidade": "baixa",
+   "tipo": "reforcar",
+   "evidencia": "supabase/seed.sql (59 linhas, 7 inserts: auth.users, auth.identities, tenants, tenant_memberships, resources, provider_services, customers). trabalho/be-banco/explain_seed.out: as 5 consultas devolvem 0 linhas. O volume usado nesta auditoria está em trabalho/be-banco/volume.sql (30 negócios, 400 clientes e 2.400 reservas cada).",
+   "recomendacao": "Versionar o volume sintético como scripts/db-local/volume.sql (fora do seed.sql) e um teste leve que rode as 5 consultas quentes com EXPLAIN e falhe se aparecer Seq Scan em bookings, customers, payment_entries ou receivables.",
+   "caminhos": [
+    "scripts/db-local/",
+    "supabase/tests/"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "be-banco-13",
+   "titulo": "Três colunas sem leitor nem escritor: tenants.settings_version, waitlist_offers.delivery_channel, insight_rules.action_kind",
+   "gravidade": "baixa",
+   "tipo": "remover_ou_esconder",
+   "evidencia": "trabalho/be-banco/colunas_sem_uso_sql.out: 7 colunas cujo nome não aparece no corpo de nenhuma função de public ou app; conferidas com grep -rlw em supabase/functions e src: settings_version 0 arquivos, delivery_channel 0, action_kind 0. As outras quatro são carimbos de tempo com default ou versão de esquema. Nenhuma das 123 tabelas está sem uso (todas citadas em alguma função).",
+   "recomendacao": "Não remover agora. Marcar em migration com comment on column ... is 'sem uso em 10/11/2026; candidata a remoção' e remover quando o retrato da be-banco-08 existir e mostrar o impacto.",
+   "caminhos": [
+    "supabase/migrations/ (migration nova)"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Prazos de retenção das tabelas técnicas (be-banco-05). Opções: (a) idempotência 30 dias, eventos e webhooks 90 dias, mensagens e execuções do agente 12 meses; (b) tudo 12 meses; (c) não apagar nada no piloto. Recomendo (a): o docs/02 pede a definição antes de dados reais e o SQL já está testado.",
+  "Exportação e exclusão por negócio (be-banco-05): o que preservar quando um profissional pedir para sair (livros-caixa e auditoria por obrigação, ou anonimizar). Recomendo um pacote próprio antes de passar dos 10 profissionais.",
+  "Módulos congelados no banco (be-banco-07). Opções: (a) congelar tudo fora de agenda, clientes, preço, caixa, lista de espera e agendamento público, desligando as rotinas periódicas dos demais; (b) manter tudo ativo como está. Recomendo (a), alinhado ao que a navegação do piloto mostrar.",
+  "Teto de 200 linhas nas listas (be-banco-06). Opções: (a) manter 200 e avisar na tela quando cortar; (b) paginar com cursor como clientes e agenda. Recomendo (a) agora e (b) só no caixa se algum profissional passar de 200 lançamentos por mês."
+ ],
+ "nao_coberto": [
+  "Suíte pgTAP (33 arquivos, 1.779 asserções planejadas): não executada, é de outro auditor.",
+  "Banco da homologação: nada consultado. Ficam por conferir a collation, os schemas expostos na API e os privilégios padrão do Supabase hospedado (o shim local não os replica).",
+  "Agendamento da Edge Function jobs (Supabase Cron, ADR-0011): fica fora do repositório; não conferi se está ativo.",
+  "Concorrência (bloqueios em pagamento, corrida de reserva) e os 26 scripts de concorrência: não rodei.",
+  "Os 17 pontos públicos para anon (limite de tentativas, tokens): área do auditor de segurança.",
+  "Políticas de storage (foto de perfil) e o conteúdo gravado em audit_events (a projeção app.crm_customer_audit não foi lida).",
+  "Leitura linha a linha das funções da periferia (fiscal, site, equipe, materiais, domicílio): só catálogo e varreduras.",
+  "Exportação ou exclusão por negócio do lado TypeScript: só confirmei que não existe no SQL."
+ ]
+}

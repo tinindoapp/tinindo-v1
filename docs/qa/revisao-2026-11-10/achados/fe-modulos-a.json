@@ -1,0 +1,310 @@
+{
+ "area": "fe-modulos-a",
+ "veredito": "misto",
+ "veredito_justificativa": "Os cinco módulos são o núcleo do produto e o tamanho deles (14,8 mil linhas com testes) é adequado ao objetivo: portas com contrato validado, dinheiro em centavos inteiros, fuso do negócio na Agenda e no Caixa, zero any e um único eslint-disable. O que está fora do ponto é a falta de camada comum: cada módulo resolveu sozinho chave de idempotência (5 variantes), telefone (3 analisadores que divergem), dinheiro (2 cópias) e data (3 kits), e os defeitos reais estão justamente nessas emendas. Caixa (um arquivo de 883 linhas, 4 testes de tela) e o link público (fuso fixo, 18 useState num componente) estão rasos para o papel que têm; Agenda, Clientes e Conta estão no tamanho certo.",
+ "manter": [
+  "scheduling/time.ts (211 linhas, testado): data civil e instante sempre no fuso do negócio (localParts, dayWindow, zonedInstant). É o modelo para a biblioteca comum de datas; não reescrever, promover.",
+  "identity/idempotency.ts (18 linhas): chave por conteúdo num ref, com reset depois do sucesso. É a versão correta do hook único pedido no consolidado de 04/11; os outros módulos devem passar a usar esta.",
+  "scheduling/errors.ts: catálogo de erro por código com título, corpo e ação (recarregar, tentar de novo). Diz o que não aconteceu. Serve de base para o tratamento de erro comum.",
+  "useAsync de scheduling/SchedulingLayout.tsx:95-116: guarda por chave contra resposta antiga e opção keepWhileReloading. É o que falta ao Caixa e à busca de Clientes.",
+  "finance/money.ts e crm/format.ts parseBRL: valor digitado vira centavos inteiros por expressão regular, sem ponto flutuante. Não há conta de dinheiro em float nos cinco módulos.",
+  "Separação do Caixa entre atendimento concluído, cobrança e recebimento, e o estorno com ConfirmAction que mostra a consequência (FinancePage.tsx:522-540).",
+  "As simulações da demonstração (?simular=conflito|versao) e a idempotência emulada em fixturePort.ts:117-127: foi com elas que dois defeitos desta auditoria foram reproduzidos.",
+  "CustomerPicker do Novo agendamento (BookingFlowPage.tsx:347-415): busca sem acento, Sem cadastro e + Novo no lugar. Atende o uso entre um atendimento e outro.",
+  "Foco por etapa na reserva pública (PublicProfileView.tsx:249-262) e rótulos acessíveis nos botões de linha (texto oculto com o nome do item em Caixa e Horários)."
+ ],
+ "achados": [
+  {
+   "id": "fe-modulos-a-01",
+   "titulo": "Caixa: despesa e recebimento de hoje mandam o relógio dentro do pedido; no servidor a chave muda a cada tentativa e a demonstração esconde",
+   "gravidade": "critica",
+   "tipo": "defeito",
+   "evidencia": "src/features/finance/FinancePage.tsx:454 (received_at = port.now().toISOString() quando a data é hoje, que é o padrão) e :619 (paid_at idem); a chave sai de JSON.stringify(payload) em :84-91. src/features/finance/serverPort.ts:31 now = new Date(); src/features/finance/demoPort.ts:96 e :196 usam relógio fixo. Logo, na demonstração e nos testes o pedido repetido é idêntico e a chave se mantém; no servidor cada toque tem milissegundo novo e chave nova. O texto de :76 promete 'o pedido usa a mesma chave e não duplica'. O único teste do hook (useKeyFor.test.tsx) usa payload constante. Não executei contra servidor: a conclusão é leitura de código. É a causa exata do item 1 do consolidado de 04/11 (achados-anteriores-01) no Caixa.",
+   "recomendacao": "Fixar o instante por tentativa, fora do payload calculado no envio: guardar received_at/paid_at num ref criado no primeiro envio e reaproveitado até o sucesso (ou até o usuário mudar valor, forma ou data), e só então limpar. Trocar useKeyFor pelo hook comum com reset. Acrescentar teste de tela com uma porta cujo now() avança a cada chamada: primeira tentativa falha com PROVIDER_UNAVAILABLE, segunda precisa sair com a mesma chave e o mesmo corpo.",
+   "caminhos": [
+    "src/features/finance/FinancePage.tsx",
+    "src/features/finance/FinancePage.test.tsx",
+    "src/lib/idempotency.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-02",
+   "titulo": "Link público de reserva usa o fuso de Brasília fixo e ignora o fuso que o contrato devolve; o cadastro oferece nove fusos",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "src/features/network/PublicProfileView.tsx:13-17 (OFFSET '-03:00', todayInSaoPaulo, formatDay com timeZone America/Sao_Paulo) e src/features/network/useNetworkApi.ts:68-78 (formatDateTime e formatTime com America/Sao_Paulo). O contrato devolve timezone nos horários e na confirmação (supabase/functions/_shared/contracts/network.ts:194; a demonstração preenche em src/features/network/api.ts:349,351,410), mas 'timezone' não aparece em nenhum .tsx do módulo. src/features/identity/presets.ts:104-114 oferece Manaus, Cuiabá, Campo Grande, Belém, Porto Velho, Boa Vista, Rio Branco e Noronha no cadastro do negócio. Inferência direta: um negócio em Manaus vê o horário das 09:00 anunciado como 10:00 para o cliente. Não executei com tenant fora de Brasília.",
+   "recomendacao": "Passar o timezone da resposta de public.slots e public.confirm para as funções de data do link (janela do dia, hoje, formatDay, formatTime), usando o kit de scheduling/time.ts (dayWindow e localParts já recebem o fuso). Remover OFFSET e as constantes America/Sao_Paulo. Teste: perfil com timezone America/Manaus mostra o horário local e pede a janela do dia local.",
+   "caminhos": [
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/network/useNetworkApi.ts",
+    "src/features/network/network.test.tsx",
+    "src/features/scheduling/time.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-03",
+   "titulo": "Horários: bloquear, remover e bloquear de novo o mesmo período diz 'Bloqueio criado' e não cria nada",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "Reproduzido na demonstração: trabalho/fe-modulos-a/check3.cjs e check3.out (passo 3: aviso 'Bloqueio criado. Esse período não aparece mais como livre.' e 0 itens 'Medico' na lista). Causa: src/features/scheduling/HoursPage.tsx:50-58 (useAttemptKey guarda a chave por conteúdo e nunca limpa depois do sucesso) e :332-335 (cria, avisa, não reseta). O servidor faz igual: supabase/migrations/20261018130000_p03_scheduling.sql:992-993 devolve a resposta gravada quando a chave já existe. O período continua livre para reserva enquanto a tela diz que está bloqueado.",
+   "recomendacao": "Usar o hook comum com reset() logo depois do sucesso de createBlock e de saveRules (o padrão de identity/idempotency.ts e do createKeyRing do CRM). Teste em SchedulingFlow.test.tsx: criar, remover e criar o mesmo bloqueio resulta em um item na lista.",
+   "caminhos": [
+    "src/features/scheduling/HoursPage.tsx",
+    "src/features/scheduling/SchedulingFlow.test.tsx",
+    "src/lib/idempotency.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-04",
+   "titulo": "Reagendar com versão desatualizada: a explicação do conflito nunca aparece e o horário escolhido some sem aviso",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "Reproduzido na demonstração: trabalho/fe-modulos-a/check2.cjs e check2.out, rota /app/agenda/atendimento/…0006/reagendar?simular=versao: depois de Confirmar, aos 87 ms aparece 'Carregando atendimento…' e a partir de 198 ms a tela volta sem mensagem (msg=0, nenhum role=alert) e sem horário marcado. Causa: src/features/scheduling/BookingFlowPage.tsx:152 e :158-159 guardam a falha no estado do BookingFlow e chamam props.reloadBooking(); o useAsync sem keepWhileReloading (SchedulingLayout.tsx:110-111) zera o dado, a ReschedulePage (:43-53) troca o fluxo por 'Carregando' e o BookingFlow é desmontado junto com a falha. O único teste de versão cobre o cancelamento (SchedulingFlow.test.tsx:94-98), não o reagendamento.",
+   "recomendacao": "Na ReschedulePage, carregar o atendimento com keepWhileReloading=true (terceiro argumento do useAsync) para manter o BookingFlow montado durante a releitura, ou subir o estado da falha para a ReschedulePage. Teste: reagendar com simulate 'versao' mostra 'Este atendimento mudou enquanto você editava' e mantém o dia escolhido.",
+   "caminhos": [
+    "src/features/scheduling/BookingFlowPage.tsx",
+    "src/features/scheduling/SchedulingFlow.test.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-05",
+   "titulo": "Caixa desmonta as seis seções a cada ação: o foco cai no body, 'Ver mais' fecha e formulários abertos se perdem",
+   "gravidade": "alta",
+   "tipo": "defeito",
+   "evidencia": "src/features/finance/FinancePage.tsx:180 (current vira null enquanto o nonce novo carrega) e :198-212 (sem current, tudo é trocado por 'Carregando o mês…'). Medido na demonstração (check2.out, bloco c): com 'Ver mais' aberto, depois de 'Cobrar depois' o botão 'Ver mais' volta (estado perdido) e document.activeElement é BODY. Na demonstração a troca dura menos de 82 ms; com latência de servidor a página encolhe para um parágrafo e a rolagem pula para o topo a cada recebimento (inferência pelo JSX, não medida em servidor). Efeito colateral: as chaves e o receivedAt dos itens (:330-334) são recriados a cada recarga, então o comentário de :329 não vale.",
+   "recomendacao": "Extrair useMonthData(port, month) que mantém o último valor enquanto recarrega (mesma ideia do keepWhileReloading de SchedulingLayout.tsx:110) e só mostra 'Carregando o mês…' na troca de mês. Devolver o foco ao título da seção quando o item acionado sai da lista. Teste: depois de 'Cobrar depois', 'Ver mais' continua aberto e o foco fica dentro do Caixa.",
+   "caminhos": [
+    "src/features/finance/FinancePage.tsx",
+    "src/features/finance/FinancePage.test.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "fe-modulos-a-06",
+   "titulo": "Busca de Clientes sem guarda de ordem: resposta antiga sobrescreve a nova e 'carregar mais' anexa página da busca anterior",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "src/features/crm/CustomersPage.tsx:55-70: load() grava setItems, setShownQuery e setNext sem conferir se ainda é a busca atual; :72-75 só cancela o temporizador de 200 ms, não a requisição em voo. Digitar 'an' e depois 'ana' dispara duas buscas; se a primeira responder por último, a lista mostra 'an' com o campo em 'ana'. Na linha 60, uma página pedida por cursor é anexada à lista que estiver na tela, mesmo que a busca tenha mudado. Leitura de código; na demonstração a porta responde na hora e não mostra o efeito.",
+   "recomendacao": "Trocar o par load/useEffect por um recurso com chave (busca, arquivados) e guarda de ordem, como o useAsync da Agenda; a paginação guarda a chave da busca que a originou e descarta a página se a chave mudou. Teste com porta que atrasa a primeira resposta.",
+   "caminhos": [
+    "src/features/crm/CustomersPage.tsx",
+    "src/features/crm/pages.test.tsx",
+    "src/lib/data/useResource.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-07",
+   "titulo": "Cinco módulos, cinco jeitos de gerar chave de idempotência; só Conta e Clientes limpam a chave depois do sucesso",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "identity/idempotency.ts:5-18 (ref, conteúdo, reset); crm/api.ts:234-247 (closure, conteúdo, reset); finance/FinancePage.tsx:84-91 (ref, conteúdo, sem reset) mais newKey() no toque em :471, :557, :658, :774; scheduling/HoursPage.tsx:50-58 (estado, sem reset), BookingFlowPage.tsx:83,139-140 e :434,447-448 (estado inline), attendance.tsx:34 e BookingDetailPage.tsx:132 (chave fixa por montagem); network/NetworkHome.tsx:156-158 e :340, ProfileMedia.tsx:24, PublicPages.tsx:212 (estado trocado à mão a cada campo) e PublicProfileView.tsx:216,314 (bookKey) com newIdempotencyKey() no toque em :360; identity/AccountPage.tsx:202 monta a chave como texto 'revoke-id-vN'. Os achados 01 e 03 nascem das variantes sem reset ou com relógio no payload. Detalha, por linha, o fe-arquitetura-02 e o achados-anteriores-12.",
+   "recomendacao": "Mover identity/idempotency.ts para src/lib/idempotency.ts como useIdempotencyKey() (keyFor(payload) e reset()), com duas regras escritas no arquivo: o payload não pode conter leitura de relógio e reset() é chamado em todo sucesso. Substituir as variantes dos quatro módulos e apagar useKeyFor, createKeyRing, useAttemptKey, os estados attempt e os touch(). Ações de um toque (estorno, cancelar cobrança, confirmar código) passam a usar keyFor com o alvo e a versão.",
+   "caminhos": [
+    "src/lib/idempotency.ts",
+    "src/features/identity/idempotency.ts",
+    "src/features/finance/FinancePage.tsx",
+    "src/features/crm/api.ts",
+    "src/features/scheduling",
+    "src/features/network"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-08",
+   "titulo": "FinancePage.tsx tem 883 linhas e 14 componentes num arquivo, com 4 testes de tela; a porta do servidor do Caixa não tem teste",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "src/features/finance/FinancePage.tsx: FinancePage (111-216), Shell, RegisterPanel, Summary, MethodField, Uncharged e UnchargedItem (309-414), Receivables e ReceivableItem (416-519), ReverseButton, MoreButton, Payments (550-598), ExpenseForm, Expenses, PackageForm, Packages, ReceivableForm (838-883). Payments e Expenses repetem a mesma lista com ordenar, cortar em 5, estornar e 'Ver mais' (554-597 e 654-694). FinancePage.test.tsx tem 81 linhas e 4 casos; src/features/finance/serverPort.ts (91 linhas) não é citado em nenhum teste. Contexto passado de dois jeitos: usePage() com '!' (:109) e ctx por prop (:319, :426).",
+   "recomendacao": "Cortar em: FinancePage.tsx (casca e período), useMonthData.ts, labels.ts (METHOD_LABEL, CATEGORY_LABEL, STATUS_LABEL), errors.ts (explain), sections/Uncharged.tsx, sections/Receivables.tsx, sections/Summary.tsx, sections/History.tsx (um HistoryList para recebimentos e despesas, com ReverseButton e MoreButton), sections/Packages.tsx, forms/ExpenseForm.tsx, forms/ReceivableForm.tsx, forms/PackageForm.tsx. Um jeito só de ler o contexto (usePage que lança erro fora do provedor). Acrescentar serverPort.test.ts nos moldes de scheduling/serverPort.test.ts.",
+   "caminhos": [
+    "src/features/finance/FinancePage.tsx",
+    "src/features/finance/serverPort.ts",
+    "src/features/finance/FinancePage.test.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-09",
+   "titulo": "Reserva pública: um componente com 18 useState e 5 refs faz a máquina de etapas; para 'manter o anterior' fabrica um pedido com dados falsos",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "src/features/network/PublicProfileView.tsx:205-234 (BookingSlots: 18 useState, 5 refs) e o JSX das cinco etapas até a linha 691. Em :341-345, keepPrevious monta um BookRequest com slot.starts_at e ends_at iguais a pending.expires_at e delivery 'sent' só para satisfazer o tipo; a tela de código depois afirma 'Enviamos um código' (:630). backToSlots (:297-306) e resetRequest (:287-291, chamado em 5 lugares) repõem à mão combinações de 6 estados. src/features/network/api.ts (451 linhas) junta interface, porta HTTP (100-170) e estado da demonstração (175-451). Os itens 5, 6 e 7 do consolidado de 04/11 (achados-anteriores-02 a 04) estão todos neste componente.",
+   "recomendacao": "Extrair booking/useBookingRequest.ts com um reducer de etapas (service, slot, contact, code, done) e transições nomeadas (escolher horário, pedir, manter anterior, perder horário, confirmar); o estado do pedido vira { request_id, expires_at, phone, delivery? } sem slot inventado. Quebrar a tela em StepService, StepSlot, StepContact, StepCode e BookingDone. Separar api.ts em port.ts, serverPort.ts e demoPort.ts, no formato dos outros módulos (fe-arquitetura-14). Fazer isto antes de corrigir os itens 5 a 7 do consolidado.",
+   "caminhos": [
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/network/api.ts",
+    "src/features/network/network.test.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-10",
+   "titulo": "Três analisadores de telefone divergem: '011 98765-4321' vale em Clientes e na Agenda e é recusado no link público",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "src/features/crm/format.ts:10-26 (normalizePhoneBR: tira o 0 inicial com 11 ou 12 dígitos, aceita prefixo 00, recusa letras); src/features/scheduling/agenda.ts:241-251 (phoneToE164: só tira o 0 com 12 dígitos, então '0 11 8765-4321' vira +5501187654321; sem 00); src/features/network/PublicProfileView.tsx:52-58 (toE164: 12 dígitos começando em 0 não casam com nenhuma regra e dão inválido; apaga qualquer caractere que não seja dígito, então texto com letras passa). O formatador de exibição é o mesmo código em três lugares: crm/format.ts:28-32, scheduling/agenda.ts:254-257 e network/useNetworkApi.ts:72-75. Comparação por leitura das três funções.",
+   "recomendacao": "Criar src/lib/phone.ts a partir de crm/format.ts (normalizePhoneBR, formatPhone, telHref, whatsappHref) com a tabela de casos de crm/format.test.ts; scheduling e network passam a importar de lá e as cópias saem. Acrescentar à tabela os três casos acima.",
+   "caminhos": [
+    "src/lib/phone.ts",
+    "src/features/crm/format.ts",
+    "src/features/scheduling/agenda.ts",
+    "src/features/network/PublicProfileView.tsx",
+    "src/features/network/useNetworkApi.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-11",
+   "titulo": "Dinheiro e data: parseBRL e formatCents copiados entre Clientes e Caixa, e três kits de data, um deles sem fuso do negócio",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "parseBRL e centsToInput são o mesmo código em src/features/crm/format.ts:52-67 e src/features/finance/money.ts:8-19; formatCents em crm/format.ts:47, finance/money.ts:4, scheduling/agenda.ts:229 e formatPrice em network/PublicProfileView.tsx:32. Datas: scheduling/time.ts (localParts :82, addDays :118, dayWindow, formatDayLong :163), finance/money.ts:23-76 (localDate, formatDate, monthPeriod, noonOfLocalDay, endOfLocalDay) e network (PublicProfileView.tsx:14-17, addDays :41, shortDay :45; useNetworkApi.ts:68-78). 23 chamadas diretas a new Intl nos cinco módulos. Detalha o fe-arquitetura-08 e o fe-arquitetura-01 para estes módulos.",
+   "recomendacao": "src/lib/money.ts recebe formatCents, centsToInput e parseBRL de finance/money.ts (com os testes de finance/money.test.ts e crm/format.test.ts juntos); src/lib/dates.ts recebe scheduling/time.ts inteiro e mais monthPeriod, noonOfLocalDay e endOfLocalDay do Caixa; network passa a usar os dois (resolve o achado 02). Os módulos ficam só com o que é deles (agenda.ts: status e ocupação; money.ts: leftover e unchargedTotal).",
+   "caminhos": [
+    "src/lib/money.ts",
+    "src/lib/dates.ts",
+    "src/features/finance/money.ts",
+    "src/features/crm/format.ts",
+    "src/features/scheduling/time.ts",
+    "src/features/network"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-12",
+   "titulo": "Os testes passam com relógio parado e resposta imediata: nenhum cobre nova tentativa no Caixa, versão no reagendar ou busca fora de ordem",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "finance/useKeyFor.test.tsx (22 linhas) testa o hook com payload constante; FinancePage.test.tsx roda sobre demoPort, cujo now() é fixo (demoPort.ts:96), então o achado 01 não tem como falhar. 'versao' em SchedulingFlow.test.tsx aparece só em :94-98 (cancelamento); grep por 'simular=versao' em tests/e2e não retorna nada. crm/pages.test.tsx usa porta que responde na hora. Rodei npx vitest run --project unit src/features/finance: 5 arquivos, 17 testes, todos passam. Completa o fe-arquitetura-03 com os casos concretos destes módulos.",
+   "recomendacao": "Acrescentar quatro testes, um por defeito: (1) Caixa com porta de relógio que avança e primeira resposta com falha: segunda tentativa usa a mesma chave e o mesmo corpo; (2) reagendar com simulate 'versao' mostra a explicação; (3) Horários: criar, remover e criar o mesmo bloqueio; (4) Clientes: duas buscas com a primeira resposta atrasada. Dar às portas de demonstração a opção de relógio injetável (now: () => Date) para os testes.",
+   "caminhos": [
+    "src/features/finance/FinancePage.test.tsx",
+    "src/features/scheduling/SchedulingFlow.test.tsx",
+    "src/features/crm/pages.test.tsx",
+    "src/features/finance/demoPort.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-13",
+   "titulo": "Arquivos de tela da Agenda e do Perfil com várias telas dentro: BookingFlowPage (526), BookingDetailPage (436), HoursPage (427), NetworkHome (416)",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "src/features/scheduling/BookingFlowPage.tsx: duas páginas (16-56), BookingFlow (63-334), CustomerPicker e NewCustomer (336-479), BasePriceLine e PriceLine (481-526). HoursPage.tsx: WeeklyHours (101-294) e Blocks (296-427), sem estado em comum. BookingDetailPage.tsx: BookingDetail (113-335) e AfterCancel (337-436). NetworkHome.tsx: NetworkHome, ProfileLive, ProfileEditor (133-313), CategorySelect, InvitePeer (334-416). Em BookingFlowPage.tsx:146-147 o payload é forçado com 'as Parameters<...>' porque criar e reagendar dividem a mesma função.",
+   "recomendacao": "scheduling: BookingFlow.tsx, CustomerPicker.tsx (com NewCustomer), PriceLine.tsx, e confirm() separado em createBooking e rescheduleBooking (some o 'as'); WeeklyHours.tsx e Blocks.tsx; BookingDetail.tsx e AfterCancel.tsx. network: ProfileEditor.tsx e InvitePeer.tsx. Só mover, sem mudar comportamento; os testes atuais entram pelo roteador e continuam valendo.",
+   "caminhos": [
+    "src/features/scheduling/BookingFlowPage.tsx",
+    "src/features/scheduling/HoursPage.tsx",
+    "src/features/scheduling/BookingDetailPage.tsx",
+    "src/features/network/NetworkHome.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-14",
+   "titulo": "Recebimento de um toque usa o instante em que a lista foi montada, não o do toque; aba aberta desde ontem registra no dia errado",
+   "gravidade": "baixa",
+   "tipo": "defeito",
+   "evidencia": "src/features/finance/FinancePage.tsx:334: const [receivedAt] = useState(() => port.now().toISOString()) é lido uma vez por montagem do item e enviado em :357. O valor só é renovado quando a lista recarrega (depois de uma ação). Com o Caixa aberto antes da meia-noite, o primeiro 'Recebi R$ … no Pix' do dia seguinte entra com a data anterior; na virada do mês, no mês anterior. Leitura de código; não reproduzido porque a demonstração tem relógio fixo.",
+   "recomendacao": "Ler port.now() no toque e guardar num ref até o sucesso (mesma correção do achado 01): a nova tentativa repete o instante, um toque novo depois do sucesso pega o instante atual.",
+   "caminhos": [
+    "src/features/finance/FinancePage.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "fe-modulos-a-15",
+   "titulo": "Cadastro rápido de cliente engole o erro: qualquer falha vira 'tentar de novo é seguro', inclusive dado inválido e falta de permissão",
+   "gravidade": "baixa",
+   "tipo": "defeito",
+   "evidencia": "src/features/scheduling/BookingFlowPage.tsx:454-455: 'catch {' sem variável e mensagem única. Um VALIDATION_ERROR ou FORBIDDEN do servidor recebe o mesmo convite a repetir, que nunca vai funcionar. No Caixa, :368 lança um objeto solto { code, field: 'event_id' } que cai na mensagem genérica de :63, e :55 lê o erro com 'as'.",
+   "recomendacao": "Usar o catálogo de scheduling/errors.ts no cadastro rápido (explainError com operação create): repetir só é oferecido quando o código é PROVIDER_UNAVAILABLE ou INTERNAL_ERROR; validação aponta o campo. No Caixa, trocar o objeto solto por uma mensagem própria ('Este atendimento não tem registro de conclusão') e ler o erro com isErrorLike.",
+   "caminhos": [
+    "src/features/scheduling/BookingFlowPage.tsx",
+    "src/features/finance/FinancePage.tsx",
+    "src/features/scheduling/errors.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "fe-modulos-a-16",
+   "titulo": "Código morto na Agenda: ponto de extensão sem provedor e classe de erro sem uso; 55 exportações usadas só no próprio arquivo ou em teste",
+   "gravidade": "baixa",
+   "tipo": "remover_ou_esconder",
+   "evidencia": "grep em src e tests: SchedulingExtensionsProvider (src/features/scheduling/parts.tsx:125-131) não é usado em lugar nenhum, então useSchedulingExtensions() devolve sempre {} e freeSlotActions em AgendaPage.tsx:100 e :190 nunca existe; NotConnectedError (src/features/scheduling/port.ts:99-105) não tem uso. trabalho/fe-modulos-a/exports.out lista 55 de 271 exportações sem uso em código de produção fora do próprio arquivo (por exemplo WHATSAPP_GREETING, DAYS_AHEAD, BOOKING_ANCHOR e formatPrice em network/PublicProfileView.tsx; capitalize exportado de crm/CustomersPage.tsx:345). knip e ts-prune não foram rodados; a lista vem de um script próprio de busca por identificador.",
+   "recomendacao": "Apagar SchedulingExtensions e o Provider (ou ligar o provedor, se a extensão de horário livre ainda for desejada pela lista de espera) e NotConnectedError. Tirar 'export' do que só o arquivo usa; o que só o teste usa fica exportado com comentário. Ligar knip no CI para não voltar.",
+   "caminhos": [
+    "src/features/scheduling/parts.tsx",
+    "src/features/scheduling/AgendaPage.tsx",
+    "src/features/scheduling/port.ts",
+    "src/features/network/PublicProfileView.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Fuso do negócio fora de Brasília no piloto: (a) corrigir o link público para usar o fuso do negócio (achado 02, meio dia de trabalho) ou (b) tirar os outros oito fusos do cadastro até corrigir. Recomendo (a); se o piloto for só em horário de Brasília, (b) serve como trava imediata.",
+  "Indicação entre profissionais (convite e 'recomendar colega', cerca de 500 linhas em network/PublicPages.tsx e InvitePeer): manter visível no piloto ou esconder até o núcleo fechar. Recomendo esconder da navegação e manter o código; a decisão de escopo é a do relatório escopo-produto."
+ ],
+ "nao_coberto": [
+  "Nada foi executado contra servidor real (sem .env): os achados 01, 02, 06 e 14 são leitura de código; 03, 04 e 05 foram reproduzidos na demonstração.",
+  "knip e ts-prune não foram rodados (orçamento curto); a lista de exportações sem uso vem de trabalho/fe-modulos-a/exports.cjs, que não enxerga reexportação nem uso dinâmico.",
+  "Lidos só por estrutura e busca, não linha a linha: scheduling/AgendaPage.tsx, BookingDetailPage.tsx, fixturePort.ts (miolo), agenda.ts; network/NetworkHome.tsx, ProfileMedia.tsx, PublicPages.tsx, photo.ts, ics.ts; crm/ServicesPage.tsx, ImportPage.tsx, CustomerPage.tsx, csv.ts; identity/AuthPages.tsx, AccountPage.tsx, CreateBusinessPage.tsx, OnboardingForm.tsx, MyBookingsPage.tsx, LegalSheet.tsx.",
+  "Os cinco arquivos .css dos módulos e a acessibilidade do JSX não foram auditados de forma sistemática; só o que apareceu nas medições (foco no Caixa).",
+  "Testes avaliados por contagem, nomes e buscas dirigidas, não asserção por asserção; só a suíte de finance foi rodada (17 testes, passam).",
+  "Divergência demonstração x servidor conferida em relógio, idempotência e leitura somente em Clientes; regras de preço, disponibilidade e lista de espera do fixturePort não foram comparadas com o SQL."
+ ]
+}

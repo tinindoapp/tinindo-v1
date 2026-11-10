@@ -1,0 +1,322 @@
+{
+ "area": "escopo-produto",
+ "veredito": "misto",
+ "veredito_justificativa": "Exagerado na largura e raso em quatro pontos do núcleo. O app mostra os 27 módulos a todo negócio (30 links no menu, 20 sub-abas) sem nenhum mecanismo de ativação, e 11 desses módulos ou dependem de integração que não existe (WhatsApp oficial, PSP, NFS-e, Google) ou estão fora do público do piloto definido em docs/00 (equipe, estoque, contas a pagar, diretório). Ao mesmo tempo, o ciclo que é a métrica do piloto (agendar, confirmar, atender, receber, retornar) tem buracos básicos: a tela Hoje abre com configuração e sugestões e o primeiro atendimento fica a 1,3 tela de rolagem; concluir não leva a receber; não há aviso de confirmação ao cliente; a agenda recorrente do personal existe no servidor e não tem tela. A engenharia do que existe é sólida; o problema é o que se mostra e onde se investiu profundidade.",
+ "manter": [
+  "Registro de módulos com uma linha por módulo (src/app/modules.ts) e navegação declarada em um arquivo só (src/app/navigation.ts): é o ponto certo para ligar a visibilidade por plano, profissão e ativação, sem tocar nos módulos.",
+  "Padrão porta de demonstração + porta de servidor em cada módulo (demoPort.ts / serverPort.ts): os botões de simulação (despacho, régua, consulta ao banco) só existem na porta de demonstração; conferido em payments, lifecycle e messaging (serverPort não expõe sync, tick nem dispatch).",
+  "Separação honesta entre concluir, cobrar e receber no servidor (attendance.tsx:55, FinancePage.tsx:356-359): a regra fica; o que muda é a tela levar de um passo ao outro.",
+  "Atalho de um toque 'Recebi R$ 60,00 no Pix' no Caixa (FinancePage.tsx:385-397): é a melhor peça do núcleo e deve ser reaproveitada na tela do atendimento, não reescrita.",
+  "Rótulos de estado por palavra em Relacionamento e Mensagens (enviado ao canal, para você compartilhar, entregue): cumprem a regra de não fingir entrega.",
+  "Nenhum módulo deve ser apagado: migrations são append-only, os 27 têm contrato, pgTAP e e2e próprios, e o custo de manter congelado é baixo se a suíte de cada um só rodar quando o caminho dele mudar.",
+  "As cinco abas como estrutura (Hoje, Agenda, Clientes, Dinheiro e uma quinta) e as sub-abas por contexto: o desenho aguenta o piloto enxuto; o que sobra é o conteúdo de cada grupo."
+ ],
+ "achados": [
+  {
+   "id": "escopo-produto-01",
+   "titulo": "Todo negócio vê os 27 módulos: 30 links no menu e 20 sub-abas, sem nenhum mecanismo de ativação por plano, profissão ou módulo",
+   "gravidade": "alta",
+   "tipo": "remover_ou_esconder",
+   "evidencia": "Verificado. src/app/module-types.ts:4-13: ModuleDefinition só tem id, owner, path, navLabel e routes (nenhum campo de visibilidade). src/app/router.tsx:49 e src/app/AppShell.tsx:102 consomem MODULES inteiro, sem filtro. grep por entitlement|featureFlag|enabledModules|module_enabled|isEnabled em src e supabase: zero ocorrências. Medida no preview (trabalho/escopo-produto/menu.cjs, 390x844): menu com 30 links, scrollHeight 1895 px para 743 px visíveis (2,5 telas); barra lateral do desktop 1662 px para 808 px; sub-abas: Agenda 5, Clientes 5, Dinheiro 5, Mensagens 2. Capturas: trabalho/escopo-produto/menu-m.png e sidebar-d.png. O teste src/app/AppShell.test.tsx:65-69 exige que todo módulo registrado apareça no menu.",
+   "recomendacao": "Acrescentar a ModuleDefinition um campo de nível (por exemplo tier: 'piloto' | 'ativavel' | 'guardado' e, opcional, professions) e filtrar em um lugar só: uma função visibleModules(MODULES, contexto) usada em buildNavigation (AppShell.tsx:102). As rotas continuam registradas em router.tsx:49 (link direto funciona; a tela guardada mostra um aviso 'ainda não ativado'). Menu do primeiro dia proposto: Hoje; Agenda (Agenda, Horários); Clientes (Clientes, Serviços, Lembretes); Dinheiro (Caixa); Menu: Assistente, Perfil e link, Configuração, Conta. Ativáveis depois: Preços, Lista de espera, Assinaturas, Orçamentos, Metas, Resultado, Indicações, Plano. Guardados: os 11 da tabela do relatório. Ajustar AppShell.test.tsx:65-69 para testar 'todo módulo visível está em exatamente um grupo'.",
+   "caminhos": [
+    "src/app/module-types.ts",
+    "src/app/modules.ts",
+    "src/app/navigation.ts",
+    "src/app/AppShell.tsx",
+    "src/app/AppShell.test.tsx",
+    "src/features/*/module.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-02",
+   "titulo": "A tela Hoje abre com configuração e sugestões; o primeiro atendimento do dia fica a 1,3 tela de rolagem no celular",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "Verificado por medida (trabalho/escopo-produto/home2.cjs, 390x844, demonstração): cartão 'Deixe seu negócio pronto' em y=168 (235 px), 'Para você esta semana' em y=437, ações rápidas em y=970, título 'Atendimentos de hoje' em y=1107 e o cartão do próximo atendimento em y=1137; a tela tem 844 px, a página 2084 px. Captura trabalho/escopo-produto/home-viewport-m.png: a primeira tela mostra só configuração e três sugestões. Código: src/app/pages/Home.tsx:146 (SetupCard) e :148 (InsightsCard) vêm antes do resumo e da lista (a partir de :152). docs/00_PRODUTO.md:37 diz que tempo de tela não é sucesso e o uso é entre um atendimento e outro.",
+   "recomendacao": "Reordenar Home.tsx: 1) próximo atendimento (seção tn-today__next) com as ações Atendido / Faltou / WhatsApp; 2) lista de hoje; 3) pendências (a cobrar, lembretes a mandar); 4) configuração reduzida a uma linha ('5 de 8 passos · continuar') enquanto incompleta; 5) no máximo uma sugestão, com 'ver todas'. Critério de aceite: em 390x844, com agenda no dia, o próximo atendimento começa acima de y=400. Cobrir em src/app/pages/Home.test.tsx e num e2e de viewport.",
+   "caminhos": [
+    "src/app/pages/Home.tsx",
+    "src/app/pages/pages.css",
+    "src/app/pages/Home.test.tsx",
+    "src/features/setup/SetupCard.tsx",
+    "src/features/growth-advice/Insights.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-03",
+   "titulo": "Concluir o atendimento não leva a receber: a tela manda o profissional para o Caixa genérico procurar o item",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "Verificado no código. src/features/scheduling/attendance.tsx:55: depois de 'Sim, foi atendido' o aviso é 'Atendimento concluído. O pagamento não foi registrado: cobre e registre o recebimento no Caixa quando receber.' src/features/scheduling/BookingDetailPage.tsx:288-292: o único caminho é o link 'Cobrar no Caixa' para /app/caixa, sem parâmetro do atendimento. O atalho de um toque 'Recebi R$ X no Pix' só existe em src/features/finance/FinancePage.tsx:385-397, dentro da lista 'Atendimentos concluídos sem cobrança' (:313), numa página de 3553 px no celular (shots/index.json, caixa__m-light). Caminho hoje: Atendido, Sim, foi atendido, Cobrar no Caixa, achar o item, Recebi = 4 toques, 2 telas e uma busca visual, para a ação mais frequente do ciclo que é a métrica do piloto (docs/00_PRODUTO.md:37; docs/qa/UAT-PILOTO.md:40 'Concluir um atendimento e marcar como recebido').",
+   "recomendacao": "Na tela do atendimento concluído sem cobrança, mostrar o mesmo componente do Caixa (extrair UnchargedItem de FinancePage.tsx para um componente compartilhado que usa a porta do finance): 'Recebi R$ 60,00 no Pix' + troca de forma + 'Cobrar depois' + 'Usar crédito do pacote'. O servidor não muda (chargeBooking + registro de recebimento, mesmas chaves de idempotência). Mínimo aceitável se o tempo for curto: o link passa a ser /app/caixa?cobrar=<booking_id> e o Caixa rola e foca o item. Manter a regra 'concluir não é receber' no servidor.",
+   "caminhos": [
+    "src/features/scheduling/BookingDetailPage.tsx",
+    "src/features/scheduling/attendance.tsx",
+    "src/features/finance/FinancePage.tsx",
+    "src/features/finance/port.ts",
+    "tests/e2e/scheduling",
+    "tests/e2e/finance"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-04",
+   "titulo": "A agenda recorrente do personal existe no servidor (booking.create_series) e não tem tela: o passo 2 do UAT do personal não é executável",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "Verificado. Servidor pronto: supabase/functions/_shared/contracts/scheduling.ts:111 (BookingCreateSeriesInput), supabase/functions/scheduling/handler.ts:60-61 (rota booking.create_series), supabase/migrations/20261018130000_p03_scheduling.sql:482 (scheduling_booking_create_series). Tela ausente: grep -rnEi 'series|createSeries|create_series' em src/features (fora de testes) só encontra finance-advanced (contas mensais); grep 'semanas|repet|recorr|weekly' em BookingFlowPage.tsx e scheduling/port.ts só encontra comentários de idempotência. O módulo Assinaturas (recurrence) não agenda: abre pacote e cobrança por ciclo (RecurrencePage.tsx:1-3). docs/qa/UAT-PILOTO.md:53 pede 'Agendar recorrência de 8 semanas. Uma data dá conflito: resolver.' e docs/00_PRODUTO.md (tabela de particularidades) define a agenda do personal como 'sessões recorrentes e horários reservados'.",
+   "recomendacao": "No fluxo de novo agendamento (BookingFlowPage.tsx), depois de escolher o horário, acrescentar 'Repetir toda semana por N semanas' (1 a 13, o limite do contrato), chamando booking.create_series pela porta do scheduling (port.ts, serverPort.ts e fixturePort.ts). Mostrar a prévia das datas, marcar as que dão conflito e deixar o dono escolher 'pular estas' ou 'nada' (all_or_nothing). Mostrar a opção por padrão para personal_trainer e disponível para as outras profissões. Teste: e2e do roteiro do personal com uma data em conflito.",
+   "caminhos": [
+    "src/features/scheduling/BookingFlowPage.tsx",
+    "src/features/scheduling/port.ts",
+    "src/features/scheduling/serverPort.ts",
+    "src/features/scheduling/fixturePort.ts",
+    "tests/e2e/scheduling"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-05",
+   "titulo": "Confirmação e lembrete ao cliente não estão no fluxo da agenda: texto pronto no WhatsApp só existe depois de cancelar",
+   "gravidade": "alta",
+   "tipo": "reforcar",
+   "evidencia": "Verificado. src/features/scheduling/BookingDetailPage.tsx:410-414: o único wa.me com texto ('Avisar no WhatsApp') está no bloco 'Atendimento cancelado' (:389). grep 'wa.me|compartilh|avisar|share|copiar' em BookingFlowPage.tsx: nada (criar o agendamento não oferece avisar o cliente). Os textos de confirmação e lembrete existem só em Relacionamento, como passo 'Para você compartilhar' (src/features/lifecycle/labels.ts:16, LifecyclePage.tsx:89-99), numa página de 3310 px (shots/index.json, relacionamento__m-light) sob Clientes > Lembretes. grep 'lifecycle|lembrete|relacionamento' em src/app/pages/Home.tsx: nada, ou seja, a Hoje não avisa que há lembrete para mandar. Sem canal oficial (docs/00_PRODUTO.md:49 o põe em 'Depois'), o envio manual é o único caminho real do piloto; a sequência central de docs/00 inclui 'confirmação'.",
+   "recomendacao": "1) Na confirmação do novo agendamento e na tela do atendimento confirmado, botão 'Avisar no WhatsApp' com o texto de confirmação (reaproveitar o gerador de texto de scheduling/agenda.ts:259-270 e o ShareLink de components/ui/share.tsx). 2) Em Hoje > Pendências, linha 'N lembretes para mandar hoje' lendo os passos em estado manual da porta do lifecycle, com o botão de WhatsApp em cada um. 3) Marcar 'compartilhado' pelo mesmo comando que Relacionamento já usa. O servidor já marca o passo como 'manual' ao processá-lo sem canal (supabase/migrations/20261022140000_p13_lifecycle.sql:321-322); isso acontece quando o agendador de jobs roda (release/RUNBOOK.md:26), então a pendência da Hoje depende do cron estar ligado na homologação.",
+   "caminhos": [
+    "src/features/scheduling/BookingFlowPage.tsx",
+    "src/features/scheduling/BookingDetailPage.tsx",
+    "src/features/scheduling/agenda.ts",
+    "src/app/pages/Home.tsx",
+    "src/features/lifecycle/port.ts",
+    "src/features/lifecycle/LifecyclePage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "escopo-produto-06",
+   "titulo": "Mensagens ocupa uma das cinco abas fixas, mas no piloto só funciona com provedor simulado (WhatsApp por negócio está em 'Depois')",
+   "gravidade": "alta",
+   "tipo": "remover_ou_esconder",
+   "evidencia": "Verificado. src/app/navigation.ts:46-47: a seção mensagens tem tab: true. Captura shots/mensagens__m-light.png: a aba abre em 'Conecte o número do seu negócio' com o campo Provedor = 'Simulado (sem envio real)' e a nota 'sem provedor contratado, conecte o número simulado para testar o fluxo'. src/features/messaging/InboxPage.tsx:16 e :42-43: o formulário oferece 'simulated' e 'whatsapp_cloud' também com servidor (não há condição port.kind). O provedor real exige WHATSAPP_ACCESS_TOKEN e WHATSAPP_APP_SECRET no ambiente (supabase/functions/messaging/index.ts:37-39). docs/00_PRODUTO.md:47 e :49: adaptador oficial é 'sandbox se houver tempo' e 'WhatsApp integrado por negócio' é 'Depois'. Custo do módulo: 3.661 linhas, 12 operações (trabalho/escopo-produto/custo.json).",
+   "recomendacao": "No piloto, tirar Mensagens da barra de abas e guardar o módulo até haver canal contratado por negócio. Opções para a quinta aba: (a) Assistente; (b) 'Retorno' (lembretes a mandar, quem não volta há X dias, lista de espera); (c) ficar com quatro abas e o Menu. Recomendo (b): é o passo do ciclo que hoje não tem lugar próprio. Na ligação: navigation.ts:46-47 passa a depender do contexto (canal ativo => aba Mensagens). Enquanto existir, esconder a opção 'Simulado' fora da demonstração e da homologação (InboxPage.tsx:42).",
+   "caminhos": [
+    "src/app/navigation.ts",
+    "src/app/AppShell.tsx",
+    "src/features/messaging/InboxPage.tsx",
+    "src/features/messaging/module.tsx",
+    "src/app/AppShell.test.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-07",
+   "titulo": "Sete módulos que dependem de integração ou portão externo inexistente aparecem no menu como operação normal",
+   "gravidade": "alta",
+   "tipo": "remover_ou_esconder",
+   "evidencia": "Verificado. Pagamentos: PSP real é 'esqueleto' (supabase/functions/_shared/domain/payments/providers.ts:4 e :129) e exige PSP_BASE_URL/PSP_API_KEY (payments/index.ts:34-37); a tela oferece 'Como receber' com padrão 'simulated' também com servidor (src/features/payments/PaymentsPage.tsx:24 e :61-63). Notas fiscais: sem provedor configurado a homologação cai no simulado (supabase/functions/fiscal/index.ts:25). Site e Google, Diretório e Avaliações: docs/plano-onda-3.md lista o portão externo de cada um (DNS e conta Google do cliente; oferta local e moderação; moderação humana) e não há no repositório registro de que algum tenha sido cumprido (inferência). Diretório tem rotas públicas ativas (src/features/discovery/module.tsx:43-45). Campanhas envia pelo canal (CampaignsPage.tsx:1-3). docs/00_PRODUTO.md:49 lista como 'Depois': campanhas em escala, cobrança Pix por PSP, NFSe, Google Business, marketplace de busca. Soma dos sete (messaging, payments, fiscal, presence, campaigns, reputation, discovery): 16.857 linhas (20,2% do total por módulo), 54 operações (trabalho/escopo-produto/custo.json).",
+   "recomendacao": "Marcar como 'guardado' (achado 01): Mensagens, Pagamentos, Notas fiscais, Site e Google, Campanhas, Avaliações e Diretório. Cada um volta ao menu quando o seu portão for cumprido, por negócio (canal ativo, PSP configurado, provedor fiscal homologado, moderação definida). Enquanto guardado, a rota /diretorio pública responde 'em breve' ou fica fora do roteador público. Em 'Plano e serviços', uma lista curta 'Em preparação' substitui as entradas de menu. Tirar a opção 'Recebimento simulado (demonstração)' do formulário quando port.kind === 'server' fora de homologação (PaymentsPage.tsx:61-63).",
+   "caminhos": [
+    "src/app/navigation.ts",
+    "src/features/payments/PaymentsPage.tsx",
+    "src/features/fiscal/module.tsx",
+    "src/features/presence/module.tsx",
+    "src/features/discovery/module.tsx",
+    "src/features/campaigns/module.tsx",
+    "src/features/reputation/module.tsx",
+    "src/features/service-ops/ServicesPage.tsx"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-08",
+   "titulo": "Equipe, Materiais, Contas e Diretório contrariam o público e o limite escritos em docs/00 e no AGENTS.md, e estão no menu de todos",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "Verificado. AGENTS.md:5: 'Não construir ERP completo, marketplace amplo'. docs/00_PRODUTO.md:23: 'atendimento individual... Evitar inicialmente salões com múltiplas cadeiras/assistentes simultâneos, turmas de treino'. docs/00_PRODUTO.md:49 ('Depois'): 'múltiplos recursos, produtos/estoque... marketplace de busca amplo'. No código: Equipe entrega profissionais, salas, cadeiras, turmas e comissões (src/features/resources/ResourcesPage.tsx:1-3); Materiais entrega estoque com custo médio, compras e margem real (materials/MaterialsPage.tsx:1-3); Contas entrega contas a pagar, demonstrativo e conferência (finance-advanced/AccountsPage.tsx:1-3); Diretório entrega busca pública por cidade e categoria (discovery/module.tsx:43-45). Custo dos quatro: 9.831 linhas (11,8%), 44 operações, 27 comandos de escrita (custo-por-classe.json). A onda foi aprovada pelo dono (docs/plano-onda-3.md:3), então o código existir é decisão tomada; o que não foi decidido é mostrá-lo no piloto.",
+   "recomendacao": "Decisão dos donos: (a) guardar os quatro até a fase em que o mapa os prevê para clientes (F4/F5), com ativação manual por negócio; (b) ativar por perfil: Equipe só quando o negócio tem mais de um profissional, Materiais e Contas só no plano pago e por pedido; (c) manter como está. Recomendo (a) para o piloto e (b) como regra quando abrir para 50. Em qualquer opção, registrar num ADR o 'escopo visível do piloto' e atualizar docs/00_PRODUTO.md (seção do contrato do piloto) para que documento e app digam a mesma coisa.",
+   "caminhos": [
+    "docs/00_PRODUTO.md",
+    "docs/adr",
+    "src/app/navigation.ts",
+    "src/features/resources/module.tsx",
+    "src/features/materials/module.tsx",
+    "src/features/finance-advanced/module.tsx",
+    "src/features/discovery/module.tsx"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-09",
+   "titulo": "A tela de plano promete diferenças que nada aplica: Grátis 'não inclui emissão fiscal' e Completo 'inclui ofertas', mas tudo está aberto a todos",
+   "gravidade": "media",
+   "tipo": "defeito",
+   "evidencia": "Verificado. supabase/migrations/20261018190000_p15_service_ops.sql:99-106: Grátis inclui 'Agenda, clientes e caixa registrado; Perfil público; Exportação básica' e não inclui 'Emissão fiscal'; Completo (R$ 79) inclui 'Assistente com franquia mensal; Ofertas de vaga e recuperação de agenda'. Os dois têm a mesma franquia do assistente (200) e a única coisa que o plano aplica é esse limite (mesmo arquivo, :369-375, app.svc_apply_plan grava só agent_quotas.monthly_limit). O escopo é texto livre (listas de frases), não chave legível por máquina. Captura shots/servicos-tinindo__m-light.png mostra os dois planos com 'Assistente: 200 perguntas/mês' e o botão 'Escolher Completo (fundador)'. No menu do plano Grátis aparecem Notas fiscais, Preços (ofertas), Lista de espera e Assistente (medida do achado 01). docs/00_PRODUTO.md:57 pede 'entitlement controlado no backend'.",
+   "recomendacao": "Dar ao plano uma lista de capacidades legível por máquina: coluna nova em offering_versions (migration nova, append-only), por exemplo capabilities text[] com ids de módulo, devolvida por service_plan_current e exposta no contexto da sessão. O filtro do achado 01 lê essa lista; as funções dos módulos pagos recusam no servidor (regra determinística, RLS intacta). Até lá, corrigir o texto dos planos para não afirmar diferença que não existe. Quais capacidades entram em cada plano é decisão dos donos (docs/00_PRODUTO.md:57 dá a direção: pago = automações, assistente, ofertas, recuperação de agenda, relatórios).",
+   "caminhos": [
+    "supabase/migrations",
+    "supabase/functions/service-ops",
+    "supabase/functions/_shared/contracts/service-ops.ts",
+    "supabase/functions/context",
+    "src/app/session.tsx",
+    "src/features/service-ops/ServicesPage.tsx"
+   ],
+   "esforco": "G",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-10",
+   "titulo": "Metade do código por módulo está fora do núcleo do piloto: 17 módulos, 42.689 linhas e 153 operações sem uso previsto nas primeiras semanas",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "Medida (trabalho/escopo-produto/custo.cjs, custo.json e custo-por-classe.json; conferida por amostra: scheduling 4.062 linhas de tela, fiscal 681, migration do fiscal 626, 38 migrations). Total atribuído a módulos: 83.579 linhas (61.393 de produção, 22.186 de teste), 244 operações de contrato, das quais 152 comandos de escrita. Núcleo do piloto (10 módulos: agenda, clientes, caixa, conta, configuração, perfil e link, lembretes, preços, lista de espera, assistente): 40.890 linhas (48,9%), 91 operações. Útil logo depois (6): 15.230 (18,2%), 50 operações. Prematuro por integração ou portão externo (7): 17.628 (21,1%), 59 operações. Fora do objetivo declarado (4): 9.831 (11,8%), 44 operações. Cada módulo carrega ainda uma Edge Function própria (29 pastas em supabase/functions, contando context e jobs), pgTAP, script de concorrência e pasta de e2e.",
+   "recomendacao": "Congelar, sem apagar: (1) rotular os 11 módulos guardados no registro (campo do achado 01) e proibir função nova neles até a decisão de reativar; (2) fazer o CI rodar e2e, concorrência e integração de um módulo guardado só quando o caminho dele ou os contratos compartilhados mudarem (filtro por caminho no workflow), mantendo pgTAP e testes de contrato sempre, porque RLS e isolamento valem para tudo; (3) na homologação e na produção, publicar só as Edge Functions dos módulos visíveis ou ativáveis (lista em release/CHECKLIST.md), reduzindo superfície exposta; (4) dirigir as próximas duas semanas de trabalho aos achados 02 a 05.",
+   "caminhos": [
+    ".github/workflows",
+    "release/CHECKLIST.md",
+    "src/app/modules.ts",
+    "docs/07_FASES_E_PACOTES.md"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-11",
+   "titulo": "Retorno não tem lugar na lista de Clientes: 'quem não volta há X dias' só aparece dentro de Reativação (campanha), com consentimento de marketing",
+   "gravidade": "media",
+   "tipo": "reforcar",
+   "evidencia": "Verificado. grep 'última visita|last_visit|sumid|retorn|dias sem|inativ|filtro|sort' em src/features/crm/CustomersPage.tsx: nenhuma ordenação nem filtro por última visita (só um .filter(Boolean) em :210). A última visita aparece apenas em src/features/lifecycle/LifecyclePage.tsx:201-211, no cartão 'Reativação (campanha)', restrito a 'clientes com consentimento de marketing registrado' e sujeito a aprovação de público e teto. docs/00_PRODUTO.md define o trabalho central como 'atendimento, retorno e recebimento' e a conversa-exemplo do assistente é 'me mostre quem pode voltar nesta semana'.",
+   "recomendacao": "Na lista de Clientes, acrescentar a ordenação 'há mais tempo sem vir' e o filtro 'sem voltar há 30/45/60 dias', com a data da última visita em cada linha e o botão de WhatsApp com texto de retorno individual (mensagem um a um, de relacionamento, enviada pelo próprio profissional; campanha em massa continua exigindo consentimento de marketing como hoje). O dado já existe no servidor (a régua calcula a última visita como max(bookings.starts_at) em supabase/migrations/20261022140000_p13_lifecycle.sql:690-695); expor no contrato de listagem do CRM de forma aditiva. Conferir com o jurídico a fronteira entre lembrete individual e marketing antes de publicar o texto padrão.",
+   "caminhos": [
+    "src/features/crm/CustomersPage.tsx",
+    "src/features/crm/api.ts",
+    "supabase/functions/_shared/contracts/crm.ts",
+    "supabase/functions/crm",
+    "supabase/migrations"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  },
+  {
+   "id": "escopo-produto-12",
+   "titulo": "Dinheiro tem cinco sub-abas (Caixa, Contas, Pagamentos, Assinaturas, Notas fiscais) para um piloto em que o recebimento é registro manual",
+   "gravidade": "media",
+   "tipo": "simplificar",
+   "evidencia": "Verificado. src/app/navigation.ts:50-51 e medida do preview (sub-abas de /app/caixa: Caixa, Contas, Pagamentos, Assinaturas, Notas fiscais). docs/00_PRODUTO.md:23: 'pagamentos majoritariamente fora do aplicativo'; :43: o operacional do piloto é 'registro de recebido/a receber' e 'créditos de sessões simples'. Alturas no celular (shots/index.json): Caixa 3553 px, Contas 2711 px, Notas fiscais 2223 px. A ação rápida da Hoje 'Registrar recebimento' leva a /app/caixa inteiro (Home.tsx:162).",
+   "recomendacao": "No piloto, Dinheiro = Caixa (a cobrar, recebido no mês, despesas simples, pacotes de sessões), sem faixa de sub-abas. Assinaturas entra por ativação para personal; Contas, Pagamentos e Notas ficam guardados (achados 07 e 08). No Caixa, a lista 'a cobrar' vem primeiro e o resumo do mês depois; o restante (lançamentos, pacotes) em seções recolhidas. Sai do mesmo filtro do achado 01, sem código novo além da ordem das seções em FinancePage.tsx.",
+   "caminhos": [
+    "src/app/navigation.ts",
+    "src/features/finance/FinancePage.tsx",
+    "src/features/finance/finance.css"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-13",
+   "titulo": "A profissão é gravada no negócio e usada só para modelos de serviço; a navegação e a sessão não a conhecem",
+   "gravidade": "media",
+   "tipo": "refatorar",
+   "evidencia": "Verificado. supabase/migrations/20261017120000_foundation.sql:56: tenants.profession in ('barber','hairdresser','personal_trainer','other'). Uso no app: modelos de serviço (src/features/setup/SetupPage.tsx:194-227) e presets do onboarding (src/features/identity/OnboardingForm.tsx:26-29). src/app/session.tsx:7-11: MembershipView tem só tenant_id, tenant_name e role ('owner' | 'staff'); grep 'profession|plan|modules|enabled' em supabase/functions/context e contracts/context.ts só encontra role. Consequência: barbeiro e personal recebem o mesmo menu (Domicílio, Assinaturas, Orçamentos, Equipe), e a recorrência semanal não tem como ser destacada para o personal.",
+   "recomendacao": "Acrescentar ao contrato de contexto (aditivo) profession e, quando existir, a lista de capacidades do plano (achado 09); carregar em session.tsx e passar ao filtro de visibilidade (achado 01). Regras iniciais propostas: personal_trainer vê Assinaturas e a repetição semanal em destaque; barbeiro e cabeleireira veem Preços e Lista de espera depois de concluir a configuração; 'other' vê só o núcleo. A demonstração offline usa a profissão do tenant de exemplo. Isto é só apresentação: nenhuma permissão passa a depender da profissão.",
+   "caminhos": [
+    "supabase/functions/_shared/contracts/context.ts",
+    "supabase/functions/context/handler.ts",
+    "supabase/migrations",
+    "src/app/session.tsx",
+    "src/app/navigation.ts"
+   ],
+   "esforco": "M",
+   "risco_da_mudanca": "medio",
+   "precisa_decisao": false,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-14",
+   "titulo": "O critério do próprio UAT ('se ninguém viu valor além da agenda, rever antes de abrir mais módulos') não tem como ser aplicado: tudo já está aberto",
+   "gravidade": "media",
+   "tipo": "decisao",
+   "evidencia": "Verificado. docs/qa/UAT-PILOTO.md:76: 'Se ninguém viu valor além da agenda, rever a promessa antes de abrir mais módulos (docs/10)'. docs/plano-onda-3.md:3: 'o manifesto do piloto (coordination/manifest.json) segue com P00–P10', e a aprovação da onda diz que 'liberar código não é liberar operação real'. No app não existe a distinção: os módulos de P11 a P31 e P43 a P46 estão no menu de qualquer conta (achado 01). O roteiro do UAT (docs/qa/UAT-PILOTO.md:32-56) só usa Agenda, Serviços, Clientes, Importar, link público, Preços, Lista de espera, Caixa, Assistente e pacotes: 10 dos 27 módulos.",
+   "recomendacao": "Antes das três sessões do P42, decidir e registrar a lista de módulos visíveis no piloto (proposta no relatório, seção 3) e aplicá-la pelo filtro do achado 01, de modo que o participante veja o mesmo recorte que o roteiro testa. Depois das sessões, cada módulo 'ativável' só entra para um negócio quando houver pedido ou sinal de uso (por exemplo: três cancelamentos no mês ativam a sugestão de Lista de espera). Registrar em ADR e ligar à issue #76.",
+   "caminhos": [
+    "docs/qa/UAT-PILOTO.md",
+    "release/P42-LIBERACAO.md",
+    "docs/adr",
+    "src/app/navigation.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": true,
+   "confianca": "alta"
+  },
+  {
+   "id": "escopo-produto-15",
+   "titulo": "Metas e sugestões é o módulo mais fundo fora do núcleo (4.401 linhas, 1.716 de SQL, tela de 4.530 px) e ocupa o segundo bloco da Hoje",
+   "gravidade": "baixa",
+   "tipo": "simplificar",
+   "evidencia": "Medida: custo.json (growth-advice: total 4.401, sql 1.716, ops 12; maior SQL de todos os módulos, acima da agenda com 1.326). shots/index.json: metas__m-light tem 4.530 px, a tela mais alta do app. Home.tsx:148 põe o InsightsCard acima do resumo do dia; na captura home-viewport-m.png as três sugestões ocupam de y=437 até o fim da primeira tela. Na demonstração as sugestões falam de dados de 9 semanas ('5 de 12 atendimentos de quarta com falta, de 21/08 a 20/10'); um negócio no primeiro dia do piloto não tem esse histórico (inferência: o cartão fica vazio ou raro nas primeiras semanas; não conferido com servidor).",
+   "recomendacao": "Manter o motor de insights (P45) ligado, mas na Hoje mostrar no máximo uma sugestão, abaixo da agenda e das pendências (achado 02). A tela Metas e sugestões fica 'ativável' e só aparece no menu depois de quatro semanas de dados; metas e conteúdo por profissão (P22) ficam recolhidos. Sem mudança de servidor.",
+   "caminhos": [
+    "src/app/pages/Home.tsx",
+    "src/features/growth-advice/Insights.tsx",
+    "src/features/growth-advice/GoalsPage.tsx",
+    "src/app/navigation.ts"
+   ],
+   "esforco": "P",
+   "risco_da_mudanca": "baixo",
+   "precisa_decisao": false,
+   "confianca": "media"
+  }
+ ],
+ "decisoes_para_os_donos": [
+  "Escopo visível do piloto. Opções: (a) mostrar 10 módulos no primeiro dia, 6 por ativação e guardar 11 (proposta da seção 3 do relatório); (b) esconder só os 7 que dependem de integração inexistente; (c) manter os 27 visíveis. Recomendo (a).",
+  "Quinta aba da barra. Opções: (a) Assistente; (b) 'Retorno' (lembretes a mandar, quem não volta, lista de espera); (c) quatro abas. Recomendo (b), e Mensagens volta quando houver canal oficial contratado por negócio.",
+  "O que cada plano libera. Hoje Grátis e Completo diferem só no texto. Opções: (a) Grátis = núcleo sem assistente além de uma franquia pequena, Completo = assistente, ofertas, lista de espera, lembretes automáticos e relatórios (direção de docs/00:57); (b) piloto inteiro sem distinção e texto de plano corrigido para não prometer diferença. Recomendo (b) durante o piloto e (a) antes de cobrar.",
+  "Destino de Equipe, Materiais, Contas e Diretório. Opções: guardar até F4/F5 com ativação manual; ativar por perfil (mais de um profissional, plano pago); manter. Recomendo guardar no piloto.",
+  "Congelamento. Aprovar que nenhum módulo guardado recebe função nova e que o trabalho das próximas duas semanas vai para o núcleo (Hoje, concluir e receber, confirmação e lembrete, recorrência do personal, retorno em Clientes)."
+ ],
+ "nao_coberto": [
+  "Nenhum fluxo foi executado contra servidor (Supabase): as afirmações de 'funciona de ponta a ponta com servidor' na tabela vêm da leitura de serverPort, handlers e migrations, não de execução. O auditor de testes e o de banco cobrem isso.",
+  "Vi que o servidor marca o lembrete como 'manual' (p13_lifecycle.sql:321-322), mas não li a condição completa nem executei a régua com servidor; por isso o achado 05 fica com confiança média.",
+  "Não conferi se o servidor recusa o provedor 'simulated' em produção para criar cobrança ou conectar número; só vi que o formulário o oferece com a porta de servidor e que não há condição por ambiente na tela.",
+  "docs/15_RECONCILIACAO_GABRIEL.md, docs/plano-assistente-configuracao-e-insights.md e os handoffs foram usados só pelos títulos e trechos buscados, não lidos inteiros (orçamento curto).",
+  "Não abri cada uma das 52 telas da galeria; usei as alturas de shots/index.json e quatro capturas (Hoje, menu, Mensagens, Plano e serviços).",
+  "Frequência de uso por persona na tabela é estimativa a partir de docs/00 e do roteiro do UAT; não há telemetria de uso real do piloto de 28/10 no repositório.",
+  "Custo de execução do CI por módulo (minutos) não foi medido; o custo foi contado em linhas, operações e arquivos de teste.",
+  "Qualidade interna das telas periféricas (acessibilidade, textos) ficou com os auditores de design e de código."
+ ]
+}
