@@ -426,6 +426,10 @@ describe("páginas públicas (demonstração)", () => {
     expect(toE164("+55 11 97777-4343")).toBe("+5511977774343");
     expect(toE164("5511977774343")).toBe("+5511977774343");
     expect(toE164("97777-4343")).toBeNull();
+    // Mesmo analisador de Clientes e da Agenda: 0 de longa distância vale; letras no meio não.
+    expect(toE164("011 98765-4321")).toBe("+5511987654321");
+    expect(toE164("0 11 8765-4321")).toBe("+551187654321");
+    expect(toE164("11 9abc8765-4321")).toBeNull();
   });
 
   it("perfil tirado do ar some do link público", async () => {

@@ -68,8 +68,5 @@ export function errorMessage(e: unknown): string {
 export const formatDateTime = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 
-/** "+5511977774343" → "(11) 97777-4343"; outro formato volta como veio. */
-export function formatPhoneBr(e164: string): string {
-  const m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
-}
+/** "+5511977774343" → "(11) 97777-4343"; outro formato volta como veio. Formatador comum (src/lib/phone.ts). */
+export { formatPhone as formatPhoneBr } from "../../lib/phone.ts";

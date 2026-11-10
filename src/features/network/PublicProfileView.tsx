@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, toast, useFormErrors, whatsappHref } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
+import { phoneToE164 } from "../../lib/phone.ts";
 import { addDays, dayWindow, formatTime, localParts } from "../../lib/time.ts";
 import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, SlotsData } from "./api.ts";
 import { buildIcs } from "./ics.ts";
@@ -58,13 +59,12 @@ export function shortDay(day: string): string {
   return `${weekday} ${day.slice(8, 10)}/${day.slice(5, 7)}`;
 }
 
-/** Aceita "(11) 97777-4343", "11977774343" ou "+55 11 97777-4343"; devolve E.164 ou null. */
+/**
+ * Aceita "(11) 97777-4343", "011 97777-4343", "11977774343" ou "+55 11 97777-4343"; devolve E.164 ou null.
+ * Mesmo analisador de Clientes e da Agenda (src/lib/phone.ts).
+ */
 export function toE164(raw: string): string | null {
-  const digits = raw.replace(/\D/g, "");
-  if (raw.trim().startsWith("+")) return /^[1-9]\d{7,14}$/.test(digits) ? `+${digits}` : null;
-  if (/^\d{10,11}$/.test(digits)) return `+55${digits}`;
-  if (/^55\d{10,11}$/.test(digits)) return `+${digits}`;
-  return null;
+  return phoneToE164(raw) ?? null;
 }
 
 /** Mensagens do pedido e da confirmação, sem detalhes técnicos. */

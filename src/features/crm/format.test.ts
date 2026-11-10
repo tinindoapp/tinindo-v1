@@ -1,29 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { formatCents, formatPhone, normalizePhoneBR, parseBRL, parsePercentToBps, sourceFromText } from "./format.ts";
 
-describe("normalizePhoneBR", () => {
-  it.each([
-    ["(11) 98765-4321", "+5511987654321"],
-    ["11 3456-7890", "+551134567890"],
-    ["011 98765-4321", "+5511987654321"],
-    ["55 11 98765 4321", "+5511987654321"],
-    ["+351 912 345 678", "+351912345678"],
-    ["00351912345678", "+351912345678"],
-  ])("%s → %s", (raw, e164) => {
-    expect(normalizePhoneBR(raw)).toEqual({ value: e164 });
-  });
-
-  it("vazio vira null", () => {
-    expect(normalizePhoneBR("  ")).toEqual({ value: null });
-  });
-
-  it.each(["1199", "98765-4321", "telefone", "+0 11 9999", "11 98765-4321 ramal 2"])("%s é inválido", (raw) => {
-    expect(normalizePhoneBR(raw)).toEqual({ error: "PHONE_INVALID" });
-  });
-
-  it("formata +55 no padrão local", () => {
+// A tabela completa do telefone está em src/lib/phone.test.ts; aqui só se confere que o CRM usa a mesma função.
+describe("telefone no CRM", () => {
+  it("usa o analisador comum", () => {
+    expect(normalizePhoneBR("011 98765-4321")).toEqual({ value: "+5511987654321" });
     expect(formatPhone("+5511987654321")).toBe("(11) 98765-4321");
-    expect(formatPhone("+351912345678")).toBe("+351912345678");
   });
 });
 

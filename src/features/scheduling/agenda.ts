@@ -236,25 +236,11 @@ export function serviceName(services: ProviderService[], id: string): string {
 
 /**
  * WhatsApp digitado no cadastro rápido → E.164 (o contrato pede `PhoneE164`). Vazio → null; inválido → undefined.
- * "(11) 98765-4321" → "+5511987654321". Número de fora do Brasil precisa vir com "+". (O módulo não importa o CRM.)
+ * Mesmo analisador de Clientes e do link público (src/lib/phone.ts).
  */
-export function phoneToE164(raw: string): string | null | undefined {
-  const text = raw.trim();
-  if (!text) return null;
-  if (/[^\d\s()+.-]/.test(text)) return undefined;
-  let digits = text.replace(/\D/g, "");
-  if (text.startsWith("+")) return /^[1-9]\d{7,14}$/.test(digits) ? `+${digits}` : undefined;
-  if (digits.length === 12 && digits.startsWith("0")) digits = digits.slice(1);
-  if (digits.length === 10 || digits.length === 11) return `+55${digits}`;
-  if ((digits.length === 12 || digits.length === 13) && digits.startsWith("55")) return `+${digits}`;
-  return undefined;
-}
-
+export { phoneToE164 } from "../../lib/phone.ts";
 /** "+5511987654321" → "(11) 98765-4321"; outros países ficam em E.164. */
-export function formatPhoneBR(e164: string): string {
-  const m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
-}
+export { formatPhone as formatPhoneBR } from "../../lib/phone.ts";
 
 /** Só os dígitos do E.164, como o wa.me pede. null quando não há telefone com que abrir a conversa. */
 export function whatsAppDigits(phone: string | null | undefined): string | null {
