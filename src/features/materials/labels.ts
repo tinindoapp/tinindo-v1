@@ -5,7 +5,15 @@ export { formatCents } from "../../lib/money.ts";
 export const formatQty = (q: number, unit: MaterialItem["unit"]) => `${q.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
 export const formatDate = (v: string, timeZone: string) => new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(new Date(v));
 export const formatPercent = (bps: number) => `${(bps / 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-export const parseNumber = (v: string) => (v.trim() === "" ? NaN : Number(v.replace(/\./g, "").replace(",", ".")));
+/** Quantidade digitada ("2", "0,5", "1.250,5", "10.50") → número; vazio ou inválido → NaN.
+ *  Mesma regra do dinheiro (src/lib/money.ts): com vírgula, o ponto separa milhar; sem vírgula, o ponto é a
+ *  casa decimal. Antes, "10.50" virava 1050. */
+export function parseNumber(v: string): number {
+  const text = v.replace(/\s/g, "");
+  if (!text) return NaN;
+  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
+  return /^\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : NaN;
+}
 export const UNIT_LABEL: Record<MaterialItem["unit"], string> = { un: "unidade", ml: "mililitro", g: "grama" };
 export const KIND_LABEL: Record<MaterialItem["kind"], string> = { consumable: "Consumível", product: "Produto" };
 
