@@ -122,6 +122,9 @@
 @media (hover: hover) { .tn-sched-item__link:hover { background: var(--tn-action-subtle); } }
 /* Atendido e Faltou no cartão do dia: linha própria embaixo do link, alinhada ao conteúdo. */
 .tn-sched-item > .tn-sched-attend { grid-column: 1 / -1; margin: 0 var(--tn-space-3) var(--tn-space-3); }
+/* Saídas de "Atendido" (P48): não é ação de perigo, então a faixa é a de seleção, não o vermelho da confirmação. */
+.tn-confirm.tn-sched-attend { border-left-color: var(--tn-selected-border); }
+.tn-sched-attend .tn-collect { margin: 0; }
 .tn-sched-item[data-kind="free"] { border-style: dashed; background: transparent; }
 .tn-sched-item[data-kind="pause"],
 .tn-sched-item[data-kind="block"] { background: var(--tn-surface-sunken); color: var(--tn-text-muted); }
