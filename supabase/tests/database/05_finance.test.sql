@@ -3,7 +3,7 @@
 -- livro do caixa com mais de 200 recebíveis não esconde os em aberto mais novos.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(64);
+select plan(67);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -291,6 +291,31 @@ select ok((select bool_and(d.prev is null or d.prev <= d.due_at) from (
     from jsonb_array_elements(pg_temp.got('ledger210')->'receivables') with ordinality as t(x, n)
     where x->>'due_at' is not null) d),
   'saída continua ordenada pelo vencimento');
+reset role;
+
+-- ------------------------------------------------------------------ mais de 100 pendências (Onda 0, sobra da linha F)
+-- 105 atendimentos concluídos e sem cobrança, um a cada 2 horas a partir de 10 dias atrás. O corte de 100
+-- precisa guardar os mais recentes (antes guardava os 100 mais antigos e o mais novo sumia da tela).
+insert into public.bookings (tenant_id, resource_id, customer_id, service_id, starts_at, ends_at, occupied_range,
+  blocks_capacity, status, agreed_price_cents, source)
+select (select tenant_a from ids), (select res_a from ids), (select cust_a from ids), (select corte_a from ids),
+  now() - interval '10 days' - make_interval(hours => 2 * g),
+  now() - interval '10 days' - make_interval(hours => 2 * g) + interval '30 minutes',
+  tstzrange(now() - interval '10 days' - make_interval(hours => 2 * g),
+            now() - interval '10 days' - make_interval(hours => 2 * g) + interval '40 minutes', '[)'),
+  true, 'completed', 6000, 'owner'
+from generate_series(1, 105) g;
+select pg_temp.login_as((select owner_a from ids));
+set local role authenticated;
+insert into r select 'uncharged105', public.finance_uncharged((select tenant_a from ids), now() - interval '365 days', now());
+select is(jsonb_array_length(pg_temp.got('uncharged105')->'bookings'), 100, 'pendências: o corte continua em 100');
+select ok(exists (select 1 from jsonb_array_elements(pg_temp.got('uncharged105')->'bookings') x
+  where (x->>'starts_at')::timestamptz > now() - interval '10 days' - interval '3 hours'),
+  'pendências: a mais recente aparece mesmo com mais de 100');
+select ok((select bool_and(d.prev is null or d.prev <= d.s) from (
+    select (x->>'starts_at')::timestamptz as s, lag((x->>'starts_at')::timestamptz) over (order by n) as prev
+    from jsonb_array_elements(pg_temp.got('uncharged105')->'bookings') with ordinality as t(x, n)) d),
+  'pendências: saída continua em ordem crescente de início');
 reset role;
 
 select * from finish();
