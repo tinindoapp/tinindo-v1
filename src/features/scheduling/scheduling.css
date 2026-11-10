@@ -66,6 +66,8 @@
 .tn-sched-after { border-left: 4px solid var(--tn-border-control); }
 .tn-sched-after h2 { margin: 0; font-size: var(--tn-text-group); }
 .tn-sched-after p { margin: 0; }
+/* Texto pronto para o cliente (P49): citado à parte, para o dono ler antes de abrir o WhatsApp. */
+.tn-sched-after .tn-sched-notice { padding: var(--tn-space-2) var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-sm); overflow-wrap: anywhere; }
 /* Ocupação compacta: uma linha com barra fina; o resto fica em "Ver números". */
 .tn-sched-occline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-1) var(--tn-space-3); margin: 0; min-width: 0; font-size: var(--tn-text-support); }
 .tn-sched-occline__figure { margin: 0; }

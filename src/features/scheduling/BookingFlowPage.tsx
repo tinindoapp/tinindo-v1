@@ -7,7 +7,7 @@ import type { Booking, ProviderService, Quote, TimeRange } from "@contracts";
 import { Button, ChoiceCard, Field, focusFirstInvalid, IconButton, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { plural } from "../../lib/text/plural.ts";
 import { type CustomerRef, newIdempotencyKey } from "./port.ts";
-import { canReschedule, formatCents, formatMinutes, formatPhoneBR, formatRange, phoneToE164, serviceName } from "./agenda.ts";
+import { canReschedule, confirmNoticeText, formatCents, formatMinutes, formatPhoneBR, formatRange, phoneToE164, serviceName, whatsAppDigits } from "./agenda.ts";
 import { isErrorLike } from "./errors.ts";
 import { addDays, dayWindow, formatDayLong, isCivilDate, localParts } from "./time.ts";
 import { ErrorPanel, PolicyNote, ScreenNotes } from "./parts.tsx";
@@ -154,8 +154,10 @@ function BookingFlow(props: FlowProps) {
           ? await port.create(payload as Parameters<typeof port.create>[0], key)
           : await port.reschedule(payload as Parameters<typeof port.reschedule>[0], key);
       const target = props.mode === "create" ? `../atendimento/${result.id}` : "..";
-      // O aviso (Toast) sai na tela do atendimento, depois da troca de tela.
-      navigate(target, { relative: "path", state: { done: props.mode === "create" ? "criado" : "reagendado" } });
+      // O aviso (Toast) sai na tela do atendimento, depois da troca de tela. Com WhatsApp no cadastro, vai junto o texto
+      // de confirmação pronto (P49): a tela do atendimento oferece "Avisar no WhatsApp".
+      const notify = props.mode === "create" ? createdNotice(result, service, customers.find((c) => c.id === result.customer_id), tz, ctx.tenantName) : null;
+      navigate(target, { relative: "path", state: { done: props.mode === "create" ? "criado" : "reagendado", ...(notify ? { notify } : {}) } });
     } catch (err) {
       setFailure(err);
       const code = isErrorLike(err) ? err.code : null;
@@ -345,6 +347,19 @@ function BookingFlow(props: FlowProps) {
 }
 
 /** Tira acentos e caixa para a busca por nome ("ana" acha "Cliente Exemplo Ána"). */
+/** Aviso de confirmação para quem acabou de ser agendado. Sem WhatsApp no cadastro, null (a tela não oferece). */
+export interface CreatedNotice {
+  bookingId: string;
+  phone: string;
+  text: string;
+}
+function createdNotice(booking: Booking, service: ProviderService, customer: CustomerRef | undefined, tz: string, business: string): CreatedNotice | null {
+  const phone = whatsAppDigits(customer?.phone);
+  if (!customer || !phone) return null;
+  const start = localParts(booking.starts_at, tz);
+  return { bookingId: booking.id, phone, text: confirmNoticeText({ name: customer.name, service: service.name, day: formatDayLong(start.date), time: start.time, business }) };
+}
+
 function fold(v: string): string {
   return v.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
 }
