@@ -52,6 +52,22 @@ export function monthPeriod(month: string, timeZone: string): { starts_at: strin
   return { starts_at: startOfLocalDay(`${month}-01`, timeZone), ends_at: startOfLocalDay(`${next}-01`, timeZone) };
 }
 
+/**
+ * Período das pendências: atendimento concluído sem cobrança não tem mês. Vai do mesmo dia um ano atrás até o fim de
+ * hoje, no fuso do negócio (no máximo 367 dias; o servidor aceita até 400). O seletor de mês do Caixa não o muda.
+ */
+export function pendingPeriod(today: string, timeZone: string): { starts_at: string; ends_at: string } {
+  const [y, m, d] = today.split("-").map(Number) as [number, number, number];
+  const yearAgo = new Date(Date.UTC(y - 1, m - 1, m === 2 && d === 29 ? 28 : d)).toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  return { starts_at: startOfLocalDay(yearAgo, timeZone), ends_at: startOfLocalDay(tomorrow, timeZone) };
+}
+
+/** Pendências do mais novo ao mais antigo: o atendimento de hoje fica no topo. */
+export function newestFirst<T extends { starts_at: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => Date.parse(b.starts_at) - Date.parse(a.starts_at));
+}
+
 export function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split("-").map(Number) as [number, number];
   const idx = y * 12 + (m - 1) + delta;

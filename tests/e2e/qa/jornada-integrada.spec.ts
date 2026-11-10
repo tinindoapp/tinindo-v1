@@ -28,7 +28,8 @@ test("mesmo atendimento: concluir na agenda → sem cobrança no Caixa → receb
   await expect(page.getByRole("heading", { name: "Caixa", level: 1 })).toBeVisible();
   await expectDemoLabel(page);
   const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
-  await expect(pending.getByRole("listitem")).toHaveCount(3);
+  // Os dois de segunda 19/10, o de hoje e o Corte de 28/09 (pendência não tem mês).
+  await expect(pending.getByRole("listitem")).toHaveCount(4);
   const visit = pending.getByRole("listitem").filter({ hasText: "20/10/2026" });
   await expect(visit).toHaveCount(1);
   await expect(visit).toContainText("Ana");
@@ -62,7 +63,7 @@ test("atendimento futuro não conclui e não aparece no Caixa", async ({ page })
   await page.getByRole("link", { name: /15:00–15:30 Corte/ }).click();
   await expect(page.getByRole("button", { name: "Atendido", exact: true })).toHaveCount(0);
   await softGo(page, "/app/caixa");
-  await expect(page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }).getByRole("listitem")).toHaveCount(2);
+  await expect(page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }).getByRole("listitem")).toHaveCount(3);
 });
 
 test("cliente pelo perfil público: avaliações e caminho para avaliar; escolher horário não vira reserva sem o código", async ({ page }) => {
@@ -130,13 +131,13 @@ test.describe("regressões da auditoria", () => {
     await page.getByRole("button", { name: "Voltar", exact: true }).click();
     await expect(page.getByRole("button", { name: "Atendido", exact: true })).toBeVisible();
     await softGo(page, "/app/caixa");
-    await expect(page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }).getByRole("listitem")).toHaveCount(2);
+    await expect(page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }).getByRole("listitem")).toHaveCount(3);
   });
 
   test("recebimento de valor zero é recusado e o saldo não muda", async ({ page }) => {
     await page.goto("/app/caixa");
     const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
-    await pending.getByRole("listitem").filter({ hasText: "Bruno" }).getByRole("button", { name: /Cobrar depois/ }).click();
+    await pending.getByRole("listitem").filter({ hasText: "Bruno" }).filter({ hasText: "19/10/2026" }).getByRole("button", { name: /Cobrar depois/ }).click();
     const open = page.getByRole("region", { name: "A receber" });
     await open.getByRole("button", { name: "Registrar recebimento de Barba", exact: true }).click();
     await open.getByLabel("Valor recebido (R$)").fill("0");

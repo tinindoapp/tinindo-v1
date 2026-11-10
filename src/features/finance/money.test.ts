@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { capitalizeFirst, endOfLocalDay, formatMonth, leftover, monthPeriod, noonOfLocalDay, shiftMonth, startOfLocalDay, unchargedTotal } from "./money.ts";
+import { FinancePeriodInput } from "@contracts";
+import { capitalizeFirst, endOfLocalDay, formatMonth, leftover, monthPeriod, newestFirst, noonOfLocalDay, pendingPeriod, shiftMonth, startOfLocalDay, unchargedTotal } from "./money.ts";
 
 // A leitura e a formatação de dinheiro são testadas em src/lib/money.test.ts.
 describe("datas e contas do caixa", () => {
@@ -18,6 +19,17 @@ describe("datas e contas do caixa", () => {
     });
     expect(shiftMonth("2026-01", -1)).toBe("2025-12");
     expect(shiftMonth("2026-12", 1)).toBe("2027-01");
+  });
+
+  it("pendências: um ano até o fim de hoje, no fuso do negócio, dentro do que o contrato aceita", () => {
+    const p = pendingPeriod("2026-10-20", "America/Sao_Paulo");
+    expect(p).toEqual({ starts_at: "2025-10-20T03:00:00.000Z", ends_at: "2026-10-21T03:00:00.000Z" });
+    expect(FinancePeriodInput.safeParse({ period: p }).success).toBe(true);
+    // 29/02 → 28/02 do ano anterior; o período nunca passa de 400 dias (limite de app.fin_period no banco).
+    const leap = pendingPeriod("2028-02-29", "America/Sao_Paulo");
+    expect(leap.starts_at).toBe("2027-02-28T03:00:00.000Z");
+    expect((Date.parse(leap.ends_at) - Date.parse(leap.starts_at)) / 86_400_000).toBeLessThanOrEqual(400);
+    expect(newestFirst([{ starts_at: "2026-09-28T12:00:00Z" }, { starts_at: "2026-10-19T14:00:00-03:00" }])[0]!.starts_at).toBe("2026-10-19T14:00:00-03:00");
   });
 
   it("sobrou no mês = recebido − gasto; negativo vira 'Faltou'", () => {

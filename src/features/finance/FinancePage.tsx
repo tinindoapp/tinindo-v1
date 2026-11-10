@@ -15,8 +15,10 @@ import {
   leftover,
   localDate,
   monthPeriod,
+  newestFirst,
   noonOfLocalDay,
   parseBRL,
+  pendingPeriod,
   shiftMonth,
   unchargedTotal,
 } from "./money.ts";
@@ -122,20 +124,24 @@ export function FinancePage() {
   const qMonth = params.get("mes");
   const month = qMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(qMonth) ? qMonth : currentMonth;
   const period: TimeRange = monthPeriod(month, tz);
+  // Pendência não tem mês: o atendimento concluído sem cobrança aparece até ser cobrado, seja qual for o mês escolhido.
+  // O seletor vale para o caixa registrado, os recebimentos e as despesas.
+  const pending: TimeRange = pendingPeriod(today, tz);
 
   useEffect(() => {
     if (!base) return;
     let alive = true;
-    Promise.all([port.summary(period, base.timezone), port.ledger(period), port.uncharged(period), port.packages()]).then(
-      ([summary, ledger, uncharged, packages]) => alive && setData({ month, nonce, value: { summary, ledger, uncharged, packages } }),
+    Promise.all([port.summary(period, base.timezone), port.ledger(period), port.uncharged(pending), port.packages()]).then(
+      ([summary, ledger, uncharged, packages]) =>
+        alive && setData({ month, nonce, value: { summary, ledger, uncharged: newestFirst(uncharged), packages } }),
       (error: unknown) => alive && setData({ month, nonce, error: error ?? new Error("erro") }),
     );
     return () => {
       alive = false;
     };
-    // period deriva de month + base.timezone
+    // period deriva de month + base.timezone; pending, de today + base.timezone
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [port, base, month, nonce]);
+  }, [port, base, month, today, nonce]);
 
   const go = (m: string) => {
     const p = new URLSearchParams(params);
@@ -302,7 +308,7 @@ function Uncharged({ list, packages }: { list: UnchargedBooking[]; packages: Pac
     <section aria-labelledby="fin-unch-title" className="tn-fin-section">
       <h2 id="fin-unch-title" tabIndex={-1}>Atendimentos concluídos sem cobrança</h2>
       {list.length === 0 ? (
-        <p className="tn-muted">Nenhum atendimento concluído pendente neste mês.</p>
+        <p className="tn-muted">Nenhum atendimento concluído esperando cobrança.</p>
       ) : (
         <ul className="tn-fin-list">
           {list.map((b) => (

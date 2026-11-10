@@ -9,7 +9,7 @@ import { List, ListItem, PageHeader, Section, Stat, Stats, StatusBanner } from "
 import { Icon } from "../../components/ui/icons.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { getDemoPort as getFinanceDemoPort } from "../../features/finance/module.tsx";
-import { formatCents, monthPeriod } from "../../features/finance/money.ts";
+import { formatCents, monthPeriod, pendingPeriod } from "../../features/finance/money.ts";
 import type { FinancePort } from "../../features/finance/port.ts";
 import { createServerPort as createFinanceServerPort } from "../../features/finance/serverPort.ts";
 import { createDemoPort as createAdviceDemoPort } from "../../features/growth-advice/demoPort.ts";
@@ -92,8 +92,8 @@ async function loadToday(p: Ports): Promise<Today> {
       return { day, next, confirmed: live.filter((b) => b.status === "confirmed").length, held };
     })(),
     (async () => {
-      const period = monthPeriod(month, tz);
-      const [uncharged, summary] = await Promise.all([p.finance.uncharged(period), p.finance.summary(period, tz)]);
+      // "A cobrar" é o que está em aberto até hoje, de qualquer mês; "Recebido" é do mês corrente.
+      const [uncharged, summary] = await Promise.all([p.finance.uncharged(pendingPeriod(today, tz)), p.finance.summary(monthPeriod(month, tz), tz)]);
       return { unchargedCount: uncharged.length, unchargedCents: uncharged.reduce((s, b) => s + (b.agreed_price_cents ?? 0), 0), receivedCents: summary.received_cents };
     })(),
   ]);
@@ -153,7 +153,7 @@ export function Home() {
         <>
           <Stats label="Resumo">
             <Stat label="Atendimentos hoje" value={t.agenda ? t.agenda.confirmed : "—"} hint={t.agenda ? (t.agenda.held.length ? `+${t.agenda.held.length} provisória` : "confirmados") : "indisponível"} to="/app/agenda" />
-            <Stat label="A cobrar" value={t.money ? t.money.unchargedCount : "—"} hint={t.money ? formatCents(t.money.unchargedCents) : "indisponível"} to="/app/caixa" />
+            <Stat label="A cobrar" value={t.money ? t.money.unchargedCount : "—"} hint={t.money ? `${formatCents(t.money.unchargedCents)} em aberto` : "indisponível"} to="/app/caixa" />
             <Stat label="Recebido no mês" value={t.money ? formatCents(t.money.receivedCents) : "—"} hint="registrado" to="/app/caixa" wide />
           </Stats>
 
