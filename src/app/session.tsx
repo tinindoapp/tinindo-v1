@@ -20,6 +20,12 @@ export type SessionState =
 interface SessionApi {
   state: SessionState;
   tenantId: string | null;
+  /**
+   * Equipe Tinindo (recado #88): true/false pela RPC `my_is_operator()`; null enquanto carrega ou se a leitura
+   * falhar. Só para não mostrar telas da equipe a quem receberia FORBIDDEN; quem autoriza é o servidor.
+   * Na demonstração offline é true (lá você também é a operadora).
+   */
+  isOperator: boolean | null;
   selectTenant(id: string): void;
   signIn(email: string, password: string): Promise<string | null>;
   signOut(): Promise<void>;
@@ -32,6 +38,15 @@ const TENANT_KEY = "tinindo.selectedTenant";
 function readStoredTenant(): string | null {
   try {
     return localStorage.getItem(TENANT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function loadIsOperator(client: SupabaseClient): Promise<boolean | null> {
+  try {
+    const { data, error } = await client.rpc("my_is_operator");
+    return error || typeof data !== "boolean" ? null : data;
   } catch {
     return null;
   }
@@ -59,17 +74,24 @@ export function SessionProvider({ client, children }: { client: SupabaseClient |
       : { status: "offline_demo", memberships: [{ tenant_id: tenantA.id, tenant_name: tenantA.name, role: "owner" }] },
   );
   const [tenantId, setTenantId] = useState<string | null>(readStoredTenant);
+  const [isOperator, setIsOperator] = useState<boolean | null>(client ? null : true);
 
   useEffect(() => {
     if (!client) return;
     let cancelled = false;
     const apply = async (session: { user: { id: string; email?: string } } | null) => {
       if (!session) {
-        if (!cancelled) setState({ status: "signed_out" });
+        if (!cancelled) {
+          setState({ status: "signed_out" });
+          setIsOperator(null);
+        }
         return;
       }
-      const memberships = await loadMemberships(client, session.user.id);
-      if (!cancelled) setState({ status: "signed_in", email: session.user.email ?? "", memberships });
+      const [memberships, operator] = await Promise.all([loadMemberships(client, session.user.id), loadIsOperator(client)]);
+      if (!cancelled) {
+        setState({ status: "signed_in", email: session.user.email ?? "", memberships });
+        setIsOperator(operator);
+      }
     };
     void client.auth.getSession().then(({ data }) => apply(data.session));
     const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
@@ -99,6 +121,7 @@ export function SessionProvider({ client, children }: { client: SupabaseClient |
     () => ({
       state,
       tenantId: effectiveTenant,
+      isOperator,
       selectTenant,
       async signIn(email, password) {
         if (!client) return "Servidor não configurado neste ambiente.";
@@ -114,7 +137,7 @@ export function SessionProvider({ client, children }: { client: SupabaseClient |
         return data.session?.access_token ?? null;
       },
     }),
-    [client, state, effectiveTenant, selectTenant],
+    [client, state, effectiveTenant, isOperator, selectTenant],
   );
 
   return <SessionContext.Provider value={api}>{children}</SessionContext.Provider>;
