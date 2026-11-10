@@ -486,6 +486,19 @@ describe("retorno na lista de clientes (P49)", () => {
     expect(screen.getByRole("link", { name: "Duda Exemplo" })).toBeInTheDocument();
   });
 
+  it("“Ver todos” da aba Retorno abre a lista já filtrada (?filtro=sem-voltar)", async () => {
+    render(
+      <MemoryRouter initialEntries={["/app/clientes?filtro=sem-voltar"]}>
+        <CrmApiContext.Provider value={api()}>
+          <CustomersPage />
+        </CrmApiContext.Provider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole("link", { name: "Bia Exemplo" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Sem voltar há 30+ dias" })).toBeChecked();
+    expect(screen.queryByRole("link", { name: "Ana Exemplo" })).not.toBeInTheDocument();
+  });
+
   it("filtro vazio tem frase", async () => {
     renderWith(api({ listCustomers: vi.fn(async () => ({ items: [ana], next_cursor: null })) }), <CustomersPage />);
     await screen.findByText("Última visita há 14 dias");

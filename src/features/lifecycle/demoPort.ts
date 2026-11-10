@@ -15,10 +15,15 @@ export const DEMO_BUSINESS = "Barbearia do Léo (exemplo)";
 const TZ = "America/Sao_Paulo";
 const when = (iso: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(iso)).replace(",", " às");
 
+// `phone` e `next_at` (P49) alimentam a aba Retorno: Ana e Carlos têm horário marcado (os da agenda de exemplo abaixo);
+// Rita veio em agosto e não voltou. Telefone só o de exemplo já usado nas outras demonstrações.
 export const DEMO_CUSTOMERS = [
-  { id: FX.customers.abInA, name: "Ana Beatriz (exemplo)", has_channel: true, last_visit_at: "2026-10-20T13:00:00Z" },
-  { id: FX.customers.guestInA, name: "Carlos (exemplo)", has_channel: false, last_visit_at: "2026-07-10T14:00:00Z" },
-  { id: "30000000-0000-4000-8000-0000000000a3", name: "Marina (exemplo)", has_channel: false, last_visit_at: null },
+  { id: FX.customers.abInA, name: "Ana Beatriz (exemplo)", has_channel: true, last_visit_at: "2026-10-20T13:00:00Z", phone: "+5511988887777" as string | null,
+    next_at: new Date(Date.parse(FIXED_NOW) + 30 * 3_600_000).toISOString() as string | null },
+  { id: FX.customers.guestInA, name: "Carlos (exemplo)", has_channel: false, last_visit_at: "2026-07-10T14:00:00Z", phone: null,
+    next_at: new Date(Date.parse(FIXED_NOW) + 46 * 3_600_000).toISOString() },
+  { id: "30000000-0000-4000-8000-0000000000a3", name: "Marina (exemplo)", has_channel: false, last_visit_at: null, phone: null, next_at: null },
+  { id: "30000000-0000-4000-8000-0000000000a5", name: "Rita (exemplo)", has_channel: false, last_visit_at: "2026-08-25T14:00:00Z", phone: null, next_at: null },
 ];
 
 interface State {

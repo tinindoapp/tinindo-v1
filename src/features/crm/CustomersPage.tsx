@@ -3,7 +3,7 @@
 // P49: cada linha diz a última visita ou o próximo horário, e o filtro "Sem voltar há 30+ dias" mostra quem sumiu.
 // A data vem da agenda (lib/visits.ts), porque customer.list não traz a última visita.
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { type Profession } from "@contracts";
 import {
   type CrmCustomer,
@@ -80,7 +80,9 @@ function useVisits() {
 export function CustomersPage() {
   const api = useCrmApi();
   const { visits, failed: visitsFailed } = useVisits();
-  const [show, setShow] = useState<Show>("todos");
+  // "Ver todos" de quem não volta, na aba Retorno, abre a lista já filtrada.
+  const [params] = useSearchParams();
+  const [show, setShow] = useState<Show>(() => (params.get("filtro") === "sem-voltar" ? "sumidos" : "todos"));
   const profession = useProfession();
   const noun = PROFESSION_CONFIG[profession ?? "other"].customer;
   const [query, setQuery] = useState("");
