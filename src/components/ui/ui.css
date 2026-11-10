@@ -481,3 +481,7 @@
 }
 .tn-chips__shortcut[aria-pressed="true"] { border-style: solid; border-color: var(--tn-selected-border); font-weight: var(--tn-selected-weight); }
 .tn-chip:active, .tn-chips__shortcut:active { transform: scale(.98); }
+
+/* Estado "ainda não configurado" (P44): frase + botão para a tela que resolve. */
+.tn-setup-hint { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2) var(--tn-space-3); margin: var(--tn-space-3) 0 0; padding: var(--tn-space-3); border: 1px dashed var(--tn-border); border-radius: var(--tn-radius-md); }
+.tn-setup-hint__text { margin: 0; flex: 1 1 240px; color: var(--tn-text-muted); font-size: var(--tn-text-support); }

@@ -8,7 +8,7 @@ const SCREENS = [
   { path: "/app/pagamentos", title: "Pagamentos" },
   { path: "/app/assinaturas", title: "Assinaturas" },
   { path: "/app/notas", title: "Notas fiscais" },
-  { path: "/app/metas", title: "Metas e conteúdo" },
+  { path: "/app/metas", title: "Metas e sugestões" },
   { path: "/app/campanhas", title: "Campanhas" },
   { path: "/app/indicacoes", title: "Indicações" },
   { path: "/app/resultado", title: "Resultado" },

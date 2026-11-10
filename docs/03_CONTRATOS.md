@@ -76,6 +76,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `package.reverse` | entry_id, motivo, key | Devolve 1 crédito, vinculado ao débito; uma vez |
 | `package.list` | — | Pacotes com saldo e movimentos |
 | `agent.ask` | texto, contexto de UI opcional | Resposta referenciada ou action_proposal |
+| `agent.draft` | tipo (mensagem, apresentação, campanha), tom, rascunho do dono | Sugestão editável ou null (P46; nada é salvo nem enviado) |
 | `action.approve` | proposal, hash/version, key | Aprovação do payload; não sucesso de execução |
 | `action.execute` | approval_ref, key | Checagem atual de política, execução e recibo |
 | `profile.publish` | whitelist dos campos públicos | Perfil público sem vazamento do CRM |
@@ -172,6 +173,10 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `content.list` | — | Conteúdo pré-aprovado da profissão (com prévia), escopo do perfil (P09) e o que está publicado |
 | `content.publish` | template_code, key | Publica um texto aprovado como `bio` do perfil; só com perfil publicado e campo `bio` escolhido |
 | `content.unpublish` | expected_version, key | Remove o texto publicado |
+| `insight.list` | scope? (`home` · `all`) | P45 · insights do motor diário: `home` até 3 abertos por prioridade; `all` abertos, recentes e o status de cada regra (`fire` · `quiet` · `insufficient` com motivo). Cada insight traz período, número e denominador |
+| `insight.snooze` | insight_id, expected_version, key | "Agora não": silencia a regra por 30 dias e registra a dispensa (acompanhamento do P22) |
+| `insight.act` | insight_id, expected_version, key | "Ver"/"Preparar": reavalia a regra agora (mudou → 422 `stale`); cria PROPOSTA no fluxo dono (regra de preço inativa no P05; rascunhos manuais no P13) ou devolve a tela do fluxo. Nunca executa |
+| `digest.list` | — | P45 · resumos semanais por modelo fixo (os 8 mais recentes) |
 | `presence.get` | — | Rascunho do site, prévia com hash (só dados públicos do perfil P09 e serviços marcados), versão publicada, histórico, domínio, acesso ao Google e entregas |
 | `site.save` | expected_version, headline?, sections, theme, service_ids, key | Salva o rascunho do site (nada vai ao ar) |
 | `site.publish` | expected_hash, key | Publica exatamente a prévia vista (hash); mudou desde a prévia → 409; cria versão append-only |
@@ -250,6 +255,11 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `field.visit_detach` | booking_id, key | Tira a marca e solta o deslocamento |
 | `field.route_rebuild` | dia, key | Refaz os deslocamentos do dia, tudo ou nada |
 | `field.route` | dia | Roteiro em ordem: saída, deslocamento, janela de chegada, atendimento |
+| `setup.progress` | — | Estado de configuração calculado pelos dados reais: 8 passos com done, por quê e link; próximo passo; pronto (grava a primeira conclusão de cada passo e emite `setup.step_completed.v1`) |
+| `setup.dismiss` | passo, dispensado, key | Dispensa ("agora não") ou volta a mostrar um passo opcional; obrigatório → 400 |
+| `setup.templates` | — | Modelos de serviço da profissão (só por migration), com faixa de preço e se já existe no catálogo |
+| `setup.services_apply` | serviços confirmados (modelo opcional, nome, duração, preço), key | Cria pela RPC do P02, tudo ou nada; devolve criados e o progresso |
+| `setup.draft_apply` | profissão (opcional), expediente (opcional, substitui), serviços, key | Aplica o rascunho "descreva seu negócio" revisado: profissão, regras da agenda principal (P03) e serviços (P02), tudo ou nada |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 

@@ -2,6 +2,7 @@
 // (hash), versionado e reversível; domínio do cliente verificado por DNS; Perfil da Empresa no Google por acesso de
 // gerente que o dono concede e revoga; entregas com evidência. Sem promessa de posição no Google.
 import { type FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { ACTOR_LABEL, CHECK_LABEL, DELIVERY_LABEL, explain, formatCents, formatDateTime, SECTION_LABEL } from "./labels.ts";
 import { newKey, type PresenceOverview, type PresencePort, type SiteSection } from "./port.ts";
@@ -38,6 +39,8 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
         void run(() => port.saveSite({ expected_version: o.site.version, headline: headline.trim() || null, sections, theme, service_ids: ids }, newKey()), "Rascunho salvo. Nada foi ao ar: confira a prévia e publique quando quiser.");
       }}>
         <Field label="Frase de apresentação (opcional)" maxLength={o.rules.headline_max} value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Ex.: Corte na hora marcada, no centro" />
+        {/* P46: rascunho no tom escolhido pelo Assistente; você revisa, copia e cola aqui. */}
+        <Link className="tn-prs-assist" to="/app/assistente" state={{ draft: { kind: "bio", text: headline } }}>Redigir a apresentação com o assistente</Link>
         <fieldset>
           <legend>O que aparece</legend>
           {/* Linha inteira tocável, de 44 px (E14), como nas outras telas. */}

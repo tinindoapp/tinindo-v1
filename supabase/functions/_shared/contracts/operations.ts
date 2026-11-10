@@ -25,6 +25,7 @@ import * as materials from "./materials.ts";
 import * as reputation from "./reputation.ts";
 import * as accounts from "./finance-advanced.ts";
 import * as field from "./field-service.ts";
+import * as setup from "./setup.ts";
 import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
@@ -55,7 +56,8 @@ export type ModuleId =
   | "resources"
   | "materials"
   | "finance-advanced"
-  | "field-service";
+  | "field-service"
+  | "setup";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -311,6 +313,10 @@ export const OPERATIONS = {
   "agent.ask": {
     module: "agent", owner: "P08", kind: "query", idempotent: false,
     input: agent.AgentAskInput, output: agent.AgentAnswer,
+  },
+  "agent.draft": {
+    module: "agent", owner: "P46", kind: "query", idempotent: false,
+    input: agent.AgentDraftInput, output: agent.AgentDraftOutput,
   },
   "action.approve": {
     module: "agent", owner: "P08", kind: "command", idempotent: true,
@@ -672,6 +678,10 @@ export const OPERATIONS = {
   "content.list": { module: "growth-advice", owner: "P22", kind: "query", idempotent: false, input: growth.ContentListInput, output: growth.ContentListOutput },
   "content.publish": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.ContentPublishInput, output: growth.ContentPublishOutput },
   "content.unpublish": { module: "growth-advice", owner: "P22", kind: "command", idempotent: true, input: growth.ContentUnpublishInput, output: growth.ContentPublishOutput },
+  "insight.list": { module: "growth-advice", owner: "P45", kind: "query", idempotent: false, input: growth.InsightListInput, output: growth.InsightListOutput },
+  "insight.snooze": { module: "growth-advice", owner: "P45", kind: "command", idempotent: true, input: growth.InsightCommandInput, output: growth.InsightCommandOutput },
+  "insight.act": { module: "growth-advice", owner: "P45", kind: "command", idempotent: true, input: growth.InsightCommandInput, output: growth.InsightCommandOutput },
+  "digest.list": { module: "growth-advice", owner: "P45", kind: "query", idempotent: false, input: growth.DigestListInput, output: growth.DigestListOutput },
   "presence.get": { module: "presence", owner: "P17", kind: "query", idempotent: false, input: presence.PresenceGetInput, output: presence.PresenceOverview },
   "site.save": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.SiteSaveInput, output: presence.PresenceOverview },
   "site.publish": { module: "presence", owner: "P17", kind: "command", idempotent: true, input: presence.SitePublishInput, output: presence.PresenceOverview },
@@ -750,6 +760,11 @@ export const OPERATIONS = {
   "field.visit_detach": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldVisitDetachInput, output: field.FieldVisitDetachOutput },
   "field.route_rebuild": { module: "field-service", owner: "P29", kind: "command", idempotent: true, input: field.FieldDayInput, output: field.FieldRebuildOutput },
   "field.route": { module: "field-service", owner: "P29", kind: "query", idempotent: false, input: field.FieldDayInput, output: field.FieldRouteOutput },
+  "setup.progress": { module: "setup", owner: "P44", kind: "query", idempotent: false, input: setup.SetupProgressInput, output: setup.SetupProgressOutput },
+  "setup.dismiss": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupDismissInput, output: setup.SetupDismissOutput },
+  "setup.templates": { module: "setup", owner: "P44", kind: "query", idempotent: false, input: setup.SetupTemplatesInput, output: setup.SetupTemplatesOutput },
+  "setup.services_apply": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupServicesApplyInput, output: setup.SetupServicesApplyOutput },
+  "setup.draft_apply": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupDraftApplyInput, output: setup.SetupDraftApplyOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;

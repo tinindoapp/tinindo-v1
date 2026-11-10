@@ -87,7 +87,8 @@ insert into r select 'g2', pg_temp.goal('idem-goal-000000000007', null, null, 'c
 select is(pg_temp.got('g2')->'body'->'goal'->'progress'->>'value', '0.0000', 'cobrança registrada: 0 de 7 (dado existe, valor zero)');
 select is(pg_temp.got('g2')->'body'->'goal'->'progress'->>'status', 'ok', 'zero com denominador é dado, não insuficiência');
 -- Regras: faltas 30% com lembretes 0% → lembretes; ocupação baixa com público autorizado → campanha; cobrança 0% → Caixa.
-select is(pg_temp.rules(), 'charge_coverage,no_show_reminders,occupancy_campaign', 'três sugestões, todas com dado existente e suficiente');
+-- A regra de cobrança passou para o motor do P45 (`uncharged_bookings`, pgTAP 32); aqui ficam as outras duas.
+select is(pg_temp.rules(), 'no_show_reminders,occupancy_campaign', 'duas sugestões, todas com dado existente e suficiente (cobrança está no P45)');
 insert into r select 'adv', public.advice_list((select tenant_a from ids));
 select is((select x->'evidence'->>'no_show_n' from jsonb_array_elements(pg_temp.got('adv')->'suggestions') x where x->>'rule_code' = 'no_show_reminders'), '10', 'evidência traz o denominador');
 select is((select x->>'route' from jsonb_array_elements(pg_temp.got('adv')->'suggestions') x where x->>'rule_code' = 'occupancy_campaign'), '/app/campanhas', 'sugestão aponta a tela, nunca age sozinha');

@@ -1,8 +1,10 @@
-// Metas e conteúdo (P22): metas por indicador do Resultado (progresso = o indicador, com denominador), sugestões por
-// regras sobre dado existente (sem LLM) com decisão registrada e acompanhamento observacional, e conteúdo aprovado
-// por profissão publicado só pelo escopo autorizado do Perfil (P09). O que a tela promete é o que o banco garante.
+// Metas e sugestões (P22 + P45): sugestões do motor diário (P45, com período e denominador, "Preparar" cria proposta no
+// fluxo dono), metas por indicador do Resultado (progresso = o indicador, com denominador), sugestões do mês por regras
+// sobre dado existente (sem LLM) com decisão registrada e acompanhamento observacional, conteúdo aprovado por profissão
+// publicado só pelo escopo autorizado do Perfil (P09) e o resumo semanal. O que a tela promete é o que o banco garante.
 import { type FormEvent, useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
+import { InsightsSection, WeeklyDigestCard } from "./Insights.tsx";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { actionLabel, DECISION, DIRECTION, explain, formatDate, formatEvidence, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS, RULE_LABEL } from "./labels.ts";
 import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort, newKey } from "./port.ts";
@@ -161,6 +163,7 @@ function ContentSection({ content, port, onDone }: { content: Content; port: Gro
 }
 
 export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
+  const [params] = useSearchParams();
   const [goals, setGoals] = useState<GoalList | null>(null);
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [content, setContent] = useState<Content | null>(null);
@@ -196,17 +199,19 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
   return (
     <div className="tn-ga">
       <div className="tn-page-intro">
-        <PageHeader id="ga-title" title="Metas e conteúdo" />
+        <PageHeader id="ga-title" title="Metas e sugestões" />
         {/* Um aviso só (item 19): a faixa "Demonstração" do topo identifica a demonstração; as explicações ficam em "Como funciona". */}
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Nada é publicado de verdade.</StatusBanner> : null}
         <Help>
-          <p>Metas sobre os indicadores do Resultado, sugestões por regras sobre os seus dados e textos aprovados para a sua profissão. Nada aqui promete resultado: o progresso é o indicador medido, e a variação depois de uma sugestão é observada, não causada.</p>
+          <p>Sugestões calculadas uma vez por dia sobre os seus dados, metas sobre os indicadores do Resultado e textos aprovados para a sua profissão. Nada aqui promete resultado: o progresso é o indicador medido, e a variação depois de uma sugestão é observada, não causada.</p>
+          <p><strong>Agora não</strong> silencia a sugestão por 30 dias. <strong>Preparar</strong> cria uma proposta na tela do fluxo (Preços, Relacionamento), que só vale depois que você aprovar lá.</p>
           <p><strong>Sem inteligência artificial nas sugestões.</strong> Cada sugestão vem de uma regra fixa sobre um indicador com dado suficiente, e mostra a evidência. Você decide; a Tinindo nunca age sozinha.</p>
           {port.kind === "demo" ? <p>“Avançar 30 dias” faz agora a medição que o sistema faria sozinho depois de 30 dias.</p> : null}
         </Help>
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {port.followUp ? <div className="tn-actions"><Button variant="secondary" loading={following} onClick={() => void followUp()}>Avançar 30 dias (simulação)</Button></div> : null}
       </div>
+      <InsightsSection key={`insights:${nonce}`} port={port} focusId={params.get("insight")} />
       <Card aria-labelledby="ga-goals-title">
         <h2 id="ga-goals-title">Metas do mês</h2>
         {goals ? <GoalForm key={`new:${nonce}`} port={port} metrics={goals.metrics} monthStart={goals.month_start} onDone={done} /> : null}
@@ -216,13 +221,14 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
         </ul>
       </Card>
       <Card aria-labelledby="ga-advice-title">
-        <h2 id="ga-advice-title">Sugestões</h2>
+        <h2 id="ga-advice-title">Sugestões do mês</h2>
         {advice ? <Suggestions advice={advice} port={port} onDone={done} /> : null}
       </Card>
       <Card aria-labelledby="ga-content-title">
         <h2 id="ga-content-title">Conteúdo aprovado</h2>
         {content ? <ContentSection content={content} port={port} onDone={done} /> : null}
       </Card>
+      <WeeklyDigestCard port={port} />
     </div>
   );
 }

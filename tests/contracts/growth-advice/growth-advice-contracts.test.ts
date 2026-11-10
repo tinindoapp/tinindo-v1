@@ -1,11 +1,12 @@
-// P22 · Coerência entre o registro v1, as rotas da função `growth-advice` e as RPCs da migration; invariantes.
+// P22/P45 · Coerência entre o registro v1, as rotas da função `growth-advice` e as RPCs das migrations; invariantes.
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { AdviceOutcome, EventType, GoalMetricKey, MetricKey, OPERATIONS, type OperationName } from "@contracts";
+import { AdviceOutcome, EventType, GoalMetricKey, InsightAction, InsightRuleCode, MetricKey, OPERATIONS, type OperationName } from "@contracts";
 import { GROWTH_ADVICE_ROUTES } from "../../../supabase/functions/growth-advice/handler.ts";
 
 const dir = new URL("../../../supabase/migrations/", import.meta.url);
-const sql = readdirSync(dir).filter((f) => /^\d{14}_p22_.*\.sql$/.test(f)).map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
+const sql = readdirSync(dir).filter((f) => /^\d{14}_p(22|45)_.*\.sql$/.test(f)).map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
+const p45 = readdirSync(dir).filter((f) => /^\d{14}_p45_.*\.sql$/.test(f)).map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
 function sqlParams(fn: string): string[] {
   const m = new RegExp(`create function public\\.${fn}\\(([\\s\\S]*?)\\)\\s*returns`, "m").exec(sql);
   if (!m) throw new Error(`função ${fn} não encontrada`);
@@ -56,5 +57,25 @@ describe("growth-advice · registro ↔ função ↔ SQL", () => {
     expect(sql).toContain("insert into public.content_templates (code, profession, kind, title, body) values");
     expect(sql).toMatch(/create or replace function public\.jobs_run[\s\S]*app\.ga_tick\(100\)/);
     expect(EventType.options).toContain("content.published.v1");
+  });
+  it("P45: nove regras = contrato; motor no worker uma vez por dia; upsert por regra e assunto; sem LLM; ação só como proposta", () => {
+    const codes = [...p45.matchAll(/^ {2}\('([a-z_]+)', '[^']+', 'P\d\d', '(proposal|open|none)'/gm)].map((m) => m[1]);
+    expect(codes.sort()).toEqual([...InsightRuleCode.options].sort());
+    for (const c of InsightRuleCode.options) expect(p45).toContain(`when '${c}' then app.gi_${c}(p_tenant_id, p_now)`);
+    expect(p45).toMatch(/create or replace function public\.jobs_run[\s\S]*app\.ga_tick\(100\)[\s\S]*app\.lc_tick\(100\)[\s\S]*app\.gi_tick\(20\)/);
+    expect(p45).toContain("primary key (tenant_id, run_date)");
+    expect(p45).toContain("unique (tenant_id, rule_code, subject_key)");
+    expect(p45).toContain("on conflict (tenant_id, rule_code, subject_key) do update set");
+    expect(p45).toContain("insert into public.insight_runs (tenant_id, run_date) values (t.id, t.d) on conflict do nothing returning true into v_claimed;");
+    expect(p45).toContain("check (evidence ?& array['period_start', 'period_end', 'numerator', 'denominator'])");
+    expect(p45).not.toMatch(/openai|anthropic|embedding|gpt|pg_net|extensions\.http|net\.http/i);
+    // Proposta, nunca execução: preço nasce inativo no P05; mensagens nascem como rascunho manual no P13.
+    expect(p45).not.toMatch(/pricing_approve_rule|pricing_publish_rule|channel_send|lifecycle_campaign_approve|lc_dispatch\(/);
+    expect(p45.match(/'manual', '(reativacao|pacote_vencendo)'/g)).toHaveLength(2);
+    expect(InsightAction.shape.operation.unwrap().options.sort()).toEqual(["lifecycle.draft_package", "lifecycle.draft_return", "pricing.propose_rule"]);
+    // A regra de cobrança saiu do P22 e foi para o motor.
+    const gaRules = p45.slice(p45.indexOf("create or replace function app.ga_rules(")).split(/\nend \$\$;/)[0]!;
+    expect(gaRules).not.toContain("charge_coverage");
+    expect(p45).toMatch(/revoke all on function[^;]*app\.gi_tick\(integer, timestamptz\)[^;]*from public, anon, authenticated;/);
   });
 });

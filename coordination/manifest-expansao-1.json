@@ -261,6 +261,29 @@
         "tests/contracts/network/",
         "tests/e2e/network/"
       ]
+    },
+    {
+      "id": "P44",
+      "title": "Configuração guiada",
+      "lead_hint": "A definir na reserva",
+      "depends_on": [
+        "P01",
+        "P02",
+        "P03",
+        "P07",
+        "P09",
+        "P12"
+      ],
+      "resources": [
+        "setup"
+      ],
+      "paths": [
+        "src/features/setup/",
+        "supabase/functions/setup/",
+        "db/proposals/P44/",
+        "tests/contracts/setup/",
+        "tests/e2e/setup/"
+      ]
     }
   ]
 }

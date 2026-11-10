@@ -42,3 +42,16 @@
 .tn-ag-details summary { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); cursor: pointer; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-ag-details p { margin: 0 0 var(--tn-space-1); color: var(--tn-text-muted); font-size: var(--tn-text-support); overflow-wrap: anywhere; }
 .tn-ag-turn { scroll-margin-top: var(--tn-space-4); }
+
+/* P46 · painéis "Me ajuda a configurar" e "Redigir um texto". */
+.tn-ag-tools { margin-top: var(--tn-space-3); }
+.tn-ag-panel {
+  display: grid; gap: var(--tn-space-3); padding: var(--tn-space-3); border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md); min-width: 0;
+}
+.tn-ag-panel h2 { margin: 0; font-size: var(--tn-text-section); }
+.tn-ag-panel-body { display: grid; gap: var(--tn-space-3); min-width: 0; }
+.tn-ag-progress { margin: 0; }
+.tn-ag-step { display: grid; gap: var(--tn-space-2); min-width: 0; }
+.tn-ag-step h3 { margin: 0; font-size: var(--tn-text-group); }
+.tn-ag-step p { margin: 0; overflow-wrap: anywhere; }
