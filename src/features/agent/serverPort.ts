@@ -1,8 +1,7 @@
 // Porta real do Assistente: Edge Function `agent` (o banco decide vínculo, franquia, aprovação e execução).
-import { ActionApproval, ActionReceipt, AgentAnswer, AgentDraftOutput } from "@contracts";
+import { ActionApproval, ActionReceipt, AgentAnswer, AgentDraftOutput, SetupProgressOutput } from "@contracts";
 import type { createApiClient } from "../../lib/api/client.ts";
 import type { AgentPort } from "./port.ts";
-import { SetupProgress } from "./setupGuide.ts";
 
 type Call = ReturnType<typeof createApiClient>;
 
@@ -24,9 +23,9 @@ export function createServerPort(call: Call, tenantId: string): AgentPort {
       return (await call("/agent/agent.draft", AgentDraftOutput, post(req, key))).data;
     },
     async setupProgress() {
-      // Função `setup` do P44. Enquanto ela não existir no servidor (ou falhar), o guia diz que não está disponível.
+      // Função `setup` do P44, validada pelo contrato oficial. Se ela falhar, o guia diz que não está disponível.
       try {
-        return (await call("/setup/setup.progress", SetupProgress, { method: "POST", tenantId, body: {} })).data;
+        return (await call("/setup/setup.progress", SetupProgressOutput, { method: "POST", tenantId, body: {} })).data;
       } catch {
         return null;
       }

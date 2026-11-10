@@ -5,12 +5,13 @@
 //   e edita antes de copiar. Nada é salvo nem enviado por aqui.
 import { useEffect, useState } from "react";
 import { Button, Field, LinkButton, StatusBanner } from "../../components/ui/index.tsx";
+import type { SetupStepCode } from "@contracts";
 import { type AgentPort, type DraftRequest, newKey } from "./port.ts";
-import { nextStep, type SetupProgress } from "./setupGuide.ts";
+import { nextStep, type SetupProgress, stepSpec } from "./setupGuide.ts";
 
 export function SetupGuidePanel({ port }: { port: AgentPort }) {
   const [progress, setProgress] = useState<SetupProgress | null | undefined>(undefined);
-  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const [skipped, setSkipped] = useState<Set<SetupStepCode>>(new Set());
   const [checking, setChecking] = useState(false);
 
   async function load() {
@@ -37,21 +38,21 @@ export function SetupGuidePanel({ port }: { port: AgentPort }) {
       </StatusBanner>
     );
   }
-  const done = progress.steps.filter((s) => s.done).length;
   const step = nextStep(progress, skipped);
+  const spec = step ? stepSpec(step.step) : null;
   return (
     <div className="tn-ag-panel-body">
-      <p className="tn-ag-progress"><strong>{done} de {progress.steps.length}</strong> passos prontos.</p>
-      {step ? (
+      <p className="tn-ag-progress"><strong>{progress.done_count} de {progress.total}</strong> passos prontos.</p>
+      {step && spec ? (
         <div className="tn-ag-step">
-          <h3>{step.title}{step.optional ? <span className="tn-muted"> (opcional)</span> : null}</h3>
-          <p>{step.why}</p>
+          <h3>{spec.title}{step.required ? null : <span className="tn-muted"> (opcional)</span>}</h3>
+          <p>{spec.why}</p>
           <div className="tn-actions">
-            <LinkButton to={step.href}>Abrir {step.title.toLowerCase()}</LinkButton>
+            <LinkButton to={spec.link}>{spec.cta}</LinkButton>
             <Button variant="secondary" loading={checking} loadingText="Conferindo…" onClick={() => void load()}>Já fiz, conferir</Button>
-            {step.optional ? (
-              <Button variant="ghost" onClick={() => setSkipped((s) => new Set(s).add(step.code))}>Pular por agora</Button>
-            ) : null}
+            {step.required ? null : (
+              <Button variant="ghost" onClick={() => setSkipped((s) => new Set(s).add(step.step))}>Pular por agora</Button>
+            )}
           </div>
         </div>
       ) : (
