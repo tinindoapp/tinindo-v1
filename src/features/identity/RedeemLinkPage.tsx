@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import type { CustomerLinkRedeemOutput } from "@contracts";
 import { Button, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { messageFor } from "./errors.ts";
-import { useIdempotencyKey } from "./idempotency.ts";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { useIdentityServices } from "./services.tsx";
 
 export function RedeemLinkPage() {

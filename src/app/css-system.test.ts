@@ -86,6 +86,22 @@ describe("sistema visual", () => {
     expect(bad).toEqual([]);
   });
 
+  it("fundo forte declara a cor do texto na mesma regra (revisão de 10/11: passo da configuração a 1,00:1)", () => {
+    // Fundo de ação, de selecionado ou de perigo sem `color` herda a cor do texto comum, que é a mesma do fundo.
+    const BARS = new Set([".tn-setup-card__bar > span"]); // barra de progresso: não tem texto dentro
+    const bad: string[] = [];
+    for (const [file, css] of Object.entries(FILES)) {
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selector = m[1]!.trim().replace(/\s+/g, " ");
+        const body = m[2]!;
+        if (!/background(-color)?\s*:\s*var\(--tn-(selected-bg|action|danger-action)\)/.test(body)) continue;
+        if (/(^|[;\s])color\s*:/.test(body) || BARS.has(selector)) continue;
+        bad.push(`${file}:${lineOf(css, m.index + m[0].indexOf(m[1]!.trim()))} ${selector}`);
+      }
+    }
+    expect(bad, bad.join("\n")).toEqual([]);
+  });
+
   it("item 23: só os dois pontos de quebra com nome (compacto 30rem, largo 900px)", () => {
     const allowed = new Set(["(max-width: 30rem)", "(min-width: 900px)", "(max-width: 899.98px)"]);
     const bad: string[] = [];

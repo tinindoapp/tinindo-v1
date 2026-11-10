@@ -9,6 +9,8 @@ test("o aviso aparece acima da barra de abas e o botão embaixo dele continua to
   await page.getByRole("button", { name: "Sim, foi atendido" }).click();
   const toast = page.locator(".tn-toast");
   await expect(toast).toContainText("Atendimento concluído.");
+  // O aviso entra subindo 12 px (tn-toast-in): medir no meio da animação dava 2 px a mais, às vezes.
+  await toast.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   const box = (await toast.boundingBox())!;
   const tabbar = await page.getByRole("navigation", { name: "Abas" }).boundingBox();
   expect(box.y + box.height).toBeLessThanOrEqual(tabbar!.y);

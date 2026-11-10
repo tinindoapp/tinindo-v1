@@ -16,7 +16,9 @@
 .tn-setup { display: grid; gap: var(--tn-space-4); }
 .tn-setup-steps { list-style: none; margin: var(--tn-space-3) 0 0; padding: 0; display: grid; gap: var(--tn-space-2); }
 .tn-setup-step { display: grid; grid-template-columns: auto 1fr; gap: var(--tn-space-3); padding: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); background: var(--tn-surface); }
-.tn-setup-step[data-next] { border-color: var(--tn-selected-border); background: var(--tn-selected-bg); }
+/* Passo da vez: mesma marca de selecionado do .tn-choice (borda de 2 px e fundo sutil). O fundo forte
+   (--tn-selected-bg) deixava título e link da cor do fundo nos dois temas. */
+.tn-setup-step[data-next] { border: 2px solid var(--tn-selected-border); padding: calc(var(--tn-space-3) - 1px); background: var(--tn-action-subtle); }
 .tn-setup-step[data-done] { opacity: 0.8; }
 .tn-setup-step[data-dismissed] .tn-setup-step__title { color: var(--tn-text-muted); }
 .tn-setup-step__mark { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); font-weight: var(--tn-font-weight-semibold); font-size: var(--tn-text-support); }

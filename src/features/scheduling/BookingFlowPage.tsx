@@ -98,8 +98,14 @@ function BookingFlow(props: FlowProps) {
     return port.availability({ resource_id: resourceId, service_id: serviceId, window: dayWindow(date, tz) });
   });
   const slotList = slots.data?.slots ?? [];
-  const slot =
-    picked ?? (preferred ? (slotList.find((s) => localParts(s.starts_at, tz).time === preferred) ?? null) : null);
+  // "Agendar" num horário livre da Agenda manda o início do intervalo (ex.: 15:40, fim do atendimento anterior
+  // mais o intervalo). Se ele não cai na grade, vale o primeiro horário oferecido a partir dele.
+  const timeOf = (s: TimeRange) => localParts(s.starts_at, tz).time;
+  const preferredSlot = preferred
+    ? (slotList.find((s) => timeOf(s) === preferred) ?? slotList.find((s) => timeOf(s) > preferred) ?? null)
+    : null;
+  const slot = picked ?? preferredSlot;
+  const adjustedFrom = !picked && preferred && preferredSlot && timeOf(preferredSlot) !== preferred ? preferred : null;
 
   const quote = useAsync(`quote:${serviceId}:${slot?.starts_at ?? "-"}`, async () => {
     if (!slot || !resourceId) return null;
@@ -246,6 +252,9 @@ function BookingFlow(props: FlowProps) {
           <p className="tn-sched-empty">Nenhum horário livre neste dia. Tente outro dia.</p>
         ) : (
           <>
+            {adjustedFrom && slot ? (
+              <p className="tn-muted" role="status">Primeiro horário possível a partir de {adjustedFrom}: {timeOf(slot)}.</p>
+            ) : null}
             <div className="tn-sched-slots" role="group" aria-label="Horários livres">
               {slotList.map((s, i) => {
                 const t = localParts(s.starts_at, tz).time;

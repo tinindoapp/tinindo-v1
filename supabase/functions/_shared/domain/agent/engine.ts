@@ -16,6 +16,7 @@ import {
   type Period,
   periodIn,
   servicesIn,
+  slotDayIn,
   timesIn,
   weekdayIn,
 } from "./parse.ts";
@@ -632,8 +633,8 @@ export async function runAgent(input: string, ctx: AgentContext, data: AgentData
     const { one: customer, many } = pickCustomer(dir, n);
     const svcs = servicesIn(n, dir.services);
     const svc = svcs.length === 1 ? svcs[0] : undefined;
-    const date = dayIn(n, today);
     const time = timesIn(n)[0];
+    const date = slotDayIn(n, today, (d) => !!time && zoned(d, time, tz).getTime() <= now.getTime());
     const part = dayPartIn(n);
 
     const asks: string[] = [];
@@ -727,8 +728,8 @@ export async function runAgent(input: string, ctx: AgentContext, data: AgentData
     }
     if (!svc) return out(intent, "consulted", "Não encontrei o serviço desse atendimento.", { sources });
     const bDate = localParts(b.starts_at, tz).date;
-    const tDate = dayIn(right, today) ?? bDate;
     const tTime = timesIn(right)[0];
+    const tDate = slotDayIn(right, today, (d) => !!tTime && zoned(d, tTime, tz).getTime() <= now.getTime()) ?? bDate;
     const tAgenda = tDate === bDate || (tDate >= today && tDate < addDays(today, 14)) ? agenda
       : await tools.agenda({ starts_at: zoned(tDate, "00:00", tz).toISOString(), ends_at: zoned(addDays(tDate, 1), "00:00", tz).toISOString() });
     if (!tTime) {

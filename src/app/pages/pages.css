@@ -17,7 +17,10 @@
 .tn-auth__links a { display: inline-flex; align-items: center; min-height: 44px; }
 
 /* Hoje */
-.tn-today .tn-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--tn-space-2); }
+/* Abaixo do largo, os dois contadores ficam lado a lado e o valor em reais ocupa a linha inteira:
+   em três colunas, R$ 1.740,00 já passava da borda em 375 px e a tela rolava para o lado em 320 px. */
+.tn-today .tn-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tn-space-2); }
+.tn-today .tn-stat--wide { grid-column: 1 / -1; }
 .tn-today .tn-stat { min-height: 0; padding: var(--tn-space-3); border-radius: var(--tn-radius-md); }
 .tn-today .tn-stat__label { font-size: var(--tn-text-label); }
 .tn-today .tn-stat__value { font-size: var(--tn-text-group); white-space: nowrap; }
@@ -70,6 +73,8 @@
 .tn-today__row[data-past="true"] .tn-list__meta { color: var(--tn-text-muted); }
 .tn-today__row[data-past="true"] .tn-list__title { font-weight: var(--tn-font-weight-regular); }
 @media (min-width: 900px) {
+  .tn-today .tn-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tn-today .tn-stat--wide { grid-column: auto; }
   .tn-today .tn-stat { padding: var(--tn-space-4); }
   .tn-today .tn-stat__value { font-size: var(--tn-text-number); }
   .tn-quick__item { grid-auto-flow: column; justify-content: start; align-items: center; min-height: 64px; padding: var(--tn-space-3) var(--tn-space-4); text-align: left; }

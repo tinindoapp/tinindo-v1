@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayIn, displayName, matchNames, norm, percentIn, periodIn, timesIn } from "./parse.ts";
+import { dayIn, displayName, matchNames, norm, percentIn, periodIn, slotDayIn, timesIn } from "./parse.ts";
 import { duration, longDayLabel, money, zoned } from "./time.ts";
 
 const NOW = new Date("2026-10-20T12:00:00Z"); // terça 09:00 em São Paulo
@@ -10,6 +10,20 @@ describe("assistente · leitura do pedido", () => {
     expect(dayIn(norm("o que tenho amanhã?"), "2026-10-20")).toBe("2026-10-21");
     expect(dayIn(norm("marca na quinta"), "2026-10-20")).toBe("2026-10-22");
     expect(dayIn(norm("dia 05/11"), "2026-10-20")).toBe("2026-11-05");
+  });
+
+  it("dia para marcar horário: o dia da semana de hoje, com a hora já passada, é o da semana seguinte", () => {
+    const today = "2026-10-21"; // quarta
+    const passed = () => true;
+    const ahead = () => false;
+    expect(slotDayIn(norm("agende um corte na quarta às 11h"), today, passed)).toBe("2026-10-28");
+    expect(slotDayIn(norm("agende um corte na quarta às 16h"), today, ahead)).toBe(today);
+    // "hoje" e data escrita ficam como foram ditos, mesmo com a hora passada: a resposta explica que já passou.
+    expect(slotDayIn(norm("agende um corte hoje às 11h"), today, passed)).toBe(today);
+    expect(slotDayIn(norm("agende um corte quarta 21/10 às 11h"), today, passed)).toBe(today);
+    // Outro dia da semana não muda; sem dia citado continua sem dia.
+    expect(slotDayIn(norm("agende um corte na quinta às 11h"), today, passed)).toBe("2026-10-22");
+    expect(slotDayIn(norm("agende um corte às 11h"), today, passed)).toBeNull();
   });
 
   it("períodos: semana passada é seg–dom completa; mês citado no passado", () => {

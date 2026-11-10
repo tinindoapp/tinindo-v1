@@ -45,6 +45,36 @@ describe("Assinaturas: desfazer e confirmar", () => {
     expect(cancel).toHaveBeenCalledWith(expect.anything(), false, null, expect.any(String));
   });
 
+  it("criar plano: depois de uma falha de rede, repetir manda a mesma chave e o mesmo pedido", async () => {
+    const port = createDemoPort();
+    const save = vi.spyOn(port, "savePlan").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    render(<><RecurrencePage port={port} /><Toaster /></>);
+    fireEvent.click(await screen.findByRole("button", { name: "Novo plano" }));
+    const form = within(screen.getByRole("form", { name: "Novo plano" }));
+    fireEvent.change(form.getByLabelText("Nome do plano"), { target: { value: "Mensal 8 sessões" } });
+    fireEvent.change(form.getByLabelText("Preço por ciclo (R$)"), { target: { value: "320,00" } });
+    const submit = form.getByRole("button", { name: "Criar plano" });
+    await act(async () => { fireEvent.click(submit); });
+    await act(async () => { fireEvent.click(submit); });
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]![1]).toBe(save.mock.calls[0]![1]);
+    expect(save.mock.calls[1]![0]).toEqual(save.mock.calls[0]![0]);
+  });
+
+  it("adesão: depois de uma falha de rede, repetir manda a mesma chave", async () => {
+    const port = createDemoPort();
+    const subscribe = vi.spyOn(port, "subscribe").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    render(<><RecurrencePage port={port} /><Toaster /></>);
+    fireEvent.click(await screen.findByRole("button", { name: "Nova assinatura" }));
+    const form = within(screen.getByRole("form", { name: "Nova assinatura" }));
+    fireEvent.click(form.getByRole("checkbox", { name: /A cliente aceitou/ }));
+    const submit = form.getByRole("button", { name: "Registrar adesão" });
+    await act(async () => { fireEvent.click(submit); });
+    await act(async () => { fireEvent.click(submit); });
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(subscribe.mock.calls[1]![2]).toBe(subscribe.mock.calls[0]![2]);
+  });
+
   it("adesão sem o aceite: botão ativo, erro embaixo da caixa e foco nela", async () => {
     const port = createDemoPort();
     const subscribe = vi.spyOn(port, "subscribe");

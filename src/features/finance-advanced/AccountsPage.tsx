@@ -4,6 +4,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, Stat, Stats, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { plural, pluralWord } from "../../lib/text/plural.ts";
 import {
   addDays, BASE_LABEL, EXPENSE_BASES, explain, formatCents, formatDay, METHOD_LABEL, monthLabel, parseBRL, periodLabel, SOURCE_LABEL, STATUS_LABEL,
@@ -25,6 +26,7 @@ function PayableForm({ port, base, categories, onDone }: { port: AccountsPort; b
   const [supplier, setSupplier] = useState("");
   const [monthly, setMonthly] = useState(false);
   const [busy, setBusy] = useState(false);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"description" | "amount" | "due">();
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -37,8 +39,12 @@ function PayableForm({ port, base, categories, onDone }: { port: AccountsPort; b
     setBusy(true);
     try {
       const custom = cat.startsWith("cat:") ? cat.slice(4) : null;
-      const r = await port.savePayable({ description: description.trim(), amount_cents: parseBRL(amount), due_on: due, monthly, supplier: supplier.trim() || null,
-        category_id: custom, base_category: custom ? "other" : (cat.slice(5) as AccPayable["base_category"]) }, newKey());
+      // Mesma chave enquanto o pedido for o mesmo: repetir depois de uma falha de rede não cria a conta
+      // (nem as doze parcelas da conta mensal) duas vezes.
+      const payload = { description: description.trim(), amount_cents: parseBRL(amount), due_on: due, monthly, supplier: supplier.trim() || null,
+        category_id: custom, base_category: custom ? "other" as const : (cat.slice(5) as AccPayable["base_category"]) };
+      const r = await port.savePayable(payload, idem.keyFor(payload));
+      idem.reset();
       toast(r.created > 1 ? `“${r.payable.description}” todo mês: ${r.created} contas criadas, a primeira vence em ${formatDay(r.payable.due_on)}.`
         : `Conta “${r.payable.description}” criada para ${formatDay(r.payable.due_on)}.`);
       onDone();

@@ -154,7 +154,7 @@ export function Home() {
           <Stats label="Resumo">
             <Stat label="Atendimentos hoje" value={t.agenda ? t.agenda.confirmed : "—"} hint={t.agenda ? (t.agenda.held.length ? `+${t.agenda.held.length} provisória` : "confirmados") : "indisponível"} to="/app/agenda" />
             <Stat label="A cobrar" value={t.money ? t.money.unchargedCount : "—"} hint={t.money ? formatCents(t.money.unchargedCents) : "indisponível"} to="/app/caixa" />
-            <Stat label="Recebido no mês" value={t.money ? formatCents(t.money.receivedCents) : "—"} hint="registrado" to="/app/caixa" />
+            <Stat label="Recebido no mês" value={t.money ? formatCents(t.money.receivedCents) : "—"} hint="registrado" to="/app/caixa" wide />
           </Stats>
 
           <ul className="tn-quick" aria-label="Ações rápidas">

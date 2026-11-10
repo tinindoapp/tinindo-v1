@@ -6,6 +6,7 @@ import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toa
 import { Icon } from "../../components/ui/icons.tsx";
 import { cycleLabel, explain, formatCents, formatDate, RECEIVABLE_STATUS } from "./labels.ts";
 import { newKey, type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 const centsToInput = (c: number) => (c / 100).toFixed(2).replace(".", ",");
@@ -22,6 +23,7 @@ function PlanForm({ port, base, plan, onDone }: { port: RecurrencePort; base: Re
   const [active, setActive] = useState(plan?.active ?? true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"name" | "sessions" | "price">();
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -36,7 +38,10 @@ function PlanForm({ port, base, plan, onDone }: { port: RecurrencePort; base: Re
     setBusy(true);
     setError(null);
     try {
-      const saved = await port.savePlan({ plan_id: plan?.id ?? null, expected_version: plan?.version ?? null, service_id: serviceId, name: name.trim(), sessions_per_cycle: n, cycle_days: cycle, price_cents: cents, active }, newKey());
+      // Mesma chave enquanto o pedido for o mesmo: repetir depois de uma falha de rede não cria o plano duas vezes.
+      const payload = { plan_id: plan?.id ?? null, expected_version: plan?.version ?? null, service_id: serviceId, name: name.trim(), sessions_per_cycle: n, cycle_days: cycle, price_cents: cents, active };
+      const saved = await port.savePlan(payload, idem.keyFor(payload));
+      idem.reset();
       toast(plan ? `Plano “${saved.name}” atualizado. Quem já assina mantém os termos aceitos.` : `Plano “${saved.name}” criado.`);
       if (!plan) { setName(""); setPrice(""); }
       onDone();
@@ -71,7 +76,7 @@ function SubscribeForm({ port, base, plans, onDone }: { port: RecurrencePort; ba
   const [planId, setPlanId] = useState(active[0]?.id ?? "");
   const [customerId, setCustomerId] = useState(base.customers[0]?.id ?? "");
   const [accepted, setAccepted] = useState(false);
-  const [key, setKey] = useState(newKey);
+  const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { formRef, errors, show } = useFormErrors<"plan" | "customer" | "accepted">();
@@ -87,13 +92,13 @@ function SubscribeForm({ port, base, plans, onDone }: { port: RecurrencePort; ba
     setBusy(true);
     setError(null);
     try {
-      const s = await port.subscribe(plan.id, customerId, key);
-      setKey(newKey());
+      // Mesma chave enquanto plano e cliente forem os mesmos (inclusive depois de erro): repetir não assina duas vezes.
+      const s = await port.subscribe(plan.id, customerId, idem.keyFor({ plan: plan.id, customer: customerId }));
+      idem.reset();
       setAccepted(false);
       toast(`${s.customer_name} assinou “${s.terms.plan_name}”: ${s.terms.sessions_per_cycle} sessões ${cycleLabel(s.terms.cycle_days)} por ${formatCents(s.terms.price_cents)}. Primeiro ciclo aberto com cobrança em aberto no Caixa.`);
       onDone();
     } catch (err) {
-      setKey(newKey());
       setError(explain(err));
     } finally {
       setBusy(false);
