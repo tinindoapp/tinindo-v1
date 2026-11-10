@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { addDays, dayWindow, deviceZoneDiffers, formatTime, formatWeekdayDay, friendlyZone, isCivilDate, localParts, toZonedIso, weekStart, zonedInstant } from "./time.ts";
+import { addDays, dayWindow, deviceZoneDiffers, formatTime, formatWeekdayDay, friendlyZone, isCivilDate, localParts, receivedPeriods, toZonedIso, weekStart, zonedInstant } from "./time.ts";
 
 const SP = "America/Sao_Paulo";
 
@@ -54,5 +54,22 @@ describe("fuso do aparelho e nome amigável (auditoria de UX, item 34)", () => {
     expect(formatWeekdayDay("2026-10-19")).toBe("Seg 19");
     expect(formatWeekdayDay("2026-10-21")).toBe("Qua 21");
     expect(formatWeekdayDay("2026-11-01")).toBe("Dom 1");
+  });
+});
+
+describe("receivedPeriods (P48: Hoje · Semana · Mês)", () => {
+  it("dia, semana de segunda até o fim de hoje e mês inteiro, no fuso do negócio", () => {
+    const p = receivedPeriods("2026-10-20", SP);
+    expect(p.day).toEqual({ starts_at: "2026-10-20T00:00:00-03:00", ends_at: "2026-10-21T00:00:00-03:00" });
+    expect(p.week).toEqual({ starts_at: "2026-10-19T00:00:00-03:00", ends_at: "2026-10-21T00:00:00-03:00" });
+    expect(p.weekFrom).toBe("2026-10-19");
+    expect(p.month).toEqual({ starts_at: "2026-10-01T00:00:00-03:00", ends_at: "2026-11-01T00:00:00-03:00" });
+  });
+
+  it("semana que começa no mês anterior e virada de ano", () => {
+    const p = receivedPeriods("2026-12-31", SP);
+    expect(p.week.starts_at).toBe("2026-12-28T00:00:00-03:00");
+    expect(p.month.ends_at).toBe("2027-01-01T00:00:00-03:00");
+    expect(receivedPeriods("2026-11-01", SP).week.starts_at).toBe("2026-10-26T00:00:00-03:00");
   });
 });
