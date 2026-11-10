@@ -73,6 +73,3 @@ export function formatPhoneBr(e164: string): string {
   const m = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164);
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
 }
-
-export const formatTime = (iso: string) =>
-  new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
