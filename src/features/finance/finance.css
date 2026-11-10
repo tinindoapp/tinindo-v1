@@ -37,8 +37,18 @@
 .tn-fin-register { display: grid; gap: var(--tn-space-3); min-width: 0; }
 .tn-fin-register h2 { margin: 0; }
 .tn-fin-form__note { flex-basis: 100%; margin: 0; }
-/* Atalho "Recebi R$ 60,00 no Pix ▾": botão principal e ▾ colados, como um botão dividido. */
-.tn-fin-split { display: inline-flex; align-items: stretch; min-width: 0; max-width: 100%; }
-.tn-fin-split > .tn-button:first-child { border-start-end-radius: 0; border-end-end-radius: 0; min-width: 0; }
-.tn-fin-split > .tn-button:last-child { border-start-start-radius: 0; border-end-start-radius: 0; margin-inline-start: -1px; min-width: var(--tn-size-touch); padding-inline: var(--tn-space-2); }
-.tn-fin-methods { flex: 1 1 100%; min-width: 0; }
+/* "Hoje · Semana · Mês" (P48): o recebido nos três períodos correntes, no topo. No compacto, cada período é uma linha
+   (rótulo à esquerda, valor à direita, regra 5.4 da revisão de 10/11); a partir dele, três colunas. */
+.tn-fin-recv__list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--tn-space-3); margin: 0; }
+.tn-fin-recv__item { display: grid; gap: var(--tn-space-1); min-width: 0; }
+.tn-fin-recv__item dt { display: grid; }
+.tn-fin-recv__label { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-semibold); }
+.tn-fin-recv__when { font-size: var(--tn-text-label); color: var(--tn-text-muted); }
+.tn-fin-recv__item dd { margin: 0; font-size: var(--tn-text-group); font-weight: var(--tn-font-weight-semibold); white-space: nowrap; }
+@media (max-width: 30rem) {
+  .tn-fin-recv__list { grid-template-columns: 1fr; gap: 0; }
+  .tn-fin-recv__item { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: var(--tn-space-2) 0; border-bottom: 1px solid var(--tn-border); }
+  .tn-fin-recv__item dt { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--tn-space-2); }
+}
+/* Atendimento pedido pela Agenda (?atendimento=<id>): a linha fica marcada com o indicador de seleção. */
+.tn-fin-item[data-focus="true"] { border-left: 4px solid var(--tn-selected-border); padding-left: var(--tn-space-3); }

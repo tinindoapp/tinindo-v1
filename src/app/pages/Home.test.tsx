@@ -66,12 +66,12 @@ describe("Hoje (auditoria de UX, itens 30 e 31)", () => {
     expect(within(next).queryByRole("link", { name: /^WhatsApp/ })).not.toBeInTheDocument();
   });
 
-  it("P45: \"Para você esta semana\" com até 3 sugestões, cada uma com período, número e denominador, Ver e Agora não", async () => {
+  it("P45/P48: \"Para você esta semana\" com uma sugestão (período, número e denominador), Ver, Agora não e Ver todas", async () => {
     renderHome(portAt("2026-10-20T11:20:00-03:00"));
     const card = await screen.findByRole("region", { name: "Para você esta semana" }, SLOW);
     const items = await within(card).findAllByRole("listitem", {}, SLOW);
-    expect(items.length).toBeGreaterThan(0);
-    expect(items.length).toBeLessThanOrEqual(3);
+    expect(items).toHaveLength(1);
+    expect(within(card).getByRole("link", { name: "Ver todas" })).toHaveAttribute("href", "/app/metas");
     for (const item of items) {
       expect(item.textContent).toMatch(/\d+ de \d+/);
       expect(item.textContent).toMatch(/\d{2}\/\d{2}/);
@@ -83,11 +83,79 @@ describe("Hoje (auditoria de UX, itens 30 e 31)", () => {
   });
 });
 
-describe("Hoje: \"A cobrar\" é o que está em aberto, de qualquer mês (revisão 10/11, ux-nucleo-celular-03)", () => {
+describe("Hoje: \"sem cobrança\" é o que está em aberto, de qualquer mês (revisão 10/11, ux-nucleo-celular-03)", () => {
   it("conta o atendimento de setembro sem cobrança junto com os de outubro", async () => {
     renderHome(portAt("2026-10-20T11:20:00-03:00"));
-    const card = await screen.findByRole("link", { name: /^A cobrar/ }, SLOW);
-    expect(card).toHaveTextContent(/^A cobrar3R\$\s160,00 em aberto$/);
+    const pending = await screen.findByRole("list", { name: "Pendências" }, SLOW);
+    const row = within(pending).getByRole("link", { name: /sem cobrança/ });
+    expect(row).toHaveTextContent(/^3 atendimentos sem cobrançaR\$\s160,00 a registrar no Caixa$/);
+    expect(row).toHaveAttribute("href", "/app/caixa");
+  });
+});
+
+describe("Hoje: o dia primeiro (P48, decisão D6)", () => {
+  /** Na ordem do documento, os blocos da tela (sem o cabeçalho). */
+  function blocks(): string[] {
+    const main = document.querySelector(".tn-today")!;
+    return [...main.querySelectorAll("[aria-labelledby], .tn-stats")].map((e) =>
+      e.classList.contains("tn-stats") ? "números" : document.getElementById(e.getAttribute("aria-labelledby")!)!.textContent!);
+  }
+
+  it("Próximo, lista do dia, pendências, números, configuração em uma linha e uma sugestão; sem \"Ações rápidas\"", async () => {
+    renderHome(portAt("2026-10-20T11:20:00-03:00"));
+    await screen.findByRole("region", { name: "Para você esta semana" }, SLOW);
+    await screen.findByRole("region", { name: /Deixe seu negócio pronto/ }, SLOW);
+    const order = blocks();
+    const at = (re: RegExp) => order.findIndex((x) => re.test(x));
+    expect(at(/^Próximo:/)).toBe(0);
+    expect(at(/^Atendimentos de hoje$/)).toBe(1);
+    expect(at(/^Pendências$/)).toBe(2);
+    expect(at(/^números$/)).toBe(3);
+    expect(at(/^Deixe seu negócio pronto/)).toBe(4);
+    expect(at(/^Para você esta semana/)).toBe(5);
+    expect(screen.queryByRole("list", { name: "Ações rápidas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Perguntar ao assistente" })).not.toBeInTheDocument();
+    // Novo agendamento é o "+": um link só, para o fluxo de agendamento.
+    expect(screen.getByRole("link", { name: "Novo agendamento" })).toHaveAttribute("href", "/app/agenda/novo");
+  });
+
+  it("com atendimento no dia, a configuração é uma linha fina: contagem, barra e o próximo passo como link", async () => {
+    renderHome(portAt("2026-10-20T11:20:00-03:00"));
+    const line = await screen.findByRole("region", { name: /Deixe seu negócio pronto/ }, SLOW);
+    expect(line).toHaveClass("tn-setup-line");
+    expect(line).toHaveAccessibleName("Deixe seu negócio pronto · 5 de 8");
+    expect(within(line).getByRole("progressbar", { name: "Passos feitos" })).toHaveAttribute("aria-valuenow", "5");
+    expect(within(line).getByRole("link", { name: /^Publicar perfil/ })).toHaveAttribute("href", "/app/perfil");
+    // O texto longo do cartão fica para o dia vazio e para a tela Configuração.
+    expect(within(line).queryByRole("button", { name: "Agora não" })).not.toBeInTheDocument();
+    expect(line).not.toHaveTextContent("O link público é como o cliente reserva com você.");
+  });
+
+  it("sem atendimento no dia, o cartão de configuração aparece inteiro", async () => {
+    const port = createFixturePort();
+    renderHome({ ...port, listBookings: async () => [] });
+    expect(await screen.findByText("Nenhum atendimento hoje.", undefined, SLOW)).toBeInTheDocument();
+    const card = await screen.findByRole("region", { name: /Deixe seu negócio pronto/ }, SLOW);
+    expect(card).toHaveClass("tn-setup-card");
+    expect(card).toHaveTextContent("O link público é como o cliente reserva com você.");
+    expect(screen.queryByRole("region", { name: /^Próximo:/ })).not.toBeInTheDocument();
+  });
+
+  it("números: atendimentos de hoje e recebido na semana, com o mês na nota", async () => {
+    renderHome(portAt("2026-10-20T11:20:00-03:00"));
+    const stats = await screen.findByRole("group", { name: "Resumo" }, SLOW);
+    const week = within(stats).getByRole("link", { name: /^Recebido na semana/ });
+    expect(week).toHaveTextContent(/^Recebido na semanaR\$\s[\d.]+,\d\dno mês: R\$\s1\.740,00$/);
+    expect(week).toHaveAttribute("href", "/app/caixa");
+    expect(within(stats).getByRole("link", { name: /^Atendimentos hoje/ })).toBeInTheDocument();
+    expect(within(stats).queryByRole("link", { name: /Recebido no mês/ })).not.toBeInTheDocument();
+  });
+
+  it("Próximo que ainda não começou: sem Atendido e Faltou", async () => {
+    renderHome(portAt("2026-10-20T11:20:00-03:00"));
+    const next = await screen.findByRole("region", { name: /^Próximo:/ }, SLOW);
+    expect(within(next).queryByRole("button", { name: /^Atendido/ })).not.toBeInTheDocument();
+    expect(within(next).getByRole("link", { name: /^Abrir/ })).toHaveAttribute("data-variant", "primary");
   });
 });
 

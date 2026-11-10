@@ -16,35 +16,7 @@
 }
 .tn-auth__links a { display: inline-flex; align-items: center; min-height: 44px; }
 
-/* Hoje */
-/* Abaixo do largo, os dois contadores ficam lado a lado e o valor em reais ocupa a linha inteira:
-   em três colunas, R$ 1.740,00 já passava da borda em 375 px e a tela rolava para o lado em 320 px. */
-.tn-today .tn-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tn-space-2); }
-.tn-today .tn-stat--wide { grid-column: 1 / -1; }
-.tn-today .tn-stat { min-height: 0; padding: var(--tn-space-3); border-radius: var(--tn-radius-md); }
-.tn-today .tn-stat__label { font-size: var(--tn-text-label); }
-.tn-today .tn-stat__value { font-size: var(--tn-text-group); white-space: nowrap; }
-.tn-quick { list-style: none; margin: var(--tn-space-4) 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--tn-space-2); }
-.tn-quick__item {
-  display: grid;
-  justify-items: center;
-  align-content: start;
-  gap: var(--tn-space-2);
-  min-height: 96px;
-  padding: var(--tn-space-3) var(--tn-space-2);
-  border: 1px solid var(--tn-border);
-  border-radius: var(--tn-radius-md);
-  background: var(--tn-surface);
-  color: var(--tn-text);
-  font-size: var(--tn-text-support);
-  font-weight: var(--tn-font-weight-medium);
-  line-height: var(--tn-line-height-snug);
-  text-align: center;
-  text-decoration: none;
-}
-@media (hover: hover) { .tn-quick__item:hover { background: var(--tn-action-subtle); } }
-.tn-quick__icon { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); }
-.tn-quick__item[data-primary] .tn-quick__icon { background: var(--tn-action); color: var(--tn-text-on-action); }
+/* Hoje (P48, decisão D6: o dia primeiro). */
 .tn-today__empty, .tn-today__loading, .tn-today__more { color: var(--tn-text-muted); }
 .tn-today__empty {
   margin: 0;
@@ -55,27 +27,66 @@
 }
 .tn-today__more { margin: var(--tn-space-2) 0 0; font-size: var(--tn-text-support); }
 .tn-today__more a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
-/* Próximo atendimento em destaque (item 31); passados em cinza na lista. */
+/* Próximo atendimento, logo abaixo do título. A faixa lateral é o único laranja da tela (brand/DECISIONS.md, D31): não é
+   texto, botão nem estado. Passados em cinza na lista. */
 .tn-today__next {
   display: grid;
-  gap: var(--tn-space-2);
-  margin-bottom: var(--tn-space-3);
+  gap: var(--tn-space-3);
+  margin-top: var(--tn-space-4);
   padding: var(--tn-space-4);
   border: 1px solid var(--tn-border-control);
-  border-left: 4px solid var(--tn-selected-border);
+  border-left: 4px solid var(--tn-highlight-stripe);
   border-radius: var(--tn-radius-lg);
   background: var(--tn-surface);
 }
 .tn-today__next-title { margin: 0; font-size: var(--tn-text-group); }
 .tn-today__next-meta { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-today__next .tn-actions { margin: 0; }
+/* Nunca cartão dentro de cartão: no "Próximo", as saídas de "Atendido" abrem sem caixa própria. */
+.tn-today__next .tn-confirm { margin: 0; padding: 0; border: 0; background: transparent; }
 .tn-today__row[data-past="true"] .tn-list__title,
 .tn-today__row[data-past="true"] .tn-list__meta { color: var(--tn-text-muted); }
 .tn-today__row[data-past="true"] .tn-list__title { font-weight: var(--tn-font-weight-regular); }
+/* Números: no compacto, cada um é uma linha (rótulo à esquerda, valor à direita, nota embaixo; regra 5.4 da revisão
+   de 10/11), então R$ 999.999,99 cabe em 320 px; a partir dele, dois ladrilhos lado a lado. */
+.tn-today .tn-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tn-space-2); margin-top: var(--tn-space-6); }
+.tn-today .tn-stat { min-height: 0; padding: var(--tn-space-3); border-radius: var(--tn-radius-md); }
+.tn-today .tn-stat__label { font-size: var(--tn-text-label); }
+.tn-today .tn-stat__value { font-size: var(--tn-text-group); white-space: nowrap; }
+@media (max-width: 30rem) {
+  .tn-today .tn-stats { grid-template-columns: 1fr; }
+  .tn-today .tn-stat { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: var(--tn-space-3); }
+  .tn-today .tn-stat__label { font-size: var(--tn-text-support); }
+  .tn-today .tn-stat__hint { grid-column: 1 / -1; }
+}
+/* "+" Novo agendamento: o mesmo botão flutuante da Agenda no celular; no largo, um botão comum no fim da tela. */
+.tn-today__new { text-decoration: none; margin-top: var(--tn-space-6); }
+@media (max-width: 899.98px) {
+  .tn-today__new {
+    position: fixed;
+    z-index: 25;
+    right: max(var(--tn-space-4), env(safe-area-inset-right));
+    bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-4));
+    margin: 0;
+    width: 56px;
+    min-height: 56px;
+    padding: 0;
+    border-radius: var(--tn-radius-pill);
+    box-shadow: var(--tn-elevation-2);
+  }
+  /* Só o +; o nome continua no leitor de tela. */
+  .tn-today__new-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .tn-main:has(.tn-today__new) { padding-bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + 104px); }
+}
 @media (min-width: 900px) {
-  .tn-today .tn-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .tn-today .tn-stat--wide { grid-column: auto; }
   .tn-today .tn-stat { padding: var(--tn-space-4); }
   .tn-today .tn-stat__value { font-size: var(--tn-text-number); }
-  .tn-quick__item { grid-auto-flow: column; justify-content: start; align-items: center; min-height: 64px; padding: var(--tn-space-3) var(--tn-space-4); text-align: left; }
 }

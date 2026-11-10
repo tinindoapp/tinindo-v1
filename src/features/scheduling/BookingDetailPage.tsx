@@ -23,7 +23,7 @@ import {
   waitlistMatches,
   whatsAppDigits,
 } from "./agenda.ts";
-import { AttendanceActions, toastFailure } from "./attendance.tsx";
+import { AttendanceActions, cashierHref, toastFailure } from "./attendance.tsx";
 import type { Operation } from "./errors.ts";
 import { formatDayLong, localParts } from "./time.ts";
 import { ErrorPanel, PolicyNote, ScreenNotes, StatusBadge } from "./parts.tsx";
@@ -286,8 +286,9 @@ function BookingDetail({
           </Link>
         ) : null}
         {booking.status === "completed" ? (
-          // Concluir não é receber: a cobrança e o recebimento são registrados no Caixa, pelo dono.
-          <Link className="tn-button" data-variant="secondary" to="/app/caixa">
+          // Concluir não é receber: a cobrança e o recebimento são registrados no Caixa, pelo dono. O link leva ao próprio
+          // atendimento: o Caixa rola até ele e abre a ação (P48).
+          <Link className="tn-button" data-variant="secondary" to={cashierHref(booking.id)}>
             Cobrar no Caixa
           </Link>
         ) : null}

@@ -6,7 +6,7 @@ import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
-import { completedVisits } from "../../lib/demo/journey.ts";
+import { completedVisits, provideDemoCollect } from "../../lib/demo/journey.ts";
 import { createDemoPort } from "./demoPort.ts";
 import { FinancePage, FinancePortProvider } from "./FinancePage.tsx";
 import type { FinancePort } from "./port.ts";
@@ -24,6 +24,8 @@ export function getDemoPort(): FinancePort {
 export function resetDemoPort() {
   demoPort = null;
 }
+// P48: "Atendido" na Agenda e na Hoje cobra neste mesmo caixa emulado (o mesmo que a tela do Caixa lê).
+provideDemoCollect(getDemoPort);
 
 function FinanceLayout() {
   const { state, tenantId, getAccessToken } = useSession();

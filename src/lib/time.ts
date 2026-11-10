@@ -209,3 +209,23 @@ export function formatWeekdayDay(date: CivilDate): string {
   const wd = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", weekday: "short" }).format(civilToDate(date)).replace(".", "");
   return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${Number(date.slice(8, 10))}`;
 }
+
+/**
+ * Períodos do "recebido" no Caixa e na Hoje (P48): hoje, a semana (de segunda até o fim de hoje) e o mês, em janelas
+ * semiabertas no fuso do negócio. O contrato `finance.summary` aceita qualquer período: a semana sai de uma chamada a mais,
+ * sem campo novo no contrato.
+ */
+export function receivedPeriods(today: CivilDate, timeZone: string) {
+  const day = dayWindow(today, timeZone);
+  const monday = weekStart(today);
+  const first = `${today.slice(0, 7)}-01`;
+  const [y, m] = nums(first, "-");
+  const nextMonth = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+  return {
+    day,
+    week: { starts_at: dayWindow(monday, timeZone).starts_at, ends_at: day.ends_at },
+    /** Segunda-feira da semana, para escrever o período ("de 19/10 a 20/10"). */
+    weekFrom: monday,
+    month: { starts_at: dayWindow(first, timeZone).starts_at, ends_at: dayWindow(nextMonth, timeZone).starts_at },
+  };
+}

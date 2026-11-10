@@ -23,7 +23,10 @@ import {
   unchargedTotal,
 } from "./money.ts";
 import { useAttemptValue, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { explainFinanceError, METHOD_LABEL, METHODS, type Method, useCollectBooking } from "../../lib/collect.ts";
+import { CollectActions } from "../../components/ui/collect.tsx";
 import { plural } from "../../lib/text/plural.ts";
+import { receivedPeriods } from "../../lib/time.ts";
 import { type FinanceBase, type FinancePort, newKey } from "./port.ts";
 
 const PortContext = createContext<FinancePort | null>(null);
@@ -34,16 +37,13 @@ function usePort(): FinancePort {
   return p;
 }
 
-const METHOD_LABEL = { pix: "Pix", cash: "Dinheiro", card: "Cartão", transfer: "Transferência", other: "Outro" } as const;
-type Method = keyof typeof METHOD_LABEL;
-/** Como a forma entra na frase do atalho: "Recebi R$ 60,00 no Pix". */
-const METHOD_PHRASE: Record<Method, string> = { pix: "no Pix", cash: "em dinheiro", card: "no cartão", transfer: "por transferência", other: "de outra forma" };
-const METHOD_OPTIONS = (Object.keys(METHOD_LABEL) as Method[]).map((m) => ({ value: m, label: METHOD_LABEL[m] }));
-type RegisterKind = "expense" | "receivable" | "package";
+// "Registrar" abre em "Recebi" (P48): o lançamento mais comum é o dinheiro que entrou agora.
+type RegisterKind = "receipt" | "expense" | "receivable" | "package";
 const REGISTER_OPTIONS: readonly { value: RegisterKind; label: string }[] = [
+  { value: "receipt", label: "Recebi" },
   { value: "expense", label: "Despesa" },
-  { value: "receivable", label: "Cobrança avulsa" },
-  { value: "package", label: "Venda de pacote" },
+  { value: "receivable", label: "A receber" },
+  { value: "package", label: "Pacote" },
 ];
 const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   supplies: "Material", rent: "Aluguel", utilities: "Contas (luz, água, internet)", fees: "Taxas",
@@ -53,34 +53,7 @@ const STATUS_LABEL: Record<Receivable["status"], string> = {
   open: "Em aberto", partially_paid: "Recebido em parte", paid: "Recebido", cancelled: "Cancelado",
 };
 
-/** Explica erros do contrato sem jargão; diz o que NÃO aconteceu. */
-function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  switch (e?.code) {
-    case "POLICY_REJECTED":
-      if (e.field === "amount_cents") return "O valor é maior que o que falta receber. Nada foi registrado.";
-      if (e.field === "remaining_credits") return "O pacote não tem mais créditos. Nada foi debitado.";
-      if (e.field === "package") return "Este atendimento já foi pago com crédito de pacote; cobrar de novo duplicaria a receita.";
-      if (e.field === "booking_id") return "Este atendimento já tem cobrança ou crédito usado. Nada foi alterado.";
-      if (e.field === "reversal_of" || e.field === "entry_id") return "Isso já foi estornado. Nada foi alterado.";
-      return "As regras não permitem esta ação agora. Nada foi alterado.";
-    case "VALIDATION_ERROR":
-      return e.field === "received_at" || e.field === "paid_at"
-        ? "A data não pode ser no futuro. Nada foi registrado."
-        : "Confira os dados. Nada foi registrado.";
-    case "STALE_VERSION":
-      return "Este registro mudou em outro lugar. Atualizamos a lista: revise e tente de novo.";
-    case "IDEMPOTENCY_MISMATCH":
-      return "Pedido repetido com dados diferentes. Nada novo foi gravado.";
-    case "FORBIDDEN":
-      return "Só o dono do negócio acessa o caixa.";
-    case "PROVIDER_UNAVAILABLE":
-    case "INTERNAL_ERROR":
-      return "Sem resposta do servidor. Tentar de novo é seguro: o pedido usa a mesma chave e não duplica.";
-    default:
-      return "Não foi possível concluir. Nada foi alterado por esta tentativa.";
-  }
-}
+const explain = explainFinanceError;
 
 interface MonthData {
   summary: Awaited<ReturnType<FinancePort["summary"]>>;
@@ -96,6 +69,8 @@ interface Ctx {
   notify(tone: "success" | "danger", text: string): void;
   customerName(id: string | null): string;
   serviceName(id: string): string;
+  /** Atendimento pedido pelo link `?atendimento=<id>` (vindo da Agenda): a linha dele fica marcada. */
+  focusBooking: string | null;
 }
 const PageContext = createContext<Ctx | null>(null);
 const usePage = () => useContext(PageContext)!;
@@ -127,6 +102,7 @@ export function FinancePage() {
   // Pendência não tem mês: o atendimento concluído sem cobrança aparece até ser cobrado, seja qual for o mês escolhido.
   // O seletor vale para o caixa registrado, os recebimentos e as despesas.
   const pending: TimeRange = pendingPeriod(today, tz);
+  const focusBooking = params.get("atendimento");
 
   useEffect(() => {
     if (!base) return;
@@ -172,12 +148,13 @@ export function FinancePage() {
     notify: (tone, text) => toast({ message: text, tone }),
     customerName: (id) => base.customers.find((c) => c.id === id)?.name ?? (id ? "Cliente" : "Sem cliente cadastrado"),
     serviceName: (id) => base.services.find((s) => s.id === id)?.name ?? "Serviço",
+    focusBooking,
   };
   // Depois de uma ação, o mês é relido (nonce) com o dado anterior na tela: as seções não desmontam, então o foco,
   // "Ver mais" e formulários abertos continuam. "Carregando o mês…" só aparece na troca de mês.
   const current = data && data.month === month ? data : null;
   const registerButton = (
-    <Button aria-expanded={register !== null} aria-controls="fin-register" onClick={() => setRegister(register ? null : "expense")}>
+    <Button aria-expanded={register !== null} aria-controls="fin-register" onClick={() => setRegister(register ? null : "receipt")}>
       <Icon name="mais" size={20} />
       Registrar
     </Button>
@@ -187,6 +164,7 @@ export function FinancePage() {
     <PageContext.Provider value={ctx}>
       <Shell demo={port.kind === "demo"} actions={registerButton}>
         {register ? <RegisterPanel kind={register} onKind={setRegister} onClose={() => setRegister(null)} /> : null}
+        <Received today={today} nonce={nonce} />
         <div className="tn-fin-period" role="group" aria-label="Período">
           {/* Não há ícone de seta para a esquerda: a mesma seta, espelhada. */}
           <IconButton icon="voltar" label="Mês anterior" variant="secondary" onClick={() => go(shiftMonth(month, -1))} />
@@ -206,6 +184,7 @@ export function FinancePage() {
             <Payments list={current.value.ledger.payments} />
             <Expenses list={current.value.ledger.expenses} />
             <Packages list={current.value.packages} />
+            <FocusBooking id={focusBooking} value={current.value} />
           </>
         )}
       </Shell>
@@ -224,6 +203,74 @@ function Shell({ demo, actions, children }: { demo: boolean; actions?: ReactNode
   );
 }
 
+/**
+ * "Hoje · Semana · Mês" (P48): o recebido nos três períodos correntes, sempre a partir de hoje (o seletor de mês vale
+ * para o resto da tela). Três chamadas a `finance.summary`, uma por período; o contrato não muda.
+ */
+function Received({ today, nonce }: { today: string; nonce: number }) {
+  const port = usePort();
+  const { base } = usePage();
+  const tz = base.timezone;
+  const periods = receivedPeriods(today, tz);
+  const [data, setData] = useState<{ key: string; value?: [number, number, number]; failed?: boolean } | null>(null);
+  const key = `${today}#${nonce}`;
+  useEffect(() => {
+    let alive = true;
+    const p = receivedPeriods(today, tz);
+    Promise.all([port.summary(p.day, tz), port.summary(p.week, tz), port.summary(p.month, tz)]).then(
+      ([d, w, m]) => alive && setData({ key, value: [d.received_cents, w.received_cents, m.received_cents] }),
+      () => alive && setData({ key, failed: true }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [port, today, tz, key]);
+  // Depois de uma ação, o valor anterior fica até chegar o novo (a linha não pisca).
+  const v = data?.value;
+  const ddmm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+  const rows: [string, string, number | undefined][] = [
+    ["Hoje", ddmm(today), v?.[0]],
+    ["Semana", periods.weekFrom === today ? ddmm(today) : `${ddmm(periods.weekFrom)} a ${ddmm(today)}`, v?.[1]],
+    ["Mês", capitalizeFirst(formatMonth(today.slice(0, 7))), v?.[2]],
+  ];
+  return (
+    <section aria-labelledby="fin-recv-title" className="tn-fin-recv">
+      <h2 id="fin-recv-title" className="tn-visually-hidden">Recebido</h2>
+      {data?.failed && !v ? <p className="tn-muted">Não foi possível somar o recebido agora.</p> : (
+        <dl className="tn-fin-recv__list">
+          {rows.map(([label, when, cents]) => (
+            <div key={label} className="tn-fin-recv__item">
+              <dt>
+                <span className="tn-fin-recv__label">{label}</span>
+                <span className="tn-fin-recv__when tn-num">{when}</span>
+              </dt>
+              <dd className="tn-num">{cents === undefined ? "…" : formatCents(cents)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
+}
+
+/**
+ * `?atendimento=<id>` (vindo de "Cobrar no Caixa" na Agenda): rola até o atendimento e põe o foco na ação. Sem cobrança,
+ * o foco vai para "Recebi"; já cobrado, o recebimento da cobrança abre. Uma vez por atendimento pedido.
+ */
+function FocusBooking({ id, value }: { id: string | null; value: MonthData }) {
+  const done = useRef<string | null>(null);
+  useEffect(() => {
+    if (!id || done.current === id) return;
+    done.current = id;
+    const item = document.getElementById(`fin-b-${id}`) ?? document.querySelector<HTMLElement>(`[data-booking="${CSS.escape(id)}"]`);
+    if (!item) return;
+    item.scrollIntoView?.({ block: "center" });
+    const target = item.querySelector<HTMLElement>("input, button");
+    target?.focus();
+  }, [id, value]);
+  return null;
+}
+
 /** Painel "Registrar": escolhe o que lançar e abre o formulário no lugar, com o foco no primeiro campo. */
 function RegisterPanel({ kind, onKind, onClose }: { kind: RegisterKind; onKind: (k: RegisterKind) => void; onClose: () => void }) {
   const panel = useRef<HTMLElement>(null);
@@ -234,7 +281,7 @@ function RegisterPanel({ kind, onKind, onClose }: { kind: RegisterKind; onKind: 
     <section ref={panel} id="fin-register" className="tn-card tn-fin-register" aria-labelledby="fin-reg-title">
       <h2 id="fin-reg-title">Registrar</h2>
       <Segmented label="O que registrar" value={kind} options={REGISTER_OPTIONS} onChange={onKind} />
-      {kind === "expense" ? <ExpenseForm onDone={onClose} /> : kind === "receivable" ? <ReceivableForm onDone={onClose} /> : <PackageForm onDone={onClose} />}
+      {kind === "receipt" ? <ReceiptForm onDone={onClose} /> : kind === "expense" ? <ExpenseForm onDone={onClose} /> : kind === "receivable" ? <ReceivableForm onDone={onClose} /> : <PackageForm onDone={onClose} />}
       <div className="tn-actions">
         <Button variant="ghost" onClick={onClose}>Fechar</Button>
       </div>
@@ -295,7 +342,7 @@ function Summary({ s, month, uncharged }: { s: MonthData["summary"]; month: stri
 function MethodField({ id, className, value, onChange }: { id: string; className?: string; value: Method; onChange: (m: Method) => void }) {
   return (
     <Field as="select" label="Forma" id={id} className={className} value={value} onChange={(e) => onChange(e.target.value as Method)}>
-      {(Object.keys(METHOD_LABEL) as Method[]).map((m) => (
+      {METHODS.map((m) => (
         <option key={m} value={m}>
           {METHOD_LABEL[m]}
         </option>
@@ -340,14 +387,9 @@ function useFocusHandoff(headingId: string) {
 function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: PackageDetail[]; ctx: Ctx }) {
   const port = usePort();
   const itemRef = useFocusHandoff("fin-unch-title");
-  // Uma chave por registro: repetir depois de falha reaproveita a cobrança já criada e não duplica nada.
-  const { keyFor: chargeKey } = useIdempotencyKey();
-  const { keyFor: payKey } = useIdempotencyKey();
-  const { keyFor: creditKey } = useIdempotencyKey();
-  // Instante do recebimento fixado na tela: a repetição envia exatamente o mesmo pedido.
-  const [receivedAt] = useState(() => port.now().toISOString());
-  const [method, setMethod] = useState<Method>("pix");
-  const [choosing, setChoosing] = useState(false);
+  // Atalho compartilhado com a Agenda e a Hoje (src/lib/collect.ts): uma chave por registro, então repetir depois de
+  // falha reaproveita a cobrança já criada e não duplica nada.
+  const collect = useCollectBooking(port, b.booking_id);
   // Qual ação está rodando: o carregando aparece só no botão tocado; os outros esperam.
   const [pending, setPending] = useState<string | null>(null);
   const label = `${ctx.serviceName(b.service_id)} · ${ctx.customerName(b.customer_id)}`;
@@ -365,27 +407,24 @@ function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: Pa
   }
 
   // Cobrança e recebimento são dois registros. Se o segundo falhar, a cobrança fica em aberto e visível.
-  const markPaid = () =>
+  const markPaid = (method: Method) =>
     run("paid", async () => {
-      const r = await port.chargeBooking({ booking_id: b.booking_id }, chargeKey({ charge: b.booking_id }));
-      const payment = { receivable_id: r.id, amount_cents: r.amount_cents, method, received_at: receivedAt };
-      await port.recordPayment(payment, payKey(payment));
+      const r = await collect.receive(method);
       return `Recebido ${formatCents(r.amount_cents)} (${METHOD_LABEL[method]}) de ${label}. Registro manual.`;
     });
   const chargeLater = () =>
     run("later", async () => {
-      const r = await port.chargeBooking({ booking_id: b.booking_id }, chargeKey({ charge: b.booking_id }));
+      const r = await collect.later();
       return `Cobrança de ${formatCents(r.amount_cents)} criada. Fica em "A receber" até registrar o recebimento.`;
     });
   const consumeCredit = (pkgId: string) =>
     run(pkgId, async () => {
-      if (!b.completed_event_id) throw { code: "POLICY_REJECTED", field: "event_id" };
-      const bal = await port.consumePackage({ package_id: pkgId, booking_id: b.booking_id, event_id: b.completed_event_id }, creditKey({ consume: b.booking_id, pkgId }));
+      const bal = await collect.consumeCredit(pkgId, b.completed_event_id);
       return `Crédito usado. Saldo: ${bal.remaining_credits} ${bal.remaining_credits === 1 ? "sessão" : "sessões"}. Nenhum valor novo entra no caixa.`;
     });
 
   return (
-    <li ref={itemRef} className="tn-fin-item">
+    <li ref={itemRef} className="tn-fin-item" id={`fin-b-${b.booking_id}`} data-focus={ctx.focusBooking === b.booking_id ? "true" : undefined}>
       <div>
         <strong>{label}</strong>
         <span className="tn-muted tn-num">
@@ -393,36 +432,8 @@ function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: Pa
           {formatDate(b.starts_at, ctx.base.timezone)} · {formatCents(b.agreed_price_cents)}
         </span>
       </div>
-      <div className="tn-actions">
-        {b.agreed_price_cents ? (
-          <>
-            {/* Atalho de um toque (item 56): "Recebi R$ 60,00 no Pix"; ▾ troca a forma antes de tocar. */}
-            <span className="tn-fin-split">
-              <Button loading={pending === "paid"} disabled={!!pending} onClick={() => void markPaid()}>
-                {/* Um texto só: o botão tem espaço (gap) entre filhos. */}
-                <span>Recebi <span className="tn-num">{formatCents(b.agreed_price_cents)}</span> {METHOD_PHRASE[method]}<span className="tn-visually-hidden"> · {label}</span></span>
-              </Button>
-              <Button variant="secondary" aria-expanded={choosing} aria-controls={`m-${b.booking_id}`}
-                aria-label={`Outra forma de pagamento · ${label}`} title="Outra forma de pagamento" disabled={!!pending} onClick={() => setChoosing((c) => !c)}>
-                <span aria-hidden="true">▾</span>
-              </Button>
-            </span>
-            <Button variant="secondary" loading={pending === "later"} disabled={!!pending} onClick={() => void chargeLater()}>
-              Cobrar depois<span className="tn-visually-hidden"> {label}</span>
-            </Button>
-          </>
-        ) : null}
-        {packages.map((p) => (
-          <Button key={p.package_id} variant="secondary" loading={pending === p.package_id} disabled={!!pending} onClick={() => void consumeCredit(p.package_id)}>
-            Usar crédito do pacote ({plural(p.remaining_credits, "restante")})
-          </Button>
-        ))}
-      </div>
-      {choosing ? (
-        <div id={`m-${b.booking_id}`} className="tn-fin-methods">
-          <Segmented label={`Forma de pagamento · ${label}`} hideLabel value={method} options={METHOD_OPTIONS} onChange={setMethod} />
-        </div>
-      ) : null}
+      <CollectActions idBase={`m-${b.booking_id}`} label={label} amountCents={b.agreed_price_cents} credits={packages} pending={pending}
+        onReceive={(m) => void markPaid(m)} onLater={() => void chargeLater()} onCredit={(id) => void consumeCredit(id)} />
     </li>
   );
 }
@@ -452,7 +463,8 @@ function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
   // "Agora" entra no pedido. Na nova tentativa precisa ser o mesmo instante: com outro, a chave mudaria
   // e o recebimento seria gravado duas vezes.
   const instant = useAttemptValue<string>();
-  const [open, setOpen] = useState(false);
+  // Vindo da Agenda com `?atendimento=<id>` já cobrado: o recebimento dessa cobrança abre direto.
+  const [open, setOpen] = useState(() => !!r.booking_id && r.booking_id === ctx.focusBooking);
   const [amount, setAmount] = useState(centsToInput(r.open_cents));
   const [method, setMethod] = useState<Method>("pix");
   const [date, setDate] = useState(ctx.today);
@@ -500,7 +512,8 @@ function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
   }
 
   return (
-    <li ref={itemRef} className="tn-fin-item">
+    <li ref={itemRef} className="tn-fin-item" data-booking={r.booking_id ?? undefined}
+      data-focus={r.booking_id && r.booking_id === ctx.focusBooking ? "true" : undefined}>
       <div>
         <strong>{r.description}</strong> <span className="tn-muted">· {ctx.customerName(r.customer_id)}</span>
         <div className="tn-muted tn-num">
@@ -616,6 +629,66 @@ function Payments({ list }: { list: PaymentRecord[] }) {
       )}
       <MoreButton total={list.length} all={all} onAll={() => setAll(true)} one="recebimento" many="recebimentos" />
     </section>
+  );
+}
+
+/**
+ * "Recebi" (P48, abre primeiro no "+ Registrar"): dinheiro que entrou fora de um atendimento da agenda. Valor, forma e
+ * cliente opcional. No servidor são dois registros, como no atalho do atendimento: a cobrança e o pagamento dela.
+ */
+function ReceiptForm({ onDone }: { onDone: () => void }) {
+  const ctx = usePage();
+  const port = usePort();
+  const charge = useIdempotencyKey();
+  const pay = useIdempotencyKey();
+  // Mesmo instante na nova tentativa (ver ReceivableItem): senão o recebimento seria gravado duas vezes.
+  const instant = useAttemptValue<string>();
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<Method>("pix");
+  const [customer, setCustomer] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const { formRef, errors, show } = useFormErrors<"amount">();
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const cents = parseBRL(amount);
+    if (!show({ amount: !cents && "Informe o valor recebido." }) || !cents) return;
+    const receivable = { description: "Recebimento avulso", amount_cents: cents, customer_id: customer || null };
+    setPending(true);
+    setError(null);
+    try {
+      const r = await port.createReceivable(receivable, charge.keyFor(receivable));
+      const payment = {
+        receivable_id: r.id, amount_cents: cents, method,
+        received_at: instant.valueFor({ receivable, method }, () => port.now().toISOString()),
+      };
+      await port.recordPayment(payment, pay.keyFor(payment));
+      charge.reset();
+      pay.reset();
+      instant.reset();
+      ctx.notify("success", `Recebimento de ${formatCents(cents)} registrado (${METHOD_LABEL[method]}, manual).`);
+      onDone();
+      ctx.reload();
+    } catch (err) {
+      setError(explain(err));
+      setPending(false);
+    }
+  }
+
+  return (
+    <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Novo recebimento">
+      <Field label="Valor recebido (R$)" id="rcp-amount" inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
+      <MethodField id="rcp-method" value={method} onChange={setMethod} />
+      <Field as="select" label="Cliente (opcional)" id="rcp-customer" value={customer} onChange={(e) => setCustomer(e.target.value)}>
+        <option value="">Sem cliente</option>
+        {ctx.base.customers.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </Field>
+      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
+      <Button type="submit" loading={pending}>Salvar recebimento</Button>
+    </form>
   );
 }
 

@@ -9,7 +9,11 @@ import { explain, specOf } from "./labels.ts";
 import { newKey, type SetupPort, type SetupProgress } from "./port.ts";
 import "./setup.css";
 
-export function SetupCard({ port }: { port: SetupPort }) {
+/**
+ * `compact` (P48, decisão D6): com atendimento no dia, a Hoje mostra a configuração numa linha fina, com a contagem, a
+ * barra e o próximo passo como link; o cartão inteiro fica para quando o dia está vazio e na tela Configuração.
+ */
+export function SetupCard({ port, compact = false }: { port: SetupPort; compact?: boolean }) {
   const [progress, setProgress] = useState<SetupProgress | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -47,15 +51,35 @@ export function SetupCard({ port }: { port: SetupPort }) {
     }
   }
 
+  const bar = (
+    <div className="tn-setup-card__bar" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done_count} aria-label="Passos feitos">
+      <span style={{ width: `${Math.round((progress.done_count / progress.total) * 100)}%` }} />
+    </div>
+  );
+
+  if (compact) {
+    return (
+      <section className="tn-setup-line" aria-labelledby="setup-card-title" data-ready={progress.ready || undefined}>
+        <h2 id="setup-card-title" className="tn-setup-line__title">
+          <Link to="/app/configurar">Deixe seu negócio pronto</Link> <span className="tn-num tn-muted">· {progress.done_count} de {progress.total}</span>
+        </h2>
+        {next && spec ? (
+          <Link to={next.link} className="tn-setup-line__next">
+            {spec.cta}<span className="tn-visually-hidden">: próximo passo{next.required ? "" : " (opcional)"}, {next.title}</span>
+          </Link>
+        ) : null}
+        {bar}
+      </section>
+    );
+  }
+
   return (
     <section className="tn-card tn-setup-card" aria-labelledby="setup-card-title" data-ready={progress.ready || undefined}>
       <div className="tn-setup-card__head">
         <h2 id="setup-card-title" className="tn-setup-card__title">
           Deixe seu negócio pronto <span className="tn-num tn-muted">· {progress.done_count} de {progress.total}</span>
         </h2>
-        <div className="tn-setup-card__bar" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done_count} aria-label="Passos feitos">
-          <span style={{ width: `${Math.round((progress.done_count / progress.total) * 100)}%` }} />
-        </div>
+        {bar}
         {progress.ready ? <p className="tn-setup-card__ready">Seu link público já recebe reservas. O que falta é opcional.</p> : null}
       </div>
       {next && spec ? (

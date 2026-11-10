@@ -1,0 +1,5 @@
+/* Saídas de um atendimento concluído (collect.tsx): "Recebi … ▾" em botão dividido, mais as outras saídas. */
+.tn-split { display: inline-flex; align-items: stretch; min-width: 0; max-width: 100%; }
+.tn-split > .tn-button:first-child { border-start-end-radius: 0; border-end-end-radius: 0; min-width: 0; }
+.tn-split > .tn-button:last-child { border-start-start-radius: 0; border-end-start-radius: 0; margin-inline-start: -1px; min-width: var(--tn-size-touch); padding-inline: var(--tn-space-2); }
+.tn-collect__methods { flex: 1 1 100%; min-width: 0; }

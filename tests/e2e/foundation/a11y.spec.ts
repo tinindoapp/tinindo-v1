@@ -60,7 +60,7 @@ test("A11Y-01 · na Hoje, o valor em reais fica dentro do cartão em 320 e 375 p
   for (const width of [320, 375]) {
     await page.setViewportSize({ width, height: 700 });
     await page.goto("/app");
-    const stat = page.getByRole("group", { name: "Resumo" }).getByRole("link", { name: /Recebido no mês/ });
+    const stat = page.getByRole("group", { name: "Resumo" }).getByRole("link", { name: /Recebido na semana/ });
     await expect(stat).toBeVisible();
     const fits = await stat.evaluate((el) => {
       const card = el.getBoundingClientRect();
