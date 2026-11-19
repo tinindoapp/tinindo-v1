@@ -4,7 +4,7 @@ import { BrandSymbol, IconButton, Wordmark } from "../components/ui/index.tsx";
 import { Icon, IconSprite } from "../components/ui/icons.tsx";
 import { MODULES } from "./modules.ts";
 import { unreadLabel, useUnreadMessages } from "../features/messaging/unread.ts";
-import { activeTo, buildNavigation, HOME, isItemActive, type NavSection, sectionFor } from "./navigation.ts";
+import { activeTo, buildNavigation, HOME, type NavSection, sectionFor } from "./navigation.ts";
 import { useSession } from "./session.tsx";
 import "./shell.css";
 import { InboxExtraProvider } from "../features/messaging/module.tsx";
@@ -277,7 +277,8 @@ export function AppShell() {
           {sections
             .filter((s) => s.tab)
             .map((s) => {
-              const active = s.items.some((i) => isItemActive(i, pathname));
+              // A aba do grupo da rota (o item mais específico decide: Retorno não acende Clientes).
+              const active = current?.id === s.id;
               return (
                 <li key={s.id}>
                   <Link to={s.to} aria-current={active ? "page" : undefined} aria-label={s.badge === "unread" ? withUnread(s.label, unread) : undefined}>

@@ -71,27 +71,53 @@ describe("shell do app (demonstração sem servidor)", () => {
     expect(new Set(tos).size).toBe(tos.length);
   });
 
-  it("abas do celular: Hoje, Agenda, Clientes, Mensagens e Dinheiro; Assistente junto de Mensagens (item 39)", async () => {
+  it("abas do celular: Hoje, Agenda, Clientes, Retorno e Dinheiro; Mensagens e Assistente juntos no menu (D2 b)", async () => {
     renderAt("/app/caixa");
     const tabs = await screen.findByRole("navigation", { name: "Abas" });
     const names = within(tabs).getAllByRole("link").map((a) => a.textContent);
-    expect(names).toEqual(["Hoje", "Agenda", "Clientes", "Mensagens", "Dinheiro"]);
+    expect(names).toEqual(["Hoje", "Agenda", "Clientes", "Retorno", "Dinheiro"]);
     expect(within(tabs).getByRole("link", { name: "Dinheiro" })).toHaveAttribute("aria-current", "page");
-    const mensagens = buildNavigation(MODULES).find((s) => s.id === "mensagens")!;
+    expect(within(tabs).getByRole("link", { name: "Retorno" })).toHaveAttribute("href", "/app/relacionamento/retorno");
+    const nav = buildNavigation(MODULES);
+    const mensagens = nav.find((s) => s.id === "mensagens")!;
+    expect(mensagens.tab).toBe(false);
     expect(mensagens.items.map((i) => i.label)).toEqual(["Mensagens", "Assistente"]);
-    expect(buildNavigation(MODULES).find((s) => s.id === "clientes")!.items.map((i) => i.label)).not.toContain("Mensagens");
+    expect(nav.find((s) => s.id === "retorno")!.items.map((i) => [i.label, i.to])).toEqual([["Retorno", "/app/relacionamento/retorno"]]);
+    expect(nav.find((s) => s.id === "clientes")!.items.map((i) => i.label)).not.toContain("Mensagens");
+    // Mensagens continua a um toque, no menu.
+    expect(within(screen.getByRole("navigation", { name: "Principal" })).getByRole("link", { name: "Mensagens" })).toHaveAttribute("href", "/app/mensagens");
   });
 
-  it("no Assistente, a aba Mensagens fica ativa e a sub-aba leva às conversas", async () => {
+  it("Retorno é tela do Relacionamento, mas acende só a aba Retorno; Relacionamento continua em Clientes", async () => {
+    const { unmount } = renderAt("/app/relacionamento/retorno");
+    expect(await screen.findByRole("heading", { name: "Retorno", level: 1 })).toBeInTheDocument();
+    let tabs = screen.getByRole("navigation", { name: "Abas" });
+    expect(within(tabs).getByRole("link", { name: "Retorno" })).toHaveAttribute("aria-current", "page");
+    expect(within(tabs).getByRole("link", { name: "Clientes" })).not.toHaveAttribute("aria-current");
+    expect(within(screen.getByRole("navigation", { name: "Principal" })).getByRole("link", { name: "Retorno" })).toHaveAttribute("aria-current", "page");
+    // Grupo de uma tela só: sem faixa de sub-abas.
+    expect(screen.queryByRole("navigation", { name: "Telas de Retorno" })).not.toBeInTheDocument();
+    unmount();
+
+    renderAt("/app/relacionamento");
+    expect(await screen.findByRole("heading", { name: "Relacionamento", level: 1 })).toBeInTheDocument();
+    tabs = screen.getByRole("navigation", { name: "Abas" });
+    expect(within(tabs).getByRole("link", { name: "Clientes" })).toHaveAttribute("aria-current", "page");
+    expect(within(tabs).getByRole("link", { name: "Retorno" })).not.toHaveAttribute("aria-current");
+    expect(within(screen.getByRole("navigation", { name: "Telas de Clientes" })).getByRole("link", { name: "Lembretes" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("no Assistente, nenhuma aba acende, o Menu marca a área e a sub-aba leva às conversas", async () => {
     renderAt("/app/assistente");
     const tabs = await screen.findByRole("navigation", { name: "Abas" });
-    expect(within(tabs).getByRole("link", { name: "Mensagens" })).toHaveAttribute("aria-current", "page");
+    expect(tabs.querySelector('[aria-current="page"]')).toBeNull();
+    expect(screen.getByRole("button", { name: "Menu" })).toHaveAttribute("data-active", "true");
     const sub = screen.getByRole("navigation", { name: "Telas de Mensagens" });
     expect(within(sub).getByRole("link", { name: "Assistente" })).toHaveAttribute("aria-current", "page");
     expect(within(sub).getByRole("link", { name: "Mensagens" })).toHaveAttribute("href", "/app/mensagens");
   });
 
-  it("selo de não lidas na aba e no menu, escrito por extenso para o leitor de tela", async () => {
+  it("selo de não lidas no menu, escrito por extenso para o leitor de tela (a barra não tem mais Mensagens)", async () => {
     resetMessagingDemo();
     const port = createMessagingDemo();
     await port.connect("simulated", DEMO_BUSINESS_PHONE, "c1");
@@ -102,11 +128,11 @@ describe("shell do app (demonstração sem servidor)", () => {
     await port.simInbound({ kind: "inbound", phone_e164: "+5511988880000", text: "Olá" }, "e2");
     await port.simInbound({ kind: "inbound", phone_e164: "+5511988880000", text: "Tem horário?" }, "e3");
     renderAt("/app");
-    const tabs = await screen.findByRole("navigation", { name: "Abas" });
-    const tab = await within(tabs).findByRole("link", { name: "Mensagens, 3 não lidas" });
-    expect(within(tab).getByText("3")).toHaveAttribute("aria-hidden", "true");
-    expect(tab).toHaveTextContent(/^Mensagens3$/);
-    expect(within(screen.getByRole("navigation", { name: "Principal" })).getByRole("link", { name: "Mensagens, 3 não lidas" })).toBeInTheDocument();
+    const menu = await screen.findByRole("navigation", { name: "Principal" });
+    const link = await within(menu).findByRole("link", { name: "Mensagens, 3 não lidas" });
+    expect(within(link).getByText("3")).toHaveAttribute("aria-hidden", "true");
+    expect(link).toHaveTextContent(/^Mensagens3$/);
+    expect(within(screen.getByRole("navigation", { name: "Abas" })).queryByRole("link", { name: /Mensagens/ })).not.toBeInTheDocument();
     resetMessagingDemo();
   });
 

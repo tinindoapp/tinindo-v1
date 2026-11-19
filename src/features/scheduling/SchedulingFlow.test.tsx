@@ -406,6 +406,30 @@ describe("onda 3 da auditoria de UX (itens 19, 28, 29, 30, 32 e 34)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
     await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/app\/agenda\/atendimento\//), SLOW);
     expect(await screen.findByText("Carla Teste", undefined, SLOW)).toBeInTheDocument();
+
+    // P49: com WhatsApp no cadastro, a tela do atendimento oferece avisar com o texto de confirmação pronto.
+    const notice = await screen.findByRole("region", { name: "Avise o cliente" }, SLOW);
+    const text = "Olá, Carla Teste! Seu horário de Corte está marcado para terça-feira, 20 de outubro, às 13:00, na Barbearia Exemplo A. Se precisar remarcar, é só responder esta mensagem.";
+    expect(notice).toHaveTextContent(text);
+    const link = within(notice).getByRole("link", { name: "Avisar no WhatsApp" });
+    expect(link).toHaveAttribute("href", `https://wa.me/5511988887777?text=${encodeURIComponent(text)}`);
+    expect(link).toHaveAttribute("target", "_blank");
+    // Compartilhado, nunca "enviado": a Tinindo não manda a mensagem.
+    expect(notice).toHaveTextContent("Texto pronto para você compartilhar");
+    expect(notice).toHaveTextContent("Abrir não confirma que chegou.");
+    expect(notice).not.toHaveTextContent(/enviad/i);
+  });
+
+  it("cliente sem WhatsApp no cadastro: agendar não oferece o aviso (P49)", async () => {
+    const router = renderAt("/app/agenda/novo?data=2026-10-20");
+    fireEvent.click(await screen.findByRole("radio", { name: /Cliente Exemplo Ana/ }, SLOW));
+    fireEvent.click(await screen.findByRole("button", { name: "13:00" }, SLOW));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/app\/agenda\/atendimento\//), SLOW);
+    expect(await within(toaster()).findByText("Agendamento confirmado.")).toBeInTheDocument();
+    expect(await screen.findByText("Cliente Exemplo Ana", undefined, SLOW)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Avise o cliente" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Avisar no WhatsApp" })).not.toBeInTheDocument();
   });
 
   it("horário não escolhido: erro embaixo dos horários e foco no primeiro", async () => {
