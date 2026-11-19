@@ -63,7 +63,8 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
 
   // Despesa registrada entra em "Gasto" (o formulário abre pelo "+ Registrar").
   await page.getByRole("button", { name: "Registrar", exact: true }).click();
-  await expect(page.getByLabel("Valor da despesa (R$)")).toBeFocused();
+  await page.getByRole("radio", { name: "Despesa" }).check();
+  await expect(page.getByLabel("Valor da despesa (R$)")).toBeVisible();
   await page.getByLabel("Valor da despesa (R$)").fill("20,00");
   await page.getByRole("button", { name: "Registrar despesa" }).click();
   await expect(spent(page)).toHaveText("R$ 335,00");
@@ -87,7 +88,7 @@ test("caixa: recebido, estorno, crédito de pacote e despesa, sem misturar com o
 test("caixa: recebimento acima do que falta é explicado e nada é registrado", async ({ page }) => {
   await page.goto("/app/caixa");
   await page.getByRole("button", { name: "Registrar", exact: true }).click();
-  await page.getByRole("radio", { name: "Cobrança avulsa" }).check();
+  await page.getByRole("radio", { name: "A receber" }).check();
   await page.getByLabel("Descrição", { exact: true }).fill("Pomada");
   await page.getByLabel("Valor (R$)", { exact: true }).fill("30,00");
   await page.getByRole("button", { name: "Criar cobrança" }).click();
@@ -124,11 +125,15 @@ test("caixa: pendências primeiro, formulários fechados até tocar em Registrar
   await open.click();
   await expect(open).toHaveAttribute("aria-expanded", "true");
   const panel = page.getByRole("region", { name: "Registrar" });
+  // P48: abre em "Recebi" (valor, forma, cliente opcional), antes de Despesa, A receber e Pacote.
+  await expect(panel.locator(".tn-segmented__option")).toHaveText(["Recebi", "Despesa", "A receber", "Pacote"]);
+  await expect(panel.getByRole("form", { name: "Novo recebimento" })).toBeVisible();
+  await expect(panel.getByLabel("Valor recebido (R$)")).toBeFocused();
+  await panel.getByRole("radio", { name: "Despesa" }).check();
   await expect(panel.getByRole("form", { name: "Nova despesa" })).toBeVisible();
-  await expect(panel.getByLabel("Valor da despesa (R$)")).toBeFocused();
-  await panel.getByRole("radio", { name: "Venda de pacote" }).check();
+  await panel.getByRole("radio", { name: "Pacote" }).check();
   await expect(panel.getByRole("form", { name: "Vender pacote" })).toBeVisible();
-  await panel.getByRole("radio", { name: "Cobrança avulsa" }).check();
+  await panel.getByRole("radio", { name: "A receber" }).check();
   await panel.getByLabel("Descrição", { exact: true }).fill("Pomada");
   await panel.getByLabel("Valor (R$)", { exact: true }).fill("30,00");
   await panel.getByRole("button", { name: "Criar cobrança" }).click();
@@ -145,6 +150,29 @@ test("caixa: pendências primeiro, formulários fechados até tocar em Registrar
   await expect(page.getByText(/Recebido R\$\s?40,00 \(Pix\)/)).toBeVisible();
   await expect(bruno).toHaveCount(0);
 
+  const width = page.viewportSize()!.width;
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+});
+
+test("caixa (P48): Hoje · Semana · Mês no topo e \"Recebi\" avulso entra nos três de uma vez", async ({ page }) => {
+  await page.goto("/app/caixa");
+  const strip = page.getByRole("region", { name: "Recebido", exact: true });
+  const value = (label: string) => strip.locator("div").filter({ hasText: new RegExp(`^${label}`) }).locator("dd");
+  await expect(value("Hoje")).toHaveText(/R\$\s?0,00/);
+  await expect(value("Mês")).toHaveText(/R\$\s?1\.740,00/);
+  await expect(strip).toContainText("19/10 a 20/10");
+  await page.getByRole("button", { name: "Registrar", exact: true }).click();
+  const form = page.getByRole("form", { name: "Novo recebimento" });
+  await form.getByLabel("Valor recebido (R$)").fill("35");
+  await form.getByLabel("Forma").selectOption("cash");
+  await form.getByLabel("Cliente (opcional)").selectOption({ label: "Cliente Exemplo Bruno" });
+  await form.getByRole("button", { name: "Salvar recebimento" }).dblclick();
+  await expect(page.getByRole("status").getByText(/Recebimento de R\$\s?35,00 registrado \(Dinheiro, manual\)/)).toBeVisible();
+  await expect(value("Hoje")).toHaveText(/R\$\s?35,00/);
+  await expect(value("Mês")).toHaveText(/R\$\s?1\.775,00/);
+  await expect(received(page)).toHaveText("R$ 1.775,00");
+  const payments = page.getByRole("region", { name: "Recebimentos no mês" });
+  await expect(payments.getByRole("listitem").filter({ hasText: "R$ 35,00 · Dinheiro · 20/10" })).toHaveCount(1);
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 });

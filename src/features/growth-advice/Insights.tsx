@@ -39,8 +39,11 @@ function Evidence({ i }: { i: Insight }) {
   return <p className="tn-muted tn-ga-evidence">{insightEvidence(i)}</p>;
 }
 
-/** Cartão da Home: até 3 abertos, por prioridade. Some quando a porta falha (a Home não quebra por ele). */
-export function InsightsCard({ port }: { port: GrowthAdvicePort }) {
+/**
+ * Cartão da Home: os abertos de maior prioridade (até 3; a Hoje mostra 1 desde o P48, com "Ver todas"). Some quando a
+ * porta falha (a Home não quebra por ele).
+ */
+export function InsightsCard({ port, limit = 3 }: { port: GrowthAdvicePort; limit?: number }) {
   const [data, setData] = useState<InsightList | null>(null);
   const [failed, setFailed] = useState(false);
   const [nonce, setNonce] = useState(0);
@@ -57,7 +60,7 @@ export function InsightsCard({ port }: { port: GrowthAdvicePort }) {
         <p className="tn-today__empty">Nada novo por aqui. As sugestões só aparecem quando há dado suficiente.</p>
       ) : (
         <ul className="tn-ga-list tn-insights" aria-label="Sugestões para você">
-          {data.insights.map((i) => (
+          {data.insights.slice(0, limit).map((i) => (
             <li key={i.id} className="tn-ga-item tn-insight" data-rule={i.rule_code}>
               <h3>{i.title}</h3>
               <Evidence i={i} />

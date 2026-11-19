@@ -1,44 +1,43 @@
 import { expect, test } from "@playwright/test";
 
-// P45 · Insights proativos na demonstração (motor emulado sobre a base de exemplo, rotulado): a Home mostra até 3,
-// cada um com período, número e denominador, "Ver" e "Agora não"; "Ver" de proposta abre a sugestão em Metas e
-// sugestões, onde "Preparar" cria a proposta no fluxo dono (nada publicado); "Ver" de tela abre o fluxo; o resumo
-// semanal chega na caixa de Mensagens.
-test("Home: até 3 sugestões com evidência; Agora não silencia; Ver leva à proposta ou à tela do fluxo", async ({ page }) => {
+// P45 · Insights proativos na demonstração (motor emulado sobre a base de exemplo, rotulado). Desde o P48 (decisão D6)
+// a Home mostra UMA sugestão, a de maior prioridade, no fim da tela, com período, número e denominador, "Ver", "Agora não"
+// e "Ver todas"; decidida uma, a seguinte aparece. "Ver" de tela abre o fluxo; "Ver" de proposta abre a sugestão em
+// Metas e sugestões, onde "Preparar" cria a proposta no fluxo dono (nada publicado); o resumo semanal chega na caixa de
+// Mensagens.
+test("Home: uma sugestão com evidência e Ver todas; Ver leva à tela do fluxo ou à proposta; Agora não silencia", async ({ page }) => {
   await page.goto("/app");
   const card = page.getByRole("region", { name: "Para você esta semana" });
   await expect(card).toBeVisible();
   const items = card.getByRole("list", { name: "Sugestões para você" }).getByRole("listitem");
-  await expect(items).toHaveCount(3);
-  // Ordem por prioridade, com período, número e denominador em cada uma.
-  await expect(items.nth(0)).toContainText("Faltas concentradas na quarta");
-  await expect(items.nth(0)).toContainText("5 de 12 atendimentos de quarta com falta, de 21/08 a 20/10.");
-  await expect(items.nth(1)).toContainText("Horário vazio toda semana: sábado das 9h às 14h");
-  await expect(items.nth(1)).toContainText("Vazia em 5 de 5 semanas, de 14/09 a 18/10.");
-  await expect(items.nth(2)).toContainText("3 de 4 itens do perfil prontos (hoje, 20/10).");
-  for (const item of await items.all()) {
-    await expect(item.getByRole("button", { name: /^Agora não/ })).toBeVisible();
-    await expect(item.getByRole("button", { name: /^Ver/ }).or(item.getByRole("link", { name: /^Ver/ }))).toHaveCount(1);
-  }
-  // O cartão fica logo abaixo do cartão de configuração (P44), antes do resumo e da agenda do dia (espera os dois carregarem).
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toContainText("Faltas concentradas na quarta");
+  await expect(items.first()).toContainText("5 de 12 atendimentos de quarta com falta, de 21/08 a 20/10.");
+  await expect(items.first().getByRole("button", { name: /^Agora não/ })).toBeVisible();
+  await expect(card.getByRole("link", { name: "Ver todas" })).toHaveAttribute("href", "/app/metas");
+  // O dia primeiro: a sugestão vem depois do Próximo, da lista do dia, das pendências, dos números e da configuração.
   await expect(page.getByRole("heading", { name: "Atendimentos de hoje" })).toBeVisible();
   await expect(page.locator("[aria-labelledby='setup-card-title']")).toBeVisible();
-  const order = await page.locator("main").evaluate((m) => [...m.querySelectorAll("[aria-labelledby], .tn-stats, #home-insights, #home-next")]
-    .map((e) => (e.id || e.getAttribute("aria-labelledby") || e.className) as string));
-  const setupAt = order.findIndex((x) => /setup/i.test(x));
-  const insightsAt = order.indexOf("home-insights");
-  expect(insightsAt).toBeGreaterThan(-1);
-  expect(insightsAt).toBeGreaterThan(setupAt);
-  expect(setupAt).toBeGreaterThan(-1);
-  expect(insightsAt).toBeLessThan(order.findIndex((x) => /home-next/.test(x)));
+  const order = await page.locator("main").evaluate((m) => [...m.querySelectorAll("[aria-labelledby], .tn-stats")]
+    .map((e) => (e.classList.contains("tn-stats") ? "tn-stats" : e.getAttribute("aria-labelledby")) as string));
+  const at = (x: string) => order.indexOf(x);
+  expect(at("home-next-title")).toBeGreaterThan(-1);
+  expect(at("home-next-title")).toBeLessThan(at("home-day"));
+  expect(at("home-day")).toBeLessThan(at("home-pending"));
+  expect(at("home-pending")).toBeLessThan(at("tn-stats"));
+  expect(at("tn-stats")).toBeLessThan(at("setup-card-title"));
+  expect(at("setup-card-title")).toBeLessThan(at("home-insights"));
 
-  // "Agora não": sai da Home por 30 dias.
-  await items.nth(2).getByRole("button", { name: /^Agora não/ }).click();
-  await expect(page.getByText("“Perfil incompleto” silenciada por 30 dias.")).toBeVisible();
-  await expect(items).toHaveCount(2);
+  // "Ver" de tela: registra e abre o fluxo dono (Relacionamento, para os lembretes).
+  await items.first().getByRole("button", { name: /^Ver/ }).click();
+  await expect(page).toHaveURL(/\/app\/relacionamento$/);
 
-  // "Ver" de proposta: abre a sugestão destacada em Metas e sugestões; "Preparar" cria a proposta (aprovação em Preços).
-  await items.nth(1).getByRole("link", { name: /^Ver/ }).click();
+  // De volta à Hoje, a seguinte por prioridade. "Ver" de proposta abre a sugestão destacada em Metas e sugestões.
+  await page.getByRole("link", { name: "Hoje" }).first().click();
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toContainText("Horário vazio toda semana: sábado das 9h às 14h");
+  await expect(items.first()).toContainText("Vazia em 5 de 5 semanas, de 14/09 a 18/10.");
+  await items.first().getByRole("link", { name: /^Ver/ }).click();
   await expect(page).toHaveURL(/\/app\/metas\?insight=/);
   await expect(page.getByRole("heading", { name: "Metas e sugestões", level: 1 })).toBeVisible();
   const open = page.getByRole("list", { name: "Sugestões abertas" });
@@ -51,7 +50,6 @@ test("Home: até 3 sugestões com evidência; Agora não silencia; Ver leva à p
   await expect(page.getByRole("button", { name: "Abrir Preços" })).toBeVisible();
   const decided = page.getByRole("list", { name: "Sugestões decididas" });
   await expect(decided).toContainText("Horário ocioso · preparada");
-  await expect(decided).toContainText("Perfil incompleto · silenciada por 30 dias");
   // O que a conta olhou: insuficiente ≠ zero, com o motivo.
   await page.getByText("O que a conta olhou").click();
   await expect(page.getByRole("list", { name: "Regras e dados" })).toContainText("Clientes sem retorno: ainda sem dado suficiente (não é zero) (menos de 5 clientes que voltaram 2 vezes ou mais)");
@@ -59,12 +57,12 @@ test("Home: até 3 sugestões com evidência; Agora não silencia; Ver leva à p
   const body = await page.locator("main").innerText();
   for (const raw of ["idle_slot", "no_show_concentration", "uncharged_bookings", "numerator", "denominator", "P05", "P13"]) expect(body).not.toContain(raw);
 
-  // "Ver" de tela: registra e abre o fluxo dono (Relacionamento, para os lembretes).
+  // "Agora não": sai da Home por 30 dias.
   await page.getByRole("link", { name: "Hoje" }).first().click();
-  const again = page.getByRole("region", { name: "Para você esta semana" }).getByRole("list", { name: "Sugestões para você" }).getByRole("listitem");
-  await expect(again).toHaveCount(1);
-  await again.first().getByRole("button", { name: /^Ver/ }).click();
-  await expect(page).toHaveURL(/\/app\/relacionamento$/);
+  await expect(items.first()).toContainText("3 de 4 itens do perfil prontos (hoje, 20/10).");
+  await items.first().getByRole("button", { name: /^Agora não/ }).click();
+  await expect(page.getByText("“Perfil incompleto” silenciada por 30 dias.")).toBeVisible();
+  await expect(card).not.toContainText("3 de 4 itens do perfil prontos");
 
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

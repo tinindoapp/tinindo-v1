@@ -193,14 +193,21 @@ describe("agenda (demonstração sobre fixtures)", () => {
     expect(await screen.findByText("Confirmado", undefined, SLOW)).toBeInTheDocument();
   });
 
-  it("depois do início: Atendido pede confirmação e conclui sem registrar pagamento", async () => {
-    renderAt(`/app/agenda/atendimento/${FIRST}`);
+  it("depois do início: Atendido abre as saídas de pagamento no lugar; Voltar fecha sem concluir", async () => {
+    const port = createFixturePort();
+    const complete = vi.spyOn(port, "complete");
+    renderAt(`/app/agenda/atendimento/${FIRST}`, null, port);
     fireEvent.click(await screen.findByRole("button", { name: "Atendido" }, SLOW));
-    expect(screen.getByText("Isso registra que o atendimento aconteceu. Não registra pagamento.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Sim, foi atendido" }));
-    expect(await within(toaster()).findByText(/O pagamento não foi registrado/)).toBeInTheDocument();
-    expect(await screen.findByText("Concluído", undefined, SLOW)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Faltou" })).not.toBeInTheDocument();
+    const group = screen.getByRole("group", { name: "Atendido. Como fica o pagamento?" });
+    await waitFor(() => expect(within(group).getByText("Atendido. Como fica o pagamento?")).toHaveFocus());
+    expect(within(group).getByRole("button", { name: /^Recebi R\$\s60,00 no Pix$/ })).toBeInTheDocument();
+    expect(within(group).getByRole("button", { name: "Outra forma de pagamento" })).toHaveAttribute("aria-expanded", "false");
+    expect(within(group).getByRole("button", { name: "Cobrar depois" })).toBeInTheDocument();
+    // Ana tem o pacote de 4 cortes da demonstração: o crédito aparece quando a leitura do Caixa chega.
+    expect(await within(group).findByRole("button", { name: "Usar crédito do pacote (4 restantes)" })).toBeInTheDocument();
+    fireEvent.click(within(group).getByRole("button", { name: "Voltar" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Atendido" })).toHaveFocus());
+    expect(complete).not.toHaveBeenCalled();
   });
 
   it("cartão do dia: Atendido e Faltou só nos atendimentos que já começaram", async () => {

@@ -6,7 +6,7 @@ test("o aviso aparece acima da barra de abas e o botão embaixo dele continua to
   await page.goto("/app/agenda");
   await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
   await page.getByRole("button", { name: "Atendido", exact: true }).click();
-  await page.getByRole("button", { name: "Sim, foi atendido" }).click();
+  await page.getByRole("button", { name: "Cobrar depois", exact: true }).click();
   const toast = page.locator(".tn-toast");
   await expect(toast).toContainText("Atendimento concluído.");
   // O aviso entra subindo 12 px (tn-toast-in): medir no meio da animação dava 2 px a mais, às vezes.

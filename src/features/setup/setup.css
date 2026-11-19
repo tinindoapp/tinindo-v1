@@ -11,6 +11,12 @@
 .tn-setup-card__step { margin: 0; font-weight: var(--tn-font-weight-semibold); }
 .tn-setup-card__why { margin: var(--tn-space-1) 0 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-setup-card__all { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
+/* Linha fina da Hoje (P48): título e próximo passo na mesma linha, a barra embaixo. Sem cartão em volta. */
+.tn-setup-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--tn-space-3); row-gap: var(--tn-space-1); margin-top: var(--tn-space-6); }
+.tn-setup-line__title { margin: 0; font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
+.tn-setup-line__title a, .tn-setup-line__next { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
+.tn-setup-line__next { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-semibold); }
+.tn-setup-line .tn-setup-card__bar { grid-column: 1 / -1; height: 6px; }
 .tn-setup-card__describe { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 
 .tn-setup { display: grid; gap: var(--tn-space-4); }

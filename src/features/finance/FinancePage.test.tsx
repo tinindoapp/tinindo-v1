@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { FX } from "@contracts/fixtures.ts";
+import { demoUncharged } from "../../lib/demo/dataset.ts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { createDemoPort } from "./demoPort.ts";
@@ -7,10 +9,10 @@ import { FinancePage, FinancePortProvider } from "./FinancePage.tsx";
 
 afterEach(() => act(() => dismissToast()));
 
-function renderPage() {
+function renderPage(path = "/app/caixa") {
   const port = createDemoPort();
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <FinancePortProvider value={port}>
         <FinancePage />
       </FinancePortProvider>
@@ -50,6 +52,7 @@ describe("Caixa: nova tentativa depois de falha de rede não grava em dobro", ()
     tickingClock(port);
     const expense = vi.spyOn(port, "recordExpense").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
     fireEvent.click(await screen.findByRole("button", { name: "Registrar" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Despesa" }));
     const form = within(await screen.findByRole("form", { name: "Nova despesa" }));
     fireEvent.change(form.getByLabelText("Valor da despesa (R$)"), { target: { value: "45,00" } });
     const submit = form.getByRole("button", { name: "Registrar despesa" });
@@ -81,7 +84,7 @@ describe("Caixa: validação no envio, confirmação e aviso", () => {
     const port = renderPage();
     const create = vi.spyOn(port, "createReceivable");
     fireEvent.click(await screen.findByRole("button", { name: "Registrar" }));
-    fireEvent.click(screen.getByRole("radio", { name: "Cobrança avulsa" }));
+    fireEvent.click(screen.getByRole("radio", { name: "A receber" }));
     const form = within(await screen.findByRole("form", { name: "Nova cobrança" }));
     const submit = form.getByRole("button", { name: "Criar cobrança" });
     expect(submit).toBeEnabled();
@@ -117,7 +120,11 @@ describe("Caixa: validação no envio, confirmação e aviso", () => {
     expect(open).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(open);
     expect(open).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByLabelText("Valor da despesa (R$)")).toHaveFocus();
+    // P48: abre em "Recebi" (valor, forma, cliente opcional), antes de Despesa, A receber e Pacote.
+    expect(within(screen.getByRole("group", { name: "O que registrar" })).getAllByRole("radio").map((r) => r.closest("label")?.textContent))
+      .toEqual(["Recebi", "Despesa", "A receber", "Pacote"]);
+    expect(screen.getByRole("radio", { name: "Recebi" })).toBeChecked();
+    expect(within(screen.getByRole("form", { name: "Novo recebimento" })).getByLabelText("Valor recebido (R$)")).toHaveFocus();
     fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
     expect(screen.queryByRole("form")).toBeNull();
   });
@@ -194,5 +201,62 @@ describe("Caixa: pendência não tem mês (revisão 10/11, ux-nucleo-celular-03)
     expect(pending.getAllByRole("listitem")).toHaveLength(3);
     // O mesmo período aberto (um ano até o fim de hoje), seja qual for o mês escolhido.
     expect(uncharged).toHaveBeenLastCalledWith({ starts_at: "2025-10-20T03:00:00.000Z", ends_at: "2026-10-21T03:00:00.000Z" });
+  });
+});
+
+describe("Caixa: Hoje · Semana · Mês e Recebi (P48)", () => {
+  it("no topo, o recebido de hoje, da semana e do mês, cada um com o período escrito", async () => {
+    const port = renderPage();
+    const summary = vi.spyOn(port, "summary");
+    const strip = within(await screen.findByRole("region", { name: "Recebido" }));
+    await waitFor(() => expect(strip.queryByText("…")).toBeNull());
+    const rows = strip.getAllByRole("term").map((dt) => `${dt.textContent} = ${dt.nextElementSibling?.textContent}`);
+    // Demonstração: terça 20/10, 09:00. Semana desde segunda 19/10; o mês é o mesmo do resumo de outubro.
+    expect(rows).toEqual([
+      expect.stringMatching(/^Hoje20\/10 = R\$\s0,00$/),
+      expect.stringMatching(/^Semana19\/10 a 20\/10 = R\$\s[\d.]+,\d\d$/),
+      expect.stringMatching(/^MêsOutubro de 2026 = R\$\s1\.740,00$/),
+    ]);
+    // Três períodos, sem campo novo no contrato: a semana é uma chamada a mais de finance.summary.
+    const periods = summary.mock.calls.map(([p]) => p);
+    expect(periods).toEqual(expect.arrayContaining([
+      { starts_at: "2026-10-20T00:00:00-03:00", ends_at: "2026-10-21T00:00:00-03:00" },
+      { starts_at: "2026-10-19T00:00:00-03:00", ends_at: "2026-10-21T00:00:00-03:00" },
+    ]));
+  });
+
+  it("Recebi registra cobrança e recebimento; o valor de hoje sobe; nova tentativa usa as mesmas chaves", async () => {
+    const port = renderPage();
+    tickingClock(port);
+    const create = vi.spyOn(port, "createReceivable");
+    const pay = vi.spyOn(port, "recordPayment").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    fireEvent.click(await screen.findByRole("button", { name: "Registrar" }));
+    const form = within(screen.getByRole("form", { name: "Novo recebimento" }));
+    fireEvent.change(form.getByLabelText("Valor recebido (R$)"), { target: { value: "25" } });
+    fireEvent.change(form.getByLabelText("Forma"), { target: { value: "cash" } });
+    fireEvent.change(form.getByLabelText("Cliente (opcional)"), { target: { value: FX.customers.abInA } });
+    const submit = form.getByRole("button", { name: "Salvar recebimento" });
+    await act(async () => { fireEvent.click(submit); });
+    expect(form.getByText(/Tentar de novo é seguro/)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(submit); });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[1]![1]).toBe(create.mock.calls[0]![1]);
+    expect(create.mock.calls[0]![0]).toEqual({ description: "Recebimento avulso", amount_cents: 2500, customer_id: FX.customers.abInA });
+    expect(pay).toHaveBeenCalledTimes(2);
+    expect(pay.mock.calls[1]![1]).toBe(pay.mock.calls[0]![1]);
+    expect(pay.mock.calls[1]![0]).toEqual(pay.mock.calls[0]![0]);
+    expect(pay.mock.calls[1]![0]).toMatchObject({ amount_cents: 2500, method: "cash" });
+    expect(await screen.findByText(/Recebimento de R\$\s?25,00 registrado \(Dinheiro, manual\)/)).toBeInTheDocument();
+    const strip = within(screen.getByRole("region", { name: "Recebido" }));
+    await waitFor(() => expect(strip.getAllByRole("definition")[0]).toHaveTextContent(/R\$\s25,00/));
+  });
+
+  it("?atendimento=<id> (vindo da Agenda): marca o atendimento sem cobrança e põe o foco em Recebi", async () => {
+    const visit = demoUncharged().find((v) => v.starts_at.startsWith("2026-09"))!;
+    renderPage(`/app/caixa?atendimento=${visit.id}`);
+    const pending = within(await screen.findByRole("region", { name: "Atendimentos concluídos sem cobrança" }));
+    const target = pending.getAllByRole("listitem").find((li) => li.getAttribute("data-focus") === "true");
+    expect(target).toHaveTextContent("28/09/2026");
+    await waitFor(() => expect(within(target!).getByRole("button", { name: /^Recebi R\$/ })).toHaveFocus());
   });
 });

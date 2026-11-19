@@ -62,15 +62,25 @@ test("cartão do dia: Faltou executa na hora e o aviso desfaz", async ({ page })
   await expect(timeline.getByRole("button", { name: "Faltou às 09:00" })).toBeVisible();
 });
 
-test("detalhe: Atendido pede confirmação; depois disso não há Faltou", async ({ page }) => {
+test("detalhe (P48): Atendido abre Recebi, Cobrar depois e o crédito do pacote; um toque conclui e registra", async ({ page }) => {
   await page.goto("/app/agenda");
   await page.getByRole("link", { name: /09:00–09:30 Corte Cliente Exemplo Ana/ }).click();
   await page.getByRole("button", { name: "Atendido", exact: true }).click();
-  await expect(page.getByText("Isso registra que o atendimento aconteceu. Não registra pagamento.")).toBeVisible();
-  await page.getByRole("button", { name: "Sim, foi atendido" }).click();
-  await expect(toast(page)).toContainText("O pagamento não foi registrado");
+  const exits = page.getByRole("group", { name: "Atendido. Como fica o pagamento?" });
+  await expect(exits.getByRole("button", { name: /^Recebi R\$\s?60,00 no Pix$/ })).toBeVisible();
+  await expect(exits.getByRole("button", { name: "Cobrar depois", exact: true })).toBeVisible();
+  await expect(exits.getByRole("button", { name: "Usar crédito do pacote (4 restantes)" })).toBeVisible();
+  await noHorizontalScroll(page);
+  // ▾ troca a forma antes do toque.
+  await exits.getByRole("button", { name: "Outra forma de pagamento" }).click();
+  await exits.getByRole("radio", { name: "Cartão" }).check();
+  await exits.getByRole("button", { name: /^Recebi R\$\s?60,00 no cartão$/ }).click();
+  await expect(toast(page)).toContainText("Atendimento concluído e R$");
+  await expect(toast(page)).toContainText("recebido no cartão. Registro manual no Caixa.");
   await expect(page.locator(".tn-sched-badge")).toHaveText("Concluído");
   await expect(page.getByRole("button", { name: "Faltou", exact: true })).toHaveCount(0);
+  // O Caixa fica a um link, no próprio atendimento.
+  await expect(page.getByRole("link", { name: "Cobrar no Caixa" })).toHaveAttribute("href", "/app/caixa?atendimento=60000000-0000-4000-8000-000000000001");
 });
 
 test("cancelar: motivo, Desfazer refaz no mesmo horário e a lista de espera é oferecida", async ({ page }) => {

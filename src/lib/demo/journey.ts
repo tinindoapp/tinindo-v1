@@ -3,6 +3,10 @@
 // as reservas da cliente ("Minhas reservas"), o endereço do perfil publicado, o resumo das avaliações e a reserva pelo
 // link público (a Agenda da aba segura e confirma o horário que o visitante pediu). Concluir NÃO gera
 // cobrança nem recebimento: o Caixa só passa a listar o atendimento como "sem cobrança". Nada persiste além da aba e nada daqui é usado com servidor.
+// P48: o Caixa da aba também informa as operações de cobrança (src/lib/collect.ts), para que "Atendido" na Agenda e na
+// Hoje ofereça "Recebi", "Cobrar depois" e "Usar crédito" gravando no MESMO caixa emulado. Com servidor, cada módulo chama
+// a função `finance` pela própria porta.
+import type { BookingCollectPort } from "../collect.ts";
 
 /** Atendimento concluído na agenda da demonstração (mesmos campos que o Caixa precisa para cobrar). */
 export interface DemoCompletedVisit {
@@ -113,6 +117,18 @@ export function providePublicContact(fn: (bookingId: string) => DemoPublicContac
 
 export function publicContact(bookingId: string): DemoPublicContact | null {
   return publicContactSource ? publicContactSource(bookingId) : null;
+}
+
+let collectSource: (() => BookingCollectPort) | null = null;
+
+/** O Caixa da demonstração informa onde cobrar; a Agenda e a Hoje usam daqui. */
+export function provideDemoCollect(fn: (() => BookingCollectPort) | null): void {
+  collectSource = fn;
+}
+
+/** null quando o Caixa da demonstração não está carregado: "Atendido" volta a só concluir, com o link do Caixa. */
+export function demoCollect(): BookingCollectPort | null {
+  return collectSource ? collectSource() : null;
 }
 
 /** Só para testes. */

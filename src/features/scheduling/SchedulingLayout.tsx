@@ -1,11 +1,13 @@
 // Layout do módulo: escolhe a fonte de dados e carrega o contexto (fuso, serviços, clientes).
 // Sem Supabase (demonstração offline) usa a emulação sobre fixtures, sempre rotulada.
-import { createContext, useContext, useEffect, useEffectEvent, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useEffectEvent, useMemo, useState } from "react";
 import { Outlet } from "react-router";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
-import { completionEventId, provideCustomerBookings, providePublicBooking, publishCompletedVisit } from "../../lib/demo/journey.ts";
+import type { BookingCollectPort } from "../../lib/collect.ts";
+import { completionEventId, demoCollect, provideCustomerBookings, providePublicBooking, publishCompletedVisit } from "../../lib/demo/journey.ts";
+import { createServerCollectPort } from "./collect.ts";
 import { customerBookingsFrom } from "./demoCustomerBookings.ts";
 import { createFixturePort, type FixturePublicLink, type Simulation } from "./fixturePort.ts";
 import type { CustomerRef, SchedulingContext, SchedulingPort } from "./port.ts";
@@ -73,6 +75,24 @@ export function resetDemoPort(port: SchedulingPort | null = null) {
 }
 
 const PortContext = createContext<SchedulingPort | null>(null);
+/** Onde cobrar o atendimento concluído (P48). null = sem acesso ao Caixa: "Atendido" só conclui e aponta o Caixa. */
+const CollectContext = createContext<BookingCollectPort | null>(null);
+
+export function useCollectPort(): BookingCollectPort | null {
+  return useContext(CollectContext);
+}
+
+/**
+ * Portas da Agenda para quem mostra "Atendido" e "Faltou" fora do módulo (a Hoje): a mesma da tela da Agenda e a do
+ * Caixa que ela já usa, para que as três saídas gravem no mesmo lugar.
+ */
+export function SchedulingPortProvider({ port, collect, children }: { port: SchedulingPort; collect: BookingCollectPort | null; children: ReactNode }) {
+  return (
+    <PortContext.Provider value={port}>
+      <CollectContext.Provider value={collect}>{children}</CollectContext.Provider>
+    </PortContext.Provider>
+  );
+}
 
 export function usePort(): SchedulingPort {
   const port = useContext(PortContext);
@@ -173,21 +193,22 @@ function BaseLoader({ port }: { port: SchedulingPort }) {
 export function SchedulingLayout() {
   const session = useSession();
   const { state, tenantId, getAccessToken } = session;
-  const port = useMemo<SchedulingPort | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return getDemoPort();
+  const ports = useMemo<{ port: SchedulingPort; collect: BookingCollectPort | null } | null>(() => {
+    if (state.status === "offline_demo" || !appEnv.supabase) return { port: getDemoPort(), collect: demoCollect() };
     if (!tenantId) return null;
     const call = createApiClient({
       baseUrl: appEnv.supabase.url,
       publishableKey: appEnv.supabase.publishableKey,
       getAccessToken,
     });
-    return createServerPort(call, tenantId);
+    return { port: createServerPort(call, tenantId), collect: createServerCollectPort(call, tenantId) };
   }, [state.status, tenantId, getAccessToken]);
 
-  if (!port) return <p>Selecione um negócio para ver a agenda.</p>;
+  if (!ports) return <p>Selecione um negócio para ver a agenda.</p>;
+  const { port } = ports;
   return (
-    <PortContext.Provider value={port}>
+    <SchedulingPortProvider port={port} collect={ports.collect}>
       <BaseLoader key={`${port.kind}:${tenantId ?? ""}`} port={port} />
-    </PortContext.Provider>
+    </SchedulingPortProvider>
   );
 }
