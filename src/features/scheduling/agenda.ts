@@ -252,6 +252,15 @@ export function whatsAppDigits(phone: string | null | undefined): string | null 
  * Texto pronto para o dono avisar o cliente do cancelamento. Não leva o motivo (pode ser anotação interna).
  * Quem envia é o dono, pelo próprio WhatsApp: a Tinindo não manda mensagem.
  */
+/**
+ * Texto pronto para o dono confirmar o agendamento com o cliente (P49). Vai pelo WhatsApp dele: a Tinindo não envia,
+ * e abrir o WhatsApp não quer dizer que a mensagem chegou.
+ */
+export function confirmNoticeText(p: { name: string | null; service: string; day: string; time: string; business: string }): string {
+  const hello = p.name ? `Olá, ${p.name}!` : "Olá!";
+  return `${hello} Seu horário de ${p.service} está marcado para ${p.day}, às ${p.time}, na ${p.business}. Se precisar remarcar, é só responder esta mensagem.`;
+}
+
 export function cancelNoticeText(p: { name: string | null; service: string; day: string; time: string; business: string }): string {
   const hello = p.name ? `Olá, ${p.name}!` : "Olá!";
   return `${hello} Seu horário de ${p.service} em ${p.day}, às ${p.time}, na ${p.business}, foi cancelado. Se quiser marcar outro horário, é só responder esta mensagem.`;

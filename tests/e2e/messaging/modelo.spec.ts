@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { clientWrites, connectSimulated, soft } from "./helpers.ts";
 
-// Auditoria de UX, itens 20, 39 e 41: selo de não lidas na aba Mensagens; modelo aprovado com nome legível, campos com
+// Auditoria de UX, itens 20, 39 e 41: selo de não lidas em Mensagens (no menu desde a aba Retorno, P49); modelo aprovado com nome legível, campos com
 // nome e prévia; no celular numa folha inferior (foco preso, Esc devolve o foco, fundo travado), no desktop num cartão
 // rolado até a vista com o foco no primeiro campo.
 for (const scheme of ["light", "dark"] as const) {
@@ -13,22 +13,30 @@ for (const scheme of ["light", "dark"] as const) {
     await clientWrites(page, "+5511988887777", "Oi! Tem horário quarta?");
     await soft(page, "/app/mensagens");
 
-    // Selo com o número escrito: na barra de abas (celular) ou no menu lateral (desktop).
-    const nav = page.getByRole("navigation", { name: isMobile ? "Abas" : "Principal" });
+    // Selo com o número escrito, no menu (no celular, aberto pelo botão Menu; a barra de abas não tem mais Mensagens).
+    const nav = page.getByRole("navigation", { name: "Principal" });
+    const toggleMenu = async () => {
+      if (isMobile) await page.getByRole("button", { name: "Menu", exact: true }).click();
+    };
+    await toggleMenu();
     const tab = nav.getByRole("link", { name: "Mensagens, 1 não lida" });
     await expect(tab).toBeVisible();
+    const badge = (await tab.locator(".tn-nav__badge").boundingBox())!;
+    const tabBox = (await tab.boundingBox())!;
+    expect(badge.y).toBeGreaterThanOrEqual(tabBox.y);
+    expect(badge.x + badge.width).toBeLessThanOrEqual(tabBox.x + tabBox.width + 1);
     if (isMobile) {
-      const badge = (await tab.locator(".tn-tabbar__badge").boundingBox())!;
-      const tabBox = (await tab.boundingBox())!;
-      expect(badge.y).toBeGreaterThanOrEqual(tabBox.y);
-      expect(badge.x + badge.width).toBeLessThanOrEqual(tabBox.x + tabBox.width + 1);
+      await expect(page.getByRole("navigation", { name: "Abas" }).getByRole("link", { name: /Mensagens/ })).toHaveCount(0);
+      await page.keyboard.press("Escape");
     }
 
     const inbox = page.getByRole("region", { name: "Caixa de entrada" });
     await inbox.getByRole("link", { name: /Ana Beatriz/ }).click();
     await expect(page.getByRole("heading", { name: "Ana Beatriz (exemplo)", level: 1 })).toBeVisible();
     // Ao abrir a conversa, o selo some.
+    await toggleMenu();
     await expect(nav.getByRole("link", { name: "Mensagens", exact: true })).toBeVisible();
+    if (isMobile) await page.keyboard.press("Escape");
 
     const open = page.getByRole("button", { name: "Enviar modelo aprovado" });
     await open.click();

@@ -1,9 +1,11 @@
-// Arquitetura de navegação do app (dono: integrador; ADR-0024). Abas principais Hoje, Agenda, Clientes, Mensagens e
-// Dinheiro; o resto (crescimento, negócio, conta) num menu secundário, agrupado. Ofertas, preços e lista de espera ficam
-// no contexto da Agenda. Cada módulo registrado entra em exatamente um grupo (teste em AppShell.test).
-// Auditoria de UX, item 39: "Mensagens" virou aba (com selo de não lidas) e juntou-se ao "Assistente", que atende
-// as mesmas conversas ("Assistente atende" / "Você está atendendo"). O Assistente continua a um toque, na sub-aba e
-// no menu. A barra segue com 5 abas, que é o que cabe em 360 px com rótulo legível.
+// Arquitetura de navegação do app (dono: integrador; ADR-0024). Abas principais Hoje, Agenda, Clientes, Retorno e
+// Dinheiro; o resto (mensagens, crescimento, negócio, conta) num menu secundário, agrupado. Ofertas, preços e lista de
+// espera ficam no contexto da Agenda. Cada módulo registrado entra em exatamente um grupo (teste em AppShell.test).
+// Auditoria de UX, item 39: "Mensagens" juntou-se ao "Assistente", que atende as mesmas conversas ("Assistente atende" /
+// "Você está atendendo"), com selo de não lidas no menu.
+// Decisão D2 (b), 10/11 (P49): a quinta aba passa a ser "Retorno" (lembretes a mandar, quem não volta, lista de espera),
+// tela do Relacionamento. Mensagens sai da barra e fica no menu: no piloto só funciona com provedor simulado.
+// A barra segue com 5 abas, que é o que cabe em 360 px com rótulo legível.
 import type { ModuleId } from "@contracts";
 import type { IconName } from "../components/ui/icons.tsx";
 import type { ModuleDefinition } from "./module-types.ts";
@@ -43,12 +45,16 @@ export const SECTION_SPECS: readonly SectionSpec[] = [
     ],
   },
   {
-    id: "mensagens", label: "Mensagens", icon: "mensagem", tab: true, badge: "unread",
-    items: [{ module: "messaging", icon: "mensagem" }, { module: "agent", icon: "assistente" }],
+    id: "retorno", label: "Retorno", icon: "relacionamento", tab: true,
+    items: [{ module: "lifecycle", sub: "retorno", label: "Retorno", icon: "relacionamento" }],
   },
   {
     id: "dinheiro", label: "Dinheiro", icon: "receber", tab: true,
     items: [{ module: "finance", icon: "receber" }, { module: "finance-advanced", icon: "nota", label: "Contas", short: "Contas" }, { module: "payments", icon: "pagamento" }, { module: "recurrence", icon: "assinatura" }, { module: "fiscal", icon: "nota" }],
+  },
+  {
+    id: "mensagens", label: "Mensagens", icon: "mensagem", tab: false, badge: "unread",
+    items: [{ module: "messaging", icon: "mensagem" }, { module: "agent", icon: "assistente" }],
   },
   {
     id: "crescer", label: "Crescer", icon: "crescer", tab: false,
@@ -106,9 +112,11 @@ export function ungrouped(modules: readonly ModuleDefinition[]): ModuleId[] {
 
 const within = (pathname: string, to: string) => pathname === to || pathname.startsWith(`${to}/`);
 
-/** Grupo da rota atual (null na Hoje e fora do app). */
+/** Grupo da rota atual (null na Hoje e fora do app): o do item mais específico, porque uma tela interna pode estar
+ *  noutro grupo que a principal do módulo (/app/relacionamento/retorno é Retorno; /app/relacionamento, Clientes). */
 export function sectionFor(sections: readonly NavSection[], pathname: string): NavSection | null {
-  return sections.find((s) => s.items.some((i) => within(pathname, i.to))) ?? null;
+  const to = activeTo(sections, pathname);
+  return to ? (sections.find((s) => s.items.some((i) => i.to === to)) ?? null) : null;
 }
 
 export function isItemActive(item: NavItem, pathname: string): boolean {
