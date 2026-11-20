@@ -144,7 +144,7 @@ export function CappedList<T>({ items, limit = 5, label, render, truncated, trun
 
 /** Aviso de lista cortada pelo servidor (P56: listas com teto devolvem `truncated`). */
 export function ListCutNote({ text = "Mostrando os 200 mais recentes." }: { text?: string }) {
-  return <p className="tn-list-foot__note" role="note">{text}</p>;
+  return <p className="tn-list-foot__note">{text}</p>;
 }
 
 /** Barra de ações: uma principal (`primary`), outras como fantasma (`children`) e o resto no "⋯" (`more`). */

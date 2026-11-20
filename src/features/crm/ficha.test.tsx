@@ -72,16 +72,23 @@ describe("links de contato", () => {
 });
 
 describe("cartão do cliente", () => {
-  it("tem Ligar e WhatsApp com o telefone normalizado; sem telefone, sem os botões", async () => {
+  it("WhatsApp à vista e Ligar no “⋯” (P54: uma ação visível por linha); sem telefone, nenhum dos dois", async () => {
     list(fakeApi());
     const anaItem = (await screen.findByRole("link", { name: "Ana Exemplo" })).closest("li")!;
-    expect(within(anaItem).getByRole("link", { name: "Ligar para Ana Exemplo" })).toHaveAttribute("href", "tel:+5511987654321");
     const wa = within(anaItem).getByRole("link", { name: /WhatsApp de Ana Exemplo/ });
     expect(wa).toHaveAttribute("href", "https://wa.me/5511987654321");
     expect(wa).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    expect(within(anaItem).queryByRole("link", { name: /Ligar/ })).not.toBeInTheDocument();
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    fireEvent.click(within(anaItem).getByRole("button", { name: "Mais ações para Ana Exemplo" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ligar" }));
+    expect(assign).toHaveBeenCalledWith("tel:+5511987654321");
+    vi.unstubAllGlobals();
     const brunoItem = screen.getByRole("link", { name: "Bruno Sem Fone" }).closest("li")!;
-    expect(within(brunoItem).queryByRole("link", { name: /Ligar/ })).not.toBeInTheDocument();
     expect(within(brunoItem).queryByRole("link", { name: /WhatsApp/ })).not.toBeInTheDocument();
+    fireEvent.click(within(brunoItem).getByRole("button", { name: "Mais ações para Bruno Sem Fone" }));
+    expect(screen.queryByRole("menuitem", { name: "Ligar" })).not.toBeInTheDocument();
   });
 
   it("o nome leva à ficha do cliente", async () => {
@@ -97,12 +104,15 @@ describe("cartão do cliente", () => {
     fireEvent.keyDown(button, { key: "ArrowDown" });
     const menu = await screen.findByRole("menu", { name: "Mais ações para Ana Exemplo" });
     expect(button).toHaveAttribute("aria-expanded", "true");
-    const [edit, archive] = within(menu).getAllByRole("menuitem");
-    await waitFor(() => expect(edit).toHaveFocus());
+    const [call, edit, archive] = within(menu).getAllByRole("menuitem");
+    expect(call).toHaveTextContent("Ligar");
+    await waitFor(() => expect(call).toHaveFocus());
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(edit).toHaveFocus();
     fireEvent.keyDown(menu, { key: "ArrowDown" });
     expect(archive).toHaveFocus();
     fireEvent.keyDown(menu, { key: "ArrowDown" });
-    expect(edit).toHaveFocus();
+    expect(call).toHaveFocus();
     fireEvent.keyDown(menu, { key: "End" });
     expect(archive).toHaveFocus();
     fireEvent.keyDown(menu, { key: "Escape" });
@@ -135,17 +145,46 @@ describe("cartão do cliente", () => {
 });
 
 describe("ficha do cliente", () => {
-  it("mostra contato, Ligar/WhatsApp e o histórico dividido em próximos e anteriores", async () => {
+  it("abre com Agendar (principal), WhatsApp e Ligar; resumo de retorno; próximos e anteriores em linhas com link; contato", async () => {
     ficha(fakeApi(), ana.id);
     expect(await screen.findByRole("heading", { name: "Ana Exemplo", level: 1 })).toBeInTheDocument();
-    expect(screen.getByText("(11) 98765-4321")).toBeInTheDocument();
+    const agendar = screen.getByRole("link", { name: "Agendar" });
+    expect(agendar).toHaveAttribute("href", `/app/agenda/novo?cliente=${ana.id}`);
+    expect(agendar).toHaveAttribute("data-variant", "primary");
     expect(screen.getByRole("link", { name: "Ligar para Ana Exemplo" })).toHaveAttribute("href", "tel:+5511987654321");
-    const next = await screen.findByRole("region", { name: "Próximos (1)" });
-    expect(next).toHaveTextContent(/Corte.*Confirmado · R\$\s60,00/);
-    const past = screen.getByRole("region", { name: "Anteriores (2)" });
+    expect(screen.getByRole("link", { name: /WhatsApp de Ana Exemplo/ })).toHaveAttribute("data-variant", "ghost");
+    // Resumo: última visita concluída em destaque; concluídos, faltas e o próximo em linhas.
+    const summary = await screen.findByRole("group", { name: "Resumo de retorno" });
+    expect(summary).toHaveTextContent(/Última visita\s*há 14 dias/);
+    const rows = within(summary).getByRole("list", { name: "Atendimentos" });
+    expect(rows).toHaveTextContent(/Concluídos\s*1/);
+    expect(rows).toHaveTextContent(/Faltas\s*1/);
+    expect(within(rows).getByRole("link", { name: /Próximo atendimento/ })).toHaveAttribute("href", "/app/agenda/atendimento/b3");
+    const next = screen.getByRole("region", { name: "Próximos" });
+    expect(within(next).getByRole("heading", { level: 2 })).toHaveTextContent(/^Próximos\s*·\s*1$/);
+    expect(next).toHaveTextContent(/Corte.*R\$\s60,00.*Confirmado/);
+    expect(within(next).getByRole("link")).toHaveAttribute("href", "/app/agenda/atendimento/b3");
+    const past = screen.getByRole("region", { name: "Anteriores" });
+    expect(within(past).getByRole("heading", { level: 2 })).toHaveTextContent(/^Anteriores\s*·\s*2$/);
     expect(past).toHaveTextContent("Faltou");
     expect(past).toHaveTextContent("Concluído");
-    expect(screen.getByText(/Até agora: 1 concluído · 1 falta\./)).toBeInTheDocument();
+    expect(within(past).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/app/agenda/atendimento/b2", "/app/agenda/atendimento/b1"]);
+    // Sem caixa em volta de cada atendimento: linhas de .tn-list.
+    expect(past.querySelector("ul")).toHaveClass("tn-list");
+    expect(screen.getByRole("region", { name: "Contato" })).toHaveTextContent("(11) 98765-4321");
+  });
+
+  it("anteriores: cinco e “Ver todos (N)”; leitura incompleta diz que cortou", async () => {
+    const many = Array.from({ length: 7 }, (_, i) => ({
+      id: `p${i}`, starts_at: `2026-09-${String(20 - i).padStart(2, "0")}T13:00:00.000Z`, service: "Corte", status: "completed" as const, price_cents: 6000,
+    }));
+    ficha(fakeApi({ customerHistory: vi.fn(async () => ({ ...history, complete: false, items: many })) }), ana.id);
+    const past = await screen.findByRole("region", { name: "Anteriores" });
+    expect(within(past).getByRole("heading", { level: 2 })).toHaveTextContent(/^Anteriores\s*·\s*7$/);
+    expect(within(past).getAllByRole("listitem")).toHaveLength(5);
+    expect(within(past).getByText("Mostrando os 7 mais recentes; os mais antigos não aparecem aqui.")).toHaveClass("tn-list-foot__note");
+    fireEvent.click(within(past).getByRole("button", { name: "Ver todos (7)" }));
+    expect(within(past).getAllByRole("listitem")).toHaveLength(7);
   });
 
   it("sem telefone: sem botões e explica onde cadastrar", async () => {
@@ -224,7 +263,8 @@ describe("ficha na demonstração", () => {
       </SessionProvider>,
     );
     expect(await screen.findByRole("heading", { name: "Cliente AB (exemplo)", level: 1 })).toBeInTheDocument();
-    expect(await screen.findByRole("region", { name: /Anteriores \(\d+\)/ })).toBeInTheDocument();
-    expect(screen.getByText(/nada é salvo/)).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Anteriores" })).toHaveTextContent(/^Anteriores\s*·\s*\d+/);
+    // D11 (b): o aviso de demonstração fica só na faixa do topo.
+    expect(screen.queryByText(/nada é salvo/)).not.toBeInTheDocument();
   });
 });

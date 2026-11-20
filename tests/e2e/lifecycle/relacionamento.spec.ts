@@ -4,7 +4,10 @@ test("relacionamento: fila com estado por palavra, compartilhar texto, réguas c
   await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true }));
   await page.goto("/app/relacionamento");
   await expect(page.getByRole("heading", { name: "Relacionamento", level: 1 })).toBeVisible();
-  await expect(page.getByText("nada é enviado")).toBeVisible();
+  // D11 (b): o aviso de demonstração fica só na faixa do topo; o botão que só simula diz "(simulação)" e vem por último.
+  await expect(page.getByRole("main").locator('.tn-banner[data-tone="info"]')).toHaveCount(0);
+  const buttons = page.getByRole("main").getByRole("button");
+  await expect(buttons.last()).toHaveText("Rodar a régua (simulação)");
   const queue = page.getByRole("region", { name: "Fila de mensagens" });
   await expect(queue.getByRole("list", { name: "Contagem por estado" })).toContainText("Enviado ao canal: 1");
   await expect(queue).toContainText("Para você compartilhar");

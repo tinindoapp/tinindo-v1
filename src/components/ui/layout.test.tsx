@@ -52,7 +52,7 @@ describe("lista com teto", () => {
   });
   it("lista cortada pelo servidor avisa", () => {
     wrap(<CappedList items={items.slice(0, 2)} label="Lista" truncated render={(t) => <li key={t}>{t}</li>} />);
-    expect(screen.getByRole("note")).toHaveTextContent("Mostrando os 200 mais recentes.");
+    expect(screen.getByText("Mostrando os 200 mais recentes.")).toHaveClass("tn-list-foot__note");
   });
 });
 

@@ -6,7 +6,7 @@ import { useCrmApi } from "./api.ts";
 import { useProfession } from "./CustomersPage.tsx";
 import { parsePercentToBps } from "./format.ts";
 import { PROFESSION_CONFIG, type ServiceTemplate } from "./profession.ts";
-import { CrmDemoNotice, EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
+import { EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { serverMessage } from "../../lib/errors.ts";
 import { centsToInput, formatCents, parseBRL } from "../../lib/money.ts";
@@ -149,7 +149,6 @@ export function ServicesPage() {
           </Button>
         }
       />
-      <CrmDemoNotice />
       <div className="tn-stack" data-gap="sm">
         <div className="crm-toolbar">
           <label className="crm-check">
