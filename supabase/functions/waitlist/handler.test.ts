@@ -67,6 +67,21 @@ describe("Edge Function jobs", () => {
     expect(runJobs).toHaveBeenCalledWith(100);
   });
 
+  it("rotina que falhou em tick_errors sai no log com nível de erro; rodada limpa não", async () => {
+    const req = () => new Request("http://edge/functions/v1/jobs", { method: "POST", headers: { [JOBS_SECRET_HEADER]: secret } });
+    const failing = vi.fn();
+    const withError = vi.fn(async () => ({ data: { done: 1, tick_errors: { waitlist_expire: "boom" } }, error: null }));
+    const res = await createJobsHandler({ secret, runJobs: withError, log: failing })(req());
+    expect(res.status).toBe(200);
+    expect(failing).toHaveBeenCalledWith(expect.objectContaining({ level: "error", tick_errors: { waitlist_expire: "boom" } }));
+
+    const clean = vi.fn();
+    const noError = vi.fn(async () => ({ data: { done: 1, tick_errors: {} }, error: null }));
+    await createJobsHandler({ secret, runJobs: noError, log: clean })(req());
+    expect(clean).toHaveBeenCalledTimes(1);
+    expect(clean.mock.calls[0][0]).not.toHaveProperty("level");
+  });
+
   it("segredo curto é recusado na inicialização", () => {
     expect(() => createJobsHandler({ secret: "curto", runJobs: vi.fn() })).toThrow();
   });

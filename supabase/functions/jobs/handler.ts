@@ -22,6 +22,14 @@ function sameSecret(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** `tick_errors` de jobs_run quando alguma rotina falhou; null quando é `{}` ou não veio. */
+export function tickErrorsOf(data: unknown): Record<string, unknown> | null {
+  if (!data || typeof data !== "object") return null;
+  const errors = (data as { tick_errors?: unknown }).tick_errors;
+  if (!errors || typeof errors !== "object" || Array.isArray(errors)) return null;
+  return Object.keys(errors).length > 0 ? (errors as Record<string, unknown>) : null;
+}
+
 export function createJobsHandler(deps: JobsDeps) {
   const clock = deps.clock ?? systemClock;
   if (deps.secret.length < 32) throw new Error("JOBS_SECRET precisa de pelo menos 32 caracteres");
@@ -34,6 +42,10 @@ export function createJobsHandler(deps: JobsDeps) {
       deps.log?.({ fn: "jobs", request_id: requestId, status: 503 });
       return fail("PROVIDER_UNAVAILABLE", requestId);
     }
+    // P56: jobs_run roda cada rotina isolada; a que falha aparece em tick_errors e as outras seguem. A resposta continua
+    // 200 (a rodada aconteceu), mas a falha sai com nível de erro para o alerta do ambiente pegar.
+    const tickErrors = tickErrorsOf(result.data);
+    if (tickErrors) deps.log?.({ fn: "jobs", level: "error", request_id: requestId, status: 200, tick_errors: tickErrors });
     deps.log?.({ fn: "jobs", request_id: requestId, status: 200, result: result.data });
     return ok(result.data, requestId, clock);
   };

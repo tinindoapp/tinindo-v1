@@ -2,7 +2,7 @@
 // Provedor atrás de porta ('simulated' | 'whatsapp_cloud'); enviado ≠ entregue ≠ lido ≠ falhou ≠ desconhecido.
 // Texto livre só na janela de 24 h; modelo só aprovado no provedor e com opt-in. Opt-out bloqueia.
 import { z } from "zod";
-import { IsoDateTime, PhoneE164, Uuid } from "./common.ts";
+import { IsoDateTime, PhoneE164, Uuid, truncatedFlags } from "./common.ts";
 
 export const ChannelProvider = z.enum(["simulated", "whatsapp_cloud"]);
 export type ChannelProvider = z.infer<typeof ChannelProvider>;
@@ -88,6 +88,7 @@ export const InboxListOutput = z.object({
   contacts: z.array(ChannelContact.extend({
     last_message: z.object({ direction: z.enum(["inbound", "outbound"]), body: z.string(), status: ChannelMessageStatus }).nullable(),
   })).max(200),
+  truncated: truncatedFlags("contacts"),
 });
 /** Recado #89: só os números do selo da aba "Mensagens". Sem nome, telefone nem texto. */
 export const InboxUnreadCountInput = z.object({});
@@ -98,7 +99,7 @@ export const InboxUnreadCountOutput = z.object({
   contacts: z.number().int().min(0),
 });
 export const ConversationGetInput = z.object({ contact_id: Uuid });
-export const ConversationGetOutput = z.object({ contact: ChannelContact, messages: z.array(ChannelMessage).max(200) });
+export const ConversationGetOutput = z.object({ contact: ChannelContact, messages: z.array(ChannelMessage).max(200), truncated: truncatedFlags("messages") });
 
 export const MessageSendInput = z.discriminatedUnion("kind", [
   z.object({ contact_id: Uuid, kind: z.literal("text"), text: z.string().trim().min(1).max(4096) }),

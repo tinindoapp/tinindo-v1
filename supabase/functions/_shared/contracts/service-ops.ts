@@ -2,7 +2,7 @@
 // Assinatura e pedido fixam a versão (preço, escopo, franquia). Minutos são medidos com teto. Operador da Tinindo
 // só lê dados do negócio com concessão do dono (escopo + prazo), e cada leitura é auditada.
 import { z } from "zod";
-import { Cents, IsoDateTime, Uuid, Version } from "./common.ts";
+import { Cents, IsoDateTime, Uuid, Version, truncatedFlags } from "./common.ts";
 
 const Sha256Hex = z.string().regex(/^[0-9a-f]{64}$/);
 
@@ -142,6 +142,7 @@ export const OpsQueueOutput = z.object({
   operator: z.object({ user_id: Uuid, display_name: z.string() }),
   operators: z.array(z.object({ user_id: Uuid, display_name: z.string() })),
   orders: z.array(ServiceOrder.extend({ tenant_name: z.string(), has_access: z.boolean(), access_scopes: z.array(AccessScope) })).max(200),
+  truncated: truncatedFlags("orders"),
 });
 export const OpsAssignInput = z.object({ order_id: Uuid, assignee_user_id: Uuid, due_at: IsoDateTime.nullable().optional() });
 export const OpsOrderRefInput = z.object({ order_id: Uuid });
@@ -164,4 +165,5 @@ export const OpsSnapshotOutput = z.object({
   catalog: z.array(z.object({ name: z.string(), duration_min: z.int(), base_price_cents: Cents, active: z.boolean() })).nullable(),
   agenda: z.array(z.object({ starts_at: IsoDateTime, ends_at: IsoDateTime, status: z.string(), service_name: z.string().nullable() })).nullable(),
   customers: z.object({ count: z.int().min(0), names: z.array(z.string()) }).nullable(),
+  truncated: truncatedFlags("agenda", "customers"),
 });

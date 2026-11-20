@@ -16,5 +16,5 @@ Deno.serve(createJobsHandler({
     const { data, error } = await client.rpc("jobs_run", { p_batch: batch });
     return { data, error };
   },
-  log: (entry) => console.log(JSON.stringify(entry)),
+  log: (entry) => (entry.level === "error" ? console.error : console.log)(JSON.stringify(entry)),
 }));
