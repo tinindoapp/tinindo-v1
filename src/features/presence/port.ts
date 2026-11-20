@@ -28,4 +28,3 @@ export interface PublicSitePort {
   site(slug: string): Promise<PublicSite>;
 }
 
-export const newKey = () => crypto.randomUUID();

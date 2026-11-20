@@ -68,7 +68,6 @@ const LEGACY_KEY = [
   "src/features/agent/port.ts",
   "src/features/discovery/port.ts",
   "src/features/payments/port.ts",
-  "src/features/presence/port.ts",
   "src/features/reputation/port.ts",
   "src/features/scheduling/port.ts",
   "src/features/setup/port.ts",
