@@ -24,7 +24,7 @@ export function NewBookingPage() {
         ‹ Voltar para a agenda
       </Link>
       <PageHeader id="flow-title" title="Novo agendamento" />
-      <ScreenNotes demo={port.kind === "fixture"} timezone={ctx.timezone} at={port.now()} />
+      <ScreenNotes timezone={ctx.timezone} at={port.now()} />
       <BookingFlow mode="create" />
     </section>
   );
@@ -43,7 +43,7 @@ export function ReschedulePage() {
         ‹ Voltar para o atendimento
       </Link>
       <PageHeader id="flow-title" title="Reagendar atendimento" />
-      <ScreenNotes demo={port.kind === "fixture"} timezone={ctx.timezone} at={port.now()} />
+      <ScreenNotes timezone={ctx.timezone} at={port.now()} />
       {booking.error ? (
         <ErrorPanel error={booking.error} operation="load" onRetry={booking.reload} />
       ) : !booking.data ? (
@@ -81,7 +81,11 @@ function BookingFlow(props: FlowProps) {
   });
   const [preferred, setPreferred] = useState<string | null>(props.mode === "create" ? params.get("inicio") : null);
   const [picked, setPicked] = useState<TimeRange | null>(null);
-  const [customerId, setCustomerId] = useState<string>("");
+  // Vindo da ficha do cliente (`?cliente=<id>`, P54 / recado #149): o cliente já começa marcado, se for do cadastro.
+  const [customerId, setCustomerId] = useState<string>(() => {
+    const fromCard = props.mode === "create" ? params.get("cliente") : null;
+    return fromCard && customers.some((c) => c.id === fromCard) ? fromCard : "";
+  });
   const [customerError, setCustomerError] = useState<string | undefined>();
   const [slotError, setSlotError] = useState<string | undefined>();
   const [attempt, setAttempt] = useState<{ sig: string; key: string } | null>(null);

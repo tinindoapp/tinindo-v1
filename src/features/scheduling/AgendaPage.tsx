@@ -43,7 +43,7 @@ export function AgendaPage() {
   return (
     <section aria-labelledby="agenda-title" className="tn-sched">
       <PageHeader id="agenda-title" title="Agenda" />
-      <ScreenNotes demo={port.kind === "fixture"} timezone={tz} at={dayWindow(first, tz).starts_at} />
+      <ScreenNotes timezone={tz} at={dayWindow(first, tz).starts_at} />
 
       <div className="tn-sched-toolbar">
         <Segmented

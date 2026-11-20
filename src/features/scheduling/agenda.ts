@@ -32,10 +32,11 @@ export function listStatus(status: BookingStatus): string | null {
 
 export type StatusTone = "success" | "warning" | "info" | "danger" | "neutral";
 
+/** D15 (revisão de 10/11): concluído em verde, confirmado neutro (o normal). O mesmo mapa na Hoje e na Agenda. */
 export const STATUS_TONE: Record<BookingStatus, StatusTone> = {
   held: "warning",
-  confirmed: "success",
-  completed: "info",
+  confirmed: "neutral",
+  completed: "success",
   expired: "neutral",
   cancelled: "neutral",
   no_show: "danger",

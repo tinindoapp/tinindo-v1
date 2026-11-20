@@ -9,13 +9,14 @@ async function noHorizontalScroll(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 }
 
-test("hoje: horários no fuso do negócio, ocupação e dados de exemplo identificados", async ({ page }) => {
+test("hoje: horários no fuso do negócio, ocupação e a demonstração só na faixa do topo (D11 b)", async ({ page }) => {
   await page.goto("/app/agenda");
-  await expect(page.getByText("Dados de exemplo.")).toBeVisible();
+  await expect(page.getByRole("list", { name: /Linha do tempo/ })).toBeVisible();
+  await expect(page.getByText("Dados de exemplo.")).toHaveCount(0);
   const timeline = page.getByRole("list", { name: /Linha do tempo/ });
   await expect(timeline.getByRole("listitem").first()).toContainText("09:00–09:30");
-  // Avisos numa linha só: dados de exemplo e o fuso (o navegador está em Tóquio, o negócio em São Paulo).
-  await expect(page.getByText(/As mudanças valem só nesta aba/)).toContainText("Horários de Brasília (UTC−03:00)");
+  // Aviso de fuso numa linha (o navegador está em Tóquio, o negócio em São Paulo).
+  await expect(page.getByText(/Horários de Brasília/)).toContainText("Horários de Brasília (UTC−03:00)");
   await expect(page.getByText(/\d+% ocupado/)).toBeVisible();
   // Detalhes recolhidos: aparecem ao abrir "Ver números do dia".
   await expect(page.getByText(/confirmados?: .* de 9 h livres para agendar/i)).toBeHidden();

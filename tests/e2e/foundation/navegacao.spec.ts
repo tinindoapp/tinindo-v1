@@ -48,9 +48,15 @@ test("3 · aba ativa tem aria-current, rótulo de 12 px em 600 e pílula com con
   });
   expect(style.size).toBeGreaterThanOrEqual(12);
   expect(style.weight).toBeGreaterThanOrEqual(600);
-  // Pílula preenchida com a cor do texto (não o cinza claro de antes, 1,09:1).
-  const [pill, text] = await active.evaluate((el) => [getComputedStyle(el.querySelector(".tn-icon")!).backgroundColor, getComputedStyle(el).color]);
-  expect(pill).toBe(text);
+  // Pílula de fundo sutil com contorno de 2 px na cor de seleção (P54: preto só para ação, recado #149).
+  const pill = await active.evaluate((el) => {
+    const s = getComputedStyle(el.querySelector(".tn-icon")!);
+    return { bg: s.backgroundColor, ring: s.boxShadow, text: s.color };
+  });
+  expect(pill.bg).not.toBe(pill.text);
+  expect(pill.bg).not.toBe("rgba(0, 0, 0, 0)");
+  expect(pill.ring).toMatch(/inset/);
+  expect(pill.ring).toMatch(/2px/);
 });
 
 test("2 · com o app rolado, a barra lateral começa abaixo da barra superior", async ({ page, isMobile }) => {

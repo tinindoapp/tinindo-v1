@@ -69,11 +69,13 @@ test("Home: uma sugestão com evidência e Ver todas; Ver leva à tela do fluxo 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 });
 
-test("resumo semanal por modelo fixo na caixa de Mensagens e em Metas e sugestões", async ({ page }) => {
+test("resumo semanal por modelo fixo só na caixa de Mensagens (D12 b); o link leva às sugestões em Metas", async ({ page }) => {
   await page.goto("/app/mensagens");
   const digest = page.getByRole("region", { name: "Resumo da semana · da Tinindo" });
   await expect(digest).toContainText("Resumo da semana de 12/10 a 18/10.");
   await expect(digest).toContainText("Texto automático por modelo fixo, com os números registrados no app.");
   await digest.getByRole("link", { name: "Ver sugestões em Metas e sugestões" }).click();
-  await expect(page.getByRole("region", { name: "Resumo da semana" })).toContainText("Resumo da semana de 12/10 a 18/10.");
+  await expect(page.getByRole("heading", { name: "Metas e sugestões", level: 1 })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Sugestões", exact: true })).toBeVisible();
+  await expect(page.getByText("Resumo da semana de 12/10 a 18/10.")).toHaveCount(0);
 });
