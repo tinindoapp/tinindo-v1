@@ -1,4 +1,4 @@
-# Handoff · P55 Página do cliente (parte 1: frente)
+# Handoff · P55 Página do cliente
 
 Sessão: Claude Code na nuvem, para @fffalleiros · 2026-11-20
 Branch: `claude/public-client-journey-a4g596` → PR para `main`.
@@ -52,3 +52,76 @@ Nenhuma migration neste PR. Nada aplicado em homologação.
 ## Flags e mocks
 
 Nenhuma flag nova. Demonstração continua rotulada; a simulação de Pix só nela.
+
+---
+
+# Parte 2 · Jornada do link no servidor e na tela (PR 2)
+
+## Entregue
+
+Migration `supabase/migrations/20261120091000_p55_public_link_journey.sql` (append-only; nada aplicado em homologação):
+
+- **Corrigir o WhatsApp libera o pedido anterior (05 #2).** `public_booking_request` ganhou `p_supersedes`: o pedido anterior da mesma tela é encerrado (`cancelled`) e o horário é liberado na mesma transação, antes de segurar o novo. Dá para pedir o mesmo horário com o número certo. Id desconhecido ou que já não espera é ignorado, sem revelar nada. A tela só usa isso quando o número mudou. Com o mesmo número, continua o aviso "Já existe um pedido…" (decisão do P43).
+- **Pedir de novo zera as tentativas (05 #1).** O pedido novo nasce com 0 tentativas. Os limites por contato e por hora seguem (3 no negócio, 6 em toda a Tinindo, 30 por perfil), o que dá no máximo 15 palpites por hora num negócio. Na 5ª tentativa errada, o horário é liberado e o pedido vira `exhausted` na mesma chamada, sem `raise`. O código errado devolve `details.attempts_left`.
+- **Estado real do envio e "Reenviar código" (05 #3).** `public_booking_status` mostra o envio (fila, enviado, falhou, sem confirmação), as tentativas e os reenvios restantes. `public_booking_resend` reenvia o mesmo código até 2 vezes, com 30 s entre um e outro, e o despacho pega o pedido de volta pela fila (`queued_at`). A tela consulta a cada 4 s enquanto o código está na fila e mostra "Reenviar código (em N s)" e "Falar com <negócio>".
+- **Preço, política e local antes de confirmar (D23, 05 #5).**
+  - A resposta do pedido traz serviço, duração, `price_cents` (o preço base que a confirmação congela), `place` (endereço ou domicílio) e `policy`.
+  - A confirmação traz o mesmo, mais o nome do negócio.
+  - A tela mostra isso nos passos 3 e 4 e na confirmação. O `.ics` leva o local.
+- **Bairro em domicílio.** Com `home_service`, o pedido exige `neighborhood` (400 `neighborhood`). O dono vê o bairro em `public.contact`.
+- **Campos do perfil (D21).** Colunas `address`, `home_service`, `opening_hours` e `cancellation_policy`, gravadas por `network_profile_details_set` (só o dono, idempotente, auditoria sem o texto) e lidas em `details` no perfil público. Na tela:
+  - o dono preenche no cartão "Onde, quando e cancelamento";
+  - o perfil público mostra o endereço com link para o mapa, ou "Atende em domicílio", o horário e a política.
+- **Ver a reserva e avaliar por link com token (D20).**
+  - Tabela `booking_links`, só backend, guarda apenas o sha256 do token de 256 bits.
+  - A confirmação devolve `booking_token`; repetir a confirmação devolve o mesmo token.
+  - O dono gera links com `booking_link.issue`. A URL sai como `/reserva/<slug>#t=…`.
+  - O cliente usa `booking_link_view`, `booking_link_review_submit` e `booking_link_review_withdraw`. As regras são as do `review_submit`: atendimento concluído, janela de 30 dias, uma avaliação por atendimento, sem autor.
+  - Em `reviews`, `author_user_id` passou a aceitar nulo e entrou `author_link_id`; uma das duas colunas é obrigatória.
+  - Página nova `/reserva` e `/reserva/:slug`: a reserva, "Falar com <negócio>", estrelas de 44 px, comentário opcional e "Retirar avaliação" com confirmação.
+  - A confirmação na tela leva a "Ver minha reserva".
+- **Mensagens com o nome do negócio (05 #8).**
+  - O código da reserva sai como "Código de <negócio>: 123456. Use para confirmar …".
+  - Os modelos ao cliente (confirmação, lembrete, link de orçamento, oferta de vaga, lembrete de orçamento, lembrete de cobrança, pacote vencendo) ganharam `{{negocio}}`. Um gatilho em `channel_messages` e em `lifecycle_steps` troca o marcador pelo nome do negócio. Reativação e campanha já recebiam o nome.
+- **Contratos e função `network`.**
+  - Operações novas: `public.status`, `public.resend`, `profile.details`, `booking_link.issue`, `public.booking`, `public.review` e `public.review_withdraw`. Estão em `operations.ts` e `docs/03`.
+  - Os campos novos de `PublicBookOutput` e `PublicConfirmOutput` são opcionais, para tolerar servidor antigo.
+  - `docs/02_DICIONARIO.md` foi regenerado.
+
+## Testes alterados de propósito
+
+- pgTAP 25 e o script de concorrência 24: "trocar não zera as tentativas" passou a "pedido novo começa zerado". Depois de 5 erradas, o horário é liberado em vez de continuar provisório. A checagem do despacho passou a usar um pedido ainda pendente.
+- pgTAP 09, 13 e 15 e integração 30, 32 e 41: a chave `details` no perfil e os textos das mensagens com o nome do negócio.
+- Contrato P43: lê a definição mais nova da função. `price_cents` passou a ser permitido no pedido e na confirmação, porque é o preço do serviço escolhido, não o catálogo.
+- e2e `trocar-pedido` e `public-booking`, e o unitário `network.test.tsx`: textos novos ("Código não confere… Restam N", "Guardamos este horário até…", "Seu pedido anterior: …").
+
+## Testes novos
+
+- `supabase/tests/database/40_p55_public_link_journey.test.sql` (49 asserções).
+- Concorrência 4b e 4c em `tests/db-concurrency/24_public_booking.sh`:
+  - oito códigos errados ao mesmo tempo gravam 5 tentativas e liberam o horário uma vez só;
+  - a correção do número mantém o horário.
+- `tests/integration/49_p55_jornada_link.test.ts` (6 passos pelos handlers).
+- `src/features/network/journey.test.ts` (7).
+- `tests/e2e/network/jornada-link.spec.ts` (3 × desktop e celular).
+
+## Resultados (local, sobre a main de 20/11 09:00)
+
+| Comando | Resultado |
+|---|---|
+| `npm run lint` / `typecheck` | ok |
+| `npm run test:unit` | 991/991 |
+| `npm run test:contracts` | 842 ok, 2 falhas esperadas e 38 pulados (iguais na main) |
+| `npm run db:test:local` | todos passaram |
+| `npm run db:test:concurrency` | todos passaram |
+| `npm run test:integration` | 151/151 |
+| `npm run check:functions` | ok |
+| `npm run build` | ok |
+| `npx playwright test` | 312 ok |
+| `db-dictionary.sh --check` e `check-migrations.mjs` | ok |
+
+## Pendências (fora da área ou próximos passos)
+
+- **Botão do dono "Mandar link da reserva" no detalhe do atendimento.** É tela da Agenda (`src/features/scheduling`). A API `booking_link.issue` está pronta. Registrado na issue de recado.
+- **Modelos aprovados na Meta.** O marcador `{{negocio}}` é preenchido no texto que o canal guarda e manda. No WhatsApp oficial, cada modelo precisa ser reaprovado com o nome como variável numerada antes de ligar o provedor real; hoje só o simulado está aprovado.
+- **Limpeza periódica** de pedidos encerrados e de links antigos: candidata a uma linha em `job_ticks` (P56).

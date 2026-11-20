@@ -6,7 +6,7 @@ import { Button, Card, ChoiceCard, Field, StatusBanner, toast, useFormErrors, wh
 import { ApiError } from "../../lib/api/client.ts";
 import { phoneToE164 } from "../../lib/phone.ts";
 import { addDays, dayWindow, formatTime, localParts } from "../../lib/time.ts";
-import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, SlotsData } from "./api.ts";
+import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, RequestState, SlotsData } from "./api.ts";
 import { buildIcs } from "./ics.ts";
 import { BusinessHeader, businessOf } from "./public-kit.tsx";
 import { errorMessage, formatPhoneBr, newIdempotencyKey } from "./public/labels.ts";
@@ -72,12 +72,20 @@ export function toE164(raw: string): string | null {
 function bookingError(e: unknown): string {
   if (!(e instanceof ApiError)) return "Falha inesperada. Tente novamente.";
   if (e.code === "SLOT_CONFLICT") return "Este horário acabou de ser reservado por outra pessoa. Escolha outro.";
+  if (e.code === "QUOTA_EXCEEDED" && e.field === "resend_wait") return "Espere alguns segundos para pedir outro envio.";
+  if (e.code === "QUOTA_EXCEEDED" && e.field === "resend") return "Já reenviamos o código o máximo de vezes. Se não chegou, fale com o profissional.";
   if (e.code === "QUOTA_EXCEEDED") return "Muitos pedidos em pouco tempo. Tente mais tarde ou fale direto com o profissional.";
   if (e.code === "POLICY_REJECTED" && e.field === "channel") {
     return "Este profissional ainda não recebe reservas on-line. Combine o horário diretamente com ele.";
   }
-  if (e.code === "POLICY_REJECTED" && e.field === "code") return "Código incorreto. Confira a mensagem e tente de novo.";
-  if (e.code === "POLICY_REJECTED" && e.field === "attempts") return "Muitas tentativas com código errado. Peça o horário de novo.";
+  if (e.code === "POLICY_REJECTED" && e.field === "code") {
+    const left = typeof e.details?.attempts_left === "number" ? e.details.attempts_left : null;
+    return `Código não confere. Use o último código que chegou no WhatsApp.${left != null ? ` ${left === 1 ? "Resta 1 tentativa." : `Restam ${left} tentativas.`}` : ""}`;
+  }
+  if (e.code === "POLICY_REJECTED" && e.field === "attempts") {
+    return "Muitos códigos errados. Por segurança, o horário foi liberado. Escolha o horário de novo ou fale com o profissional.";
+  }
+  if (e.code === "VALIDATION_ERROR" && e.field === "neighborhood") return "Informe o bairro onde vai ser o atendimento.";
   if (e.code === "POLICY_REJECTED" && e.field === "expires_at") return "O prazo para confirmar venceu e o horário foi liberado. Escolha de novo.";
   if (e.code === "VALIDATION_ERROR" && e.field?.startsWith("contact")) return "Confira o nome e o WhatsApp com DDD.";
   return errorMessage(e);
@@ -139,7 +147,16 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
             </ul>
             {/* Linha de fatos: só o que existe. */}
             <ul className="tn-net-badges" aria-label="Informações">
-              {site?.hours.length ? <li>{todayHours(site.hours, site.timezone)}</li> : null}
+              {profile.details?.address ? (
+                <li>
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.details.address)}`} target="_blank" rel="noopener noreferrer">
+                    {profile.details.address}
+                  </a>
+                </li>
+              ) : profile.details?.home_service ? (
+                <li>Atende em domicílio</li>
+              ) : null}
+              {profile.details?.opening_hours ? <li>{profile.details.opening_hours}</li> : site?.hours.length ? <li>{todayHours(site.hours, site.timezone)}</li> : null}
               <li>Pagamento direto ao profissional</li>
             </ul>
             {about.length ? (
@@ -153,7 +170,7 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
         )}
         {booking ? (
           <div id={BOOKING_ANCHOR} className="tn-net-booking">
-            <BookingSlots slug={profile.slug} api={api} professional={name} whatsapp={profile.whatsapp_e164 ?? null} onReserving={setReserving} />
+            <BookingSlots slug={profile.slug} api={api} professional={name} whatsapp={profile.whatsapp_e164 ?? null} details={profile.details ?? null} onReserving={setReserving} />
           </div>
         ) : null}
         {reserving ? null : (
@@ -205,6 +222,7 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
                 </ul>
               </details>
             ) : null}
+            {profile.details?.cancellation_policy ? <p className="tn-net-policy"><strong>Cancelamento:</strong> {profile.details.cancellation_policy}</p> : null}
             <p className="tn-muted tn-net-legal">
               Informações publicadas pelo próprio profissional. A Tinindo não garante habilidade nem resultado.
             </p>
@@ -218,6 +236,55 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
 /** Mensagem pronta para falar com o profissional depois de reservar. Só o que a própria pessoa marcou. */
 export function bookedMessage(service: string, startsAt: string, timeZone: string): string {
   return `Olá! Marquei ${service} para ${formatDay(startsAt, timeZone)} às ${formatTime(startsAt, timeZone)} pelo seu perfil na Tinindo.`;
+}
+
+const placeOf = (d: PublicProfileData["details"] | null | undefined): PlaceData =>
+  d?.address ? { kind: "address", text: d.address } : d?.home_service ? { kind: "home" } : null;
+type PlaceData = { kind: "address"; text: string } | { kind: "home" } | null;
+
+/** Serviço, preço, local e política: o que a pessoa confirma (D23). Só o que existe aparece. */
+export function BookingFacts({ price, priceFrom = false, place, policy, duration }: {
+  price: number | null;
+  priceFrom?: boolean;
+  place: PlaceData;
+  policy: string | null;
+  duration: number | null;
+}) {
+  if (price == null && !place && !policy && duration == null) return null;
+  return (
+    <dl className="tn-pub-facts tn-net-facts" aria-label="O que você está pedindo">
+      {duration != null ? (
+        <div><dt>Duração</dt><dd className="tn-num">{duration} min</dd></div>
+      ) : null}
+      {price != null ? (
+        <div><dt>Preço</dt><dd className="tn-num">{priceFrom ? "a partir de " : ""}{formatPrice(price)} · pago direto ao profissional</dd></div>
+      ) : null}
+      {place ? (
+        <div><dt>Onde</dt><dd>{place.kind === "address" ? place.text : "Em domicílio (o profissional vai até você)"}</dd></div>
+      ) : null}
+      {policy ? (
+        <div><dt>Cancelamento</dt><dd>{policy}</dd></div>
+      ) : null}
+    </dl>
+  );
+}
+
+/** Situação do envio do código, em palavras. "Enviado" não quer dizer "entregue". */
+function DeliveryNotice({ delivery, phone, professional }: { delivery: BookRequest["delivery"]; phone: string; professional: string }) {
+  if (delivery === "failed") {
+    return (
+      <StatusBanner tone="danger">
+        Não conseguimos enviar o código para <span className="tn-num">{phone}</span>. Confira o número (Corrigir) ou fale com {professional}.
+      </StatusBanner>
+    );
+  }
+  if (delivery === "queued" || delivery === "sending") {
+    return <StatusBanner tone="info">Enviando o código de 6 dígitos para o seu WhatsApp <span className="tn-num">{phone}</span>…</StatusBanner>;
+  }
+  if (delivery === "delivery_unknown") {
+    return <StatusBanner tone="warning">Mandamos o código para <span className="tn-num">{phone}</span>, mas o WhatsApp ainda não confirmou a entrega.</StatusBanner>;
+  }
+  return <StatusBanner tone="info">Mandamos um código de 6 dígitos para o seu WhatsApp <span className="tn-num">{phone}</span>.</StatusBanner>;
 }
 
 /** Baixa o .ics da reserva (gerado aqui no navegador; nada vai para o servidor). */
@@ -267,11 +334,13 @@ function StepIndicator({ phase }: { phase: StepPhase }) {
   );
 }
 
-function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
+function BookingSlots({ slug, api, professional, whatsapp, details, onReserving }: {
   slug: string;
   api: NetworkApi;
   professional: string;
   whatsapp: string | null;
+  /** P55 (D21): local e política do perfil; com `home_service`, o pedido pergunta o bairro. */
+  details: PublicProfileData["details"] | null;
   /** true do passo 2 até antes da confirmação: a página recolhe o cabeçalho e esconde o resto. */
   onReserving?: (on: boolean) => void;
 }) {
@@ -296,9 +365,15 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
   const [kept, setKept] = useState<PendingSummary | null>(null);
   const [booking, setBooking] = useState<BookConfirmed | null>(null);
   const [code, setCode] = useState("");
+  const [hood, setHood] = useState("");
+  // Estado real do envio do código (P55): atualizado enquanto está na fila ou sendo enviado.
+  const [sendState, setSendState] = useState<RequestState | null>(null);
+  const [resending, setResending] = useState(false);
+  // Relógio da tela (para o "Reenviar código em N s"): atualizado por timer, não lido durante a renderização.
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const { formRef: requestRef, errors: requestErrors, show: showRequest, clear: clearRequest } = useFormErrors<"name" | "phone">();
+  const { formRef: requestRef, errors: requestErrors, show: showRequest, clear: clearRequest } = useFormErrors<"name" | "phone" | "hood">();
   const { formRef: codeRef, errors: codeErrors, show: showCode, clear: clearCode } = useFormErrors<"code">();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const daysRef = useRef<HTMLDivElement>(null);
@@ -401,18 +476,31 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
     const ok = showRequest({
       name: name.trim() ? null : "Informe seu nome.",
       phone: !phone.trim() ? "Informe seu WhatsApp com DDD." : e164 ? null : "Use o número com DDD, por exemplo (11) 97777-4343.",
+      hood: !details?.home_service || hood.trim().length >= 2 ? null : "Informe o bairro onde vai ser o atendimento.",
     });
     if (!chosen || !ok || !e164) return;
+    // "Corrigir o número" (05 #2): o pedido anterior desta tela é liberado no mesmo pedido, sem concorrer consigo mesmo.
+    // Só quando o número mudou: com o mesmo número, o aviso "Já existe um pedido…" pergunta se troca (decisão do P43).
+    const supersedes = !bookKey && request && !kept && request.phone !== e164 ? request.data.request_id : undefined;
     const key = bookKey ?? newIdempotencyKey();
     setBookKey(key);
     setBusy(true);
     setProblem(null);
     try {
       const data = await api.book(
-        { slug, service_id: serviceId, starts_at: chosen, contact: { name: name.trim(), phone_e164: e164 }, replace_existing: replaceExisting },
+        {
+          slug, service_id: serviceId, starts_at: chosen, contact: { name: name.trim(), phone_e164: e164 }, replace_existing: replaceExisting,
+          ...(supersedes ? { supersedes_request_id: supersedes } : {}),
+          ...(details?.home_service ? { neighborhood: hood.trim() } : {}),
+        },
         key,
       );
       setRequest({ data, phone: e164 });
+      setNowMs(Date.now());
+      setSendState(data.attempts_left != null && data.resend_available_at ? {
+        request_id: data.request_id, status: "pending", delivery: data.delivery, expires_at: data.expires_at,
+        attempts_left: data.attempts_left, resends_left: data.resends_left ?? 0, resend_available_at: data.resend_available_at,
+      } : null);
       setPending(null);
       setKept(null);
       setCode("");
@@ -445,7 +533,10 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
 
   async function confirmCode() {
     if (!request) return;
-    if (!showCode({ code: /^\d{6}$/.test(code) ? null : "Digite os 6 números do código." })) return;
+    if (!showCode({ code: /^\d{6}$/.test(code) ? null : "Digite os 6 números do código." })) {
+      setProblem(null);
+      return;
+    }
     setBusy(true);
     setProblem(null);
     try {
@@ -460,6 +551,39 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
     }
   }
 
+  // Estado do envio (05 #3): enquanto está na fila ou sendo enviado, consulta a cada 4 s (só com servidor).
+  const requestId = request?.data.request_id ?? null;
+  const delivering = phase === "code" && !kept && (sendState?.delivery === "queued" || sendState?.delivery === "sending");
+  useEffect(() => {
+    if (!delivering || !requestId || api.demo) return;
+    const t = setInterval(() => {
+      api.requestState(requestId).then(setSendState, () => undefined);
+    }, 4000);
+    return () => clearInterval(t);
+  }, [delivering, requestId, api]);
+  // Relógio do botão "Reenviar código" (libera depois de 30 s).
+  const waitMs = sendState ? Date.parse(sendState.resend_available_at) - nowMs : 0;
+  useEffect(() => {
+    if (phase !== "code" || waitMs <= 0) return;
+    const t = setTimeout(() => setNowMs(Date.now()), Math.min(waitMs, 1000));
+    return () => clearTimeout(t);
+  }, [phase, waitMs]);
+
+  async function resend() {
+    if (!request) return;
+    setResending(true);
+    setProblem(null);
+    try {
+      setSendState(await api.resendCode(request.data.request_id, newIdempotencyKey()));
+      setNowMs(Date.now());
+      toast("Pedimos um novo envio do mesmo código.");
+    } catch (e) {
+      setProblem(bookingError(e));
+    } finally {
+      setResending(false);
+    }
+  }
+
   if (phase === "done" && booking) {
     return (
       <Card aria-labelledby="horarios-titulo">
@@ -470,6 +594,7 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
           {booking.service_name} · {formatDay(booking.slot.starts_at, booking.timezone)} às <span className="tn-num">{formatTime(booking.slot.starts_at, booking.timezone)}</span>.
           {api.demo ? " Demonstração: a reserva entrou só na Agenda desta aba." : null}
         </StatusBanner>
+        <BookingFacts price={booking.price_cents ?? null} place={booking.place ?? null} policy={booking.policy ?? null} duration={booking.duration_min ?? null} />
         <div className="tn-actions">
           <Button
             variant="secondary"
@@ -482,7 +607,8 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
                   ends_at: booking.slot.ends_at,
                   summary: `${booking.service_name} · ${professional}`,
                   description: "Horário confirmado pelo link da Tinindo. Para remarcar ou cancelar, fale com o profissional.",
-                  url: `${window.location.origin}/p/${slug}`,
+                  url: booking.booking_token ? `${window.location.origin}/reserva/${slug}#t=${booking.booking_token}` : `${window.location.origin}/p/${slug}`,
+                  ...(booking.place?.kind === "address" ? { location: booking.place.text } : {}),
                 }),
               );
               toast("Arquivo da agenda baixado. Abra para salvar no seu calendário.");
@@ -502,6 +628,13 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
             </a>
           ) : null}
         </div>
+        {/* D20: sem conta. O link da reserva serve para ver o horário e, depois do atendimento, avaliar. */}
+        {booking.booking_token ? (
+          <p>
+            <Link to={`/reserva/${slug}#t=${booking.booking_token}`}>Ver minha reserva</Link>{" "}
+            <span className="tn-muted">· guarde este link para avaliar depois do atendimento.</span>
+          </p>
+        ) : null}
         <p className="tn-muted">
           Para remarcar ou cancelar, fale com {professional}{whatsapp ? " pelo WhatsApp" : ""}.
         </p>
@@ -528,7 +661,7 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
   const title = STEPS.find((s) => s.phase === step)?.title;
   // Resumo da escolha, à vista do passo 2 em diante: "Corte · ter 20/10 · 10:00".
   const summary = kept && step === "code"
-    ? "Pedido anterior deste WhatsApp"
+    ? "Seu pedido anterior: o serviço e o horário estão na mensagem com o código"
     : [service?.name, shortDay(day), chosen ? formatTime(chosen, zone) : null].filter(Boolean).join(" · ");
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(firstDay, i));
 
@@ -656,6 +789,8 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
             void requestSlot();
           }}
         >
+          {/* D23: o que vai ser confirmado, com preço, local e política, antes de pedir. */}
+          <BookingFacts price={service?.price_from_cents ?? null} priceFrom place={placeOf(details)} policy={details?.cancellation_policy ?? null} duration={service?.duration_min ?? null} />
           <p>Vamos mandar um código de 6 dígitos para o seu WhatsApp para confirmar. Seu número só vai para este profissional.</p>
           <Field
             label="Seu nome"
@@ -683,6 +818,21 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
               resetRequest();
             }}
           />
+          {details?.home_service ? (
+            <Field
+              label="Bairro do atendimento"
+              hint="O profissional atende em domicílio. O endereço completo você combina com ele."
+              autoComplete="address-level3"
+              maxLength={80}
+              value={hood}
+              error={requestErrors.hood}
+              onChange={(e) => {
+                setHood(e.target.value);
+                clearRequest("hood");
+                resetRequest();
+              }}
+            />
+          ) : null}
           {problem ? <StatusBanner tone="danger">{problem}</StatusBanner> : null}
           {pending ? (
             <div className="tn-stack" data-gap="sm" role="alert">
@@ -718,11 +868,37 @@ function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
               Seu pedido anterior foi cancelado e substituído por este.
             </StatusBanner>
           ) : null}
-          <StatusBanner tone="info">
-            Enviamos um código de 6 dígitos para o seu WhatsApp <span className="tn-num">{formatPhoneBr(request.phone)}</span>. O
-            horário fica guardado até as <span className="tn-num">{formatTime(request.data.expires_at, zone)}</span>; depois disso, volta a
-            ficar livre.
-          </StatusBanner>
+          {/* D23: antes de digitar o código, o que vai ser confirmado (o preço é o que o servidor congela). */}
+          {kept ? null : (
+            <BookingFacts price={request.data.price_cents ?? null} place={request.data.place ?? placeOf(details)}
+              policy={request.data.policy ?? details?.cancellation_policy ?? null} duration={request.data.duration_min ?? null} />
+          )}
+          {/* 05 #3: o texto acompanha o estado real do envio. */}
+          <DeliveryNotice delivery={kept ? "sent" : (sendState?.delivery ?? request.data.delivery)} phone={formatPhoneBr(request.phone)} professional={professional} />
+          <p className="tn-muted">
+            Guardamos este horário até as <span className="tn-num">{formatTime(request.data.expires_at, zone)}</span>. Confirme com o
+            código antes disso.
+          </p>
+          {sendState && !kept && sendState.status === "pending" ? (
+            <p className="tn-net-fix">
+              Não recebeu?{" "}
+              {sendState.resends_left > 0 ? (
+                <button type="button" className="tn-net-linkbutton" disabled={resending || waitMs > 0} onClick={() => void resend()}>
+                  {waitMs > 0 ? `Reenviar código (em ${Math.ceil(waitMs / 1000)} s)` : "Reenviar código"}
+                </button>
+              ) : (
+                <span className="tn-muted">Já reenviamos o máximo de vezes.</span>
+              )}
+              {whatsapp ? (
+                <>
+                  {" "}·{" "}
+                  <a href={whatsappHref(whatsapp, "Olá! Pedi um horário pelo seu link e o código não chegou.")} target="_blank" rel="noopener noreferrer">
+                    Falar com {professional}
+                  </a>
+                </>
+              ) : null}
+            </p>
+          ) : null}
           {/* Corrigir volta aos dados com serviço, dia e hora mantidos (E10). */}
           <p className="tn-net-fix">
             Número errado?{" "}

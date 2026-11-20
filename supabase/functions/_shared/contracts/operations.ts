@@ -367,6 +367,34 @@ export const OPERATIONS = {
     module: "network", owner: "P43", kind: "query", idempotent: false,
     input: network.PublicContactInput, output: network.PublicContactOutput,
   },
+  "public.status": {
+    module: "network", owner: "P55", kind: "query", idempotent: false,
+    input: network.PublicRequestInput, output: network.PublicRequestState,
+  },
+  "public.resend": {
+    module: "network", owner: "P55", kind: "command", idempotent: true,
+    input: network.PublicRequestInput, output: network.PublicRequestState,
+  },
+  "profile.details": {
+    module: "network", owner: "P55", kind: "command", idempotent: true,
+    input: network.ProfileDetailsInput, output: network.OwnerProfileOutput,
+  },
+  "booking_link.issue": {
+    module: "network", owner: "P55", kind: "command", idempotent: true,
+    input: network.BookingLinkIssueInput, output: network.BookingLinkIssueOutput,
+  },
+  "public.booking": {
+    module: "network", owner: "P55", kind: "query", idempotent: false,
+    input: network.BookingLinkInput, output: network.BookingLinkView,
+  },
+  "public.review": {
+    module: "network", owner: "P55", kind: "command", idempotent: true,
+    input: network.BookingLinkReviewInput, output: network.BookingLinkReviewOutput,
+  },
+  "public.review_withdraw": {
+    module: "network", owner: "P55", kind: "command", idempotent: true,
+    input: network.BookingLinkInput, output: network.BookingLinkReviewOutput,
+  },
   "referral.create": {
     module: "network", owner: "P09", kind: "command", idempotent: true,
     input: network.ReferralCreateInput, output: network.ReferralLink,

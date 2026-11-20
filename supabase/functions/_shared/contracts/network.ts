@@ -20,6 +20,20 @@ export const ProfilePublishInput = z.object({
   area: z.string().trim().min(1).max(80),
   public_fields: z.array(PublicProfileField).min(1),
 });
+/** Campos opcionais do perfil (D21, P55): só o que o dono escreveu; vazio = não informado. */
+export const ProfileDetails = z.object({
+  address: z.string().nullable(),
+  home_service: z.boolean(),
+  opening_hours: z.string().nullable(),
+  cancellation_policy: z.string().nullable(),
+});
+export type ProfileDetails = z.infer<typeof ProfileDetails>;
+/** Onde o atendimento acontece: endereço do ponto, domicílio, ou não informado (null). */
+export const BookingPlace = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("address"), text: z.string() }),
+  z.object({ kind: z.literal("home") }),
+]).nullable();
+
 export const PublicProfile = z.object({
   slug: z.string(),
   category: Profession,
@@ -35,6 +49,8 @@ export const PublicProfile = z.object({
   photo: z.object({ url: z.url(), alt: z.string().min(1).max(200) }).nullable().optional(),
   /** WhatsApp do negócio (o número conectado e verificado no canal); null com "Mostrar botão do WhatsApp" desligado. */
   whatsapp_e164: PhoneE164.nullable().optional(),
+  /** P55 (D21): endereço ou domicílio, horário de funcionamento e política. Ausente em servidor antigo. */
+  details: ProfileDetails.optional(),
 });
 
 export const ReferralKind = z.enum(["customer_recommends_professional", "professional_invites_peer"]);
@@ -85,6 +101,14 @@ export const ProfileMediaInput = z.object({
   show_photo: z.boolean(),
   show_whatsapp: z.boolean(),
   show_prices: z.boolean(),
+});
+
+/** profile.details (P55, D21): texto vazio ou null = "não informado". */
+export const ProfileDetailsInput = z.object({
+  address: z.string().trim().max(160).nullable(),
+  home_service: z.boolean(),
+  opening_hours: z.string().trim().max(160).nullable(),
+  cancellation_policy: z.string().trim().max(280).nullable(),
 });
 
 /** Visão do dono: igual ao perfil público, mas pode estar despublicado e traz a versão e as chaves de mídia. */
@@ -166,6 +190,10 @@ export const PublicBookInput = z.object({
   /** O mesmo WhatsApp já tem pedido aguardando código neste negócio: true troca o anterior por este. Sem ele → 409
    *  PENDING_REQUEST_EXISTS, com PendingRequest em error.details. */
   replace_existing: z.boolean().default(false),
+  /** P55: o pedido anterior DESTA sessão ("Corrigir o número"): é liberado antes, e o mesmo horário pode ser pedido de novo. */
+  supersedes_request_id: Uuid.optional(),
+  /** P55: obrigatório quando o perfil atende em domicílio (`details.home_service`). */
+  neighborhood: z.string().trim().min(2).max(80).optional(),
 });
 /** Pedido que ainda aguarda código (error.details de PENDING_REQUEST_EXISTS). Só id e prazo: sem serviço, horário,
  *  nome nem telefone, para que digitar o WhatsApp de outra pessoa não revele o que ela marcou. */
@@ -182,6 +210,29 @@ export const PublicBookOutput = z.object({
   delivery: z.enum(["queued", "sending", "sent", "failed", "delivery_unknown"]),
   /** true quando este pedido trocou um anterior do mesmo contato (que foi cancelado). Não diz qual era. */
   replaced: z.literal(true).optional(),
+  // P55 · antes de confirmar (D23) e estado do código. Opcionais para tolerar servidor antigo.
+  status: z.enum(["pending", "confirmed", "expired"]).optional(),
+  attempts_left: z.int().min(0).optional(),
+  resends_left: z.int().min(0).optional(),
+  resend_available_at: IsoDateTime.optional(),
+  service_name: z.string().optional(),
+  duration_min: z.int().optional(),
+  /** Preço base que a confirmação congela. */
+  price_cents: z.int().min(0).nullable().optional(),
+  place: BookingPlace.optional(),
+  policy: z.string().nullable().optional(),
+});
+
+/** P55: estado do pedido (envio do código, tentativas e reenvio), sem contato nem código. */
+export const PublicRequestInput = z.object({ request_id: Uuid });
+export const PublicRequestState = z.object({
+  request_id: Uuid,
+  status: z.enum(["pending", "confirmed", "expired"]),
+  delivery: z.enum(["queued", "sending", "sent", "failed", "delivery_unknown"]),
+  expires_at: IsoDateTime,
+  attempts_left: z.int().min(0),
+  resends_left: z.int().min(0),
+  resend_available_at: IsoDateTime,
 });
 
 export const PublicConfirmInput = z.object({
@@ -193,6 +244,14 @@ export const PublicConfirmOutput = z.object({
   slot: TimeRange,
   timezone: z.string(),
   service_name: z.string(),
+  // P55 (opcionais para tolerar servidor antigo).
+  duration_min: z.int().optional(),
+  price_cents: z.int().min(0).nullable().optional(),
+  business_name: z.string().optional(),
+  place: BookingPlace.optional(),
+  policy: z.string().nullable().optional(),
+  /** D20: token do link da reserva (`/reserva#t=…`) para ver e avaliar sem conta. */
+  booking_token: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),
 });
 
 /** Dono: nome e WhatsApp informados no pedido pelo link, para falar com quem reservou. Só o dono do negócio lê. */
@@ -202,4 +261,38 @@ export const PublicContactOutput = z.object({
   phone_e164: PhoneE164,
   requested_at: IsoDateTime,
   status: z.enum(["pending", "confirmed"]),
+  /** P55: bairro informado quando o atendimento é a domicílio. */
+  neighborhood: z.string().nullable().optional(),
 });
+
+// ---------------------------------------------------------------------------
+// Link da reserva com token (P55, D20): o cliente vê a reserva e avalia sem conta.
+// ---------------------------------------------------------------------------
+
+export const BookingToken = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+export const BookingLinkIssueInput = z.object({ booking_id: Uuid });
+export const BookingLinkIssueOutput = z.object({ token: BookingToken, url: z.url() });
+export const BookingLinkInput = z.object({ token: BookingToken });
+export const BookingLinkReview = z.object({
+  id: Uuid,
+  rating: z.int().min(1).max(5),
+  body: z.string().nullable(),
+  status: z.enum(["published", "withdrawn", "hidden"]),
+});
+export const BookingLinkView = z.object({
+  business: z.object({ name: z.string(), slug: Slug.nullable(), whatsapp_e164: PhoneE164.nullable() }),
+  service_name: z.string(),
+  slot: TimeRange,
+  timezone: z.string(),
+  status: z.string(),
+  price_cents: z.int().min(0).nullable(),
+  place: BookingPlace,
+  policy: z.string().nullable(),
+  review: z.object({ can_review: z.boolean(), window_days: z.int(), existing: BookingLinkReview.nullable() }),
+});
+export const BookingLinkReviewInput = z.object({
+  token: BookingToken,
+  rating: z.int().min(1).max(5),
+  body: z.string().trim().min(3).max(600).nullable(),
+});
+export const BookingLinkReviewOutput = z.object({ review: BookingLinkReview });

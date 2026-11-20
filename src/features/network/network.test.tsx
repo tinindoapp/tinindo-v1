@@ -188,7 +188,7 @@ describe("páginas públicas (demonstração)", () => {
     const wrong = String((Number(shown) + 1) % 1_000_000).padStart(6, "0");
     fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: wrong } });
     fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
-    expect(await screen.findByText(/Código incorreto/)).toBeInTheDocument();
+    expect(await screen.findByText(/Código não confere\. Use o último código que chegou no WhatsApp\. Restam 4 tentativas\./)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: shown } });
     fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
     expect(await screen.findByRole("heading", { name: "Horário confirmado" })).toBeInTheDocument();
@@ -327,7 +327,7 @@ describe("páginas públicas (demonstração)", () => {
     fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
     fireEvent.change(screen.getByLabelText("WhatsApp com DDD"), { target: { value: "(92) 97777-4343" } });
     fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
-    expect(await screen.findByText(/guardado até as/)).toHaveTextContent("guardado até as 09:10");
+    expect(await screen.findByText(/Guardamos este horário até as/)).toHaveTextContent("Guardamos este horário até as 09:10");
     fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
     await screen.findByRole("heading", { name: "Horário confirmado" });
@@ -360,7 +360,7 @@ describe("páginas públicas (demonstração)", () => {
     // Manter o anterior: segue para o código do pedido que já existe, sem pedir o novo.
     fireEvent.click(within(alert).getByRole("button", { name: "Manter o anterior" }));
     expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();
-    expect(screen.getByText("Pedido anterior deste WhatsApp")).toBeInTheDocument();
+    expect(screen.getByText("Seu pedido anterior: o serviço e o horário estão na mensagem com o código")).toBeInTheDocument();
 
     // Voltar e trocar: o anterior é cancelado, o código antigo deixa de valer.
     fireEvent.click(screen.getByRole("button", { name: "Voltar" }));

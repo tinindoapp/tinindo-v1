@@ -89,6 +89,13 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `public.book` | slug, service, início, contato (nome e telefone), `replace_existing` (padrão false), key | Reserva provisória e código enviado ao contato pelo canal do negócio; não é confirmação (anônimo). O mesmo WhatsApp com pedido aguardando código no negócio: sem `replace_existing` → 409 `PENDING_REQUEST_EXISTS` com `details {request_id, expires_at}` (sem serviço nem horário, para não revelar o pedido de outra pessoa); com ele, o anterior vence (`replaced`), o código antigo deixa de valer, sai `booking.hold_released.v1` e a resposta traz `replaced: true`. A troca conta nos mesmos limites e não zera as tentativas |
 | `public.confirm` | request_id, código, key | Provisória vira confirmada; código errado conta tentativa (máx. 5); vencido não confirma (anônimo) |
 | `public.contact` | booking_id | Dono: nome e WhatsApp informados no pedido pelo link |
+| `public.status` | request_id | P55: estado do pedido (envio do código: na fila, enviado, falhou), tentativas e reenvios restantes, sem contato nem código (anônimo) |
+| `public.resend` | request_id | P55: reenvia o mesmo código; até 2 por pedido, 30 s entre eles (anônimo) |
+| `profile.details` | endereço, `home_service`, horário de funcionamento, política de cancelamento, key | P55 (D21): campos opcionais do perfil; o público recebe `details` |
+| `booking_link.issue` | booking_id | P55 (D20): dono gera o link `/reserva#t=…` para o cliente ver a reserva e avaliar sem conta |
+| `public.booking` | token | P55: o cliente vê a reserva pelo link: negócio, serviço, horário, preço, local, política e avaliação (anônimo) |
+| `public.review` | token, nota, comentário | P55: avaliar pelo link, mesmas regras do `review.submit`, sem autor (anônimo) |
+| `public.review_withdraw` | token | P55: retirar a avaliação feita pelo link (anônimo) |
 | `referral.create` | kind, dados mínimos, origem | Link pessoal de convite, sem envio automático |
 | `referral.inspect` | token (no corpo) | Leitura mínima do convite; não muda estado (anônimo) |
 | `referral.claim` | token, key | Convite usado uma vez, contato confirmado |

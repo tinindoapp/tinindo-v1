@@ -31,6 +31,7 @@ export const PARAM_ROUTES: readonly string[] = [
   "/orcamento/:slug",
   "/p/:slug",
   "/pagar/:slug",
+  "/reserva/:slug",
   "/s/:slug",
 ];
 
