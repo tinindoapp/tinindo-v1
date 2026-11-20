@@ -25,14 +25,11 @@ export const FAILURE_REASON: Record<string, string> = {
 };
 
 import { formatCents } from "../../lib/money.ts";
-export { formatCents };
-export const formatDateTime = (v: string, timeZone: string) =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(v));
+import { deviceTimeZone, formatCivilDate, formatDateTime, formatDayMonth, formatTime, isCivilDate, localDate, now } from "../../lib/time.ts";
+export { formatCents, formatDateTime };
 /** Data civil "2026-10-20" → "20/10/2026" (sem fuso: é um dia, não um instante). */
 export function formatDay(day: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
-  if (!m) return day;
-  return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))));
+  return isCivilDate(day) ? formatCivilDate(day) : day;
 }
 /** Recebível "Corte · Ana Beatriz" → serviço e nome para a mensagem pronta (o nome pode faltar). */
 export function splitDescription(description: string): { service: string; name: string | null } {
@@ -47,25 +44,21 @@ export function pixMessage(description: string, amountCents: number, link: strin
   return `Oi${name ? `, ${name.split(" ")[0]}` : ""}!${business ? ` Aqui é ${business}.` : ""} Segue o Pix de ${service} de ${formatCents(amountCents)}: ${link}`;
 }
 /** Prazo da cobrança no relógio de quem paga: "Pague até 14:35 de hoje"; em outro dia, com a data. */
-export function deadlineText(expiresAt: string, now: Date, timeZone?: string): string {
-  const at = new Date(expiresAt);
-  const time = new Intl.DateTimeFormat("pt-BR", { timeZone, hour: "2-digit", minute: "2-digit" }).format(at);
-  const day = (d: Date) => d.toLocaleDateString("en-CA", { timeZone });
-  if (day(at) === day(now)) return `Pague até ${time} de hoje`;
-  return `Pague até ${time} de ${new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(at)}`;
+export function deadlineText(expiresAt: string, at: Date, timeZone: string = deviceTimeZone()): string {
+  const time = formatTime(expiresAt, timeZone);
+  if (localDate(expiresAt, timeZone) === localDate(at, timeZone)) return `Pague até ${time} de hoje`;
+  return `Pague até ${time} de ${formatDayMonth(expiresAt, timeZone)}`;
 }
 /** Link que não vale mais: não sugere que foi pago nem manda pagar por outro caminho (05 #11). */
 export const missingText = (business?: string | null) =>
   `Ele venceu ou foi cancelado. Não pague por outro caminho sem falar com ${business ?? "quem te cobrou"}: peça um novo link.`;
 /** "20/10 às 13:05", no relógio de quem lê. */
-export function formatPaidAt(v: string, timeZone?: string): string {
-  const d = new Date(v);
-  const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("pt-BR", { timeZone, ...o }).format(d);
-  return `${f({ day: "2-digit", month: "2-digit" })} às ${f({ hour: "2-digit", minute: "2-digit" })}`;
+export function formatPaidAt(v: string, timeZone: string = deviceTimeZone()): string {
+  return `${formatDayMonth(v, timeZone)} às ${formatTime(v, timeZone)}`;
 }
 /** Cobranças sem confirmação: só aparece quando há alguma. */
 export const unknownNote = (n: number) => (n <= 0 ? null : `${n} ${n === 1 ? "cobrança" : "cobranças"} sem confirmação do banco`);
-export const todayIn = (timeZone: string, d = new Date()) => d.toLocaleDateString("en-CA", { timeZone });
+export const todayIn = (timeZone: string, d: Date = now()) => localDate(d, timeZone);
 
 export function explain(err: unknown): string {
   const e = err as { code?: string; field?: string } | null;

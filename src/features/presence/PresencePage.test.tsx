@@ -37,6 +37,19 @@ describe("Site e Google (dono)", () => {
     expect(screen.getByText(/No ar · versão/)).toBeInTheDocument();
   });
 
+  it("Publicar falhou: tocar de novo manda a mesma chave (o servidor não publica duas vezes)", async () => {
+    const port = createDemoPort();
+    await port.saveSite({ expected_version: 0, headline: "Corte", sections: ["services"], service_ids: [FX.services.corteA] }, k());
+    const publish = vi.spyOn(port, "publish").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    renderPage(port);
+    fireEvent.click(await screen.findByRole("button", { name: "Publicar esta versão" }));
+    await waitFor(() => expect(publish).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole("button", { name: "Publicar esta versão" }));
+    expect(await screen.findByText("Site publicado: esta versão está no ar.")).toBeInTheDocument();
+    expect(publish).toHaveBeenCalledTimes(2);
+    expect(publish.mock.calls[1]![1]).toBe(publish.mock.calls[0]![1]);
+  });
+
   it("Google: Registrar sempre ativo, erros embaixo dos campos com foco no primeiro; revogar só depois de confirmar", async () => {
     const port = renderPage();
     const setGoogle = vi.spyOn(port, "setGoogle");

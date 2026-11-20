@@ -4,7 +4,8 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { Button, Card, ChoiceCard, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { CATEGORY_LABEL, CATEGORY_PLURAL, directoryPath, explain, STATUS_LABEL, UFS, WEEKDAY, WEEKDAY_SHORT } from "./labels.ts";
-import { type DirectoryCard, type DirectoryCities, type DirectoryPort, type DirectorySearch, type DiscoveryOverview, type DiscoveryPort, newKey } from "./port.ts";
+import { type DirectoryCard, type DirectoryCities, type DirectoryPort, type DirectorySearch, type DiscoveryOverview, type DiscoveryPort } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { plural } from "../../lib/text/plural.ts";
 import { PublicLayout } from "../../app/PublicLayout.tsx";
 
@@ -49,6 +50,9 @@ export function DiscoverySettingsPage({ port }: { port: DiscoveryPort }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"city">();
+  // Mesmo formulário depois de uma falha: mesma chave; o Desfazer é um comando de um toque.
+  const idem = useIdempotencyKey();
+  const command = useCommand();
   const fill = (v: DiscoveryOverview) => {
     setO(v);
     if (v.listing) {
@@ -72,7 +76,9 @@ export function DiscoverySettingsPage({ port }: { port: DiscoveryPort }) {
     setBusy(true);
     setError(null);
     try {
-      const v = await port.save({ expected_version: o.listing?.version ?? 0, uf, city_name: city, show_hours: hours, listed }, newKey());
+      const input = { expected_version: o.listing?.version ?? 0, uf, city_name: city, show_hours: hours, listed };
+      const v = await port.save(input, idem.keyFor(input));
+      idem.reset();
       fill(v);
       if (v.visible) toast("Pronto: seu negócio aparece no diretório.");
       else if (wasListed && before) {
@@ -81,13 +87,13 @@ export function DiscoverySettingsPage({ port }: { port: DiscoveryPort }) {
           message: "Salvo. Seu negócio não aparece no diretório.",
           action: {
             label: "Desfazer",
-            onAction: () =>
-              port
-                .save({ expected_version: v.listing?.version ?? 0, uf: before.uf, city_name: before.city_name, show_hours: before.show_hours, listed: true }, newKey())
-                .then((back) => {
-                  fill(back);
-                  toast("Seu negócio voltou ao diretório.");
-                }, (err: unknown) => toast({ tone: "danger", message: explain(err) })),
+            onAction: () => {
+              const input = { expected_version: v.listing?.version ?? 0, uf: before.uf, city_name: before.city_name, show_hours: before.show_hours, listed: true };
+              return command({ undo: input }, (key) => port.save(input, key)).then((back) => {
+                fill(back);
+                toast("Seu negócio voltou ao diretório.");
+              }, (err: unknown) => toast({ tone: "danger", message: explain(err) }));
+            },
           },
         });
       } else toast("Salvo. Seu negócio não aparece no diretório.");

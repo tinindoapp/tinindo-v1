@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { MyBooking } from "@contracts";
 import { Card, List, ListItem, PageHeader, Section, StatusBanner } from "../../components/ui/index.tsx";
+import { formatCents } from "../../lib/money.ts";
+import { formatTime, formatWeekdayDate } from "../../lib/time.ts";
 import { messageFor } from "./errors.ts";
 import { useIdentityServices } from "./services.tsx";
 
@@ -16,19 +18,16 @@ const STATUS: Record<MyBooking["status"], string> = {
 };
 /** Mesmo prazo de avaliação do banco (P24). */
 const REVIEW_WINDOW_MS = 30 * 86_400_000;
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
+/** "ter., 20/10, 09:00–09:30" no fuso do negócio da reserva. */
 function when(b: MyBooking): string {
-  const day = new Intl.DateTimeFormat("pt-BR", { timeZone: b.timezone, weekday: "short", day: "2-digit", month: "2-digit" });
-  const time = new Intl.DateTimeFormat("pt-BR", { timeZone: b.timezone, hour: "2-digit", minute: "2-digit" });
-  return `${day.format(new Date(b.starts_at))}, ${time.format(new Date(b.starts_at))}–${time.format(new Date(b.ends_at))}`;
+  return `${formatWeekdayDate(b.starts_at, b.timezone)}, ${formatTime(b.starts_at, b.timezone)}–${formatTime(b.ends_at, b.timezone)}`;
 }
 
 type Load = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; now: number; bookings: MyBooking[] };
 
 function Item({ b, now }: { b: MyBooking; now: number }) {
   const reviewable = b.status === "completed" && now - Date.parse(b.ends_at) <= REVIEW_WINDOW_MS;
-  const price = b.agreed_price_cents === null ? null : BRL.format(b.agreed_price_cents / 100);
+  const price = b.agreed_price_cents === null ? null : formatCents(b.agreed_price_cents);
   return (
     <ListItem
       title={`${b.service_name} · ${b.tenant_name}`}

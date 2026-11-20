@@ -6,9 +6,10 @@ import { Link } from "react-router";
 import { Button, LinkButton, toast } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { useScope } from "../../app/scope.tsx";
+import { useCommand } from "../../lib/idempotency.ts";
 import { setupView } from "../../lib/setup/steps.ts";
 import { explain, specOf, stepWhy } from "./labels.ts";
-import { newKey, type SetupPort, type SetupProgress } from "./port.ts";
+import { type SetupPort, type SetupProgress } from "./port.ts";
 import "./setup.css";
 
 /**
@@ -19,6 +20,8 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
   const [progress, setProgress] = useState<SetupProgress | null>(null);
   const [busy, setBusy] = useState(false);
   const scope = useScope();
+  // Dispensar e o Desfazer: falhou, tocar de novo manda a mesma chave.
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -40,11 +43,11 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
     if (!next || next.required) return;
     setBusy(true);
     try {
-      const p = await port.dismiss(next.step, true, newKey());
+      const p = await command({ dismiss: [next.step, true] }, (key) => port.dismiss(next.step, true, key));
       setProgress(p);
       toast({ message: `“${next.title}” fica para depois. Você encontra o passo em Configuração.`, action: { label: "Desfazer", onAction: async () => {
         try {
-          setProgress(await port.dismiss(next.step, false, newKey()));
+          setProgress(await command({ dismiss: [next.step, false] }, (key) => port.dismiss(next.step, false, key)));
         } catch (err) {
           toast({ tone: "danger", message: explain(err) });
         }

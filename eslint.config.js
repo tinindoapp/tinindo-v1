@@ -58,30 +58,21 @@ const restricted = (...groups) => ["error", SECRET_KEY, ...groups.flat()];
 const LEGACY_MONEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
-  "src/features/identity/MyBookingsPage.tsx",
-  "src/features/network/PublicProfileView.tsx",
   "src/features/scheduling/agenda.ts",
-  "src/features/setup/labels.ts",
 ];
 const LEGACY_KEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
   "src/features/agent/port.ts",
-  "src/features/discovery/port.ts",
-  "src/features/network/api.ts",
-  "src/features/network/useNetworkApi.ts",
-  "src/features/payments/port.ts",
-  "src/features/presence/port.ts",
-  "src/features/reputation/port.ts",
   "src/features/scheduling/port.ts",
-  "src/features/setup/port.ts",
 ];
 const LEGACY_CLOCK = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
   "src/features/analytics/module.tsx",
+  // identity/services.tsx: o "agora" de Minhas reservas (new Date() junto da leitura direta pelo Supabase). O arquivo é
+  // da sessão que troca os clientes (P53, casca); sai quando essa leitura passar pelo cliente da sessão.
   "src/features/identity/services.tsx",
-  "src/features/network/PublicProfileView.tsx",
   "src/features/scheduling/attendance.tsx",
 ];
 

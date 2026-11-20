@@ -1,6 +1,7 @@
 // "Adicionar à agenda" da reserva pelo link (auditoria de UX, E10): um arquivo .ics gerado no navegador.
 // Horários em UTC (DTSTART/DTEND com Z), sem dados de terceiros: só o serviço, o nome público do profissional e o
 // endereço do perfil. O telefone e o nome de quem reservou não entram no arquivo.
+import { now } from "../../lib/time.ts";
 
 export interface CalendarEvent {
   uid: string;
@@ -56,7 +57,7 @@ export function buildIcs(e: CalendarEvent): string {
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     `UID:${e.uid}`,
-    `DTSTAMP:${icsUtc(e.now ?? new Date())}`,
+    `DTSTAMP:${icsUtc(e.now ?? now())}`,
     `DTSTART:${icsUtc(e.starts_at)}`,
     `DTEND:${icsUtc(e.ends_at)}`,
     `SUMMARY:${icsText(e.summary)}`,
