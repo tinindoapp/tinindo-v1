@@ -55,6 +55,35 @@ describe("porta do servidor (contrato v1)", () => {
     });
   });
 
+  it("repetição semanal vai para booking.create_series com a chave no header", async () => {
+    const slot = { starts_at: "2026-10-27T07:00:00-03:00", ends_at: "2026-10-27T07:30:00-03:00" };
+    const body = { series_id: RID, created: [{ ...bookingsA[0], ...slot, status: "confirmed" }], conflicts: [{ starts_at: "2026-11-03T07:00:00-03:00", ends_at: "2026-11-03T07:30:00-03:00" }] };
+    const { port: p, fetchMock } = port(json(201, { data: body, meta }));
+    const series = { customer_id: FX.customers.abInA, guest_ref: null, service_id: FX.services.corteA, resource_id: FX.resources.A, slot, weeks: 2, all_or_nothing: false };
+    const out = await p.createSeries(series, "7a1f8a52-2b0c-4b4e-9f1e-3c0f6b5d2a10-d2");
+    expect(out.created).toHaveLength(1);
+    expect(out.conflicts).toHaveLength(1);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://exemplo.supabase.co/functions/v1/scheduling/booking.create_series");
+    expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe("7a1f8a52-2b0c-4b4e-9f1e-3c0f6b5d2a10-d2");
+    expect(JSON.parse(init.body as string)).toEqual(series);
+  });
+
+  it("vínculo da repetição fica no aparelho, por negócio, sem chamada ao servidor", async () => {
+    localStorage.clear();
+    const { port: p, fetchMock } = port(json(200, {}));
+    expect(await p.seriesGroups()).toEqual([]);
+    await p.rememberSeries(["a", "b", "c"]);
+    await p.rememberSeries(["sozinho"]); // um atendimento só não é repetição
+    expect(await p.seriesGroups()).toEqual([["a", "b", "c"]]);
+    // Outra instância da porta (página recarregada) lê o mesmo; outro negócio não vê.
+    expect(await port(json(200, {})).port.seriesGroups()).toEqual([["a", "b", "c"]]);
+    localStorage.setItem(`tinindo.agenda.series.${FX.tenants.A}`, "{quebrado");
+    expect(await p.seriesGroups()).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    localStorage.clear();
+  });
+
   it("lista atendimentos seguindo o cursor do servidor até o fim", async () => {
     const page1 = json(200, { data: { bookings: [bookingsA[0]], next_cursor: "c1" }, meta });
     const page2 = json(200, { data: { bookings: [bookingsA[1]], next_cursor: null }, meta });

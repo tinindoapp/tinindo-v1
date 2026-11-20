@@ -9,6 +9,8 @@ import {
   BookingCompleteInput,
   BookingConfirmInput,
   BookingCreateInput,
+  BookingCreateSeriesInput,
+  type BookingCreateSeriesOutput,
   BookingNoShowInput,
   BookingRescheduleInput,
   DEFAULT_MESSAGES,
@@ -40,6 +42,7 @@ import {
   demoBookings,
 } from "./demoData.ts";
 import type { SchedulingPort } from "./port.ts";
+import type { SeriesGroup } from "./series.ts";
 
 /** Simulação de concorrência para demonstrar e testar os 409 (`?simular=conflito|versao`). */
 export type Simulation = "conflito" | "versao" | null;
@@ -112,6 +115,9 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
   let bookings: Booking[] = demoBookings();
   const quotes = new Map<string, Quote>();
   const idem = new Map<string, { hash: string; result: Booking }>();
+  const seriesIdem = new Map<string, { hash: string; result: z.infer<typeof BookingCreateSeriesOutput> }>();
+  // Repetições criadas nesta aba (o contrato não devolve o vínculo na leitura; a emulação guarda como a tela guardaria).
+  const seriesGroups: SeriesGroup[] = [];
   let simulate = options.simulate ?? null;
   let seq = 0;
   // Expediente e bloqueios editáveis na aba (emulação de schedule.* do P03).
@@ -447,6 +453,61 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         return created;
       });
       return delay(result);
+    },
+
+    /**
+     * Mesma regra de scheduling_booking_create_series: cada semana repete a hora local; horário ocupado, fora do
+     * expediente ou bloqueado fica de fora (ou desfaz tudo, com all_or_nothing); ocorrência no passado recusa a série
+     * inteira; nenhuma data livre é 409. Sempre confirmado, pelo preço base.
+     */
+    async createSeries(raw, key) {
+      const input = parse(BookingCreateSeriesInput, raw);
+      const id = `booking.create_series:${key}`;
+      const hash = stableHash(input);
+      const prior = seriesIdem.get(id);
+      if (prior) {
+        if (prior.hash !== hash) fail("IDEMPOTENCY_MISMATCH");
+        return delay(prior.result);
+      }
+      const svc = service(input.service_id);
+      const duration = Date.parse(input.slot.ends_at) - Date.parse(input.slot.starts_at);
+      if (duration !== svc.duration_min * MIN) fail("VALIDATION_ERROR", "slot");
+      const first = localParts(input.slot.starts_at, tz);
+      const free: TimeRange[] = [];
+      const conflicts: TimeRange[] = [];
+      for (let i = 0; i < input.weeks; i++) {
+        const start = zonedInstant(addDays(first.date, 7 * i), first.time, tz).getTime();
+        const slot = { starts_at: toZonedIso(start, tz), ends_at: toZonedIso(start + duration, tz) };
+        if (start < now.getTime()) fail("VALIDATION_ERROR", "slot");
+        if (fits(svc.id, slot) === "ok") free.push(slot);
+        else if (input.all_or_nothing) fail("SLOT_CONFLICT", "series");
+        else conflicts.push(slot);
+      }
+      if (free.length === 0) fail("SLOT_CONFLICT", "series");
+      const created = free.map((slot): Booking => ({
+        id: `60000000-0000-4000-8000-${String(500 + ++seq).padStart(12, "0")}`,
+        tenant_id: FX.tenants.A,
+        resource_id: input.resource_id,
+        customer_id: input.customer_id,
+        service_id: svc.id,
+        starts_at: slot.starts_at,
+        ends_at: slot.ends_at,
+        status: "confirmed",
+        status_reason: null,
+        hold_expires_at: null,
+        price_quote_id: null,
+        agreed_price_cents: svc.base_price_cents,
+        source: "owner",
+        version: 1,
+      }));
+      bookings.push(...created);
+      const result = { series_id: crypto.randomUUID(), created, conflicts };
+      seriesIdem.set(id, { hash, result: structuredClone(result) });
+      return delay(result);
+    },
+    seriesGroups: () => delay(seriesGroups),
+    async rememberSeries(group) {
+      if (group.length > 1) seriesGroups.push([...group]);
     },
 
     async publicHold(input) {
