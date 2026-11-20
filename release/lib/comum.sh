@@ -52,7 +52,12 @@ db_alvo() { if [[ "$ALVO" == supabase ]]; then printf -- '--linked'; else printf
 db_json() {
   local sql="$1"
   if [[ "$ALVO" == supabase ]]; then
-    $SB db query --linked --output-format json "$sql" 2>/dev/null | python3 -c 'import json,sys; t=sys.stdin.read(); print(json.dumps(json.loads(t[t.index("{"):])["rows"]))'
+    # O CLI devolve a lista de linhas; quando detecta um agente de IA (variável AI_AGENT), embrulha em {"rows": …}.
+    $SB db query --linked --output-format json "$sql" 2>/dev/null | python3 -c '
+import json, sys
+t = sys.stdin.read()
+d = json.loads(t[min(i for i in (t.find("["), t.find("{")) if i >= 0):])
+print(json.dumps(d["rows"] if isinstance(d, dict) else d))'
   else
     psql "$LOCAL_DB_URL" -qXtA -v ON_ERROR_STOP=1 -c "select coalesce(json_agg(t), '[]') from ($sql) t"
   fi
@@ -68,11 +73,21 @@ db_arquivo() {
 # Migrations: aplicadas no alvo e as que estão no repositório. Imprime "local remoto" por linha.
 migrations_estado() {
   local alvo; mapfile -t alvo < <(db_alvo)
+  # Saída de gente: tabela "Local | Remote | Time" com os carimbos entre crases. Com AI_AGENT definido, o CLI responde
+  # em JSON ({"migrations": [...]}). Os dois formatos são aceitos; qualquer outro é erro.
   $SB migration list "${alvo[@]}" 2>/dev/null | python3 -c '
-import json, sys
+import json, re, sys
 t = sys.stdin.read()
-for m in json.loads(t[t.index("{"):])["migrations"]:
-    print(m.get("local") or "-", m.get("remote") or "-")'
+if "{" in t and "\"migrations\"" in t:
+    for m in json.loads(t[t.index("{"):])["migrations"]:
+        print(m.get("local") or "-", m.get("remote") or "-")
+    sys.exit(0)
+linhas = [l for l in t.splitlines() if l.count("|") == 2 and "Local" not in l and "---" not in l]
+if not re.search(r"Local\s*\|\s*Remote", t):
+    sys.exit("saída inesperada do supabase migration list")
+for l in linhas:
+    local, remote, _ = [c.strip().strip("`").strip() for c in l.split("|")]
+    print(local or "-", remote or "-")'
 }
 
 exigir() { for c in "$@"; do command -v "$c" >/dev/null 2>&1 || falha "falta o comando '$c' neste computador."; done; }

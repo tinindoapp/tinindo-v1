@@ -38,6 +38,8 @@ Reserva: o P58 não está no quadro do `coord.py`; sem reserva, como P48 a P51.
 | Passo novo do CI, rodado localmente | ok |
 | `npm run lint` (sem a pasta local `.claude/`) · `typecheck` · `test:unit` (1010) · `test:contracts` (842) · `test:coord` | ok |
 
+Armadilha encontrada no CI: o CLI do Supabase muda o formato quando vê a variável `AI_AGENT` (sessões de agente como esta): `migration list` sai em JSON e `db query` embrulha as linhas em `{"rows": …}`; sem ela (CI, computador do Gabriel), sai a tabela de texto e a lista pura. `release/lib/comum.sh` lê os dois formatos, e os testes acima foram repetidos com `env -u AI_AGENT -u CLAUDECODE`, como no CI.
+
 Não testado (exige as contas): `supabase secrets`, `functions deploy`, `db query --linked` com o cron e o Vault, `projects api-keys`, `wrangler deploy`, e as checagens HTTP do smoke contra o Worker e as funções hospedadas. O código desses passos é o mesmo do `homolog-setup.sh` que rodou em 27/10, mais o Worker.
 
 ## Pendências
