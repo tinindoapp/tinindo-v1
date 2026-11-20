@@ -497,3 +497,30 @@ describe("horários: resumo por dia, copiar a segunda e aviso ao sair (item 28)"
     await waitFor(() => expect(router.state.location.pathname).toBe("/app/agenda"));
   });
 });
+
+describe("Mandar link da reserva (P55, D20, recado #119)", () => {
+  it("com servidor: gera o link uma vez (mesma chave ao tentar de novo) e abre o WhatsApp com o texto pronto", async () => {
+    const port = createFixturePort();
+    const issue = vi.fn()
+      .mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" })
+      .mockResolvedValueOnce({ url: "https://app.exemplo.test/reserva/barbearia#t=abc" });
+    port.issueBookingLink = issue;
+    renderAt(`/app/agenda/atendimento/${FIRST}`, null, port);
+    const button = await screen.findByRole("button", { name: "Mandar link da reserva" }, SLOW);
+    await act(async () => { fireEvent.click(button); });
+    expect(await screen.findByText(/Tentar de novo é seguro/)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Mandar link da reserva" })); });
+    const section = await screen.findByRole("region", { name: "Link da reserva" });
+    expect(issue).toHaveBeenCalledTimes(2);
+    expect(issue.mock.calls[0]![0]).toBe(FIRST);
+    expect(issue.mock.calls[1]![1]).toBe(issue.mock.calls[0]![1]);
+    const wa = within(section).getByRole("link", { name: /WhatsApp/ });
+    expect(wa.getAttribute("href")).toContain(encodeURIComponent("https://app.exemplo.test/reserva/barbearia#t=abc"));
+  });
+
+  it("na demonstração (sem issueBookingLink) o botão não aparece", async () => {
+    renderAt(`/app/agenda/atendimento/${FIRST}`);
+    await screen.findByRole("heading", { level: 2 }, SLOW);
+    expect(screen.queryByRole("button", { name: "Mandar link da reserva" })).toBeNull();
+  });
+});

@@ -34,7 +34,7 @@ function setup(over: Partial<PaymentsDeps> = {}) {
   const anonRpc = vi.fn(async () => ({ data: { charge_id: CHARGE.id, business_name: "Barbearia", description: "Corte", amount_cents: 6000, provider: "simulated", simulated: true, status: "pending", pix_code: "x", checkout_url: null, expires_at: null, paid_at: null }, error: null }));
   const store = over.serviceRpc ?? serviceRpc;
   const deps: PaymentsDeps = {
-    allowedOrigins: [], syncSecret: SYNC, simulatedSecret: SIM_SECRET, publicAppUrl: "https://app.exemplo.test/",
+    allowedOrigins: [], syncSecret: SYNC, simulatedSecret: SIM_SECRET, publicAppUrl: "https://app.exemplo.test/", simPayEnabled: true,
     providers: { simulated: createSimulatedPaymentProvider({ secret: SIM_SECRET, store: (fn, args) => store(fn, args) }) },
     serviceRpc, rpc, anonRpc, ...over,
   };
@@ -129,5 +129,17 @@ describe("payments · link público e simulador", () => {
     const real = setup({ anonRpc: vi.fn(async () => ({ data: { charge_id: CHARGE.id, business_name: "B", description: "x", amount_cents: 1, provider: "psp", simulated: false, status: "pending", pix_code: null, checkout_url: null, expires_at: null, paid_at: null }, error: null })) });
     const refused = await real.handler(new Request(`${base}/payment.sim_pay`, body({})));
     expect(ErrorEnvelope.parse(await refused.json()).error).toMatchObject({ code: "POLICY_REJECTED", field: "provider" });
+  });
+
+  it("D22 · fora da demonstração (simPayEnabled ausente ou false) o link não paga cobrança simulada e nada é consultado", async () => {
+    const body = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: "t".repeat(43) }) };
+    for (const simPayEnabled of [undefined, false]) {
+      const { handler, serviceRpc, anonRpc } = setup({ simPayEnabled });
+      const res = await handler(new Request(`${base}/payment.sim_pay`, body));
+      expect(res.status).toBe(422);
+      expect(ErrorEnvelope.parse(await res.json()).error).toMatchObject({ code: "POLICY_REJECTED", field: "provider" });
+      expect(anonRpc).not.toHaveBeenCalled();
+      expect(serviceRpc).not.toHaveBeenCalled();
+    }
   });
 });

@@ -167,7 +167,7 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
       await rpc("worker", "channel_sim_deliver", { p_phone_e164: phone, p_from_account: from, p_body: body, p_provider_message_id: id });
     } }) } }),
   payments: createPaymentsHandler({ ...deps, rpc: userRpc, anonRpc: (fn, args) => rpc(null, fn, args), serviceRpc: (fn, args) => rpc("worker", fn, args),
-    syncSecret: SYNC_SECRET, simulatedSecret: SIM_SECRET, publicAppUrl: PUBLIC_APP_URL,
+    syncSecret: SYNC_SECRET, simulatedSecret: SIM_SECRET, publicAppUrl: PUBLIC_APP_URL, simPayEnabled: true,
     providers: { simulated: createSimulatedPaymentProvider({ secret: SIM_SECRET, store: (fn, args) => rpc("worker", fn, args) }) } }),
   jobs: createJobsHandler({ secret: JOBS_SECRET, runJobs: async (batch) => {
     const r = await rpc("worker", "jobs_run", { p_batch: batch });

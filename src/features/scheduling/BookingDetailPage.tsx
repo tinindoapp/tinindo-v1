@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import type { Booking } from "@contracts";
 import { Button, ConfirmAction, Field, PageHeader, toast } from "../../components/ui/index.tsx";
+import { ShareActions } from "../../components/ui/share.tsx";
 import { newIdempotencyKey, type PublicBookingContact } from "./port.ts";
 import {
   canCancel,
@@ -321,6 +322,10 @@ function BookingDetail({
 
       {canComplete(booking, now) || canMarkNoShow(booking, now) ? <AttendanceActions booking={booking} onChanged={reload} /> : null}
 
+      {(booking.status === "confirmed" || booking.status === "completed") && port.issueBookingLink ? (
+        <BookingLinkShare bookingId={booking.id} phone={contact?.phone_e164 ?? customerRef?.phone ?? null} />
+      ) : null}
+
       <div className="tn-actions">
         {canReschedule(booking) ? (
           <Link className="tn-button" data-variant="secondary" to="reagendar">
@@ -480,6 +485,54 @@ function AfterCancel({ info }: { info: Cancelled }) {
         {people === 0 ? "Ninguém na lista de espera aceita este horário. " : ""}
         {digits ? "O WhatsApp abre com o texto pronto; você revisa e envia." : "Sem WhatsApp no cadastro: avise o cliente pelo canal de sempre."}
       </p>
+    </section>
+  );
+}
+
+/**
+ * P55 (D20): "Mandar link da reserva". O servidor emite um link com token; o cliente vê o atendimento e, depois de
+ * concluído, avalia sem conta. A Tinindo não envia: o dono abre o WhatsApp com o texto pronto, compartilha ou copia.
+ */
+function BookingLinkShare({ bookingId, phone }: { bookingId: string; phone: string | null }) {
+  const port = usePort();
+  const [key] = useState(() => newIdempotencyKey());
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function issue() {
+    if (!port.issueBookingLink) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setUrl((await port.issueBookingLink(bookingId, key)).url);
+    } catch {
+      setError("Não deu para gerar o link agora. Tentar de novo é seguro: sai o mesmo link.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!url) {
+    return (
+      <div className="tn-actions">
+        <Button variant="secondary" onClick={() => void issue()} loading={loading} loadingText="Gerando link…">
+          Mandar link da reserva
+        </Button>
+        {error ? <p role="alert" className="tn-muted">{error}</p> : null}
+      </div>
+    );
+  }
+  return (
+    <section className="tn-sched-confirm" aria-labelledby={`booking-link-${bookingId}`}>
+      <h3 id={`booking-link-${bookingId}`}>Link da reserva</h3>
+      <p className="tn-muted">O cliente vê o horário e, depois do atendimento, pode avaliar. Sem criar conta.</p>
+      <ShareActions
+        message={`Aqui está a sua reserva: ${url}`}
+        copyText={url}
+        copyLabel="Copiar link"
+        phone={phone}
+      />
     </section>
   );
 }

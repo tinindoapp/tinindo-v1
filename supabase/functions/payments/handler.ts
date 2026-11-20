@@ -2,8 +2,8 @@
 // Rotas do dono (JWT): listar cobranças e conciliações pelo rpc-handler; criar cobrança, cancelar, estornar e
 // conciliar passam pelo rpc-handler (autorização, idempotência, hash) e depois falam com o provedor; o resultado
 // do provedor entra pelo backend (chave de serviço), nunca pelo JWT do dono.
-// Rotas públicas (anônimas, token no corpo): payment.link_view; payment.sim_pay (só cobrança simulada: o "cliente"
-// paga e o PSP fictício notifica pelo MESMO webhook assinado).
+// Rotas públicas (anônimas, token no corpo): payment.link_view; payment.sim_pay (só cobrança simulada e só com
+// simPayEnabled, D22: o "cliente" paga e o PSP fictício notifica pelo MESMO webhook assinado).
 // Rotas de sistema: payment.webhook/<provider> (assinatura sobre o corpo bruto → ingestão deduplicada);
 // payment.sync (segredo → consulta de cobranças desconhecidas ou vencidas; nunca presume pago).
 // Log técnico sem token, Pix, valores ou tenant.
@@ -54,6 +54,11 @@ export interface PaymentsDeps extends RpcHandlerDeps {
   syncSecret: string;
   simulatedSecret: string;
   publicAppUrl: string;
+  /**
+   * D22 (a): o pagamento simulado pelo link só existe na demonstração. Desligado (padrão), payment.sim_pay responde
+   * POLICY_REJECTED antes de ler o token. Ligado só nos testes e onde o ambiente pedir de propósito (PAYMENTS_SIM_PAY=on).
+   */
+  simPayEnabled?: boolean;
 }
 
 /** Corpo bruto da RPC de criação: cobrança + token do link (vira pay_url na função; o token nunca é logado). */
@@ -248,6 +253,7 @@ export function createPaymentsHandler(deps: PaymentsDeps) {
 
   /** Só cobrança SIMULADA pendente: o PSP fictício muda o estado e (salvo notify=false) notifica pelo webhook assinado. */
   async function simPay(req: Request, requestId: string, cors: Record<string, string>): Promise<Response> {
+    if (deps.simPayEnabled !== true) return fail("POLICY_REJECTED", requestId, { field: "provider", extra: cors });
     const t = await readToken(req, cors, requestId);
     if (t instanceof Response) return t;
     const input = SimPayInput.safeParse(t.body);

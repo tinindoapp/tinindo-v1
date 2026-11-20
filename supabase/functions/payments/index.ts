@@ -29,6 +29,8 @@ const handler = createPaymentsHandler({
   syncSecret,
   simulatedSecret,
   publicAppUrl,
+  // D22 (a): fora da demonstração o cliente não paga cobrança simulada pelo link. Só liga com PAYMENTS_SIM_PAY=on.
+  simPayEnabled: Deno.env.get("PAYMENTS_SIM_PAY") === "on",
   providers: {
     simulated: createSimulatedPaymentProvider({ secret: simulatedSecret, store: serviceRpc }),
     psp: createPspProvider({

@@ -4,6 +4,7 @@
 import {
   AvailabilityListOutput,
   BookingCreateSeriesOutput,
+  BookingLinkIssueOutput,
   BookingListOutput,
   BookingOutput,
   ContextResponse,
@@ -119,6 +120,11 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
         if (err instanceof ApiError && err.code === "NOT_FOUND") return null;
         throw err;
       }
+    },
+    async issueBookingLink(bookingId, key) {
+      // P55 (D20): link com token para o cliente ver a reserva e avaliar sem conta. Mesma chave = mesmo link.
+      const { data } = await call("/network/booking_link.issue", BookingLinkIssueOutput, post({ booking_id: bookingId }, key));
+      return { url: data.url };
     },
     async getBooking(id) {
       const { data } = await call(scheduling("booking.get"), BookingOutput, post({ booking_id: id }));

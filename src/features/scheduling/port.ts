@@ -100,6 +100,11 @@ export interface SchedulingPort {
    * (atendimento criado pelo dono, por exemplo).
    */
   publicContact(bookingId: string): Promise<PublicBookingContact | null>;
+  /**
+   * P55 (D20): link da reserva para o cliente ver o atendimento e avaliar sem conta (network/booking_link.issue).
+   * Só com servidor: a demonstração não tem esse link para atendimentos criados pelo dono, e a tela esconde o botão.
+   */
+  issueBookingLink?(bookingId: string, idempotencyKey: string): Promise<{ url: string }>;
   /** Expediente semanal e recurso ativo. */
   settings(): Promise<ScheduleSettings>;
   saveRules(input: z.input<typeof ScheduleRulesSaveInput>, idempotencyKey: string): Promise<ScheduleSettings>;
