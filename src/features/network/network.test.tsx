@@ -188,7 +188,7 @@ describe("páginas públicas (demonstração)", () => {
     const wrong = String((Number(shown) + 1) % 1_000_000).padStart(6, "0");
     fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: wrong } });
     fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
-    expect(await screen.findByText(/Código incorreto/)).toBeInTheDocument();
+    expect(await screen.findByText(/Código não confere\. Use o último código que chegou no WhatsApp\. Restam 4 tentativas\./)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: shown } });
     fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
     expect(await screen.findByRole("heading", { name: "Horário confirmado" })).toBeInTheDocument();
@@ -327,7 +327,7 @@ describe("páginas públicas (demonstração)", () => {
     fireEvent.change(screen.getByLabelText("Seu nome"), { target: { value: "Maria" } });
     fireEvent.change(screen.getByLabelText("WhatsApp com DDD"), { target: { value: "(92) 97777-4343" } });
     fireEvent.click(screen.getByRole("button", { name: "Pedir este horário" }));
-    expect(await screen.findByText(/guardado até as/)).toHaveTextContent("guardado até as 09:10");
+    expect(await screen.findByText(/Guardamos este horário até as/)).toHaveTextContent("Guardamos este horário até as 09:10");
     fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
     await screen.findByRole("heading", { name: "Horário confirmado" });
@@ -360,7 +360,7 @@ describe("páginas públicas (demonstração)", () => {
     // Manter o anterior: segue para o código do pedido que já existe, sem pedir o novo.
     fireEvent.click(within(alert).getByRole("button", { name: "Manter o anterior" }));
     expect(await screen.findByRole("heading", { name: "Confirme o horário" })).toBeInTheDocument();
-    expect(screen.getByText("Pedido anterior deste WhatsApp")).toBeInTheDocument();
+    expect(screen.getByText("Seu pedido anterior: o serviço e o horário estão na mensagem com o código")).toBeInTheDocument();
 
     // Voltar e trocar: o anterior é cancelado, o código antigo deixa de valer.
     fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
@@ -558,7 +558,7 @@ describe("confirmação da reserva (E10)", () => {
     expect(screen.getByText(/^Corte · ter 20\/10 · 12:00$/)).toBeInTheDocument();
   });
 
-  it("confirmado: Adicionar à agenda baixa o .ics em UTC, sem o telefone; Falar com o profissional com o WhatsApp público", async () => {
+  it("confirmado: Adicionar à agenda baixa o .ics em UTC, sem o telefone; Falar com o negócio com o WhatsApp público", async () => {
     await publishDemoProfile();
     await turnOnWhatsapp();
     cleanup();
@@ -568,7 +568,7 @@ describe("confirmação da reserva (E10)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
     await screen.findByRole("heading", { name: "Horário confirmado" });
 
-    const talk = screen.getByRole("link", { name: "Falar com o profissional" });
+    const talk = screen.getByRole("link", { name: "Falar com Barbearia Exemplo A no WhatsApp" });
     const href = new URL(talk.getAttribute("href")!);
     expect(href.origin + href.pathname).toBe("https://wa.me/5511999990001");
     expect(href.searchParams.get("text")).toMatch(/^Olá! Marquei Corte para terça-feira, 20\/10 às 12:00/);
@@ -602,25 +602,33 @@ describe("confirmação da reserva (E10)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
     await screen.findByRole("heading", { name: "Horário confirmado" });
     expect(screen.getByRole("button", { name: "Adicionar à agenda" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Falar com o profissional" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Falar com/ })).not.toBeInTheDocument();
   });
 });
 
 describe("perfil público: reserva primeiro (E12)", () => {
-  it("Ver horários livres é a primeira ação; avaliar e minhas reservas ficam no rodapé", async () => {
+  it("o negócio vem primeiro, a reserva logo abaixo e não há link para conta do cliente (D18, D20)", async () => {
     await publishDemoProfile();
     cleanup();
     renderAt("/p/barbearia-exemplo");
-    const cta = await screen.findByRole("link", { name: "Ver horários livres" });
-    const footer = document.querySelector<HTMLElement>("footer.tn-net-foot")!;
-    expect(within(footer).getByRole("link", { name: "Avaliar meu atendimento" })).toBeInTheDocument();
-    expect(within(footer).getByRole("link", { name: "Minhas reservas" })).toBeInTheDocument();
-    const links = screen.getAllByRole("link");
-    expect(links[0]).toBe(cta);
+    const name = await screen.findByRole("heading", { level: 1 });
     const booking = await screen.findByRole("heading", { name: "Escolha o serviço" });
-    expect(booking.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    Element.prototype.scrollIntoView ??= () => undefined;
-    fireEvent.click(cta);
-    expect(booking).toHaveFocus();
+    expect(name.compareDocumentPosition(booking) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Sem logotipo no topo: a Tinindo aparece só no rodapé.
+    const footer = document.querySelector<HTMLElement>("footer.tn-pub-foot")!;
+    expect(footer).toHaveTextContent("Página feita com a Tinindo");
+    expect(document.querySelector("header")?.querySelector("img[alt='Tinindo']")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ver horários livres" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Minhas reservas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Avaliar meu atendimento" })).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("Tem login?");
   });
+
+  it("perfil inexistente: não encontrado com saída", async () => {
+    renderAt("/p/nao-existe");
+    expect(await screen.findByRole("heading", { name: "Perfil não encontrado" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+    expect(document.querySelector("footer.tn-pub-foot")).toHaveTextContent("Página feita com a Tinindo");
+  });
+
 });

@@ -27,6 +27,15 @@ import {
 import { type DbErrorLike, mapDbError } from "../_shared/http/errors.ts";
 import { type Clock, corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
 import {
+  BookingLinkInput,
+  BookingLinkIssueInput,
+  BookingLinkIssueOutput,
+  BookingLinkReviewInput,
+  BookingLinkReviewOutput,
+  BookingLinkView,
+  ProfileDetailsInput,
+  PublicRequestInput,
+  PublicRequestState,
   OwnerProfile,
   OwnerProfileOutput,
   ProfileMediaInput,
@@ -48,6 +57,7 @@ import {
 } from "./schemas.ts";
 
 type PublicProfileField = z.infer<typeof PublicProfileField>;
+const AttemptsLeft = PublicRequestState.pick({ attempts_left: true });
 type RpcResult = { data: unknown; error: DbErrorLike | null };
 
 export interface NetworkDeps {
@@ -82,6 +92,9 @@ export async function requestHash(value: unknown): Promise<string> {
 
 export const profileUrl = (base: string, slug: string) => `${base.replace(/\/$/, "")}/p/${slug}`;
 export const inviteUrl = (base: string, token: string) => `${base.replace(/\/$/, "")}/convite#t=${token}`;
+/** P55: link da reserva com o endereço do negócio no caminho (prévia com o nome) e o token no fragmento. */
+export const bookingLinkUrl = (base: string, slug: string | null, token: string) =>
+  `${base.replace(/\/$/, "")}/reserva${slug ? `/${slug}` : ""}#t=${token}`;
 
 interface ProfileRow {
   slug: string;
@@ -101,6 +114,8 @@ interface ProfileRow {
     show_prices: boolean;
     whatsapp_e164: string | null;
   };
+  /** P55 (D21): endereço ou domicílio, horário e política. */
+  details?: { address: string | null; home_service: boolean; opening_hours: string | null; cancellation_policy: string | null };
   /** Leitura pública: já filtrados pelas chaves no banco. */
   photo?: { path: string; alt: string } | null;
   whatsapp_e164?: string | null;
@@ -133,6 +148,13 @@ const OPERATIONS = {
   "public.book": { method: "POST", auth: false, tenant: false, idempotent: true },
   "public.confirm": { method: "POST", auth: false, tenant: false, idempotent: true },
   "public.contact": { method: "POST", auth: true, tenant: true, idempotent: false },
+  "public.status": { method: "POST", auth: false, tenant: false, idempotent: false },
+  "public.resend": { method: "POST", auth: false, tenant: false, idempotent: true },
+  "profile.details": { method: "POST", auth: true, tenant: true, idempotent: true },
+  "booking_link.issue": { method: "POST", auth: true, tenant: true, idempotent: true },
+  "public.booking": { method: "POST", auth: false, tenant: false, idempotent: false },
+  "public.review": { method: "POST", auth: false, tenant: false, idempotent: true },
+  "public.review_withdraw": { method: "POST", auth: false, tenant: false, idempotent: true },
   "referral.create": { method: "POST", auth: true, tenant: false, idempotent: true },
   "referral.inspect": { method: "POST", auth: false, tenant: false, idempotent: false },
   "referral.claim": { method: "POST", auth: true, tenant: false, idempotent: true },
@@ -159,6 +181,7 @@ export function createNetworkHandler(deps: NetworkDeps) {
       published_at: row.published_at,
       reputation: row.reputation,
       version: row.version ?? 1,
+      ...(row.details ? { details: row.details } : {}),
       media: {
         ...media,
         photo_url: media.photo_path && deps.photoBaseUrl ? photoUrl(deps.photoBaseUrl, media.photo_path) : null,
@@ -238,7 +261,10 @@ export function createNetworkHandler(deps: NetworkDeps) {
       const status = typeof env?.status_code === "number" ? env.status_code : 0;
       if (status >= 400 && status <= 499 && typeof env?.error === "string" && env.error in ERROR_STATUS) {
         // Só o resumo do pedido pendente sai como details, validado pelo contrato; o resto do envelope fica no servidor.
-        const details = env.error === "PENDING_REQUEST_EXISTS" ? PendingRequest.safeParse(env.details) : null;
+        const details = env.error === "PENDING_REQUEST_EXISTS" ? PendingRequest.safeParse(env.details)
+          // P55: código errado diz quantas tentativas restam.
+          : env.error === "POLICY_REJECTED" && env.field === "code" && env.details ? AttemptsLeft.safeParse(env.details)
+          : null;
         if (details && !details.success) return failWith("INTERNAL_ERROR");
         return failWith(env.error as ErrorCode, {
           field: typeof env.field === "string" ? env.field : undefined,
@@ -336,6 +362,7 @@ export function createNetworkHandler(deps: NetworkDeps) {
           reputation: row.reputation,
           photo: row.photo && deps.photoBaseUrl ? { url: photoUrl(deps.photoBaseUrl, row.photo.path), alt: row.photo.alt } : null,
           whatsapp_e164: row.whatsapp_e164 ?? null,
+          ...(row.details ? { details: row.details } : {}),
         });
       }
 
@@ -373,9 +400,12 @@ export function createNetworkHandler(deps: NetworkDeps) {
           p_contact_phone: input.data.contact.phone_e164,
           p_idem_key: idemKey,
           // replace_existing é decisão de quem pede, não identidade do pedido: fica fora do hash da chave.
-          p_request_hash: await requestHash({ ...input.data, replace_existing: undefined }),
+          // supersedes_request_id também fica fora: é o que fazer com o pedido anterior, não o que se pede.
+          p_request_hash: await requestHash({ ...input.data, replace_existing: undefined, supersedes_request_id: undefined }),
           p_request_id: requestId,
           p_replace_existing: input.data.replace_existing,
+          p_supersedes: input.data.supersedes_request_id ?? null,
+          p_neighborhood: input.data.neighborhood ?? null,
         }, true);
         if (r instanceof Response) return r;
         return respondEnvelope(PublicBookOutput, r.data);
@@ -392,6 +422,73 @@ export function createNetworkHandler(deps: NetworkDeps) {
         }, false);
         if (r instanceof Response) return r;
         return respondEnvelope(PublicConfirmOutput, r.data);
+      }
+
+      // public.resend exige Idempotency-Key como todo comando; repetir dentro de 30 s é recusado pela regra do banco
+      // (resend_wait), sem mandar outro código. public.review e public.review_withdraw são idempotentes pelo estado.
+      case "public.status":
+      case "public.resend": {
+        const input = PublicRequestInput.safeParse(body);
+        if (!input.success) return failWith("NOT_FOUND");
+        const r = op === "public.status"
+          ? await call("public_booking_status", { p_request: input.data.request_id }, false)
+          : await call("public_booking_resend", { p_request: input.data.request_id, p_request_id: requestId }, false);
+        if (r instanceof Response) return r;
+        return respond(PublicRequestState, r.data);
+      }
+
+      case "profile.details": {
+        const input = ProfileDetailsInput.safeParse(body);
+        if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        const r = await call("network_profile_details_set", {
+          p_tenant_id: tenantHeader,
+          p_address: input.data.address,
+          p_home_service: input.data.home_service,
+          p_opening_hours: input.data.opening_hours,
+          p_cancellation_policy: input.data.cancellation_policy,
+          p_idem_key: idemKey,
+          p_request_hash: await requestHash(input.data),
+          p_request_id: requestId,
+        }, true);
+        if (r instanceof Response) return r;
+        const row = (r.data as { body?: ProfileRow } | null)?.body;
+        if (!row) return failWith("INTERNAL_ERROR");
+        return respond(OwnerProfileOutput, { profile: ownerProfile(row) });
+      }
+
+      case "booking_link.issue": {
+        const input = BookingLinkIssueInput.safeParse(body);
+        if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        const r = await call("booking_link_issue", { p_tenant_id: tenantHeader, p_booking_id: input.data.booking_id, p_request_id: requestId }, true);
+        if (r instanceof Response) return r;
+        const out = r.data as { token?: string; slug?: string | null } | null;
+        if (!out?.token) return failWith("INTERNAL_ERROR");
+        return respond(BookingLinkIssueOutput, { token: out.token, url: bookingLinkUrl(deps.publicAppUrl, out.slug ?? null, out.token) });
+      }
+
+      case "public.booking": {
+        // Token no corpo do POST, nunca na query string. Fora do formato: mesma resposta de desconhecido.
+        const input = BookingLinkInput.safeParse(body);
+        if (!input.success) return failWith("NOT_FOUND");
+        const r = await call("booking_link_view", { p_token: input.data.token }, false);
+        if (r instanceof Response) return r;
+        return respond(BookingLinkView, r.data);
+      }
+
+      case "public.review": {
+        const input = BookingLinkReviewInput.safeParse(body);
+        if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        const r = await call("booking_link_review_submit", { p_token: input.data.token, p_rating: input.data.rating, p_body: input.data.body }, false);
+        if (r instanceof Response) return r;
+        return respond(BookingLinkReviewOutput, r.data);
+      }
+
+      case "public.review_withdraw": {
+        const input = BookingLinkInput.safeParse(body);
+        if (!input.success) return failWith("NOT_FOUND");
+        const r = await call("booking_link_review_withdraw", { p_token: input.data.token }, false);
+        if (r instanceof Response) return r;
+        return respond(BookingLinkReviewOutput, r.data);
       }
 
       case "public.contact": {

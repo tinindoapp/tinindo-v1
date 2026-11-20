@@ -44,7 +44,8 @@ describe("P13 · relacionamento pelos handlers", () => {
     const list = await steps();
     expect(of(list, bookingAna)).toEqual(["confirmation:v1=manual", `reminder:v${bookingVersion}-h2=scheduled`, `reminder:v${bookingVersion}-h24=scheduled`].sort());
     const conf = list.steps.find((s) => s.aggregate_id === bookingAna && s.rule === "confirmation")!;
-    expect(conf.body).toContain("Seu horário de Corte está confirmado para");
+    expect(conf.body).toMatch(/ confirmou seu horário de Corte em /);
+    expect(conf.body).not.toContain("{{negocio}}");
     expect(conf.customer_name).toBeTruthy();
     const reminder = list.steps.find((s) => s.aggregate_id === bookingAna && s.step_key.endsWith("-h24"))!;
     expect(reminder.due_at).toBe(iso(new Date(Date.parse(t) - 24 * 3_600_000)));
@@ -89,7 +90,7 @@ describe("P13 · relacionamento pelos handlers", () => {
     expect(await runDispatch()).toMatchObject({ sent: 1 });
     list = await steps();
     expect(list.steps.find((s) => s.id === conf.id)?.message_status).toBe("sent");
-    expect((await ok(SimPhoneOutput, "messaging", "sim.phone", { ...owner, body: { phone_e164: ANA } })).messages.at(-1)?.body).toContain("está confirmado para");
+    expect((await ok(SimPhoneOutput, "messaging", "sim.phone", { ...owner, body: { phone_e164: ANA } })).messages.at(-1)?.body).toContain("confirmou seu horário de");
     // Teto diário 1: já saiu 1 hoje → o próximo é adiado, não descartado.
     const cfg = await ok(LifecycleSettingsOutput, "lifecycle", "lifecycle.settings_save", { ...owner, key: true, body: { settings: { daily_budget: 1 }, expected_version: 0 } });
     expect(cfg.settings).toMatchObject({ daily_budget: 1, version: 1 });
@@ -137,7 +138,7 @@ describe("P13 · relacionamento pelos handlers", () => {
     await runJobs();
     const step = (await steps()).steps.find((s) => s.aggregate_id === r.receivable.id)!;
     expect(step).toMatchObject({ rule: "receivable_reminder", status: "manual" });
-    expect(step.body).toContain("R$ 25,00 (Produto)");
+    expect(step.body).toMatch(/Aqui é .+\. Ficou em aberto R\$\s25,00 de Produto/);
     await ok(ReceivableOutput.shape.receivable.partial().passthrough(), "finance", "finance.record_payment", { ...owner, key: true, body: { receivable_id: r.receivable.id, amount_cents: 2500, method: "cash", received_at: iso(new Date()) } });
     await runJobs();
     expect((await steps()).steps.find((s) => s.aggregate_id === r.receivable.id)).toMatchObject({ status: "cancelled", skip_reason: "paid" });

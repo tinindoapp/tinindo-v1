@@ -68,16 +68,20 @@ test("site e Google: rascunho, prévia só pública, publicar a prévia, página
 
   // A página pública mostra a versão aprovada.
   await page.getByRole("link", { name: "Ver página pública" }).click();
-  await expect(page).toHaveURL(/\/s\/barbearia-exemplo-a$/);
+  // D19: uma página pública só. O link leva a /p, com a marca do negócio e a Tinindo só no rodapé.
+  await expect(page).toHaveURL(/\/p\/barbearia-exemplo-a$/);
   await expect(page.getByRole("heading", { name: "Barbearia Exemplo A", level: 1 })).toBeVisible();
   await expect(page.getByText("Corte na hora marcada")).toBeVisible();
-  await expect(page.getByText("Página feita com a Tinindo · versão 1")).toBeVisible();
+  await expect(page.getByText("Hoje:")).toBeVisible();
+  await expect(page.locator("footer.tn-pub-foot")).toContainText("Página feita com a Tinindo");
 
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 });
 
-test("site público sem publicação: não encontrado", async ({ page }) => {
-  await page.goto("/s/nao-existe");
-  await expect(page.getByRole("heading", { name: "Site não encontrado" })).toBeVisible();
+test("endereço antigo do site (/s) leva à página única (/p); sem publicação, não encontrado com saída", async ({ page }) => {
+  await page.goto("/s/nao-existe?x=1");
+  await expect(page).toHaveURL(/\/p\/nao-existe\?x=1$/);
+  await expect(page.getByRole("heading", { name: "Perfil não encontrado" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tentar de novo" })).toBeVisible();
 });

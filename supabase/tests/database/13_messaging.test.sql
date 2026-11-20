@@ -104,7 +104,7 @@ select is(pg_temp.got('s1')->'body'->'message'->>'status', 'queued', 'texto na j
 select throws_ok(format($$ select public.channel_send(%L, %L, 'template', null, 'lembrete_agendamento', '["Corte"]', 'idem-ch-send-tpl-bad', %L) $$,
   (select tenant_a from ids), (select id from k), pg_temp.h('tb')), 'PT400', 'VALIDATION_ERROR', 'modelo com parâmetros errados');
 insert into r select 's2', public.channel_send((select tenant_a from ids), (select id from k), 'template', null, 'lembrete_agendamento', '["Corte", "terça 10:00"]', 'idem-ch-send-0002', pg_temp.h('s2'));
-select is(pg_temp.got('s2')->'body'->'message'->>'body', 'Lembrete: Corte em terça 10:00. Se precisar remarcar, responda esta mensagem.', 'modelo renderizado');
+select is(pg_temp.got('s2')->'body'->'message'->>'body', 'Lembrete de ' || (select name from public.tenants where id = (select tenant_a from ids)) || ': Corte em terça 10:00. Se precisar remarcar, responda esta mensagem.', 'modelo renderizado com o nome do negócio (P55)');
 reset role;
 -- Modelo não aprovado no provedor real: recusado.
 update public.channel_templates set approved_providers = '{}' where code = 'link_orcamento';

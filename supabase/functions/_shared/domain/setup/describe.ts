@@ -10,63 +10,16 @@
 //
 // O servidor (`setup.describe`) roda estas regras primeiro e só pede ao modelo de linguagem do P46 o que ficou em
 // `unknown` (mergeAssistantDraft). Cada campo diz de onde veio em `sources`.
-import { z } from "zod";
-import { Cents, WeeklyWindow } from "../../contracts/common.ts";
-import { type Profession, SetupDescribeDraft } from "../../contracts/index.ts";
+import type { WeeklyWindow } from "../../contracts/common.ts";
+import type { Profession, SetupDescribeDraft } from "../../contracts/index.ts";
 import type { BusinessDraft } from "../../llm/tasks/setup.ts";
 import { serviceTemplatesOf, templateKey } from "./templates.ts";
 
-/** Campos do rascunho que podem ser recusados, lidos com ressalva ou preenchidos pelo assistente. */
-export const DescribeField = z.enum(["profession", "team_size", "weekdays", "hours", "services"]);
-export type DescribeField = z.infer<typeof DescribeField>;
-/** `rules` = lido pelas regras; `assistant` = preenchido pelo modelo de linguagem; null = não lido. */
-export const DescribeSource = z.enum(["rules", "assistant"]);
-export type DescribeSource = z.infer<typeof DescribeSource>;
-
-export const DescribeServiceDraft = z.object({
-  name: z.string().min(1).max(120),
-  /** Modelo da profissão com o mesmo nome (de onde vêm a duração e a faixa); null = serviço sem modelo. */
-  template_code: z.string().regex(/^[a-z0-9_]{3,40}$/).nullable(),
-  /** Duração dita na frase ou a do modelo; null = o dono informa. */
-  duration_min: z.int().min(5).max(1440).nullable(),
-  /** Só quando a frase diz o preço. A faixa do modelo é dica, nunca preço. */
-  price_cents: Cents.nullable(),
-  price_from_cents: Cents.nullable(),
-  price_to_cents: Cents.nullable(),
-  /** true = citado na frase; false = sugestão do modelo da profissão (a tela mostra desmarcado). */
-  cited: z.boolean(),
-});
-export type DescribeServiceDraft = z.infer<typeof DescribeServiceDraft>;
-
-export const DescribeNote = z.object({
-  field: DescribeField,
-  /** `refused` = o campo ficou sem valor e o texto diz por quê; `check` = lido com uma suposição que o dono confere. */
-  level: z.enum(["refused", "check"]),
-  text: z.string().min(1).max(300),
-});
-export type DescribeNote = z.infer<typeof DescribeNote>;
-
-/** Rascunho completo da frase: o contrato v1 (`SetupDescribeDraft`) mais o expediente por dia, os serviços com modelo e as ressalvas. */
-export const BusinessDescription = SetupDescribeDraft.extend({
-  /** Expediente inteiro, um bloco por período de cada dia (dois turnos e dias com horários diferentes cabem aqui). */
-  windows: z.array(WeeklyWindow).max(50),
-  service_drafts: z.array(DescribeServiceDraft).max(20),
-  /** "pacote com N sessões": informação para o Caixa; não vira serviço nem equipe. */
-  packages: z.array(z.object({ sessions: z.int().min(2).max(100), service: z.string().max(120).nullable() })).max(5),
-  /** A frase diz que o atendimento é na casa do cliente. */
-  at_home: z.boolean(),
-  notes: z.array(DescribeNote).max(20),
-  sources: z.object({
-    profession: DescribeSource.nullable(), team_size: DescribeSource.nullable(), weekdays: DescribeSource.nullable(),
-    hours: DescribeSource.nullable(), services: DescribeSource.nullable(),
-  }),
-});
-export type BusinessDescription = z.infer<typeof BusinessDescription>;
-
-export const SetupDescribeInput = z.object({ sentence: z.string().trim().min(8).max(500) });
-/** `assistant`: o modelo de linguagem foi consultado para esta frase (false com LLM_PROVIDER=none ou quando as regras bastaram). */
-export const SetupDescribeOutput = BusinessDescription.extend({ assistant: z.boolean() });
-export type SetupDescribeOutput = z.infer<typeof SetupDescribeOutput>;
+// Schemas da saída de `setup.describe`: moram em contracts/setup.ts desde o registro da operação (recado #115).
+export {
+  BusinessDescription, DescribeField, DescribeNote, DescribeServiceDraft, DescribeSource, SetupDescribeInput, SetupDescribeOutput,
+} from "../../contracts/setup.ts";
+import type { BusinessDescription, DescribeNote, DescribeServiceDraft, DescribeSource } from "../../contracts/setup.ts";
 
 /** Minúsculas, sem acento, espaços simples, travessão como hífen. */
 export function normalize(text: string): string {

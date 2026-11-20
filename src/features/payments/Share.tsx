@@ -5,7 +5,7 @@ import { CopyButton as BaseCopyButton, whatsappHref } from "../../components/ui/
 import { pixMessage } from "./labels.ts";
 
 /** Copiar da cobrança: se falhar, o código continua à mão em "Ver código". */
-export function CopyButton(props: { text: string; label: string; variant?: "primary" | "secondary"; what: string }) {
+export function CopyButton(props: { text: string; label: string; variant?: "primary" | "secondary"; what: string; onCopied?: () => void }) {
   return <BaseCopyButton {...props} failHint={'Abra "Ver código" e copie à mão.'} />;
 }
 
@@ -32,12 +32,12 @@ export function CodeDetails({ pix, url }: { pix?: string | null; url?: string | 
 }
 
 /** Painel da cobrança recém-criada: copiar o Pix, mandar pelo WhatsApp, copiar o link, abrir como a cliente. */
-export function ShareCharge({ description, amountCents, pix, url, openLink }: { description: string; amountCents: number; pix: string | null; url: string; openLink: ReactNode }) {
+export function ShareCharge({ description, amountCents, pix, url, openLink, business }: { description: string; amountCents: number; pix: string | null; url: string; openLink: ReactNode; business?: string | null }) {
   return (
     <div className="tn-pay-share" role="group" aria-label="Enviar a cobrança">
       <div className="tn-actions">
         {pix ? <CopyButton text={pix} label="Copiar Pix" what="Pix" /> : null}
-        <a className="tn-button" data-variant="secondary" href={whatsappHref(null, pixMessage(description, amountCents, url))} target="_blank" rel="noreferrer">
+        <a className="tn-button" data-variant="secondary" href={whatsappHref(null, pixMessage(description, amountCents, url, business))} target="_blank" rel="noreferrer">
           Enviar pelo WhatsApp
         </a>
         <CopyButton text={url} label="Copiar link" variant="secondary" what="Link" />

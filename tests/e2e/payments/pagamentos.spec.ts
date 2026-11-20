@@ -55,20 +55,36 @@ test("pagamentos: cobrança Pix pelo provedor simulado, cliente paga pelo link, 
   const wa = share.getByRole("link", { name: "Enviar pelo WhatsApp" });
   const href = (await wa.getAttribute("href"))!;
   expect(href.startsWith("https://wa.me/?text=")).toBe(true);
-  expect(decodeURIComponent(href.split("text=")[1]!).replace(/\s/g, " ")).toBe(`Oi, Ana! Segue o Pix de Corte de R$ 60,00: ${url}`);
+  expect(decodeURIComponent(href.split("text=")[1]!).replace(/\s/g, " ")).toBe(`Oi, Ana! Aqui é Barbearia Exemplo A. Segue o Pix de Corte de R$ 60,00: ${url}`);
   await expect(share.getByRole("button", { name: "Copiar link" })).toBeVisible();
   await expect(share.getByText("Abrir o WhatsApp não confirma que a cliente recebeu")).toBeVisible();
 
   // A cliente abre o link (mesma aba, pelo próprio link da tela) e paga (simulação): o banco confirma pelo webhook.
   await share.getByRole("link", { name: "Abrir o link como a cliente" }).click();
   await expect(page).toHaveURL(/\/pagar$/);
-  await expect(page.getByRole("heading", { name: /Pagar Barbearia do Léo/ })).toBeVisible();
+  // D18: o negócio no topo, a Tinindo só no rodapé; o título fala da cobrança, sem o nome de quem deve.
+  await expect(page.getByRole("banner")).toContainText("Barbearia do Léo");
+  await expect(page.getByRole("heading", { name: "Cobrança de Corte", level: 1 })).toBeVisible();
+  await expect(page.getByRole("main")).not.toContainText("Ana");
+  await expect(page.getByText("Página feita com a Tinindo")).toBeVisible();
   await expect(page.getByText("R$ 60,00", { exact: true })).toBeVisible();
+  await expect(page.getByText("Aguardando pagamento")).toBeVisible();
+  await expect(page.getByText(/^Pague até \d{2}:\d{2} de hoje$/)).toBeVisible();
+  await expect(page.getByText(/No app do banco, confira se quem recebe é Barbearia do Léo/)).toBeVisible();
+  // Copiar de largura total (a coluna tem até 560 px, menos as margens).
+  const payCopy = page.getByRole("button", { name: "Copiar código Pix" });
+  const col = (await page.getByRole("main").boundingBox())!.width;
+  expect((await payCopy.boundingBox())!.width).toBeGreaterThanOrEqual(col - 40);
+  // Só na demonstração offline a simulação aparece para quem abre o link (D22), sempre rotulada.
   await expect(page.getByText("Nenhum dinheiro é movimentado")).toBeVisible();
   await page.getByRole("group", { name: "Simular o pagamento" }).getByRole("button", { name: "Pagar (simulação)" }).click();
   await expect(page.getByText("Pagamento simulado confirmado pelo banco.")).toBeVisible();
-  await expect(page.getByText("Pago (confirmado pelo banco)")).toBeVisible();
+  // Pago é uma tela própria.
+  await expect(page.getByRole("heading", { name: "Pagamento confirmado", level: 1 })).toBeVisible();
+  await expect(page.getByText("Não precisa mandar comprovante.")).toBeVisible();
   await expect(page.getByRole("group", { name: "Simular o pagamento" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Copiar código Pix" })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
 
   // De volta ao negócio: paga uma vez, recebível saiu dos abertos; estorno total vinculado.
   await soft(page, "/app/pagamentos");
@@ -135,16 +151,26 @@ test("pagamentos: o link da cobrança abre mesmo recarregando a página; link de
   const url = await chargeFirst(page);
   // Recarregar (colar o link na barra): a cobrança de exemplo está guardada na sessão desta aba.
   await page.goto(url);
-  await expect(page.getByRole("heading", { name: /Pagar Barbearia do Léo/ })).toBeVisible();
-  await expect(page.getByText("Este link não é válido")).toHaveCount(0);
-  const copy = page.getByRole("button", { name: "Copiar Pix" });
+  await expect(page.getByRole("heading", { name: /^Cobrança de /, level: 1 })).toBeVisible();
+  await expect(page.getByRole("banner")).toContainText("Barbearia do Léo");
+  await expect(page.getByText("Este link de pagamento não vale mais")).toHaveCount(0);
+  const copy = page.getByRole("button", { name: "Copiar código Pix" });
   expect((await copy.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await expect(page.getByText("Ver código")).toBeVisible();
 
   // Link desconhecido (outro documento: sai de /pagar antes, senão o navegador só troca o fragmento).
   await page.goto("/app");
   await page.goto(`/pagar#t=${"x".repeat(43)}`);
-  await expect(page.getByText("Não encontramos esta cobrança. Ela pode ter sido paga, cancelada ou ter vencido. Peça um novo link a Barbearia do Léo (exemplo).")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Este link de pagamento não vale mais", level: 1 })).toBeVisible();
+  await expect(page.getByText("Ele venceu ou foi cancelado. Não pague por outro caminho sem falar com Barbearia do Léo (exemplo): peça um novo link.")).toBeVisible();
+  // Nunca um beco: há sempre uma saída, e nada de pagar por aqui.
+  await expect(page.getByRole("button", { name: "Tentar de novo" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Copiar|Pagar/ })).toHaveCount(0);
+
+  // O link pode trazer o endereço do negócio no caminho: o token sai da barra e o caminho fica.
+  await page.goto(`/pagar/barbearia-do-leo#t=${"x".repeat(43)}`);
+  await expect(page.getByRole("heading", { name: "Este link de pagamento não vale mais", level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/\/pagar\/barbearia-do-leo$/);
 });
 
 test("pagamentos: Copiar Pix dá retorno 'Copiado ✓' e avisa quando não dá para copiar", async ({ page, context }) => {

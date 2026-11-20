@@ -13,6 +13,7 @@ import {
   occupancy,
   serviceName,
 } from "./agenda.ts";
+import { seriesLabel, seriesMark } from "./series.ts";
 import { addDays, dayWindow, formatDayLong, formatDayShort, formatWeekdayDay, isCivilDate, localParts, weekStart } from "./time.ts";
 import { ErrorPanel, ListStatusBadge, ScreenNotes, useSchedulingExtensions } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
@@ -99,6 +100,8 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
   const { ctx, services, customers } = useBase();
   const ext = useSchedulingExtensions();
   const range = useRange(date, 1);
+  // Repetições conhecidas (ver port.seriesGroups): só para o indicador no cartão; sem elas a lista aparece igual.
+  const series = useAsync("series", () => port.seriesGroups());
   const tz = ctx.timezone;
   const title = `${isToday ? "Hoje · " : ""}${formatDayLong(date)}`;
 
@@ -121,6 +124,10 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
             serviceOf={(id) => serviceName(services, id)}
             customerOf={(id) => customers.find((c) => c.id === id)?.name ?? (id ? "Cliente" : "Sem cliente cadastrado")}
             freeActions={ext.freeSlotActions}
+            seriesOf={(id) => {
+              const mark = seriesMark(series.data ?? [], id);
+              return mark ? seriesLabel(mark) : null;
+            }}
             now={port.now()}
             reload={range.reload}
           />
@@ -177,6 +184,7 @@ function DayList({
   serviceOf,
   customerOf,
   freeActions,
+  seriesOf,
   now,
   reload,
 }: {
@@ -188,6 +196,8 @@ function DayList({
   serviceOf: (id: string) => string;
   customerOf: (id: string | null) => string;
   freeActions?: ReturnType<typeof useSchedulingExtensions>["freeSlotActions"];
+  /** "Repete toda semana · 3 de 16" quando o atendimento faz parte de uma repetição conhecida. */
+  seriesOf: (id: string) => string | null;
   now: Date;
   reload: () => void;
 }) {
@@ -216,6 +226,7 @@ function DayList({
                 <span className="tn-sched-item__main">
                   <span className="tn-sched-item__title">{serviceOf(b.service_id)}</span>
                   <span className="tn-muted">{customerOf(b.customer_id)}</span>
+                  {seriesOf(b.id) ? <span className="tn-muted tn-num">{seriesOf(b.id)}</span> : null}
                 </span>
                 <span className="tn-sched-item__side">
                   <ListStatusBadge status={b.status} />

@@ -8,6 +8,8 @@ import type {
   BookingCompleteInput,
   BookingConfirmInput,
   BookingCreateInput,
+  BookingCreateSeriesInput,
+  BookingCreateSeriesOutput,
   BookingNoShowInput,
   BookingRescheduleInput,
   PricingQuoteInput,
@@ -22,6 +24,7 @@ import type {
 } from "@contracts";
 import type { z } from "zod";
 import type { DayPlan } from "./agenda.ts";
+import type { SeriesGroup } from "./series.ts";
 
 export interface PublicBookingContact {
   name: string;
@@ -68,6 +71,18 @@ export interface SchedulingPort {
    */
   quote(input: z.input<typeof PricingQuoteInput>): Promise<Quote | null>;
   create(input: z.input<typeof BookingCreateInput>, idempotencyKey: string): Promise<Booking>;
+  /**
+   * Repetição semanal (`booking.create_series`): um horário por 2 a 12 semanas, sempre confirmado, pelo preço base.
+   * Com `all_or_nothing: false` o servidor cria as datas livres e devolve as que ficaram de fora; se nenhuma couber, 409.
+   */
+  createSeries(input: z.input<typeof BookingCreateSeriesInput>, idempotencyKey: string): Promise<z.infer<typeof BookingCreateSeriesOutput>>;
+  /**
+   * Repetições conhecidas. PENDÊNCIA de contrato: `booking.get` e `booking.list` não devolvem o vínculo da série, então
+   * com servidor a tela só conhece as repetições criadas neste aparelho (guardadas por `rememberSeries`).
+   */
+  seriesGroups(): Promise<SeriesGroup[]>;
+  /** Guarda os atendimentos criados juntos numa repetição, em ordem de data. Não fala com o servidor. */
+  rememberSeries(bookingIds: SeriesGroup): Promise<void>;
   reschedule(input: z.input<typeof BookingRescheduleInput>, idempotencyKey: string): Promise<Booking>;
   cancel(input: z.input<typeof BookingCancelInput>, idempotencyKey: string): Promise<Booking>;
   complete(input: z.input<typeof BookingCompleteInput>, idempotencyKey: string): Promise<Booking>;

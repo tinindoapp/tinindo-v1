@@ -115,6 +115,7 @@ export function createDemoCustomerPort(): CustomerReviewsPort {
 export function createDemoPublicPort(): PublicReviewsPort {
   return {
     kind: "demo",
+    businessName: tenantA.name,
     async list(slug) {
       // O perfil de exemplo, ou o endereço que o dono publicou nesta aba (o negócio da demonstração é um só).
       if (slug !== "barbearia-exemplo-a" && slug !== getPublishedSlug()) fail("NOT_FOUND");

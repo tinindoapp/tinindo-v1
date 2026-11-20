@@ -17,7 +17,7 @@ export interface SetupStepSpec {
 export const SETUP_STEPS: readonly SetupStepSpec[] = [
   { step: "hours", required: true, title: "Definir seus horários de atendimento", why: "Sem expediente, o link público não mostra horários e ninguém consegue reservar.", link: "/app/agenda/horarios", cta: "Definir horários" },
   { step: "service", required: true, title: "Cadastrar um serviço com duração e preço", why: "O cliente escolhe o serviço no link: a duração vira o horário e o preço vira o valor combinado.", link: "/app/clientes/servicos", cta: "Cadastrar serviço" },
-  { step: "cancellation_policy", required: true, title: "Definir a antecedência para cancelar", why: "A política aparece para o cliente antes de reservar e evita discussão depois.", link: "/app/conta", cta: "Definir antecedência" },
+  { step: "cancellation_policy", required: true, title: "Definir a antecedência para cancelar", why: "Você define até quantas horas antes o cliente cancela sem custo. É a regra que o link público mostra a quem vai reservar.", link: "/app/conta", cta: "Definir antecedência" },
   { step: "profile", required: true, title: "Publicar seu perfil e mandar o link", why: "O link público é como o cliente reserva com você. Sem ele, só por mensagem.", link: "/app/perfil", cta: "Publicar perfil" },
   { step: "first_customer", required: false, title: "Cadastrar seu primeiro cliente", why: "Com o cliente na lista, o atendimento já sai com nome e WhatsApp.", link: "/app/clientes", cta: "Cadastrar cliente" },
   { step: "photo_whatsapp", required: false, title: "Pôr foto e WhatsApp no perfil", why: "Foto e WhatsApp passam confiança a quem chega pelo link.", link: "/app/perfil", cta: "Pôr foto e WhatsApp" },

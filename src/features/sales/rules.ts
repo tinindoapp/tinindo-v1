@@ -21,6 +21,16 @@ export const STATUS_LABEL: Record<SalesQuoteStatus, string> = {
 
 // Datas no fuso do negócio: do app inteiro (src/lib/time.ts).
 export { formatDateTime, formatSlot, localDate, localToIso } from "../../lib/time.ts";
+/** "27/10": o dia da validade, no fuso do negócio. */
+export function formatDay(v: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(new Date(v));
+}
+/** Para o cliente: "quarta-feira, 21/10, das 10:00 às 10:30". */
+export function formatSlotLong(slot: { starts_at: string; ends_at: string }, timeZone: string): string {
+  const day = new Intl.DateTimeFormat("pt-BR", { timeZone, weekday: "long", day: "2-digit", month: "2-digit" }).format(new Date(slot.starts_at));
+  const t = (v: string) => new Intl.DateTimeFormat("pt-BR", { timeZone, hour: "2-digit", minute: "2-digit" }).format(new Date(v));
+  return `${day}, das ${t(slot.starts_at)} às ${t(slot.ends_at)}`;
+}
 /** Validade "por N dias": fim do dia civil local daqui a N dias. */
 export function validUntilInDays(now: Date, days: number, timeZone: string): string {
   const day = localDate(new Date(now.getTime() + days * 86_400_000), timeZone);

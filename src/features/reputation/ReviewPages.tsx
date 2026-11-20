@@ -1,18 +1,16 @@
-// Avaliações (P24): painel do dono (responder, denunciar), página do cliente para avaliar atendimentos concluídos e lista
-// pública do perfil. Selos separados: identidade verificada, atendimentos verificados, competência certificada (ainda não).
+// Avaliações (P24): painel do dono (responder, denunciar) e página do cliente para avaliar atendimentos concluídos. A lista
+// pública do perfil fica em PublicReviewsPage.tsx (pacote público, sem sessão). Selos separados: identidade verificada, atendimentos verificados, competência certificada (ainda não).
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { ActionsMenu, Button, Card, ChoiceCard, ConfirmAction, Field, Help, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { useSession } from "../../app/session.tsx";
-import { type CustomerReviewsPort, type IdentityMethod, newKey, type OwnerReviewsPort, type PublicReviewsPort, type ReportReason, type ReviewOwnerList, type ReviewPending, type ReviewPublicList } from "./port.ts";
+import { type CustomerReviewsPort, type IdentityMethod, newKey, type OwnerReviewsPort, type ReportReason, type ReviewOwnerList, type ReviewPending } from "./port.ts";
+import { Badges, ReviewSummary, ReviewView } from "./ReviewViews.tsx";
 import { plural } from "../../lib/text/plural.ts";
 
-const MONTH = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
-const monthLabel = (ym: string) => MONTH.format(new Date(`${ym}-15T12:00:00Z`));
 // Data do atendimento no fuso do piloto (o pendente não traz o fuso do negócio).
 const DAY = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
-const stars = (n: number) => `${"★".repeat(n)}${"☆".repeat(5 - n)}`;
 
 function explain(err: unknown): string {
   const e = err as { code?: string; field?: string } | null;
@@ -22,50 +20,6 @@ function explain(err: unknown): string {
   if (e?.code === "NOT_FOUND") return "Não encontrado.";
   if (e?.code === "AUTH_REQUIRED") return "Entre na sua conta para avaliar.";
   return "Não deu certo agora. Nada foi alterado; tente de novo.";
-}
-
-type Summary = ReviewPublicList["summary"];
-const decimal = (n: number) => n.toFixed(1).replace(".", ",");
-
-/** Resumo no topo (item 43): "4,7 ★ · 3 avaliações"; sem média antes de 3, diz quando ela aparece. */
-export function ReviewSummary({ s, min = 3 }: { s: Summary; min?: number }) {
-  if (s.reviews_count === 0) return <p className="tn-rev-summary">Nenhuma avaliação ainda</p>;
-  const count = plural(s.reviews_count, "avaliação", "avaliações");
-  return (
-    <p className="tn-rev-summary">
-      {s.rating_average != null ? (
-        <>
-          <span className="tn-num tn-rev-summary__avg" aria-label={`Média ${decimal(s.rating_average)} de 5`}>{decimal(s.rating_average)} ★</span> · {count}
-        </>
-      ) : (
-        <>
-          {count} <span className="tn-muted">· a média aparece a partir de {min}</span>
-        </>
-      )}
-    </p>
-  );
-}
-
-/** Selos como pílulas (item 43): só o que é verdade. Sem selo de "não verificado" nem de "não certificado". */
-export function Badges({ s }: { s: Summary }) {
-  if (!s.identity_verified && s.completed_bookings === 0 && s.reviews_count === 0) return null;
-  return (
-    <ul className="tn-rev-badges" aria-label="Selos">
-      {s.identity_verified ? <li data-on="true">✓ Identidade verificada pela equipe</li> : null}
-      {s.completed_bookings > 0 ? <li>{plural(s.completed_bookings, "atendimento concluído", "atendimentos concluídos")} na Tinindo</li> : null}
-      {s.reviews_count > 0 ? <li>Avaliações só de clientes atendidos</li> : null}
-    </ul>
-  );
-}
-
-function ReviewView({ r }: { r: ReviewPublicList["reviews"][number] }) {
-  return (
-    <>
-      <p className="tn-rev-head"><span aria-label={`${r.rating} de 5`}>{stars(r.rating)}</span> <span className="tn-muted">· {r.service_name} · {monthLabel(r.service_month)} · cliente com atendimento verificado</span></p>
-      {r.body ? <p className="tn-rev-body">{r.body}</p> : null}
-      {r.reply ? <p className="tn-rev-reply"><strong>Resposta do profissional:</strong> {r.reply.body}</p> : null}
-    </>
-  );
 }
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
@@ -475,30 +429,4 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
   );
 }
 
-/** Lista pública (/avaliacoes/:slug). */
-export function PublicReviewsPage({ port }: { port: PublicReviewsPort }) {
-  const { slug = "" } = useParams();
-  const [data, setData] = useState<{ slug: string; list: ReviewPublicList | null } | null>(null);
-  useEffect(() => {
-    let alive = true;
-    port.list(slug).then((l) => alive && setData({ slug, list: l }), () => alive && setData({ slug, list: null }));
-    return () => { alive = false; };
-  }, [port, slug]);
-  const cur = data?.slug === slug ? data : null;
-  return (
-    <main className="tn-rev-page">
-      <h1>Avaliações</h1>
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Avaliações de exemplo.</StatusBanner> : null}
-      {!cur ? <p role="status">Carregando…</p> : null}
-      {cur && !cur.list ? <p>Perfil não encontrado.</p> : null}
-      {cur?.list ? (
-        <>
-          <ReviewSummary s={cur.list.summary} min={cur.list.rules.min_reviews_for_average} />
-          <Badges s={cur.list.summary} />
-          <ul className="tn-rev-list" aria-label="Avaliações publicadas">{cur.list.reviews.map((r) => <li key={r.id} className="tn-rev-item"><ReviewView r={r} /></li>)}</ul>
-          <p><Link to={`/p/${slug}`}>Voltar ao perfil</Link></p>
-        </>
-      ) : null}
-    </main>
-  );
-}
+export { Badges, ReviewSummary };

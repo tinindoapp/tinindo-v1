@@ -9,6 +9,8 @@ export interface CalendarEvent {
   summary: string;
   description?: string;
   url?: string;
+  /** Local (endereço do ponto), quando o perfil informa (P55). */
+  location?: string;
   /** Carimbo de criação (DTSTAMP); padrão: agora. */
   now?: Date;
 }
@@ -59,6 +61,7 @@ export function buildIcs(e: CalendarEvent): string {
     `DTEND:${icsUtc(e.ends_at)}`,
     `SUMMARY:${icsText(e.summary)}`,
     ...(e.description ? [`DESCRIPTION:${icsText(e.description)}`] : []),
+    ...(e.location ? [`LOCATION:${icsText(e.location)}`] : []),
     ...(e.url ? [`URL:${e.url}`] : []),
     "END:VEVENT",
     "END:VCALENDAR",

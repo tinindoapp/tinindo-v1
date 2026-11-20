@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { whatsappHref } from "../../components/ui/index.tsx";
-import { formatDay, pixMessage, splitDescription, unknownNote } from "./labels.ts";
-import { missingText } from "./PayLinkPage.tsx";
+import { deadlineText, formatDay, missingText, pixMessage, splitDescription, unknownNote } from "./labels.ts";
 
 describe("textos de Pagamentos", () => {
   it("dia civil em dd/mm/aaaa, sem deslocar pelo fuso", () => {
@@ -29,7 +28,21 @@ describe("textos de Pagamentos", () => {
   });
 
   it("link não encontrado não culpa a cliente", () => {
-    expect(missingText("Barbearia X")).toBe("Não encontramos esta cobrança. Ela pode ter sido paga, cancelada ou ter vencido. Peça um novo link a Barbearia X.");
-    expect(missingText()).toMatch(/Peça um novo link a quem te cobrou\.$/);
+    // 05 #11: não sugere que já foi pago nem manda pagar por outro caminho.
+    expect(missingText("Barbearia X")).toBe("Ele venceu ou foi cancelado. Não pague por outro caminho sem falar com Barbearia X: peça um novo link.");
+    expect(missingText()).toMatch(/sem falar com quem te cobrou: peça um novo link\.$/);
+    expect(missingText("Barbearia X")).not.toMatch(/paga/);
+  });
+
+  it("a mensagem pronta diz quem manda quando o nome do negócio é conhecido", () => {
+    expect(pixMessage("Corte · Ana Beatriz (exemplo)", 6000, "L", "Barbearia X").replace(/\s/g, " ")).toBe("Oi, Ana! Aqui é Barbearia X. Segue o Pix de Corte de R$ 60,00: L");
+    expect(pixMessage("Produto", 3098, "L", null).replace(/\s/g, " ")).toBe("Oi! Segue o Pix de Produto de R$ 30,98: L");
+  });
+
+  it("prazo: “de hoje” no mesmo dia; com a data em outro dia", () => {
+    const tz = "America/Sao_Paulo";
+    expect(deadlineText("2026-10-20T17:35:00Z", new Date("2026-10-20T16:40:00Z"), tz)).toBe("Pague até 14:35 de hoje");
+    expect(deadlineText("2026-10-21T03:10:00Z", new Date("2026-10-21T02:50:00Z"), tz)).toBe("Pague até 00:10 de 21/10");
+    expect(deadlineText("2026-10-22T12:00:00Z", new Date("2026-10-20T16:40:00Z"), tz)).toBe("Pague até 09:00 de 22/10");
   });
 });

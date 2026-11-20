@@ -26,6 +26,7 @@ import {
 import { AttendanceActions, cashierHref, toastFailure } from "./attendance.tsx";
 import type { CreatedNotice } from "./BookingFlowPage.tsx";
 import type { Operation } from "./errors.ts";
+import { seriesLabel, seriesMark } from "./series.ts";
 import { formatDayLong, localParts } from "./time.ts";
 import { ErrorPanel, PolicyNote, ScreenNotes, StatusBadge } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
@@ -166,6 +167,10 @@ function BookingDetail({
   }, [port, booking.id, booking.source]);
   const date = localParts(booking.starts_at, tz).date;
   const who = contact?.name ?? customerRef?.name ?? null;
+  // Repetição semanal (D8 a). O servidor ainda não cancela "os próximos" de uma vez nem devolve o vínculo na leitura:
+  // a tela mostra o que conhece (port.seriesGroups) e só oferece cancelar este.
+  const series = useAsync(`series:${booking.id}`, () => port.seriesGroups());
+  const mark = seriesMark(series.data ?? [], booking.id);
 
   /** Falha de ação: painel acima do detalhe; dado desatualizado recarrega antes de nova tentativa. */
   function failed(err: unknown, op: Operation) {
@@ -281,6 +286,22 @@ function BookingDetail({
         ) : null}
         <dt>Origem</dt>
         <dd>{SOURCE_LABEL[booking.source]}</dd>
+        {mark ? (
+          <>
+            <dt>Repetição</dt>
+            <dd>
+              <span className="tn-num">{seriesLabel(mark)}</span>
+              {mark.nextId ? (
+                <>
+                  {" · "}
+                  <Link to={`../${mark.nextId}`} relative="path">
+                    Abrir o próximo
+                  </Link>
+                </>
+              ) : null}
+            </dd>
+          </>
+        ) : null}
       </dl>
 
       {canConfirmHold(booking) ? (
@@ -320,14 +341,20 @@ function BookingDetail({
         ) : null}
         {canCancel(booking) && booking.status !== "held" ? (
           <ConfirmAction
-            trigger="Cancelar atendimento"
-            title="Cancelar este atendimento?"
+            trigger={mark ? "Cancelar só este" : "Cancelar atendimento"}
+            title={mark ? "Cancelar só este atendimento?" : "Cancelar este atendimento?"}
             consequence={
               <>
                 <p>
                   O horário {formatRange(booking, tz)} fica livre para outro cliente. Nenhuma mensagem é enviada
                   automaticamente ao cliente.
                 </p>
+                {mark ? (
+                  <p>
+                    Os outros atendimentos da repetição continuam marcados. Ainda não dá para cancelar os próximos de uma
+                    vez: abra cada um e cancele.
+                  </p>
+                ) : null}
                 <PolicyNote demo={port.kind === "fixture"} />
               </>
             }

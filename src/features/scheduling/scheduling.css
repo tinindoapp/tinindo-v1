@@ -224,6 +224,25 @@
 .tn-sched-fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: var(--tn-space-3); min-width: 0; }
 .tn-sched-fieldset legend { font-weight: var(--tn-font-weight-semibold); font-size: var(--tn-text-group); margin-bottom: var(--tn-space-2); padding: 0; }
 .tn-sched-options { display: grid; gap: var(--tn-space-2); }
+/* Repetir toda semana (D8 a): o formulário da repetição ocupa o lugar da escolha de horário, com o mesmo ritmo do fluxo. */
+.tn-sched-series { display: grid; gap: var(--tn-space-5); min-width: 0; }
+.tn-sched-series__count { margin: 0; }
+.tn-sched-series__dates { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-1); }
+.tn-sched-series__dates li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--tn-space-3);
+  padding: var(--tn-space-2) var(--tn-space-3);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-sm);
+  min-width: 0;
+}
+/* Fora da repetição: tracejado, riscado e com o texto "fica de fora" (nunca só cor). */
+.tn-sched-series__dates li[data-free="false"] { border-style: dashed; background: var(--tn-surface-sunken); }
+.tn-sched-series__dates li[data-free="false"] > .tn-num { text-decoration: line-through; }
+.tn-sched-series__state { font-size: var(--tn-text-support); color: var(--tn-text-muted); }
+.tn-sched-series__dates li[data-free="false"] .tn-sched-series__state { color: var(--tn-text); font-weight: var(--tn-font-weight-medium); }
 .tn-sched-dateline { display: flex; align-items: flex-end; gap: var(--tn-space-2); }
 .tn-sched-dateline .tn-field { flex: 1; min-width: 0; }
 .tn-sched-dateline input { width: 100%; }

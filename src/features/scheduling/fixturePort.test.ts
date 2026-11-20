@@ -160,6 +160,37 @@ describe("emulação do motor de agenda (fixtures)", () => {
       .rejects.toMatchObject({ code: "POLICY_REJECTED", field: "starts_at" });
   });
 
+  it("repetição semanal: cria as datas livres, devolve as que ficaram de fora e não repete com a mesma chave", async () => {
+    const port = createFixturePort();
+    const weeks = { starts_at: "2026-10-22T00:00:00-03:00", ends_at: "2026-11-12T00:00:00-03:00" };
+    const before = (await port.listBookings(weeks)).length;
+    // Quinta 22/10 às 09:00 já tem o Corte da Ana: fica de fora; 29/10 e 05/11 entram.
+    const series = {
+      customer_id: FX.customers.guestInA, guest_ref: null, service_id: FX.services.corteA, resource_id: FX.resources.A,
+      slot: { starts_at: "2026-10-22T09:00:00-03:00", ends_at: "2026-10-22T09:30:00-03:00" }, weeks: 3,
+    };
+    await expect(port.createSeries({ ...series, all_or_nothing: true }, K1)).rejects.toMatchObject({ code: "SLOT_CONFLICT", field: "series" });
+    expect(await port.listBookings(weeks)).toHaveLength(before);
+
+    const out = await port.createSeries({ ...series, all_or_nothing: false }, K2);
+    expect(out.created.map((b) => b.starts_at)).toEqual(["2026-10-29T09:00:00-03:00", "2026-11-05T09:00:00-03:00"]);
+    expect(out.created[0]).toMatchObject({ status: "confirmed", agreed_price_cents: 6000, source: "owner", customer_id: FX.customers.guestInA });
+    expect(out.conflicts).toEqual([{ starts_at: "2026-10-22T09:00:00-03:00", ends_at: "2026-10-22T09:30:00-03:00" }]);
+    expect(await port.createSeries({ ...series, all_or_nothing: false }, K2)).toEqual(out);
+    expect(await port.listBookings(weeks)).toHaveLength(before + 2);
+    await expect(port.createSeries({ ...series, weeks: 4, all_or_nothing: false }, K2)).rejects.toMatchObject({ code: "IDEMPOTENCY_MISMATCH" });
+  });
+
+  it("repetição semanal: fora do expediente em todas as datas é 409; passado e contrato inválido são recusados", async () => {
+    const port = createFixturePort();
+    const at = (date: string, from: string, to: string) => ({ starts_at: `${date}T${from}:00-03:00`, ends_at: `${date}T${to}:00-03:00` });
+    const series = { customer_id: null, guest_ref: null, service_id: FX.services.corteA, resource_id: FX.resources.A, weeks: 2, all_or_nothing: false };
+    await expect(port.createSeries({ ...series, slot: at("2026-10-22", "07:00", "07:30") }, "chave-teste-0000000011")).rejects.toMatchObject({ code: "SLOT_CONFLICT" });
+    await expect(port.createSeries({ ...series, slot: at("2026-10-19", "10:00", "10:30") }, "chave-teste-0000000012")).rejects.toMatchObject({ code: "VALIDATION_ERROR", field: "slot" });
+    await expect(port.createSeries({ ...series, slot: at("2026-10-22", "10:00", "11:00") }, "chave-teste-0000000013")).rejects.toMatchObject({ code: "VALIDATION_ERROR", field: "slot" });
+    await expect(port.createSeries({ ...series, weeks: 13, slot: at("2026-10-22", "10:00", "10:30") }, "chave-teste-0000000014")).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
   it("lista de espera de exemplo: a mesma entrada da tela Lista de espera", async () => {
     const [entry] = await createFixturePort().waitlistEntries();
     expect(entry).toMatchObject({ customer_id: FX.customers.abInA, status: "active", acceptable_windows: [{ weekday: 3 }] });
