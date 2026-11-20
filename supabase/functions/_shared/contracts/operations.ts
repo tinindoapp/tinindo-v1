@@ -97,7 +97,7 @@ export const OPERATIONS = {
   },
   "customer.upsert": {
     module: "crm", owner: "P02", kind: "command", idempotent: true,
-    input: catalog.CustomerUpsertInput, output: catalog.CustomerUpsertOutput,
+    input: crm.CrmCustomerUpsertInput, output: crm.CrmCustomerUpsertOutput,
   },
   "service.save": {
     module: "crm", owner: "P02", kind: "command", idempotent: true,
@@ -106,6 +106,10 @@ export const OPERATIONS = {
   "customer.archive": {
     module: "crm", owner: "P02", kind: "command", idempotent: true,
     input: crm.CustomerArchiveInput, output: crm.CustomerArchiveOutput,
+  },
+  "customer.get": {
+    module: "crm", owner: "P02", kind: "query", idempotent: false,
+    input: crm.CustomerGetQuery, output: crm.CustomerGetOutput,
   },
   "customer.list": {
     module: "crm", owner: "P02", kind: "query", idempotent: false,
@@ -158,6 +162,14 @@ export const OPERATIONS = {
   "booking.create_series": {
     module: "scheduling", owner: "P03", kind: "command", idempotent: true,
     input: scheduling.BookingCreateSeriesInput, output: scheduling.BookingCreateSeriesOutput,
+  },
+  "booking.series": {
+    module: "scheduling", owner: "P03", kind: "query", idempotent: false,
+    input: scheduling.BookingSeriesInput, output: scheduling.BookingSeriesOutput,
+  },
+  "booking.cancel_series_from": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.BookingCancelSeriesFromInput, output: scheduling.BookingCancelSeriesFromOutput,
   },
   "booking.list": {
     module: "scheduling", owner: "P03", kind: "query", idempotent: false,

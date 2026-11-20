@@ -4,33 +4,18 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { Button, ConfirmAction, Field, StatusBanner, toast, whatsappHref } from "../../../components/ui/index.tsx";
 import { ApiError } from "../../../lib/api/client.ts";
-import { formatTime } from "../../../lib/time.ts";
+import { useCommand, useIdempotencyKey } from "../../../lib/idempotency.ts";
+import { takeLinkToken } from "../../../lib/public-link.ts";
+import { formatTime, formatWeekdayLongDate } from "../../../lib/time.ts";
 import type { BookingView, LinkReview } from "../api.ts";
 import { BookingFacts } from "../PublicProfileView.tsx";
-import { PublicFrame, PublicMissing, PublicSkeleton, type PublicBusiness, usePublicBusiness } from "../public-kit.tsx";
-import { newIdempotencyKey } from "./labels.ts";
-import { usePublicNetworkApi } from "./anon.ts";
+import { PublicFrame, PublicMissing, PublicSkeleton, type PublicBusiness, usePublicBusiness } from "../../../components/public/public-kit.tsx";
+import { networkBusinessReader, usePublicNetworkApi } from "./anon.ts";
 import "../network.css";
 
 const KEY = "tinindo.reserva";
 
-function takeToken(): string | null {
-  const m = /(?:^#|&)t=([A-Za-z0-9_-]{43})(?:&|$)/.exec(window.location.hash);
-  if (m?.[1]) {
-    try {
-      sessionStorage.setItem(KEY, m[1]);
-    } catch {
-      /* sem armazenamento: vale enquanto a página estiver aberta */
-    }
-    window.history.replaceState(window.history.state, "", window.location.pathname);
-    return m[1];
-  }
-  try {
-    return sessionStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
+const takeToken = () => takeLinkToken(KEY);
 
 const STATUS: Record<string, string> = {
   confirmed: "Confirmado",
@@ -42,8 +27,7 @@ const STATUS: Record<string, string> = {
 };
 const RATING_WORDS = ["Ruim", "Regular", "Bom", "Muito bom", "Excelente"] as const;
 
-const dayText = (iso: string, timeZone: string) =>
-  new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone }).format(new Date(iso));
+const dayText = formatWeekdayLongDate;
 
 function reviewError(e: unknown): string {
   if (e instanceof ApiError && e.field === "already_reviewed") return "Este atendimento já foi avaliado.";
@@ -58,7 +42,8 @@ function ReviewForm({ token, business, onDone }: { token: string; business: stri
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const [key] = useState(newIdempotencyKey);
+  // Mesma nota e mesmo texto depois de uma falha: mesma chave (o servidor não publica duas vezes).
+  const idem = useIdempotencyKey();
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!rating) {
@@ -72,7 +57,10 @@ function ReviewForm({ token, business, onDone }: { token: string; business: stri
     setBusy(true);
     setProblem(null);
     try {
-      onDone(await api.reviewByLink(token, rating, text.trim() || null, key));
+      const body = text.trim() || null;
+      const review = await api.reviewByLink(token, rating, body, idem.keyFor({ token, rating, body }));
+      idem.reset();
+      onDone(review);
       toast("Obrigado! Sua avaliação foi publicada sem o seu nome.");
     } catch (err) {
       setProblem(reviewError(err));
@@ -108,11 +96,12 @@ function ReviewForm({ token, business, onDone }: { token: string; business: stri
 export function ReservationPage() {
   const { slug } = useParams();
   const api = usePublicNetworkApi();
-  const fromSlug = usePublicBusiness(slug);
+  const fromSlug = usePublicBusiness(slug, networkBusinessReader);
   const [token] = useState(takeToken);
   const [view, setView] = useState<BookingView | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing">(token ? "loading" : "missing");
   const [review, setReview] = useState<LinkReview | null>(null);
+  const command = useCommand();
 
   useEffect(() => {
     if (!token) return;
@@ -186,7 +175,7 @@ export function ReservationPage() {
                 consequence={<p>Ela sai da página de {name} e este atendimento não pode ser avaliado de novo.</p>}
                 confirmLabel="Sim, retirar"
                 onConfirm={() =>
-                  api.withdrawByLink(token, newIdempotencyKey()).then(
+                  command({ withdraw: token }, (key) => api.withdrawByLink(token, key)).then(
                     (r) => { setReview(r); toast("Avaliação retirada."); },
                     () => toast({ tone: "danger", message: "Não foi possível retirar agora. Tente de novo." }),
                   )

@@ -371,3 +371,9 @@
 .tn-sched-confirmbar__summary { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--tn-font-weight-medium); }
 /* O foco que cai atrás das barras presas sobe para cima delas (WCAG 2.4.11). */
 html:has(.tn-sched-confirmbar, .tn-sched-savebar) { scroll-padding-bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + 96px); }
+
+/* Link da reserva para o cliente (P55): o link é longo e quebra em qualquer ponto, sem rolagem lateral. */
+.tn-sched-link { display: grid; gap: var(--tn-space-2); margin-top: var(--tn-space-4); padding-top: var(--tn-space-4); border-top: 1px solid var(--tn-border); min-width: 0; }
+.tn-sched-link h3 { margin: 0; font-size: var(--tn-text-group); }
+.tn-sched-link p { margin: 0; }
+.tn-sched-notice { overflow-wrap: anywhere; }

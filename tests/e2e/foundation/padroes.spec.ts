@@ -18,10 +18,7 @@ type LowContrast = { key: string; ratio: number; min: number; colors: string };
  * falha se uma linha daqui deixar de ocorrer (aí é só apagar a linha).
  * `where` = rota · seletor · "texto", como sai na mensagem de falha. `ratio` é a razão medida, só para registro.
  */
-const KNOWN_LOW_CONTRAST: readonly { where: string; scheme: Scheme; ratio: number }[] = [
-  // --tn-text-muted sobre --tn-surface-sunken no tema claro (src/features/setup/setup.css, .tn-setup-step__tag).
-  { where: '/app/configurar · span.tn-setup-step__tag · "opcional"', scheme: "light", ratio: 4.49 },
-];
+const KNOWN_LOW_CONTRAST: readonly { where: string; scheme: Scheme; ratio: number }[] = [];
 
 /** Problemas de padrão visíveis na tela atual (vazio = ok) e os textos com contraste abaixo do mínimo. */
 async function audit(page: Page, width: number): Promise<{ problems: string[]; lowContrast: LowContrast[]; measured: number }> {

@@ -425,6 +425,15 @@ describe("onda 3 da auditoria de UX (itens 19, 28, 29, 30, 32 e 34)", () => {
     expect(notice).toHaveTextContent("Texto pronto para você compartilhar");
     expect(notice).toHaveTextContent("Abrir não confirma que chegou.");
     expect(notice).not.toHaveTextContent(/enviad/i);
+
+    // Observação do P56/P59: depois de reagendar, o aviso mostrava a data antiga. Agora o texto sai do atendimento como
+    // ele está, e reagendar oferece o aviso com a data nova.
+    fireEvent.click(screen.getByRole("link", { name: "Reagendar" }));
+    fireEvent.click(await screen.findByRole("button", { name: "14:00" }, SLOW));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar reagendamento" }));
+    const moved = await screen.findByRole("region", { name: "Avise o cliente" }, SLOW);
+    expect(moved).toHaveTextContent("Olá, Carla Teste! Seu horário de Corte na Barbearia Exemplo A foi remarcado para terça-feira, 20 de outubro, às 14:00.");
+    expect(moved).not.toHaveTextContent("13:00");
   });
 
   it("cliente sem WhatsApp no cadastro: agendar não oferece o aviso (P49)", async () => {
@@ -495,32 +504,5 @@ describe("horários: resumo por dia, copiar a segunda e aviso ao sair (item 28)"
     await screen.findByRole("group", { name: "Segunda" }, SLOW);
     act(() => void router.navigate("/app/agenda"));
     await waitFor(() => expect(router.state.location.pathname).toBe("/app/agenda"));
-  });
-});
-
-describe("Mandar link da reserva (P55, D20, recado #119)", () => {
-  it("com servidor: gera o link uma vez (mesma chave ao tentar de novo) e abre o WhatsApp com o texto pronto", async () => {
-    const port = createFixturePort();
-    const issue = vi.fn()
-      .mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" })
-      .mockResolvedValueOnce({ url: "https://app.exemplo.test/reserva/barbearia#t=abc" });
-    port.issueBookingLink = issue;
-    renderAt(`/app/agenda/atendimento/${FIRST}`, null, port);
-    const button = await screen.findByRole("button", { name: "Mandar link da reserva" }, SLOW);
-    await act(async () => { fireEvent.click(button); });
-    expect(await screen.findByText(/Tentar de novo é seguro/)).toBeInTheDocument();
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Mandar link da reserva" })); });
-    const section = await screen.findByRole("region", { name: "Link da reserva" });
-    expect(issue).toHaveBeenCalledTimes(2);
-    expect(issue.mock.calls[0]![0]).toBe(FIRST);
-    expect(issue.mock.calls[1]![1]).toBe(issue.mock.calls[0]![1]);
-    const wa = within(section).getByRole("link", { name: /WhatsApp/ });
-    expect(wa.getAttribute("href")).toContain(encodeURIComponent("https://app.exemplo.test/reserva/barbearia#t=abc"));
-  });
-
-  it("na demonstração (sem issueBookingLink) o botão não aparece", async () => {
-    renderAt(`/app/agenda/atendimento/${FIRST}`);
-    await screen.findByRole("heading", { level: 2 }, SLOW);
-    expect(screen.queryByRole("button", { name: "Mandar link da reserva" })).toBeNull();
   });
 });

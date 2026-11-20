@@ -1,6 +1,6 @@
 // Roteador central (dono: integrador). Módulos entram via src/app/modules.ts.
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
-import { PublicRecoverPassword, PublicSignUp } from "../features/identity/module.tsx";
+import { identityPublicRoutes } from "../features/identity/module.tsx";
 import { networkPublicRoutes } from "../features/network/module.tsx";
 import { waitlistPublicRoutes } from "../features/waitlist/module.tsx";
 import { salesPublicRoutes } from "../features/sales/module.tsx";
@@ -9,6 +9,7 @@ import { presencePublicRoutes } from "../features/presence/module.tsx";
 import { discoveryPublicRoutes } from "../features/discovery/module.tsx";
 import { reputationPublicRoutes } from "../features/reputation/module.tsx";
 import { AppShell } from "./AppShell.tsx";
+import { ModuleError, RouteLoading } from "./ModuleError.tsx";
 import { ModuleGate } from "./ModuleGate.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
@@ -22,12 +23,13 @@ export const routes: RouteObject[] = [
     // RouteFrame: título e foco por rota em todas as páginas (shell e públicas).
     element: <RouteFrame />,
     errorElement: <RouteError />,
+    // Primeira abertura numa rota carregada sob demanda (P53): o pedaço da tela ainda está chegando.
+    hydrateFallbackElement: <RouteLoading />,
     children: [
       { path: "/", element: <Navigate to="/app" replace /> },
       { path: "/entrar", element: <SignIn /> },
       // Cadastro e recuperação de senha (P01) ficam fora do shell, que manda quem não tem sessão para /entrar.
-      { path: "/criar-conta", element: <PublicSignUp /> },
-      { path: "/recuperar-senha", element: <PublicRecoverPassword /> },
+      ...identityPublicRoutes,
       // Páginas públicas fora do shell autenticado: perfil por slug, convite e indicação (P09).
       ...networkPublicRoutes,
       // Link da oferta de vaga (P06): anônimo, token no fragmento, aceite só por ação explícita.
@@ -48,7 +50,8 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: <Home /> },
           // P51: toda rota de módulo passa pela porta; módulo guardado ou desligado explica e oferece saída.
-          ...MODULES.map((m) => ({ path: m.path, element: <ModuleGate module={m} />, children: m.routes })),
+          // P53: erro numa tela do módulo fica no lugar dela, dentro do shell (o menu e os outros módulos seguem).
+          ...MODULES.map((m) => ({ path: m.path, element: <ModuleGate module={m} />, errorElement: <ModuleError module={m} />, children: m.routes })),
         ],
       },
       { path: "*", element: <NotFound /> },

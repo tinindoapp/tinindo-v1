@@ -6,9 +6,10 @@ import { Link } from "react-router";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type Tone } from "../../components/ui/index.tsx";
 import { CHARGE_STATUS, DIFF_LABEL, explain, FAILURE_REASON, formatCents, formatDateTime, formatDay, PROVIDER_LABEL, REFUND_STATUS, todayIn, unknownNote } from "./labels.ts";
 import { CodeDetails, CopyButton, ShareCharge } from "./Share.tsx";
-import { type ChargesList, newKey, type PaymentCharge, type PaymentProvider, type PaymentsPort, type Receivable, type Reconciliation } from "./port.ts";
+import { type ChargesList, type PaymentCharge, type PaymentProvider, type PaymentsPort, type Receivable, type Reconciliation } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { plural } from "../../lib/text/plural.ts";
-import { withBusinessSlug } from "./public-kit.tsx";
+import { withBusinessSlug } from "../../components/public/public-kit.tsx";
 
 /** Retorno de uma ação: sai num aviso curto (Toast), sempre à vista. A lista mostra o estado que fica. */
 const notify = (tone: Tone, text: string) => toast({ message: text, tone });
@@ -23,7 +24,8 @@ type Created = { description: string; amount_cents: number; pix_code: string | n
 function ChargeForm({ port, receivables, onDone }: { port: PaymentsPort; receivables: Receivable[]; onDone: (created?: Created) => void }) {
   const [receivableId, setReceivableId] = useState(receivables[0]?.id ?? "");
   const [provider, setProvider] = useState<PaymentProvider>("simulated");
-  const [key, setKey] = useState(newKey);
+  // Mesmo recebível e mesmo meio depois de uma falha: mesma chave (o servidor não cria duas cobranças).
+  const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
   // Falha ao cobrar fica perto do formulário, para corrigir e tentar de novo.
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +36,8 @@ function ChargeForm({ port, receivables, onDone }: { port: PaymentsPort; receiva
     setBusy(true);
     setError(null);
     try {
-      const c = await port.createCharge(chosen.id, provider, key);
-      setKey(newKey());
+      const c = await port.createCharge(chosen.id, provider, idem.keyFor({ receivable: chosen.id, provider }));
+      idem.reset();
       if (c.charge.status === "pending") {
         notify("success", `Cobrança de ${formatCents(c.charge.amount_cents)} criada. Envie o Pix ou o link à cliente.`);
         onDone(c.pay_url ? { description: c.charge.description, amount_cents: c.charge.amount_cents, pix_code: c.charge.pix_code, url: c.pay_url } : undefined);
@@ -47,7 +49,6 @@ function ChargeForm({ port, receivables, onDone }: { port: PaymentsPort; receiva
         onDone();
       }
     } catch (err) {
-      setKey(newKey());
       setError(explain(err));
       onDone();
     } finally {
@@ -72,9 +73,11 @@ function ChargeForm({ port, receivables, onDone }: { port: PaymentsPort; receiva
 /** Estorno mexe em dinheiro e não volta atrás: confirma com o valor e pede o motivo. */
 function RefundForm({ port, charge, onDone }: { port: PaymentsPort; charge: PaymentCharge; onDone: () => void }) {
   const [reason, setReason] = useState("");
+  const command = useCommand();
   async function confirm() {
     try {
-      const f = await port.refund(charge.id, reason.trim(), newKey());
+      const why = reason.trim();
+      const f = await command({ refund: charge.id, reason: why }, (key) => port.refund(charge.id, why, key));
       if (f.status === "done") notify("success", `Estorno de ${formatCents(f.amount_cents)} confirmado pelo banco. O recebimento foi revertido no caixa.`);
       else if (f.status === "failed") notify("danger", "O banco recusou o estorno. Nada mudou no caixa.");
       else notify("warning", "Estorno pedido; o banco ainda não confirmou. O caixa só muda com a confirmação.");
@@ -116,6 +119,8 @@ export function PaymentsPage({ port, timezone, business }: {
   const [recError, setRecError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [nonce, setNonce] = useState(0);
+  // Cancelar e conferir: falhou, tocar de novo manda a mesma chave.
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -135,7 +140,7 @@ export function PaymentsPage({ port, timezone, business }: {
   };
   async function cancelCharge(c: PaymentCharge) {
     try {
-      await port.cancelCharge(c, newKey());
+      await command({ cancel: c.id, version: c.version }, (key) => port.cancelCharge(c, key));
       notify("success", "Cobrança cancelada. Se a cliente já tiver pago, a conferência do dia vai apontar.");
       done();
     } catch (err) {
@@ -161,7 +166,7 @@ export function PaymentsPage({ port, timezone, business }: {
     setRecBusy(true);
     setRecError(null);
     try {
-      const r = await port.reconcile("simulated", day, newKey());
+      const r = await command({ reconcile: day }, (key) => port.reconcile("simulated", day, key));
       if (r.differences.length === 0) notify("success", `Conferência de ${formatDay(day)}: extrato e caixa batem (${formatCents(r.report_paid_cents)}).`);
       else notify("warning", `Conferência de ${formatDay(day)}: ${plural(r.differences.length, "diferença listada", "diferenças listadas")} abaixo. Nada foi corrigido automaticamente.`);
       done();
@@ -233,6 +238,7 @@ export function PaymentsPage({ port, timezone, business }: {
             );
           })}
         </ul>
+        {list?.truncated?.charges ? <p className="tn-muted">Mostrando as 200 cobranças mais recentes.</p> : null}
       </Card>
 
       <Card aria-labelledby="pay-rec-title">

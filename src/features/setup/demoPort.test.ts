@@ -4,7 +4,7 @@ import { demoSetupDismiss, demoSetupProgress, readDemoSetup } from "../../lib/de
 import { resetDemoJourney, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { SETUP_STEPS } from "../../lib/setup/steps.ts";
 import { createDemoPort, demoSetupEvents, resetDemoState } from "./demoPort.ts";
-import { newKey } from "./port.ts";
+import { newIdempotencyKey as newKey } from "../../lib/idempotency.ts";
 
 beforeEach(() => {
   resetDemoState();

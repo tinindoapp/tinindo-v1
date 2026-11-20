@@ -81,7 +81,9 @@ describe("repetir toda semana (demonstração sobre fixtures)", () => {
     });
     expect(key).toMatch(/^[0-9a-f-]{36}-d4$/);
     expect(await port.listBookings(THURSDAYS)).toHaveLength(before + 2);
-    expect((await port.seriesGroups())[0]).toHaveLength(2);
+    // O vínculo vem do servidor: os criados têm o mesmo series_id.
+    const created = (await port.listBookings(THURSDAYS)).filter((b) => b.series_id);
+    expect(new Set(created.map((b) => b.series_id)).size).toBe(1);
   });
 
   it("valida no envio: dias, cliente e a data final; 'Até uma data' vira semanas", async () => {
@@ -106,14 +108,16 @@ describe("repetir toda semana (demonstração sobre fixtures)", () => {
     expect(createSeries).not.toHaveBeenCalled();
   });
 
-  it("falha de rede no meio: a nova tentativa sai com as mesmas chaves e não cria em dobro", async () => {
+  it("resposta perdida: a nova tentativa sai com a mesma chave e não cria em dobro; quinta e sexta numa série só", async () => {
     const port = createFixturePort();
     const real = port.createSeries.bind(port);
     let calls = 0;
-    const createSeries = vi.spyOn(port, "createSeries").mockImplementation((input, key) => {
+    const createSeries = vi.spyOn(port, "createSeries").mockImplementation(async (input, key) => {
       calls += 1;
-      // A segunda chamada (sexta) cai; a quinta já tinha sido gravada.
-      return calls === 2 ? Promise.reject(new TypeError("Failed to fetch")) : real(input, key);
+      // A primeira chamada é gravada no servidor, mas a resposta se perde no caminho.
+      const out = await real(input, key);
+      if (calls === 1) throw new TypeError("Failed to fetch");
+      return out;
     });
     const form = await openSeries(port, ["Quinta", "Sexta"], "09:00", "2");
     await within(form).findByRole("list", { name: "Datas da repetição" }, SLOW);
@@ -121,22 +125,20 @@ describe("repetir toda semana (demonstração sobre fixtures)", () => {
     fireEvent.click(within(form).getByRole("button", { name: "Confirmar repetição" }));
 
     expect(await within(form).findByText("Não deu para concluir a repetição", undefined, SLOW)).toBeInTheDocument();
-    expect(within(form).getByText(/Uma parte já foi criada \(1 agendamento\)\. Tentar de novo é seguro/)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /criados?$/ })).not.toBeInTheDocument();
 
     fireEvent.click(within(form).getByRole("button", { name: "Tentar de novo" }));
-    // Quinta: 22/10 em conflito, 29/10 criada. Sexta: 23/10 e 30/10 criadas.
+    // Quinta 22/10 em conflito; quinta 29/10, sexta 23/10 e sexta 30/10 criadas.
     expect(await screen.findByRole("heading", { name: "3 agendamentos criados" }, SLOW)).toBeInTheDocument();
-    expect(createSeries).toHaveBeenCalledTimes(4);
-    const [thu1, fri1, thu2, fri2] = createSeries.mock.calls;
-    expect(thu2).toEqual(thu1);
-    expect(fri2).toEqual(fri1);
-    expect(thu1![1]).toMatch(/-d4$/);
-    expect(fri1![1]).toMatch(/-d5$/);
-    expect(thu1![1].slice(0, 36)).toBe(fri1![1].slice(0, 36));
-    // A quinta 29/10 foi gravada uma vez só, apesar de a chamada ter saído duas vezes.
+    expect(createSeries).toHaveBeenCalledTimes(2);
+    const [first, retry] = createSeries.mock.calls;
+    expect(retry).toEqual(first);
+    expect(first![0]).toMatchObject({ weekdays: [4, 5], weeks: 2 });
+    expect(first![1]).toMatch(/-d45$/);
+    // Gravado uma vez só, apesar de a chamada ter saído duas vezes, e com um series_id.
     const made = (await port.listBookings(THURSDAYS)).filter((b) => b.customer_id === FX.customers.guestInA && b.starts_at.includes("T09:00"));
     expect(made.map((b) => b.starts_at.slice(0, 10))).toEqual(["2026-10-23", "2026-10-29", "2026-10-30"]);
+    expect(new Set(made.map((b) => b.series_id)).size).toBe(1);
   });
 });
 
@@ -147,17 +149,16 @@ describe("repetição na Agenda e no detalhe", () => {
       customer_id: FX.customers.guestInA, guest_ref: null, service_id: FX.services.corteA, resource_id: FX.resources.A,
       slot: { starts_at: "2026-10-23T10:00:00-03:00", ends_at: "2026-10-23T10:30:00-03:00" }, weeks: 3, all_or_nothing: false,
     }, "chave-teste-serie-0001");
-    await port.rememberSeries(out.created.map((b) => b.id));
     return { port, ids: out.created.map((b) => b.id) };
   }
 
-  it("detalhe mostra 'Repete toda semana · 1 de 3' e só oferece cancelar este", async () => {
+  it("detalhe mostra 'Repete toda semana · 1 de 3'; 'Cancelar só este' deixa os outros marcados", async () => {
     const { port, ids } = await seeded();
     renderAt(`/app/agenda/atendimento/${ids[0]}`, port);
     expect(await screen.findByText("Repete toda semana · 1 de 3", undefined, SLOW)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir o próximo" })).toHaveAttribute("href", `/app/agenda/atendimento/${ids[1]}`);
     expect(screen.queryByRole("button", { name: "Cancelar atendimento" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Cancelar os próximos/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancelar os próximos" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar só este" }));
     expect(screen.getByText(/Os outros atendimentos da repetição continuam marcados/)).toBeInTheDocument();
@@ -176,5 +177,37 @@ describe("repetição na Agenda e no detalhe", () => {
     const list = await screen.findByRole("list", { name: /Linha do tempo de sexta-feira, 30 de outubro/ }, SLOW);
     expect(await within(list).findByText("Repete toda semana · 2 de 3")).toBeInTheDocument();
     expect(within(list).getAllByText(/Repete toda semana/)).toHaveLength(1);
+  });
+
+  it("'Cancelar os próximos' pede confirmação com motivo e cancela este e os seguintes de uma vez", async () => {
+    const { port, ids } = await seeded();
+    const spy = vi.spyOn(port, "cancelSeriesFrom");
+    renderAt(`/app/agenda/atendimento/${ids[1]}`, port);
+    expect(await screen.findByText("Repete toda semana · 2 de 3", undefined, SLOW)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar os próximos" }));
+    expect(screen.getByText("Cancelar este e os próximos 1?")).toBeInTheDocument();
+    expect(screen.getByText(/2 atendimentos da repetição/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sim, cancelar 2" }));
+    expect(await screen.findByText("Informe o motivo do cancelamento.")).toBeInTheDocument();
+    expect(spy).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Motivo"), { target: { value: "Aluno mudou de academia" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sim, cancelar 2" }));
+    await waitFor(async () => expect((await port.getBooking(ids[2]!)).status).toBe("cancelled"));
+    expect((await port.getBooking(ids[1]!)).status).toBe("cancelled");
+    expect((await port.getBooking(ids[0]!)).status).toBe("confirmed");
+    expect((await port.getBooking(ids[2]!)).status_reason).toBe("Aluno mudou de academia");
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("'Mandar link da reserva' gera o link e abre o WhatsApp com o texto pronto", async () => {
+    const { port, ids } = await seeded();
+    const opened = { location: { href: "" }, close: vi.fn() };
+    const open = vi.spyOn(window, "open").mockReturnValue(opened as unknown as Window);
+    renderAt(`/app/agenda/atendimento/${ids[0]}`, port);
+    fireEvent.click(await screen.findByRole("button", { name: "Mandar link da reserva" }, SLOW));
+    expect(await screen.findByText(/Veja os detalhes da reserva por este link: http.*\/reserva#t=/)).toBeInTheDocument();
+    expect(screen.getByText(/Demonstração: o link é de exemplo/)).toBeInTheDocument();
+    if (opened.location.href) expect(opened.location.href).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+    open.mockRestore();
   });
 });

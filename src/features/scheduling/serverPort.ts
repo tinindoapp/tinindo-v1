@@ -1,12 +1,15 @@
 // Implementação real da porta: Edge Functions por módulo (ADR-0002), envelope v1 validado.
 // Agenda e expediente: `scheduling` (P03). Serviços e clientes: `crm` (P02).
 // Cotação: `pricing` (P05). A cotação não segura horário; a reserva valida e consome a cotação no banco.
+import { now } from "../../lib/time.ts";
 import {
   AvailabilityListOutput,
+  BookingCancelSeriesFromOutput,
   BookingCreateSeriesOutput,
   BookingLinkIssueOutput,
   BookingListOutput,
   BookingOutput,
+  BookingSeriesOutput,
   ContextResponse,
   CRM_ROUTES,
   CrmCustomerUpsertOutput,
@@ -20,44 +23,15 @@ import {
   WaitlistListOutput,
 } from "@contracts";
 import type { z } from "zod";
-import { ApiError, type createApiClient } from "../../lib/api/client.ts";
+import { ApiError } from "../../lib/api/client.ts";
+import type { ApiCall } from "../../lib/api/session-client.ts";
+import { newIdempotencyKey } from "../../lib/idempotency.ts";
 import type { CustomerRef, SchedulingPort } from "./port.ts";
-import type { SeriesGroup } from "./series.ts";
 
-type Call = ReturnType<typeof createApiClient>;
+type Call = ApiCall;
 
 /** Teto de páginas por leitura de lista (100 itens cada): protege a tela de laço infinito. */
 const MAX_PAGES = 10;
-
-/** Quantas repetições o aparelho lembra por negócio (as mais novas ficam). */
-const MAX_REMEMBERED_SERIES = 60;
-
-/**
- * Vínculo da repetição guardado no aparelho: o contrato v1 não devolve `series_id` em `booking.get`/`booking.list`.
- * Vale só para o indicador "Repete toda semana"; sem armazenamento (modo privado), o indicador some e nada mais muda.
- */
-function seriesMemory(tenantId: string) {
-  const storageKey = `tinindo.agenda.series.${tenantId}`;
-  const read = (): SeriesGroup[] => {
-    try {
-      const raw: unknown = JSON.parse(globalThis.localStorage?.getItem(storageKey) ?? "[]");
-      if (!Array.isArray(raw)) return [];
-      return raw.filter((g): g is SeriesGroup => Array.isArray(g) && g.every((id) => typeof id === "string"));
-    } catch {
-      return [];
-    }
-  };
-  return {
-    read,
-    add(group: SeriesGroup) {
-      try {
-        globalThis.localStorage?.setItem(storageKey, JSON.stringify([...read(), group].slice(-MAX_REMEMBERED_SERIES)));
-      } catch {
-        // Sem espaço ou sem permissão: fica sem o indicador.
-      }
-    },
-  };
-}
 
 export function createServerPort(call: Call, tenantId: string): SchedulingPort {
   const post = (body: unknown, idempotencyKey?: string) => ({
@@ -68,7 +42,6 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
   });
   const scheduling = (op: string) => `/scheduling/${op}`;
 
-  const memory = seriesMemory(tenantId);
 
   async function settings() {
     const { data } = await call(scheduling("schedule.settings"), ScheduleSettings, post({}));
@@ -77,7 +50,7 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
 
   return {
     kind: "server",
-    now: () => new Date(),
+    now,
     async context() {
       const [ctx, s] = await Promise.all([call("/context", ContextResponse, { tenantId }), settings()]);
       return { tenantId: ctx.data.tenant_id, tenantName: ctx.data.tenant_name, timezone: s.timezone, resourceId: s.resource_id };
@@ -121,11 +94,6 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
         throw err;
       }
     },
-    async issueBookingLink(bookingId, key) {
-      // P55 (D20): link com token para o cliente ver a reserva e avaliar sem conta. Mesma chave = mesmo link.
-      const { data } = await call("/network/booking_link.issue", BookingLinkIssueOutput, post({ booking_id: bookingId }, key));
-      return { url: data.url };
-    },
     async getBooking(id) {
       const { data } = await call(scheduling("booking.get"), BookingOutput, post({ booking_id: id }));
       return data.booking;
@@ -150,9 +118,18 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
       const { data } = await call(scheduling("booking.create_series"), BookingCreateSeriesOutput, post(input, key));
       return data;
     },
-    seriesGroups: async () => memory.read(),
-    async rememberSeries(group) {
-      if (group.length > 1) memory.add(group);
+    async series(seriesId) {
+      const { data } = await call(scheduling("booking.series"), BookingSeriesOutput, post({ series_id: seriesId }));
+      return data.bookings;
+    },
+    async cancelSeriesFrom(input, key) {
+      const { data } = await call(scheduling("booking.cancel_series_from"), BookingCancelSeriesFromOutput, post(input, key));
+      return { cancelled: data.cancelled, kept: data.kept };
+    },
+    async bookingLink(bookingId) {
+      // Um link novo por pedido; não há o que repetir (sem chave de idempotência no contrato).
+      const { data } = await call("/network/booking_link.issue", BookingLinkIssueOutput, post({ booking_id: bookingId }, newIdempotencyKey()));
+      return { url: data.url, demo: false };
     },
     async reschedule(input, key) {
       const { data } = await call(scheduling("booking.reschedule"), BookingOutput, post(input, key));

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { readLinkToken, takeLinkToken } from "./public-link.ts";
+import { forgetLinkToken, readLinkToken, takeLinkToken } from "./public-link.ts";
 
 const TOKEN = "A".repeat(20) + "b_-".repeat(7) + "Zz"; // 43 caracteres
 const KEY = "tinindo.teste";
@@ -35,5 +35,15 @@ describe("takeLinkToken", () => {
     sessionStorage.setItem(KEY, TOKEN);
     expect(takeLinkToken(KEY)).toBe(TOKEN);
     expect(takeLinkToken("tinindo.outra")).toBeNull();
+  });
+});
+
+describe("forgetLinkToken", () => {
+  it("apaga só o token da chave pedida", () => {
+    sessionStorage.setItem(KEY, TOKEN);
+    sessionStorage.setItem("tinindo.outra", TOKEN);
+    forgetLinkToken(KEY);
+    expect(takeLinkToken(KEY)).toBeNull();
+    expect(takeLinkToken("tinindo.outra")).toBe(TOKEN);
   });
 });

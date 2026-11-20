@@ -8,7 +8,7 @@ import type { Booking, ProviderService, Quote, TimeRange } from "@contracts";
 import { Button, ChoiceCard, Field, focusFirstInvalid, IconButton, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { plural } from "../../lib/text/plural.ts";
 import { type CustomerRef, newIdempotencyKey } from "./port.ts";
-import { canReschedule, confirmNoticeText, formatCents, formatMinutes, formatPhoneBR, formatRange, phoneToE164, serviceName, whatsAppDigits } from "./agenda.ts";
+import { canReschedule, formatCents, formatMinutes, formatPhoneBR, formatRange, phoneToE164, serviceName, whatsAppDigits } from "./agenda.ts";
 import { SeriesDone, type SeriesResult, SeriesSection } from "./BookingSeries.tsx";
 import { isErrorLike } from "./errors.ts";
 import { addDays, dayWindow, formatDayLong, isCivilDate, localParts } from "./time.ts";
@@ -161,7 +161,8 @@ function BookingFlow(props: FlowProps) {
       const target = props.mode === "create" ? `../atendimento/${result.id}` : "..";
       // O aviso (Toast) sai na tela do atendimento, depois da troca de tela. Com WhatsApp no cadastro, vai junto o texto
       // de confirmação pronto (P49): a tela do atendimento oferece "Avisar no WhatsApp".
-      const notify = props.mode === "create" ? createdNotice(result, service, customers.find((c) => c.id === result.customer_id), tz, ctx.tenantName) : null;
+      // Reagendar também oferece o aviso, com a data nova (o texto é montado na tela do atendimento, a partir dele).
+      const notify = createdNotice(result, service, customers.find((c) => c.id === result.customer_id), ctx.tenantName, props.mode === "create" ? "create" : "reschedule");
       navigate(target, { relative: "path", state: { done: props.mode === "create" ? "criado" : "reagendado", ...(notify ? { notify } : {}) } });
     } catch (err) {
       setFailure(err);
@@ -374,17 +375,23 @@ function BookingFlow(props: FlowProps) {
 }
 
 /** Tira acentos e caixa para a busca por nome ("ana" acha "Cliente Exemplo Ána"). */
-/** Aviso de confirmação para quem acabou de ser agendado. Sem WhatsApp no cadastro, null (a tela não oferece). */
+/**
+ * Aviso para quem acabou de ser agendado ou reagendado. Sem WhatsApp no cadastro, null (a tela não oferece).
+ * Só quem e o quê: o dia e a hora saem do atendimento como ele está agora, na tela do atendimento. Antes, o texto
+ * pronto ia no estado da navegação e, se o horário mudasse depois (reagendar, outro aparelho), mostrava a data antiga.
+ */
 export interface CreatedNotice {
   bookingId: string;
   phone: string;
-  text: string;
+  name: string;
+  service: string;
+  business: string;
+  kind: "create" | "reschedule";
 }
-function createdNotice(booking: Booking, service: ProviderService, customer: CustomerRef | undefined, tz: string, business: string): CreatedNotice | null {
+function createdNotice(booking: Booking, service: ProviderService, customer: CustomerRef | undefined, business: string, kind: CreatedNotice["kind"]): CreatedNotice | null {
   const phone = whatsAppDigits(customer?.phone);
   if (!customer || !phone) return null;
-  const start = localParts(booking.starts_at, tz);
-  return { bookingId: booking.id, phone, text: confirmNoticeText({ name: customer.name, service: service.name, day: formatDayLong(start.date), time: start.time, business }) };
+  return { bookingId: booking.id, phone, name: customer.name, service: service.name, business, kind };
 }
 
 function fold(v: string): string {

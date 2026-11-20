@@ -2,7 +2,7 @@
 // PSP atrás de porta ('simulated' | 'psp'). Pago só com evidência do provedor; 'unknown' exige consulta, nunca
 // presunção. Estorno total, vinculado ao recebimento. Conciliação lista diferenças, não corrige em silêncio.
 import { z } from "zod";
-import { Cents, IsoDateTime, Uuid } from "./common.ts";
+import { Cents, IsoDateTime, Uuid, truncatedFlags } from "./common.ts";
 
 export const PaymentProvider = z.enum(["simulated", "psp"]);
 export type PaymentProvider = z.infer<typeof PaymentProvider>;
@@ -61,7 +61,12 @@ export const ChargeCreateOutput = z.object({
 export const ChargeCancelInput = z.object({ charge_id: Uuid, expected_version: z.int().min(1) });
 export const ChargeOutput = z.object({ charge: PaymentCharge });
 export const ChargesListInput = z.object({});
-export const ChargesListOutput = z.object({ charges: z.array(PaymentCharge).max(200), refunds: z.array(PaymentRefund).max(200), unknown: z.int().min(0) });
+export const ChargesListOutput = z.object({
+  charges: z.array(PaymentCharge).max(200),
+  refunds: z.array(PaymentRefund).max(200),
+  unknown: z.int().min(0),
+  truncated: truncatedFlags("charges", "refunds"),
+});
 export const RefundRequestInput = z.object({ charge_id: Uuid, reason: z.string().trim().min(1).max(280) });
 export const RefundOutput = z.object({ refund: PaymentRefund });
 

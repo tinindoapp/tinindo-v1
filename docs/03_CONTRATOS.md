@@ -10,6 +10,8 @@ Envelope de sucesso: `{data, meta:{request_id, as_of, schema_version}}`. Erro: `
 
 Datas ISO 8601 com offset; moeda ISO; preços inteiros em centavos dentro do intervalo seguro do contrato; UUIDs; paginação por cursor; limites de 50–100 itens definidos por endpoint. Proibir listagens ilimitadas. Esquema Zod ou equivalente deve validar no backend; tipagem TypeScript sozinha não valida JSON externo.
 
+Listas com teto (P56, D31 a): as 14 saídas que cortam no servidor declaram `truncated: { <lista>: boolean }` opcional (`truncatedFlags` em `common.ts`); `true` quando há mais linhas que as devolvidas. A tela mostra "Mostrando os 200 mais recentes" embaixo da lista cortada. O campo é opcional para a demonstração e respostas antigas continuarem válidas.
+
 ## Operações v1
 
 Nomes abaixo são contratos lógicos. P00 define se o transporte será uma função por módulo com rotas ou RPC invocada pelo backend. Evitar endpoints duplicados para chat e tela.
@@ -21,9 +23,10 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `customer_link.issue` | customer_id, key | Código de uso único (72 h, só o hash no banco); repetição devolve `code: null` |
 | `customer_link.redeem` | código, key | Vínculo cliente ↔ login no tenant; devolve só o nome do negócio |
 | `customer_link.revoke` | link_id, expected_version, key | Vínculo revogado pelo dono ou pelo cliente |
-| `customer.upsert` | dados, versão quando existente | Contato privado; dedupe sugerido, nunca merge cego |
+| `customer.upsert` | dados, `declared_source`, versão quando existente | Contato privado com a origem declarada; dedupe sugerido, nunca merge cego |
 | `service.save` | duração, buffers, preço, piso | Catálogo validado e versionado |
 | `customer.archive` | customer_id, expected_version, archived, key | Arquiva/desarquiva; nunca apaga |
+| `customer.get` | customer_id | Um cliente do tenant, arquivado inclusive (servido em `GET /crm/customer.get`); id de outro negócio ou inexistente → NOT_FOUND, sem distinguir os dois |
 | `customer.list` | busca, include_archived, cursor, limit | Clientes do tenant (servido em `GET /crm/customers`), com `phone` (E.164 ou null). Orçamentos usa o telefone para o destinatário do WhatsApp e para a busca (recado #89) |
 | `service.list` | include_inactive, cursor, limit | Serviços do tenant (servido em `GET /crm/services`) |
 | `customer.import_preview` | linhas já interpretadas | Possíveis duplicados por linha; não grava |
@@ -36,7 +39,9 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `booking.complete` | id, expected_version, key | Atendimento concluído; caixa não presumido |
 | `booking.confirm` | booking_id, expected_version, key | Hold vira reserva confirmada se o prazo (no banco) não venceu |
 | `booking.no_show` | booking_id, expected_version, motivo, revert, key | Falta marcada ou revertida com motivo |
-| `booking.create_series` | serviço, cliente, primeiro slot, semanas (2–12), tudo-ou-nada, key | Ocorrências semanais materializadas; conflitos explícitos |
+| `booking.create_series` | serviço, cliente, primeiro slot, semanas (2–12), dias da semana (opcional, um series_id para todos), tudo-ou-nada, key | Ocorrências semanais materializadas; conflitos explícitos |
+| `booking.series` | series_id | Atendimentos da série em ordem (até 84) |
+| `booking.cancel_series_from` | id, expected_version, motivo, key | Cancela este e os próximos ainda marcados da série numa transação; passados e concluídos ficam |
 | `booking.list` | janela (≤ 62 dias), cursor, limit | Reservas do tenant que começam na janela |
 | `booking.list_by_customer` | customer_id, cursor, limit | Todas as reservas de um cliente do tenant, da mais recente para a mais antiga, sem janela |
 | `booking.get` | booking_id | Reserva na visão do dono |

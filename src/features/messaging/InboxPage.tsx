@@ -396,6 +396,7 @@ export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: str
               </li>
             ))}
           </ul>
+          {inbox?.truncated?.contacts ? <p className="tn-muted">Mostrando as 200 conversas mais recentes.</p> : null}
         </Card>
       ) : null}
     </div>
@@ -499,6 +500,7 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
             </li>
           ))}
         </ul>
+        {convo.truncated?.messages ? <p className="tn-muted">Mostrando as 200 mensagens mais recentes.</p> : null}
         {/* Modelo aprovado: folha no celular; no desktop, cartão perto do campo de escrever, com o foco no primeiro campo. */}
         {conn?.status === "active" && status && templateOpen ? (
           <FormPanel title="Enviar modelo aprovado" onClose={() => setTemplateOpen(false)}>

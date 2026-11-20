@@ -4,7 +4,6 @@
 // algo que o negócio não tem. A chave decide o que APARECE; quem autoriza cada operação continua sendo o banco.
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { type BusinessScope, MODULE_LEVELS, type ModuleId, type ModuleLevel, type Profession, SetupModuleSetOutput, SetupScopeOutput } from "@contracts";
-import { createApiClient } from "../lib/api/client.ts";
 import { appEnv } from "./env.ts";
 import type { ModuleDefinition } from "./module-types.ts";
 import { demoScope, demoSetModule } from "./scope-demo.ts";
@@ -67,13 +66,10 @@ function segmentOf(path: string): string | null {
 type Loaded = { tenant: string; scope: BusinessScope | null };
 
 export function ScopeProvider({ modules, children }: { modules: readonly ModuleDefinition[]; children: ReactNode }) {
-  const { state, tenantId, getAccessToken } = useSession();
-  const demo = state.status === "offline_demo" || !appEnv.supabase;
+  const { state, tenantId, api: sessionApi } = useSession();
+  const demo = state.status === "offline_demo" || !appEnv.supabase || !sessionApi;
   const role = state.status === "signed_in" || state.status === "offline_demo" ? (state.memberships.find((m) => m.tenant_id === tenantId)?.role ?? null) : null;
-  const call = useMemo(
-    () => (demo || !appEnv.supabase ? null : createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken })),
-    [demo, getAccessToken],
-  );
+  const call = demo ? null : sessionApi;
   // Guardado com o negócio a que pertence: trocar de negócio volta a "carregando" sem mostrar o escopo do anterior.
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [demoState, setDemoState] = useState<BusinessScope>(demoScope);

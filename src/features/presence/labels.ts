@@ -1,4 +1,5 @@
 // Rótulos da tela Site e Google (P17).
+import { formatFullDateTime } from "../../lib/time.ts";
 import type { PresenceDelivery, SiteSection } from "./port.ts";
 
 export const SECTION_LABEL: Record<SiteSection, string> = {
@@ -29,8 +30,8 @@ export const CHECK_LABEL = {
   lookup_failed: "Não foi possível consultar o DNS agora. Tente de novo em instantes.",
 } as const;
 export { formatCents } from "../../lib/money.ts";
-export const formatDateTime = (iso: string, tz = "America/Sao_Paulo") =>
-  new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: tz }).format(new Date(iso));
+/** "20/10/2026, 09:30". O fuso padrão fica aqui até o fuso do negócio vir da sessão. */
+export const formatDateTime = (iso: string, tz = "America/Sao_Paulo") => formatFullDateTime(iso, tz);
 
 /** Erro do catálogo em português simples, com o próximo passo. */
 export function explain(err: unknown): string {
