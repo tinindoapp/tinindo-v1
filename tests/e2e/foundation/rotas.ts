@@ -27,7 +27,11 @@ export const PARAM_ROUTES: readonly string[] = [
   "/avaliacoes/:slug",
   "/diretorio/:uf/:cidade",
   "/diretorio/:uf/:cidade/:categoria",
+  // P55: links com o endereço do negócio no caminho (o token fica no fragmento); cobertos por network/cliente-375.spec.ts.
+  "/orcamento/:slug",
   "/p/:slug",
+  "/pagar/:slug",
+  "/reserva/:slug",
   "/s/:slug",
 ];
 

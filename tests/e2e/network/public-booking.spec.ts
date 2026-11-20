@@ -31,7 +31,7 @@ test("visitante reserva pelo link e o dono vê na Agenda", async ({ page }) => {
   const code = /O código seria (\d{6})/.exec(demo)![1]!;
   await page.getByLabel("Código recebido").fill(code === "000000" ? "111111" : "000000");
   await page.getByRole("button", { name: "Confirmar horário" }).click();
-  await expect(page.getByText(/Código incorreto/)).toBeVisible();
+  await expect(page.getByText(/Código não confere/)).toBeVisible();
   await page.getByLabel("Código recebido").fill(code);
   await page.getByRole("button", { name: "Confirmar horário" }).click();
   await expect(page.getByRole("heading", { name: "Horário confirmado" })).toBeVisible();

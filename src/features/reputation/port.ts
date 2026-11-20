@@ -28,6 +28,8 @@ export interface CustomerReviewsPort {
 /** Público (sem login). */
 export interface PublicReviewsPort {
   readonly kind: "demo" | "server";
+  /** Nome do negócio quando conhecido sem o perfil publicado (demonstração: o negócio de exemplo é um só). */
+  readonly businessName?: string;
   list(slug: string): Promise<ReviewPublicList>;
 }
 

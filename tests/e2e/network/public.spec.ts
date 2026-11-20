@@ -29,6 +29,9 @@ test("perfil público abre fora do shell, sem dados privados; escolher horário 
 test("perfil inexistente mostra página amigável", async ({ page }) => {
   await page.goto("/p/nao-existe");
   await expect(page.getByRole("heading", { name: "Perfil não encontrado" })).toBeVisible();
+  // Tem saída e identidade: tentar de novo e o rodapé da Tinindo.
+  await expect(page.getByRole("button", { name: "Tentar de novo" })).toBeVisible();
+  await expect(page.locator("footer.tn-pub-foot")).toContainText("Página feita com a Tinindo");
 });
 
 test("convite: abrir não aceita, token sai da URL e aceitar é ação explícita", async ({ page }) => {

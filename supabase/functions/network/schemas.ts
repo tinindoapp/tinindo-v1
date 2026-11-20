@@ -1,6 +1,15 @@
 // Os schemas complementares do módulo network (P09) são contrato v1 em _shared/contracts
 // (network.ts). Reexportados aqui para a função e para os testes do módulo.
 export {
+  BookingLinkInput,
+  BookingLinkIssueInput,
+  BookingLinkIssueOutput,
+  BookingLinkReviewInput,
+  BookingLinkReviewOutput,
+  BookingLinkView,
+  ProfileDetailsInput,
+  PublicRequestInput,
+  PublicRequestState,
   OwnerProfile,
   OwnerProfileOutput,
   PendingRequest,

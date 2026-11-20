@@ -54,6 +54,10 @@ test("avaliações: cliente avalia atendimento concluído sem o nome aparecer; d
   await expect(received).toContainText("Resposta do profissional: Obrigado, até a próxima!");
 
   await soft(page, "/avaliacoes/barbearia-exemplo-a");
+  // 05 #12: a página diz de quem são as avaliações; o negócio no topo e a Tinindo só no rodapé.
+  await expect(page.getByRole("heading", { name: "Avaliações de Barbearia Exemplo A", level: 1 })).toBeVisible();
+  await expect(page.getByRole("contentinfo")).toContainText("Página feita com a Tinindo");
+  await expect(page.getByRole("link", { name: "Voltar ao perfil" })).toBeVisible();
   await expect(page.getByRole("list", { name: "Avaliações publicadas" })).toContainText("Atendimento pontual, voltarei.");
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

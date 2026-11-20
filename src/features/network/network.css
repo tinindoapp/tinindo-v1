@@ -172,3 +172,27 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Perfil público (P55): selos, texto de apresentação, WhatsApp discreto e horários recolhidos. */
+.tn-net-about { display: grid; gap: var(--tn-space-2); }
+.tn-net-about p { margin: 0; }
+.tn-net-wa { margin: 0; }
+.tn-net-wa a, .tn-net-badges a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }
+.tn-net-badges li:has(a) { padding-block: 0; }
+.tn-net-hours summary { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); cursor: pointer; font-weight: var(--tn-font-weight-medium); }
+.tn-net-legal { margin: 0; font-size: var(--tn-text-support); }
+.tn-net-preview { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-lg); padding-bottom: var(--tn-space-4); min-width: 0; }
+.tn-net-preview .tn-pub-main { padding-bottom: 0; }
+
+/* Fatos da reserva (P55) e estrelas da avaliação pelo link: 44 px por estrela. */
+.tn-net-facts { padding: var(--tn-space-3) 0; border-block: 1px solid var(--tn-border); }
+.tn-net-stars { border: 0; padding: 0; margin: 0; display: grid; gap: var(--tn-space-1); min-width: 0; }
+.tn-net-stars legend { font-weight: var(--tn-font-weight-medium); padding: 0; margin-bottom: var(--tn-space-1); }
+.tn-net-stars__row { display: flex; gap: var(--tn-space-1); }
+.tn-net-stars__row label { position: relative; display: grid; place-items: center; width: var(--tn-size-touch); height: var(--tn-size-touch); font-size: var(--tn-text-title); color: var(--tn-border-control); cursor: pointer; border-radius: var(--tn-radius-sm); }
+.tn-net-stars__row label[data-on] { color: var(--tn-text); }
+.tn-net-stars__row input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.tn-net-stars__row label:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); }
+.tn-net-stars p { margin: 0; }
+.tn-net-stars__show { letter-spacing: 2px; }
+.tn-net-policy { margin: 0; }

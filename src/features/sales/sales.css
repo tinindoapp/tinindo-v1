@@ -14,9 +14,6 @@
 }
 .tn-qt-row > div { min-width: 0; overflow-wrap: anywhere; }
 .tn-qt-code { display: block; overflow-wrap: anywhere; padding: var(--tn-space-2); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-sm); }
-.tn-qt-table { width: 100%; border-collapse: collapse; }
-.tn-qt-table th, .tn-qt-table td { text-align: left; padding: var(--tn-space-2) var(--tn-space-1); border-bottom: 1px solid var(--tn-border); }
-.tn-qt-table td.tn-num { text-align: right; }
 /* Escolha do cliente (item 46): busca e cartões de escolha. */
 .tn-qt-customer { display: grid; gap: var(--tn-space-2); flex: 1 1 100%; min-width: 0; margin: 0; padding: 0; border: 0; }
 .tn-qt-customer legend { padding: 0; margin-bottom: var(--tn-space-1); font-weight: var(--tn-font-weight-semibold); }
@@ -26,4 +23,20 @@
 @media (max-width: 30rem) {
   .tn-qt-item, .tn-qt-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
-
+/* Página do link (cliente final): itens em lista (descrição à esquerda, valor à direita), total numa faixa própria e o
+   horário que o aceite reserva em destaque. */
+.tn-qt-pub { display: grid; gap: var(--tn-space-4); min-width: 0; }
+.tn-qt-pub > h1 { margin: 0; font-size: var(--tn-text-title); line-height: var(--tn-line-height-tight); overflow-wrap: anywhere; }
+.tn-qt-pub p { margin: 0; }
+.tn-qt-tag { display: inline-block; padding: var(--tn-space-1) var(--tn-space-3); border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
+.tn-qt-lines { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--tn-border); }
+.tn-qt-lines li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--tn-space-3); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0; }
+.tn-qt-lines li > :first-child { min-width: 0; overflow-wrap: anywhere; display: grid; gap: 2px; }
+.tn-qt-lines li > :last-child { flex: none; text-align: right; }
+.tn-qt-lines small { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-qt-totalband { display: flex; justify-content: space-between; align-items: baseline; gap: var(--tn-space-3); padding: var(--tn-space-3) var(--tn-space-4); border-radius: var(--tn-radius-md); background: var(--tn-surface-sunken); font-weight: var(--tn-font-weight-semibold); }
+.tn-qt-totalband strong { font-size: var(--tn-text-number); line-height: var(--tn-line-height-tight); }
+.tn-qt-slot { display: grid; gap: var(--tn-space-1); padding: var(--tn-space-3) var(--tn-space-4); border: 1px solid var(--tn-selected-border); border-radius: var(--tn-radius-md); overflow-wrap: anywhere; }
+.tn-qt-slot span { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+.tn-qt-facts { width: 100%; padding-block: var(--tn-space-3); border-block: 1px solid var(--tn-border); }
+.tn-qt-pub .tn-pub-cta .tn-confirm { text-align: left; }

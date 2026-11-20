@@ -63,7 +63,7 @@ test("atendimento futuro não conclui e não aparece no Caixa", async ({ page })
   await expect(page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" }).getByRole("listitem")).toHaveCount(3);
 });
 
-test("cliente pelo perfil público: avaliações e caminho para avaliar; escolher horário não vira reserva sem o código", async ({ page }) => {
+test("cliente pelo perfil público: avaliações, sem link de conta; escolher horário não vira reserva sem o código", async ({ page }) => {
   await page.goto("/app/perfil");
   await page.getByLabel("Endereço do perfil").fill("barbearia-jornada");
   await page.getByLabel("Bairro ou região").fill("Centro");
@@ -77,13 +77,17 @@ test("cliente pelo perfil público: avaliações e caminho para avaliar; escolhe
   await expect(page.getByRole("form", { name: "Pedir horário" })).toBeVisible();
   await expect(page.getByText(/horário confirmado|reserva confirmada|reservado com sucesso/i)).toHaveCount(0);
 
+  // Durante a reserva a página mostra só o passo; voltar ao serviço traz as avaliações de novo.
+  await page.getByRole("button", { name: "Voltar" }).click();
+  await page.getByRole("button", { name: "Voltar" }).click();
   await page.getByRole("link", { name: "2 avaliações de clientes" }).click();
   await expect(page).toHaveURL(/\/avaliacoes\/barbearia-jornada$/);
   await expect(page.getByRole("list", { name: "Avaliações publicadas" }).getByRole("listitem")).toHaveCount(2);
   await page.getByRole("link", { name: "Voltar ao perfil" }).click();
-  await page.getByRole("link", { name: "Avaliar meu atendimento" }).click();
-  await expect(page).toHaveURL(/\/avaliar$/);
-  await expect(page.getByRole("heading", { name: "Avaliar atendimentos" })).toBeVisible();
+  // D20: o cliente não tem conta; o perfil não oferece mais "Avaliar meu atendimento" nem "Minhas reservas".
+  await expect(page.getByRole("heading", { name: "Barbearia Exemplo A", level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Avaliar meu atendimento" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Minhas reservas" })).toHaveCount(0);
   await noHorizontalScroll(page);
 });
 
