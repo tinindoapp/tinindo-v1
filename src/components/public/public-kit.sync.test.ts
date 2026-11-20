@@ -74,7 +74,5 @@ describe("public-kit: a cópia de sales acompanha o kit único", () => {
     expect(withoutHeader(read(`${SALES}public-kit.tsx`))).toBe(kit);
   });
 
-  it("owner-slug.ts é igual em payments e sales", () => {
-    expect(read(`${SALES}owner-slug.ts`)).toBe(read("../../features/payments/owner-slug.ts"));
-  });
+  // owner-slug.ts não é mais comparado: payments usa o cliente da sessão desde o P53; sales troca no recado do P53.
 });
