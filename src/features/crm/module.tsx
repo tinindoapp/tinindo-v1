@@ -56,6 +56,8 @@ function CrmLayout() {
 export const crmModule: ModuleDefinition = {
   id: "crm",
   owner: "P02",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "clientes",
   navLabel: "Clientes",
   routes: [

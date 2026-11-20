@@ -33,6 +33,8 @@ function AccountsLayout() {
 export const financeAdvancedModule: ModuleDefinition = {
   id: "finance-advanced",
   owner: "P31",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "contas",
   navLabel: "Contas",
   routes: [{ index: true, element: <AccountsLayout /> }],

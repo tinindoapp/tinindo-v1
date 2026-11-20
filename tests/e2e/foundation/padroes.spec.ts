@@ -48,7 +48,9 @@ for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     await page.setViewportSize({ width: 375, height: 812 });
     const routes = await appRoutes(page);
-    expect(routes.length).toBeGreaterThan(15);
+    // P51: o menu do piloto tem 14 telas (Hoje e os 10 módulos, com Horários, Serviços e Retorno). As telas dos módulos
+    // por ativação e dos guardados ficam com os e2e deles (projetos *-recursos e *-guardados).
+    expect(routes.length).toBeGreaterThanOrEqual(14);
     const problems: string[] = [];
     for (const path of [...routes, ...PUBLIC]) {
       await page.goto(path);

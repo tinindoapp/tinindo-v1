@@ -8,7 +8,9 @@ import type { Profession, WeeklyWindow } from "@contracts";
 import { Button, Card, ChipGroup, ChoiceCard, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { describeBusiness, draftToWeeklyWindows } from "../../../supabase/functions/_shared/domain/setup/describe.ts";
+import { useScope } from "../../app/scope.tsx";
 import { centsToInput, parseBRL } from "../../lib/money.ts";
+import { setupView } from "../../lib/setup/steps.ts";
 import { plural } from "../../lib/text/plural.ts";
 import { explain, formatCents, priceRange, PROFESSION_LABEL, specOf, summarizeHours } from "./labels.ts";
 import { newKey, type SetupDescribeDraft, type SetupPort, type SetupProgress, type SetupServiceDraft, type SetupStepCode, type SetupTemplate } from "./port.ts";
@@ -19,6 +21,8 @@ const PROFESSIONS = ["barber", "hairdresser", "personal_trainer", "other"] as co
 
 function Steps({ progress, port, onChange }: { progress: SetupProgress; port: SetupPort; onChange: (p: SetupProgress) => void }) {
   const [busy, setBusy] = useState<SetupStepCode | null>(null);
+  // P51: passo cuja tela não aparece para o negócio fica fora da lista e da conta.
+  const view = setupView(progress, useScope().canOpen);
   async function toggle(step: SetupStepCode, dismissed: boolean) {
     setBusy(step);
     try {
@@ -33,7 +37,7 @@ function Steps({ progress, port, onChange }: { progress: SetupProgress; port: Se
   return (
     <Card aria-labelledby="setup-steps-title">
       <h2 id="setup-steps-title">
-        Passos <span className="tn-num tn-muted">· {progress.done_count} de {progress.total} feitos</span>
+        Passos <span className="tn-num tn-muted">· {view.done} de {view.total} feitos</span>
       </h2>
       {progress.ready ? (
         <StatusBanner tone="success">Seu negócio está pronto para receber reservas pelo link. Os passos que faltam são opcionais.</StatusBanner>
@@ -41,10 +45,10 @@ function Steps({ progress, port, onChange }: { progress: SetupProgress; port: Se
         <p className="tn-muted">Os quatro primeiros deixam o link público funcionando. Os outros podem ficar para depois.</p>
       )}
       <ol className="tn-setup-steps" aria-label="Passos da configuração">
-        {progress.steps.map((s, i) => {
+        {view.steps.map((s, i) => {
           const spec = specOf(s.step);
           return (
-            <li key={s.step} className="tn-setup-step" data-done={s.done || undefined} data-dismissed={s.dismissed || undefined} data-next={progress.next === s.step || undefined}>
+            <li key={s.step} className="tn-setup-step" data-done={s.done || undefined} data-dismissed={s.dismissed || undefined} data-next={view.next?.step === s.step || undefined}>
               <span className="tn-setup-step__mark" aria-hidden="true">{s.done ? "✓" : i + 1}</span>
               <div className="tn-setup-step__body">
                 <p className="tn-setup-step__title">

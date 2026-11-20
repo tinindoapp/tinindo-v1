@@ -7,12 +7,15 @@ import { useEffect, useState } from "react";
 import { Button, Field, LinkButton, StatusBanner } from "../../components/ui/index.tsx";
 import type { SetupStepCode } from "@contracts";
 import { type AgentPort, type DraftRequest, newKey } from "./port.ts";
+import { useScope } from "../../app/scope.tsx";
+import { setupView } from "../../lib/setup/steps.ts";
 import { nextStep, type SetupProgress, stepSpec } from "./setupGuide.ts";
 
 export function SetupGuidePanel({ port }: { port: AgentPort }) {
   const [progress, setProgress] = useState<SetupProgress | null | undefined>(undefined);
   const [skipped, setSkipped] = useState<Set<SetupStepCode>>(new Set());
   const [checking, setChecking] = useState(false);
+  const scope = useScope();
 
   async function load() {
     setChecking(true);
@@ -38,11 +41,14 @@ export function SetupGuidePanel({ port }: { port: AgentPort }) {
       </StatusBanner>
     );
   }
-  const step = nextStep(progress, skipped);
+  // P51: o guia só conduz por passos cuja tela aparece para o negócio; a conta acompanha.
+  const view = setupView(progress, scope.canOpen);
+  const hidden = progress.steps.filter((s) => !scope.canOpen(s.link)).map((s) => s.step);
+  const step = nextStep(progress, new Set([...skipped, ...hidden]));
   const spec = step ? stepSpec(step.step) : null;
   return (
     <div className="tn-ag-panel-body">
-      <p className="tn-ag-progress"><strong>{progress.done_count} de {progress.total}</strong> passos prontos.</p>
+      <p className="tn-ag-progress"><strong>{view.done} de {view.total}</strong> passos prontos.</p>
       {step && spec ? (
         <div className="tn-ag-step">
           <h3>{spec.title}{step.required ? null : <span className="tn-muted"> (opcional)</span>}</h3>
@@ -76,6 +82,9 @@ export function DraftPanel({ port, initial }: { port: AgentPort; initial?: { kin
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: "info" | "danger" | "success"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // P51: "Texto de campanha" só entra na lista quando Campanhas aparece para o negócio (ou se já veio de lá).
+  const scope = useScope();
+  const kinds = Object.entries(KIND_LABEL).filter(([k]) => k !== "campaign" || kind === "campaign" || scope.isVisible("campaigns"));
 
   async function rewrite() {
     if (!base.trim() || busy) return;
@@ -106,7 +115,7 @@ export function DraftPanel({ port, initial }: { port: AgentPort; initial?: { kin
     <div className="tn-ag-panel-body">
       <div className="tn-ag-row">
         <Field as="select" label="Tipo de texto" value={kind} onChange={(e) => setKind(e.target.value as DraftRequest["kind"])}>
-          {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          {kinds.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </Field>
         <Field as="select" label="Tom" value={tone} onChange={(e) => setTone(e.target.value as NonNullable<DraftRequest["tone"]>)}>
           {Object.entries(TONE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}

@@ -3,6 +3,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { FX } from "@contracts/fixtures.ts";
 import { routes } from "../router.tsx";
+import { demoSetModule, resetDemoScope } from "../scope-demo.ts";
 import { SessionProvider } from "../session.tsx";
 import { createFixturePort } from "../../features/scheduling/fixturePort.ts";
 import type { SchedulingPort } from "../../features/scheduling/port.ts";
@@ -29,7 +30,10 @@ function renderHome(port: SchedulingPort) {
   );
 }
 
-afterEach(() => resetDemoPort());
+afterEach(() => {
+  resetDemoPort();
+  resetDemoScope();
+});
 
 describe("Hoje (auditoria de UX, itens 30 e 31)", () => {
   it("destaca o próximo atendimento com quanto falta, Abrir e WhatsApp", async () => {
@@ -67,6 +71,8 @@ describe("Hoje (auditoria de UX, itens 30 e 31)", () => {
   });
 
   it("P45/P48: \"Para você esta semana\" com uma sugestão (período, número e denominador), Ver, Agora não e Ver todas", async () => {
+    // P51: a sugestão na Hoje vem com "Metas e sugestões" ligado em Mais recursos.
+    demoSetModule("growth-advice", true);
     renderHome(portAt("2026-10-20T11:20:00-03:00"));
     const card = await screen.findByRole("region", { name: "Para você esta semana" }, SLOW);
     const items = await within(card).findAllByRole("listitem", {}, SLOW);
@@ -102,6 +108,7 @@ describe("Hoje: o dia primeiro (P48, decisão D6)", () => {
   }
 
   it("Próximo, lista do dia, pendências, números, configuração em uma linha e uma sugestão; sem \"Ações rápidas\"", async () => {
+    demoSetModule("growth-advice", true);
     renderHome(portAt("2026-10-20T11:20:00-03:00"));
     await screen.findByRole("region", { name: "Para você esta semana" }, SLOW);
     await screen.findByRole("region", { name: /Deixe seu negócio pronto/ }, SLOW);
@@ -123,7 +130,8 @@ describe("Hoje: o dia primeiro (P48, decisão D6)", () => {
     renderHome(portAt("2026-10-20T11:20:00-03:00"));
     const line = await screen.findByRole("region", { name: /Deixe seu negócio pronto/ }, SLOW);
     expect(line).toHaveClass("tn-setup-line");
-    expect(line).toHaveAccessibleName("Deixe seu negócio pronto · 5 de 8");
+    // P51: "Conectar e verificar seu número" sai da conta enquanto Mensagens está guardado: 7 passos.
+    expect(line).toHaveAccessibleName("Deixe seu negócio pronto · 5 de 7");
     expect(within(line).getByRole("progressbar", { name: "Passos feitos" })).toHaveAttribute("aria-valuenow", "5");
     expect(within(line).getByRole("link", { name: /^Publicar perfil/ })).toHaveAttribute("href", "/app/perfil");
     // O texto longo do cartão fica para o dia vazio e para a tela Configuração.

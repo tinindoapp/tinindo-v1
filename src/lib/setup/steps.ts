@@ -26,3 +26,33 @@ export const SETUP_STEPS: readonly SetupStepSpec[] = [
 ];
 
 export const setupStepSpec = (step: SetupStepCode): SetupStepSpec => SETUP_STEPS.find((s) => s.step === step)!;
+
+/** Passo como o servidor devolve em `setup.progress`, só com o que a contagem usa. */
+interface ProgressStep {
+  step: SetupStepCode;
+  link: string;
+  required: boolean;
+  done: boolean;
+  dismissed: boolean;
+}
+
+export interface SetupView<S extends ProgressStep> {
+  steps: S[];
+  done: number;
+  resolved: number;
+  total: number;
+  next: S | null;
+}
+
+/**
+ * P51: os passos que o negócio consegue resolver. Sai o passo cuja tela não aparece para ele (ex.: "Conectar e
+ * verificar seu número", enquanto Mensagens está guardado) e as contagens são refeitas, para ninguém ver "7 de 8"
+ * com um passo que não tem como fazer. `canOpen` vem do escopo da sessão (src/app/scope.tsx).
+ */
+export function setupView<S extends ProgressStep>(progress: { steps: S[]; next: SetupStepCode | null }, canOpen: (path: string) => boolean): SetupView<S> {
+  const steps = progress.steps.filter((s) => canOpen(s.link));
+  const pending = (s: S) => !s.done && !s.dismissed;
+  // O próximo do servidor vale se continua na lista; senão, a mesma regra: obrigatórios primeiro, na ordem.
+  const next = steps.find((s) => s.step === progress.next && pending(s)) ?? steps.find((s) => s.required && pending(s)) ?? steps.find(pending) ?? null;
+  return { steps, done: steps.filter((s) => s.done).length, resolved: steps.filter((s) => s.done || s.dismissed).length, total: steps.length, next };
+}

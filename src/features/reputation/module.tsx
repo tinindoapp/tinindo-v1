@@ -56,6 +56,8 @@ export const reputationPublicRoutes: RouteObject[] = [
 export const reputationModule: ModuleDefinition = {
   id: "reputation",
   owner: "P24",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "avaliacoes",
   navLabel: "Avaliações",
   routes: [{ index: true, element: <OwnerLayout /> }],

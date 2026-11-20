@@ -57,6 +57,8 @@ function CostScreen() {
 export const analyticsModule: ModuleDefinition = {
   id: "analytics",
   owner: "P18",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "activation",
   path: "resultado",
   navLabel: "Resultado",
   routes: [

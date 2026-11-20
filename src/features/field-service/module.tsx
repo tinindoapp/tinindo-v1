@@ -33,6 +33,8 @@ function FieldLayout() {
 export const fieldServiceModule: ModuleDefinition = {
   id: "field-service",
   owner: "P29",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "domicilio",
   navLabel: "Domicílio",
   routes: [{ index: true, element: <FieldLayout /> }],
