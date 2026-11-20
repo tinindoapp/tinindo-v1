@@ -39,7 +39,7 @@ select tenant_a, 'barbearia-link-a', 'barber', 'Centro', array['display_name', '
 union all select tenant_b, 'personal-sem-link-b', 'personal_trainer', 'Zona Sul', array['display_name'], now() from ids;
 
 -- ------------------------------------------------------------------ estrutura
-select ok(has_function_privilege('anon', 'public.public_booking_request(text, uuid, timestamptz, text, text, text, text, uuid, boolean)', 'execute'),
+select ok(has_function_privilege('anon', 'public.public_booking_request(text, uuid, timestamptz, text, text, text, text, uuid, boolean, uuid, text)', 'execute'),
   'anon pede horário');
 select ok(has_function_privilege('anon', 'public.public_booking_confirm(uuid, text, uuid)', 'execute'), 'anon confirma');
 select ok(has_function_privilege('anon', 'public.public_booking_services(text)', 'execute'), 'anon lista serviços');
@@ -149,8 +149,8 @@ select is((select count(*)::int from public.public_booking_requests where contac
   'só um pedido aguardando para o contato');
 select is((select count(*)::int from public.outbox_events e join public.public_booking_requests q on q.booking_id = e.aggregate_id
   where q.idem_key = 'troca-pedido-000001' and e.event_type = 'booking.hold_released.v1'), 1, 'evento de horário liberado');
-select is((select attempts from public.public_booking_requests where idem_key = 'troca-pedido-000003'), 1,
-  'trocar não zera as tentativas de código');
+select is((select attempts from public.public_booking_requests where idem_key = 'troca-pedido-000003'), 0,
+  'P55: pedido novo começa com as tentativas zeradas (o limite é por contato e por hora)');
 select throws_ok(format($$ select public.public_booking_confirm(%L, %L) $$,
     (select id from public.public_booking_requests where idem_key = 'troca-pedido-000001'),
     (select code from public.public_booking_requests where idem_key = 'troca-pedido-000001')),

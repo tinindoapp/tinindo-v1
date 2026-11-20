@@ -2,7 +2,7 @@
 // As públicas ficam fora do shell autenticado; o integrador as monta no roteador
 // a partir de `networkPublicRoutes` (module.tsx).
 import { type FormEvent, useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link } from "react-router";
 import type { Profession } from "@contracts";
 import { PublicLayout } from "../../app/PublicLayout.tsx";
 import { useSession } from "../../app/session.tsx";
@@ -32,17 +32,10 @@ function ProfileBySlug({ slug, api }: { slug: string; api: NetworkApi }) {
   if (state.kind === "error") {
     return <PageHeader title="Perfil não encontrado" subtitle="O endereço pode estar errado ou o profissional tirou o perfil do ar." />;
   }
-  return <PublicProfileView profile={state.data} api={api} />;
-}
-
-/** /p/:slug — perfil público. Sem login. */
-export function PublicProfilePage() {
-  const { slug = "" } = useParams();
-  const api = useNetworkApi();
   return (
-    <PublicLayout>
-      <ProfileBySlug slug={slug} api={api} />
-    </PublicLayout>
+    <div className="tn-net-preview">
+      <PublicProfileView profile={state.data} api={api} />
+    </div>
   );
 }
 

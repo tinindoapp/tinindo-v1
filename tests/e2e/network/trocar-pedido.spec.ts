@@ -40,7 +40,7 @@ test("mesmo WhatsApp: aviso antes de trocar, manter o anterior, trocar e confirm
   // Manter: segue para o código do pedido anterior.
   await alert.getByRole("button", { name: "Manter o anterior" }).click();
   await expect(page.getByRole("heading", { name: "Confirme o horário" })).toBeVisible();
-  await expect(page.getByText("Pedido anterior deste WhatsApp")).toBeVisible();
+  await expect(page.getByText("Seu pedido anterior: o serviço e o horário estão na mensagem com o código")).toBeVisible();
 
   // Trocar: o anterior é cancelado e a tela diz isso.
   await page.getByRole("button", { name: "Voltar" }).click();

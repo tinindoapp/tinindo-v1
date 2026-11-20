@@ -15,7 +15,8 @@ afterAll(() => pool.end());
 /** Último código que o telefone simulado do visitante recebeu (como a pessoa leria no WhatsApp). */
 async function codeOnPhone(phone: string): Promise<string> {
   const rows = await sql<{ body: string }>("select body from public.channel_sim_phone where phone_e164 = $1 order by id desc limit 1", [phone]);
-  const m = /é (\d{6})\./.exec(rows[0]?.body ?? "");
+  // P55: o modelo começa com o nome do negócio ("Código de <negócio>: 123456. …").
+  const m = /: (\d{6})\./.exec(rows[0]?.body ?? "");
   if (!m) throw new Error(`nenhum código no telefone ${phone}: ${rows[0]?.body ?? "(vazio)"}`);
   return m[1]!;
 }

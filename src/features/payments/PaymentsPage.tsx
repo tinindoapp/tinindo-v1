@@ -8,6 +8,7 @@ import { CHARGE_STATUS, DIFF_LABEL, explain, FAILURE_REASON, formatCents, format
 import { CodeDetails, CopyButton, ShareCharge } from "./Share.tsx";
 import { type ChargesList, newKey, type PaymentCharge, type PaymentProvider, type PaymentsPort, type Receivable, type Reconciliation } from "./port.ts";
 import { plural } from "../../lib/text/plural.ts";
+import { withBusinessSlug } from "./public-kit.tsx";
 
 /** Retorno de uma ação: sai num aviso curto (Toast), sempre à vista. A lista mostra o estado que fica. */
 const notify = (tone: Tone, text: string) => toast({ message: text, tone });
@@ -99,7 +100,12 @@ function RefundForm({ port, charge, onDone }: { port: PaymentsPort; charge: Paym
   );
 }
 
-export function PaymentsPage({ port, timezone }: { port: PaymentsPort; timezone: string }) {
+export function PaymentsPage({ port, timezone, business }: {
+  port: PaymentsPort;
+  timezone: string;
+  /** Nome do negócio (entra na mensagem pronta) e endereço do perfil publicado (entra no caminho do link). */
+  business?: { name?: string | null; slug?: string | null };
+}) {
   const [receivables, setReceivables] = useState<Receivable[] | null>(null);
   const [list, setList] = useState<ChargesList | null>(null);
   const [recs, setRecs] = useState<Reconciliation[]>([]);
@@ -178,8 +184,8 @@ export function PaymentsPage({ port, timezone }: { port: PaymentsPort; timezone:
         </Help>
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
         {created ? (
-          <ShareCharge description={created.description} amountCents={created.amount_cents} pix={created.pix_code} url={created.url}
-            openLink={<p><PayLink url={created.url}>Abrir o link como a cliente</PayLink></p>} />
+          <ShareCharge description={created.description} amountCents={created.amount_cents} pix={created.pix_code} url={withBusinessSlug(created.url, business?.slug)}
+            business={business?.name} openLink={<p><PayLink url={withBusinessSlug(created.url, business?.slug)}>Abrir o link como a cliente</PayLink></p>} />
         ) : null}
       </div>
 

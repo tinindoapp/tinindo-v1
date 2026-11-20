@@ -6,11 +6,13 @@ import { OPERATIONS, PublicBookOutput, PublicConfirmOutput, PublicService } from
 const sql = readFileSync(new URL("../../../supabase/migrations/20261026164500_p43_public_booking.sql", import.meta.url), "utf8");
 // Troca do pedido pendente (recado #64, item 5): recria public_booking_request com p_replace_existing.
 const replace = readFileSync(new URL("../../../supabase/migrations/20261029033000_p43_replace_pending_request.sql", import.meta.url), "utf8");
+// P55: recria public_booking_request com p_supersedes e p_neighborhood (vence as anteriores).
+const p55 = readFileSync(new URL("../../../supabase/migrations/20261120091000_p55_public_link_journey.sql", import.meta.url), "utf8");
 const handler = readFileSync(new URL("../../../supabase/functions/network/handler.ts", import.meta.url), "utf8");
-/** Parâmetros da definição mais recente da função (a migration da troca vence a original). */
+/** Parâmetros da definição mais recente da função (P55 vence a troca, que vence a original). */
 function sqlParams(fn: string): string[] {
   const re = new RegExp(`create function public\\.${fn}\\(([\\s\\S]*?)\\)\\s*returns`, "m");
-  const m = re.exec(replace) ?? re.exec(sql);
+  const m = re.exec(p55) ?? re.exec(replace) ?? re.exec(sql);
   if (!m) throw new Error(`função ${fn} não encontrada`);
   return (m[1] ?? "").split(",").map((p) => p.trim().split(/\s+/)[0] ?? "").filter(Boolean);
 }
@@ -60,11 +62,13 @@ describe("P43 · registro ↔ handler ↔ SQL", () => {
   });
 
   it("respostas sem contato, código nem preço de lista", () => {
-    // Recado #64, item 4: o único preço é o "a partir de" (price_from_cents), e só com "Mostrar preços" ligado.
-    const shown = (schema: { shape: object }) => Object.keys(schema.shape).filter((k) => k !== "price_from_cents").join(" ");
+    // Recado #64, item 4: no catálogo, o único preço é o "a partir de" (price_from_cents), só com "Mostrar preços".
+    // P55 (D23): o pedido e a confirmação mostram o preço DO serviço escolhido (price_cents), o que será congelado.
+    const shown = (schema: { shape: object }) => Object.keys(schema.shape).filter((k) => k !== "price_from_cents" && k !== "price_cents").join(" ");
     for (const schema of [PublicBookOutput, PublicConfirmOutput, PublicService]) {
       expect(shown(schema)).not.toMatch(/phone|contact|code|name_key|price|cents/);
     }
+    expect(Object.keys(PublicService.shape)).not.toContain("price_cents");
     const photo = readFileSync(new URL("../../../supabase/migrations/20261029034000_p09_profile_photo.sql", import.meta.url), "utf8");
     const services = photo.slice(photo.indexOf("create or replace function public.public_booking_services"));
     expect(services).toContain("case when v_prices then jsonb_build_object('price_from_cents', s.base_price_cents) else '{}'::jsonb end");

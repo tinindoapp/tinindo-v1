@@ -6,6 +6,7 @@ import type { Profession, PublicProfileField as PublicProfileFieldSchema } from 
 import type { z } from "zod";
 import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import type { BusinessBasics, NetworkApi, OwnerProfile, ReferralLinkData, ReferralSummary } from "./api.ts";
+import { ProfileDetailsEditor } from "./ProfileDetails.tsx";
 import { ProfileMediaEditor } from "./ProfileMedia.tsx";
 import { ShareActions, ShareLink } from "./ShareLink.tsx";
 import { CATEGORY_LABEL, errorMessage, formatDateTime, newIdempotencyKey, useNetworkApi } from "./useNetworkApi.ts";
@@ -96,6 +97,7 @@ export function NetworkHome() {
       )}
       {/* Depois de salvar, a versão muda e o formulário recomeça do que está gravado. */}
       {profile ? <ProfileMediaEditor key={profile.version} api={api} profile={profile} onSaved={reload} /> : null}
+      {profile ? <ProfileDetailsEditor key={`d${profile.version}`} api={api} profile={profile} onSaved={reload} /> : null}
       {published && profile ? <ProfileLive slug={profile.slug} bookingOn={bookingOn} demo={api.demo} /> : null}
       {published ? <InvitePeer api={api} referrals={referrals} onCreated={reload} /> : null}
     </div>
