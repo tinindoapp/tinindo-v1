@@ -74,7 +74,15 @@ async function openRoute(page: Page, path: string) {
   await expect(h1, path).not.toHaveText("Carregando…");
 }
 
+/**
+ * P51: as varreduras abrem todas as rotas do roteador. Com os 27 módulos ligados na demonstração, cada tela continua
+ * sendo varrida, inclusive as que o piloto não mostra; a porta "Não disponível no piloto" tem o próprio e2e
+ * (escopo.spec.ts).
+ */
+const allModules = (page: Page) => page.addInitScript(() => localStorage.setItem("tinindo.demo.modulos", "todos"));
+
 test("a varredura cobre o menu e o roteador", async ({ page }) => {
+  await allModules(page);
   const router = routerRoutes();
   // Lida de src/app/router.tsx: se o leitor quebrar e devolver quase nada, a varredura não pode passar vazia.
   expect(router.length).toBeGreaterThan(40);
@@ -100,6 +108,7 @@ test("A11Y-02 · cada tela tem título próprio", async ({ page }) => {
 
 test("A11Y-02 · toda rota tem título próprio, terminado em “· Tinindo”", async ({ page }) => {
   test.setTimeout(120_000);
+  await allModules(page);
   const problems: string[] = [];
   const byTitle = new Map<string, string[]>();
   const redirected: Record<string, string> = {};

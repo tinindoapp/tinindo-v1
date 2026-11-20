@@ -1,15 +1,15 @@
 import { expect, test } from "@playwright/test";
+import { ligarRecursos } from "../escopo.ts";
 
 // Item 19 da auditoria de UX: avisos repetidos empilhados (até 250 px antes do conteúdo) nas telas de Dinheiro e
 // Crescer. Fica a faixa "Demonstração" do topo, no máximo um aviso da tela antes do conteúdo, e as explicações em
 // "Como funciona", recolhido.
+// P51: Pagamentos, Notas fiscais e Campanhas estão guardados (os e2e deles rodam na `main`); as telas por ativação entram
+// ligadas em Mais recursos.
 const SCREENS = [
   { path: "/app/caixa", title: "Caixa" },
-  { path: "/app/pagamentos", title: "Pagamentos" },
   { path: "/app/assinaturas", title: "Assinaturas" },
-  { path: "/app/notas", title: "Notas fiscais" },
   { path: "/app/metas", title: "Metas e sugestões" },
-  { path: "/app/campanhas", title: "Campanhas" },
   { path: "/app/indicacoes", title: "Indicações" },
   { path: "/app/resultado", title: "Resultado" },
   { path: "/app/assistente", title: "Assistente" },
@@ -17,6 +17,7 @@ const SCREENS = [
 
 test("dinheiro e crescer: um aviso da tela, no máximo, antes do conteúdo; explicações recolhidas", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
+  await ligarRecursos(page, ["recurrence", "growth-advice", "referrals", "analytics"]);
   for (const s of SCREENS) {
     await page.goto(s.path);
     await expect(page.getByRole("heading", { name: s.title, level: 1 })).toBeVisible();

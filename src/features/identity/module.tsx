@@ -5,6 +5,7 @@ import type { ModuleDefinition } from "../../app/module-types.ts";
 import { AccountPage } from "./AccountPage.tsx";
 import { NewPasswordPage } from "./AuthPages.tsx";
 import { CreateBusinessPage } from "./CreateBusinessPage.tsx";
+import { MoreFeaturesPage } from "./MoreFeaturesPage.tsx";
 import { MyBookingsPage } from "./MyBookingsPage.tsx";
 import { RedeemLinkPage } from "./RedeemLinkPage.tsx";
 import { IdentityServicesProvider } from "./services.tsx";
@@ -23,6 +24,8 @@ function IdentityLayout() {
 export const identityModule: ModuleDefinition = {
   id: "identity",
   owner: "P01",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "conta",
   navLabel: "Conta",
   routes: [
@@ -34,6 +37,8 @@ export const identityModule: ModuleDefinition = {
         { path: "vincular", element: <RedeemLinkPage /> },
         { path: "reservas", element: <MyBookingsPage /> },
         { path: "nova-senha", element: <NewPasswordPage /> },
+        // P51: os seis módulos "por ativação".
+        { path: "recursos", element: <MoreFeaturesPage /> },
       ],
     },
   ],

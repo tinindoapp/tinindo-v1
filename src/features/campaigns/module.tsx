@@ -32,6 +32,8 @@ function CampaignsLayout() {
 export const campaignsModule: ModuleDefinition = {
   id: "campaigns",
   owner: "P19",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "campanhas",
   navLabel: "Campanhas",
   routes: [{ index: true, element: <CampaignsLayout /> }],

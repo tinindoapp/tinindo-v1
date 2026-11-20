@@ -130,3 +130,30 @@
   font-size: var(--tn-text-support);
 }
 .tn-id-steps li[data-done] .tn-id-steps__mark { background: var(--tn-success-bg); color: var(--tn-success-text); border-color: currentColor; }
+
+/* Conta › Mais recursos (P51): um recurso por linha, com o estado escrito e o botão de ligar à direita (embaixo no celular). */
+.tn-id-features { list-style: none; margin: 0; padding: 0; display: grid; }
+.tn-id-feature {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tn-space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--tn-space-4) 0;
+  border-bottom: 1px solid var(--tn-border);
+}
+.tn-id-feature:first-child { padding-top: 0; }
+.tn-id-feature:last-child { border-bottom: 0; padding-bottom: 0; }
+.tn-id-feature__text { flex: 1 1 16rem; min-width: 0; display: grid; gap: var(--tn-space-1); }
+.tn-id-feature__text p { margin: 0; }
+.tn-id-feature__title { margin: 0; font-size: var(--tn-text-body); font-weight: var(--tn-font-weight-semibold); overflow-wrap: anywhere; }
+.tn-id-feature__state {
+  padding: 0 var(--tn-space-2);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-surface-sunken);
+  color: var(--tn-text-muted);
+  font-size: var(--tn-text-label);
+  font-weight: var(--tn-font-weight-medium);
+}
+.tn-id-feature[data-on] .tn-id-feature__state { background: var(--tn-success-bg); color: var(--tn-success-text); }
+.tn-id-feature .tn-actions a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }

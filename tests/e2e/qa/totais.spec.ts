@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { ligarRecursos } from "../escopo.ts";
 
 // Item 47 da auditoria de UX: a demonstração mostra os mesmos totais em todas as telas de dinheiro e de resultado,
 // no mesmo período. Antes, o Caixa tinha R$ 260, o Assistente R$ 160 na semana em que o Caixa tinha R$ 60, e as faltas
@@ -70,12 +71,13 @@ async function pagamentos(page: Page) {
   return { open: `R$ ${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(total / 100)}` };
 }
 
-test("mesmos totais em Caixa, Resultado, Metas, Assistente e Pagamentos (outubro até agora)", async ({ page }) => {
+test("mesmos totais em Caixa, Resultado, Metas e Assistente (outubro até agora)", async ({ page }) => {
+  // P51: Resultado e Metas são por ativação; ligados como o dono ligaria em Mais recursos.
+  await ligarRecursos(page, ["analytics", "growth-advice"]);
   const c = await caixa(page);
   const r = await resultado(page);
   const m = await metas(page);
   const a = await assistente(page);
-  const p = await pagamentos(page);
 
   // Recebido: as quatro telas que mostram o recebido do mês dizem o mesmo valor.
   expect(r.received).toBe(c.received);
@@ -86,6 +88,13 @@ test("mesmos totais em Caixa, Resultado, Metas, Assistente e Pagamentos (outubro
   expect(m.spent).toBe(c.spent);
   // Faltas: a mesma conta (quantos de quantos) no Resultado e nas Metas.
   expect(m.noShow).toBe(r.noShow);
-  // A receber: o Caixa e a lista de quem está devendo em Pagamentos.
+});
+
+// Pagamentos está guardado (P51, D4): esta comparação roda só na `main`, com todos os módulos ligados.
+test("a receber: o Caixa e a lista de quem está devendo em Pagamentos dizem o mesmo", async ({ page }) => {
+  test.skip(process.env.E2E_PILOTO === "1", "módulo guardado: roda só na main");
+  await page.addInitScript(() => localStorage.setItem("tinindo.demo.modulos", "todos"));
+  const c = await caixa(page);
+  const p = await pagamentos(page);
   expect(p.open).toBe(c.open);
 });

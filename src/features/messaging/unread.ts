@@ -17,10 +17,11 @@ export const UNREAD_POLL_MS = 60_000;
 export const unreadTotal = (inbox: Inbox) => inbox.contacts.reduce((n, k) => n + k.unread_count, 0);
 
 /** Total de mensagens não lidas do negócio. `refreshKey` (a rota atual) faz ler de novo. */
-export function useUnreadMessages(refreshKey: string): number {
+export function useUnreadMessages(refreshKey: string, active = true): number {
   const { state, tenantId, getAccessToken } = useSession();
   const demo = state.status === "offline_demo" || !appEnv.supabase;
-  const ready = state.status === "offline_demo" || state.status === "signed_in";
+  // P51: `active` falso (Mensagens não aparece para o negócio) = não lê nada.
+  const ready = active && (state.status === "offline_demo" || state.status === "signed_in");
   const port = useMemo<MessagingPort | null>(() => {
     if (!ready) return null;
     if (demo) return createDemoPort();

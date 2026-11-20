@@ -58,6 +58,8 @@ function OpsScreen() {
 export const serviceOpsModule: ModuleDefinition = {
   id: "service-ops",
   owner: "P15",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "activation",
   path: "servicos-tinindo",
   navLabel: "Plano e serviços",
   routes: [

@@ -3,6 +3,7 @@
 // com período, número e denominador. "Preparar" cria uma PROPOSTA no fluxo dono (aprovação lá); nada executa aqui.
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { useScope } from "../../app/scope.tsx";
 import { ActionButton, Card, Section, StatusBanner, toast } from "../../components/ui/index.tsx";
 import { actResultText, ddmm, explainInsight, INSIGHT_RULE_LABEL, INSIGHT_STATE, insightEvidence, OUTCOME, RULE_REASON, RULE_STATUS } from "./labels.ts";
 import { type Digests, type GrowthAdvicePort, type Insight, type InsightList, newKey } from "./port.ts";
@@ -53,14 +54,17 @@ export function InsightsCard({ port, limit = 3 }: { port: GrowthAdvicePort; limi
     return () => { alive = false; };
   }, [port, nonce]);
   const { snooze, act } = useInsightActions(port, () => setNonce((x) => x + 1));
+  // P51: sugestão que leva a uma tela que o negócio não vê (módulo guardado ou desligado) não aparece.
+  const scope = useScope();
+  const insights = data?.insights.filter((i) => scope.canOpen(i.action.route)) ?? [];
   if (failed) return null;
   return (
     <Section title="Para você esta semana" id="home-insights" action={<Link to="/app/metas">Ver todas</Link>}>
-      {!data ? <p role="status" className="tn-muted">Carregando sugestões…</p> : data.insights.length === 0 ? (
+      {!data ? <p role="status" className="tn-muted">Carregando sugestões…</p> : insights.length === 0 ? (
         <p className="tn-today__empty">Nada novo por aqui. As sugestões só aparecem quando há dado suficiente.</p>
       ) : (
         <ul className="tn-ga-list tn-insights" aria-label="Sugestões para você">
-          {data.insights.slice(0, limit).map((i) => (
+          {insights.slice(0, limit).map((i) => (
             <li key={i.id} className="tn-ga-item tn-insight" data-rule={i.rule_code}>
               <h3>{i.title}</h3>
               <Evidence i={i} />
@@ -96,7 +100,9 @@ export function InsightsSection({ port, focusId }: { port: GrowthAdvicePort; foc
     }
   }, [data]);
   const { snooze, act } = useInsightActions(port, () => setNonce((x) => x + 1));
-  const open = data?.insights.filter((i) => i.state === "open") ?? [];
+  // P51: aberta só se a tela onde a ação acontece aparece para o negócio.
+  const scope = useScope();
+  const open = data?.insights.filter((i) => i.state === "open" && scope.canOpen(i.action.route)) ?? [];
   const closed = data?.insights.filter((i) => i.state !== "open") ?? [];
   return (
     <Card aria-labelledby="ga-insights-title">
@@ -160,6 +166,7 @@ export function WeeklyDigestCard({ port, compact = false }: { port: GrowthAdvice
     port.digests().then((d) => alive && setData(d), () => alive && setData({ digests: [] }));
     return () => { alive = false; };
   }, [port]);
+  const scope = useScope();
   const d = data?.digests[0];
   if (!d) return compact ? null : (
     <Card aria-labelledby="ga-digest-title">
@@ -171,7 +178,7 @@ export function WeeklyDigestCard({ port, compact = false }: { port: GrowthAdvice
     <Card aria-labelledby={compact ? "msg-digest-title" : "ga-digest-title"}>
       <h2 id={compact ? "msg-digest-title" : "ga-digest-title"}>Resumo da semana{compact ? " · da Tinindo" : ""}</h2>
       <p className="tn-ga-digest">{d.body}</p>
-      {compact ? <p><Link to="/app/metas">Ver sugestões em Metas e sugestões</Link></p> : null}
+      {compact && scope.canOpen("/app/metas") ? <p><Link to="/app/metas">Ver sugestões em Metas e sugestões</Link></p> : null}
     </Card>
   );
 }
