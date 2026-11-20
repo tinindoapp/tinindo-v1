@@ -5,7 +5,9 @@ import type { PricingRule, PricingRuleProposal, ProviderService } from "@contrac
 import { Button, Card, ChipGroup, ConfirmAction, Field, PageHeader, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { computePrice } from "../../../supabase/functions/_shared/domain/pricing/price.ts";
 import { endOfLocalDayExclusive, formatBps, formatCents, formatDate, localDate, parsePercent, WEEKDAYS } from "./format.ts";
-import { newKey, type PricingPort } from "./port.ts";
+import type { PricingPort } from "./port.ts";
+import { errorExplainer } from "../../lib/errors.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 
 const PortContext = createContext<PricingPort | null>(null);
 export const PricingPortProvider = PortContext.Provider;
@@ -17,20 +19,17 @@ const REASON: Record<string, string> = {
   FLOOR_APPLIED: "Desconto limitado ao menor preço que você aceita.",
 };
 
-function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  if (e?.code === "POLICY_REJECTED") {
-    if (e.field === "floor") return "Com essa margem, o menor preço que você aceita neste serviço fica acima do preço base. Revise custos ou margem; nada foi criado.";
-    if (e.field === "target_margin_bps") return "Taxa + margem chegam a 100% ou mais: configuração inválida. Nada foi criado.";
-    if (e.field === "approval_id" || e.field === "payload_hash") return "A aprovação não vale mais para esta proposta (mudou, venceu ou já foi usada). Gere a prévia de novo.";
-    if (e.field === "preview") return "O serviço mudou depois da prévia. Gere uma nova proposta.";
-    return "As regras não permitem esta ação agora. Nada foi alterado.";
-  }
-  if (e?.code === "STALE_VERSION") return "Isto mudou em outro lugar. Atualizamos a lista.";
-  if (e?.code === "VALIDATION_ERROR") return "Confira os campos. Nada foi gravado.";
-  if (e?.code === "FORBIDDEN") return "Só o dono do negócio altera preços.";
-  return "Não foi possível concluir agora. Tentar de novo é seguro.";
-}
+const explain = errorExplainer({
+  "POLICY_REJECTED.floor": "Com essa margem, o menor preço que você aceita neste serviço fica acima do preço base. Revise custos ou margem; nada foi criado.",
+  "POLICY_REJECTED.target_margin_bps": "Taxa + margem chegam a 100% ou mais: configuração inválida. Nada foi criado.",
+  "POLICY_REJECTED.approval_id": "A aprovação não vale mais para esta proposta (mudou, venceu ou já foi usada). Gere a prévia de novo.",
+  "POLICY_REJECTED.payload_hash": "A aprovação não vale mais para esta proposta (mudou, venceu ou já foi usada). Gere a prévia de novo.",
+  "POLICY_REJECTED.preview": "O serviço mudou depois da prévia. Gere uma nova proposta.",
+  POLICY_REJECTED: "As regras não permitem esta ação agora. Nada foi alterado.",
+  STALE_VERSION: "Isto mudou em outro lugar. Atualizamos a lista.",
+  VALIDATION_ERROR: "Confira os campos. Nada foi gravado.",
+  FORBIDDEN: "Só o dono do negócio altera preços.",
+});
 
 export function PricingPage() {
   const port = usePort();
@@ -142,9 +141,11 @@ function Rules({ rules, name, tz, onChange }: {
 }) {
   const port = usePort();
   const active = rules.filter((r) => r.active);
+  const command = useCommand();
   async function deactivate(r: PricingRule) {
     try {
-      await port.deactivate({ rule_id: r.rule_id, expected_version: r.version }, newKey());
+      const input = { rule_id: r.rule_id, expected_version: r.version };
+      await command({ deactivate: input }, (key) => port.deactivate(input, key));
       toast(`Regra de ${name(r.service_id)} desativada. Novos valores usam o preço base. Reservas já feitas não mudam.`);
     } catch (err) {
       toast({ tone: "danger", message: explain(err) });
@@ -206,7 +207,10 @@ function NewRule({ services, tz, proposals, name, onChange }: {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [publishing, setPublishing] = useState<string | null>(null);
-  const [proposeKey] = useState(() => ({ sig: "", key: newKey() }));
+  // Mesma chave enquanto a proposta for a mesma (o instante de início não conta): repetir a prévia não cria outra.
+  const proposeKey = useIdempotencyKey();
+  const approveCommand = useCommand();
+  const publishCommand = useCommand();
 
   async function propose(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -227,11 +231,10 @@ function NewRule({ services, tz, proposals, name, onChange }: {
       windows: [...days].sort().map((weekday) => ({ weekday, local_start: from, local_end: to })),
       valid: { starts_at: port.now().toISOString(), ends_at: endOfLocalDayExclusive(until, tz) },
     };
-    const sig = JSON.stringify({ ...input, valid: until });
-    if (proposeKey.sig !== sig) Object.assign(proposeKey, { sig, key: newKey() });
+    const key = proposeKey.keyFor({ ...input, valid: until });
     setPending(true);
     try {
-      setPreview(await port.propose(input, proposeKey.key));
+      setPreview(await port.propose(input, key));
       onChange();
     } catch (err) {
       setError(explain(err));
@@ -243,8 +246,10 @@ function NewRule({ services, tz, proposals, name, onChange }: {
   async function approveAndPublish(p: PricingRuleProposal) {
     setPublishing(p.proposal_id);
     try {
-      const approval = await port.approve({ proposal_id: p.proposal_id, payload_hash: p.payload_hash!, expected_version: p.version }, newKey());
-      const rule = await port.publish({ proposal_id: p.proposal_id, approval_id: approval.approval_id, expected_version: p.version }, newKey());
+      const approve = { proposal_id: p.proposal_id, payload_hash: p.payload_hash!, expected_version: p.version };
+      const approval = await approveCommand({ approve }, (key) => port.approve(approve, key));
+      const publish = { proposal_id: p.proposal_id, approval_id: approval.approval_id, expected_version: p.version };
+      const rule = await publishCommand({ publish }, (key) => port.publish(publish, key));
       toast(`Regra publicada para ${name(rule.service_id)}. Vale para os próximos agendamentos; reservas já feitas mantêm o preço.`);
       setPreview(null);
     } catch (err) {

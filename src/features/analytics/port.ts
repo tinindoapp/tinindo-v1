@@ -17,5 +17,3 @@ export interface CostPort {
   readonly kind: "demo" | "server";
   costToServe(period: TimeRange, hourlyCostCents: number): Promise<CostToServe>;
 }
-
-export const newKey = () => crypto.randomUUID();

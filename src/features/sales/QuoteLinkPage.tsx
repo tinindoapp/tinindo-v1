@@ -3,28 +3,13 @@
 // orçamento, a página mostra a versão nova antes. Aceitar não é pagar.
 import { useEffect, useState } from "react";
 import { Button, Card, StatusBanner, Wordmark } from "../../components/ui/index.tsx";
-import { newKey, type QuoteDecision, type QuoteLinkPort, type QuoteView } from "./port.ts";
+import { type QuoteDecision, type QuoteLinkPort, type QuoteView } from "./port.ts";
 import { formatCents, formatDateTime, formatSlot } from "./rules.ts";
+import { newIdempotencyKey } from "../../lib/idempotency.ts";
+import { takeLinkToken } from "../../lib/public-link.ts";
 
 const KEY = "tinindo.quote";
-
-function takeToken(): string | null {
-  const m = /(?:^#|&)t=([A-Za-z0-9_-]{43})(?:&|$)/.exec(window.location.hash);
-  if (m?.[1]) {
-    try {
-      sessionStorage.setItem(KEY, m[1]);
-    } catch {
-      /* sem armazenamento: vale enquanto a página estiver aberta */
-    }
-    window.history.replaceState(window.history.state, "", window.location.pathname);
-    return m[1];
-  }
-  try {
-    return sessionStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
+const takeToken = () => takeLinkToken(KEY);
 
 export function QuoteLinkPage({ port }: { port: QuoteLinkPort }) {
   const [token] = useState(takeToken);
@@ -32,7 +17,7 @@ export function QuoteLinkPage({ port }: { port: QuoteLinkPort }) {
   const [state, setState] = useState<"loading" | "ready" | "missing">(token ? "loading" : "missing");
   const [result, setResult] = useState<QuoteDecision | null>(null);
   const [message, setMessage] = useState<{ tone: "danger" | "warning"; text: string } | null>(null);
-  const [keys, setKeys] = useState(() => ({ accept: newKey(), decline: newKey() }));
+  const [keys, setKeys] = useState(() => ({ accept: newIdempotencyKey(), decline: newIdempotencyKey() }));
   const [pending, setPending] = useState<"accept" | "decline" | null>(null);
 
   const [nonce, setNonce] = useState(0);
@@ -58,7 +43,7 @@ export function QuoteLinkPage({ port }: { port: QuoteLinkPort }) {
       const code = (err as { code?: string } | null)?.code;
       if (code === "STALE_VERSION") {
         // Outra versão: mostrar a nova e exigir nova decisão (com chaves novas).
-        setKeys({ accept: newKey(), decline: newKey() });
+        setKeys({ accept: newIdempotencyKey(), decline: newIdempotencyKey() });
         reload();
         setMessage({ tone: "warning", text: "O profissional atualizou este orçamento. Esta é a versão nova: confira antes de decidir. Nada foi aceito." });
       } else if (code === "SLOT_CONFLICT") {
