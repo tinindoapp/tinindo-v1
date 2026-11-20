@@ -1,6 +1,6 @@
-// KIT DAS PÁGINAS DO CLIENTE FINAL (P55). Cópia idêntica em network, payments, sales e reputation: o lint do repositório
-// não deixa um módulo importar outro, e src/app e src/lib são do integrador. `public-kit.sync.test.ts` (em network) falha
-// se as cópias divergirem; para mudar, edite a de network e copie. Pedido de unificação: ver o handoff do P55.
+// KIT DAS PÁGINAS DO CLIENTE FINAL (P55). Um só para os módulos (P53): network, payments e reputation importam daqui.
+// `sales` ainda tem a sua cópia; `public-kit.sync.test.ts` (nesta pasta) confere que ela não diverge deste arquivo até
+// sales trocar a cópia por este kit.
 //
 // O que tem aqui: a moldura única (D18: o negócio no topo, a Tinindo só no rodapé), o "não encontrado" com saída, o
 // estado final como tela própria, a leitura pública do negócio pelo endereço do link e os ajudantes do caminho.
@@ -63,7 +63,7 @@ export function anonCall() {
   return createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken: async () => null });
 }
 
-type BusinessReader = (slug: string) => Promise<PublicBusiness | null>;
+export type BusinessReader = (slug: string) => Promise<PublicBusiness | null>;
 const serverReader: BusinessReader = async (slug) => {
   const call = anonCall();
   // Demonstração sem servidor: o perfil vive na memória do módulo Perfil; as outras páginas usam o nome que o link traz.
@@ -72,32 +72,42 @@ const serverReader: BusinessReader = async (slug) => {
 };
 let reader: BusinessReader = serverReader;
 const cache = new Map<string, Promise<PublicBusiness | null>>();
-/** O módulo Perfil troca a leitura pela própria (inclui a demonstração); também usado em testes. null volta ao padrão. */
+/** Troca a leitura padrão (testes). null volta ao padrão. */
 export function setPublicBusinessReader(next: BusinessReader | null) {
   reader = next ?? serverReader;
   cache.clear();
 }
+// Leitura própria de um módulo, com cache à parte. O Perfil lê pela API dele (vale também na demonstração); quando
+// cada módulo tinha a sua cópia do kit, essa troca só valia para as páginas do Perfil, e continua assim.
+const ownCaches = new WeakMap<BusinessReader, Map<string, Promise<PublicBusiness | null>>>();
 
 /**
  * Negócio do endereço no caminho do link (`/pagar/:slug`). `undefined` enquanto carrega; null sem endereço ou sem
  * perfil publicado. As páginas com token usam isto para ter cabeçalho e saída mesmo quando o token não vale mais.
+ * `own`: leitura própria do módulo (só o Perfil usa); sem ela, a leitura padrão.
  */
-export function usePublicBusiness(slug: string | null | undefined): PublicBusiness | null | undefined {
+export function usePublicBusiness(slug: string | null | undefined, own?: BusinessReader): PublicBusiness | null | undefined {
   const valid = isSlug(slug) ? slug : null;
   const [state, setState] = useState<{ slug: string; business: PublicBusiness | null } | null>(null);
   useEffect(() => {
     if (!valid) return;
     let alive = true;
-    let hit = cache.get(valid);
+    let store = cache;
+    if (own) {
+      store = ownCaches.get(own) ?? new Map();
+      ownCaches.set(own, store);
+    }
+    const read = own ?? reader;
+    let hit = store.get(valid);
     if (!hit) {
-      hit = reader(valid).catch(() => null);
-      cache.set(valid, hit);
+      hit = read(valid).catch(() => null);
+      store.set(valid, hit);
     }
     void hit.then((business) => alive && setState({ slug: valid, business }));
     return () => {
       alive = false;
     };
-  }, [valid]);
+  }, [valid, own]);
   if (!valid) return null;
   return state?.slug === valid ? state.business : undefined;
 }

@@ -8,6 +8,7 @@ import { ApiError } from "../../lib/api/client.ts";
 import { createDemoNetworkApi, createHttpNetworkApi, resetDemoNetwork } from "./api.ts";
 import { networkModule, networkPublicRoutes } from "./module.tsx";
 import { PublicProfileView } from "./PublicProfileView.tsx";
+import { publicNetworkApi } from "./public/anon.ts";
 
 // O jsdom não tem canvas nem createImageBitmap: o preparo da foto tem testes próprios (photo.test.ts).
 vi.mock("./photo.ts", async (original) => ({
@@ -420,8 +421,9 @@ describe("páginas públicas (demonstração)", () => {
     expect((await screen.findByRole("radio", { name: /^Corte/ })).closest("label")).toHaveTextContent(/a partir de R\$\s60,00/);
   });
 
-  it("toE164 aceita os formatos comuns e recusa número sem DDD", async () => {
-    const { toE164 } = await import("./PublicProfileView.tsx");
+  it("o WhatsApp do link aceita os formatos comuns e recusa número sem DDD (analisador de src/lib/phone.ts)", async () => {
+    const { phoneToE164 } = await import("../../lib/phone.ts");
+    const toE164 = (raw: string) => phoneToE164(raw) ?? null;
     expect(toE164("(11) 97777-4343")).toBe("+5511977774343");
     expect(toE164("+55 11 97777-4343")).toBe("+5511977774343");
     expect(toE164("5511977774343")).toBe("+5511977774343");
@@ -461,8 +463,9 @@ describe("páginas públicas (demonstração)", () => {
     window.history.replaceState(null, "", `/convite#t=${token}`);
 
     renderAt("/convite");
-    expect(window.location.hash).toBe("");
+    // A tela é carregada sob demanda (P53): o token sai da URL assim que ela monta, antes de qualquer ação.
     expect(await screen.findByRole("heading", { name: "Você recebeu um convite de um colega" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("");
     expect((await api.listReferrals())[0]?.state).toBe("pending");
 
     fireEvent.click(screen.getByRole("button", { name: "Aceitar convite" }));
@@ -479,8 +482,9 @@ describe("páginas públicas (demonstração)", () => {
 
   it("cliente indica profissional com link pessoal, sem pedir telefone", async () => {
     renderAt("/indicar");
+    const name = await screen.findByLabelText("Nome do profissional (só você vê)");
     expect(screen.queryByLabelText(/telefone/i)).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Nome do profissional (só você vê)"), { target: { value: "Profissional Exemplo" } });
+    fireEvent.change(name, { target: { value: "Profissional Exemplo" } });
     fireEvent.click(screen.getByRole("button", { name: "Gerar link de indicação" }));
     const input = (await screen.findByLabelText("Link para compartilhar")) as HTMLInputElement;
     expect(input.value).toMatch(/\/convite#t=/);
@@ -556,6 +560,24 @@ describe("confirmação da reserva (E10)", () => {
     expect(phone).toHaveValue("(11) 97777-4343");
     expect(screen.getByLabelText("Seu nome")).toHaveValue("Maria");
     expect(screen.getByText(/^Corte · ter 20\/10 · 12:00$/)).toBeInTheDocument();
+  });
+
+  it("Confirmar falhou: tocar de novo manda a mesma chave (o servidor não confirma duas vezes)", async () => {
+    await publishDemoProfile();
+    cleanup();
+    renderAt("/p/barbearia-exemplo");
+    const code = await bookToCode();
+    const confirm = vi
+      .spyOn(publicNetworkApi(), "confirmBooking")
+      .mockRejectedValueOnce(new ApiError("PROVIDER_UNAVAILABLE", "Indisponível.", 503, null, true));
+    fireEvent.change(screen.getByLabelText("Código recebido"), { target: { value: code } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar horário" }));
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("heading", { name: "Horário confirmado" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar horário" }));
+    expect(await screen.findByRole("heading", { name: "Horário confirmado" })).toBeInTheDocument();
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(confirm.mock.calls[1]![1]).toBe(confirm.mock.calls[0]![1]);
   });
 
   it("confirmado: Adicionar à agenda baixa o .ics em UTC, sem o telefone; Falar com o negócio com o WhatsApp público", async () => {

@@ -33,4 +33,3 @@ export interface PublicReviewsPort {
   list(slug: string): Promise<ReviewPublicList>;
 }
 
-export const newKey = () => crypto.randomUUID();

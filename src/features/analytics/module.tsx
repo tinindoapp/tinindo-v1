@@ -2,57 +2,12 @@
 // Sem Supabase (demonstração offline) usa números sintéticos rotulados; com Supabase, a função `analytics`.
 // O custo por cliente fica em /app/resultado/custo, fora do menu: o banco decide quem é operador; quem não é da equipe
 // (sinal `isOperator` da sessão, recado #88) vê só o aviso, sem chamar o servidor.
-import { useMemo } from "react";
+// Manifesto (P53): as telas ficam em routes.tsx e são carregadas sob demanda.
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { appEnv } from "../../app/env.ts";
-import { OperatorGate } from "../../app/OperatorGate.tsx";
-import { useSession } from "../../app/session.tsx";
-import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
-import { CostPage } from "./CostPage.tsx";
-import { createDemoCostPort, createDemoPort } from "./demoPort.ts";
-import type { AnalyticsPort, CostPort } from "./port.ts";
-import { ResultPage } from "./ResultPage.tsx";
-import { createServerCostPort, createServerPort } from "./serverPort.ts";
+import { screen } from "../../app/lazy-route.ts";
 import "./analytics.css";
 
-function ResultLayout() {
-  const { state, tenantId, getAccessToken } = useSession();
-  const port = useMemo<AnalyticsPort | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return createDemoPort();
-    if (!tenantId) return null;
-    return createServerPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken }), tenantId);
-  }, [state.status, tenantId, getAccessToken]);
-  if (!port) {
-    return (
-      <div className="tn-page-intro">
-        <PageHeader id="an-no-tenant" title="Resultado" />
-        <StatusBanner tone="info">Selecione um negócio para ver os indicadores.</StatusBanner>
-      </div>
-    );
-  }
-  return <ResultPage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;
-}
-
-const demoNow = () => new Date(Date.parse("2026-10-20T12:00:00Z"));
-const realNow = () => new Date();
-
-function CostLayout() {
-  return (
-    <OperatorGate title="Custo por cliente" headingId="cost-title">
-      <CostScreen />
-    </OperatorGate>
-  );
-}
-
-function CostScreen() {
-  const { state, getAccessToken } = useSession();
-  const port = useMemo<CostPort>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return createDemoCostPort();
-    return createServerCostPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken }));
-  }, [state.status, getAccessToken]);
-  return <CostPage port={port} now={port.kind === "demo" ? demoNow : realNow} />;
-}
+const routes = () => import("./routes.tsx");
 
 export const analyticsModule: ModuleDefinition = {
   id: "analytics",
@@ -62,7 +17,7 @@ export const analyticsModule: ModuleDefinition = {
   path: "resultado",
   navLabel: "Resultado",
   routes: [
-    { index: true, element: <ResultLayout /> },
-    { path: "custo", element: <CostLayout /> },
+    { index: true, lazy: screen(routes, (m) => m.ResultLayout) },
+    { path: "custo", lazy: screen(routes, (m) => m.CostLayout) },
   ],
 };

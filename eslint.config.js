@@ -58,31 +58,31 @@ const restricted = (...groups) => ["error", SECRET_KEY, ...groups.flat()];
 const LEGACY_MONEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
-  "src/features/identity/MyBookingsPage.tsx",
-  "src/features/network/PublicProfileView.tsx",
   "src/features/scheduling/agenda.ts",
-  "src/features/setup/labels.ts",
 ];
 const LEGACY_KEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
   "src/features/agent/port.ts",
-  "src/features/discovery/port.ts",
-  "src/features/network/api.ts",
-  "src/features/network/useNetworkApi.ts",
-  "src/features/payments/port.ts",
-  "src/features/presence/port.ts",
-  "src/features/reputation/port.ts",
   "src/features/scheduling/port.ts",
-  "src/features/setup/port.ts",
 ];
 const LEGACY_CLOCK = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
-  "src/features/analytics/module.tsx",
-  "src/features/identity/services.tsx",
-  "src/features/network/PublicProfileView.tsx",
   "src/features/scheduling/attendance.tsx",
+];
+
+// P53 (R4): um cliente de API por sessão (src/app/session.tsx). Módulo usa useApi/usePort de src/app/api.tsx e só
+// importa o TIPO do cliente. Estes arquivos ainda criam o próprio cliente: são de áreas que não entraram no P53 (recado).
+const LEGACY_CLIENT = [
+  "src/features/agent/module.tsx",
+  "src/features/crm/module.tsx",
+  "src/features/finance/module.tsx",
+  "src/features/lifecycle/module.tsx",
+  "src/features/messaging/unread.ts",
+  "src/features/sales/owner-slug.ts",
+  "src/features/sales/public-kit.tsx",
+  "src/features/scheduling/SchedulingLayout.tsx",
 ];
 
 const APP_CODE = ["src/features/**/*.{ts,tsx}", "src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"];
@@ -129,6 +129,26 @@ export default tseslint.config(
         {
           patterns: [
             { group: ["../*/*", "!../../*", "**/features/**"], message: "Módulo não importa outro módulo; use @contracts." },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // P53: módulo não cria cliente de API (um por sessão). Importar só o tipo continua permitido.
+    files: ["src/features/**/*.{ts,tsx}"],
+    ignores: [...TESTS, ...LEGACY_CLIENT],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/lib/api/client.ts"],
+              importNames: ["createApiClient"],
+              allowTypeImports: true,
+              message: "Módulo não cria cliente de API: use useApi()/usePort() de src/app/api.tsx (um cliente por sessão).",
+            },
           ],
         },
       ],

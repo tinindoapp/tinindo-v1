@@ -5,7 +5,7 @@ import type { NetworkApi, PublicProfileData } from "../api.ts";
 import { type ProfileSiteExtras, PublicProfileView } from "../PublicProfileView.tsx";
 import { type PublicSite, PublicSiteOutput } from "@contracts";
 import { usePublicNetworkApi } from "./anon.ts";
-import { anonCall, PublicFooter, PublicMissing, PublicSkeleton } from "../public-kit.tsx";
+import { anonCall, PublicFooter, PublicMissing, PublicSkeleton } from "../../../components/public/public-kit.tsx";
 import "../network.css";
 
 type Load = { slug: string } & ({ kind: "ok"; profile: PublicProfileData; site: ProfileSiteExtras | null } | { kind: "missing" });

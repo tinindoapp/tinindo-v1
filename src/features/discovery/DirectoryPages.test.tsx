@@ -33,6 +33,18 @@ describe("Diretório (dono)", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  it("Salvar falhou: tocar de novo manda a mesma chave (o servidor não grava duas vezes)", async () => {
+    const { save } = renderPage();
+    save.mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    fireEvent.change(await screen.findByLabelText("Cidade"), { target: { value: "São Paulo" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Pronto: seu negócio aparece no diretório.")).toBeInTheDocument();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]![1]).toBe(save.mock.calls[0]![1]);
+  });
+
   it("sair do diretório executa na hora e o Desfazer salva de novo como estava", async () => {
     const { save } = renderPage();
     fireEvent.change(await screen.findByLabelText("Cidade"), { target: { value: "São Paulo" } });

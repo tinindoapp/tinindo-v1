@@ -46,4 +46,3 @@ export interface PaymentLinkPort {
   simPay(token: string, outcome: "paid" | "expired", notify: boolean): Promise<SimPayResult>;
 }
 
-export const newKey = () => crypto.randomUUID();

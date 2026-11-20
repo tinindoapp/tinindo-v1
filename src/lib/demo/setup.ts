@@ -11,7 +11,7 @@
 // Ponte com o resto da demonstração (decisão D5: só o ciclo central): o que o dono confirma na Configuração
 // (expediente, serviços, profissão) é publicado aqui. A Agenda, os Serviços e o perfil de exemplo passam a ler isto
 // ligando um leitor com `readDemoSetup` (recado #115: Agenda em scheduling/fixturePort.ts, catálogo em crm/api.ts e
-// perfil em network/api.ts, todos ao carregar o módulo). Enquanto nenhum leitor de um tipo está ligado, `demoSetupReach`
+// perfil em network/demoApi.ts, todos ao carregar o módulo). Enquanto nenhum leitor de um tipo está ligado, `demoSetupReach`
 // diz que a gravação não sai da tela de Configuração, e a tela avisa isso em vez de prometer que a Agenda mudou.
 import type { Profession, SetupProgress, SetupServicesApplyOutput, SetupStep, SetupStepCode, WeeklyWindow } from "@contracts";
 import { FIXED_NOW, tenantA } from "@contracts/fixtures.ts";

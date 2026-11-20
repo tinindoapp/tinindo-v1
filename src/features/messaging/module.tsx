@@ -1,75 +1,13 @@
 // Módulo Canal · P12 (tasks/P12.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 // Sem Supabase (demonstração offline) usa a emulação local, sempre rotulada; com Supabase, a função `messaging`.
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router";
+// Manifesto (P53): as telas ficam em routes.tsx e são carregadas sob demanda.
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { appEnv } from "../../app/env.ts";
-import { useSession } from "../../app/session.tsx";
-import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
-import { ContextResponse } from "@contracts";
-import { tenantA } from "@contracts/fixtures.ts";
-import { createApiClient } from "../../lib/api/client.ts";
-import { createDemoPort } from "./demoPort.ts";
-import { ConversationPage, InboxPage } from "./InboxPage.tsx";
-import type { MessagingPort } from "./port.ts";
-import { createServerPort } from "./serverPort.ts";
-import { SimulatorPage } from "./SimulatorPage.tsx";
+import { screen } from "../../app/lazy-route.ts";
 import "./messaging.css";
 
-function usePort(): { port: MessagingPort | null; timezone: string; tenantId: string | null } {
-  const { state, tenantId, getAccessToken } = useSession();
-  const [timezone, setTimezone] = useState(tenantA.timezone);
-  const demo = state.status === "offline_demo" || !appEnv.supabase;
-  const port = useMemo<MessagingPort | null>(() => {
-    if (demo) return createDemoPort();
-    if (!tenantId) return null;
-    return createServerPort(createApiClient({ baseUrl: appEnv.supabase!.url, publishableKey: appEnv.supabase!.publishableKey, getAccessToken }), tenantId);
-  }, [demo, tenantId, getAccessToken]);
-  useEffect(() => {
-    if (demo || !tenantId || !appEnv.supabase) return;
-    const call = createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken });
-    let alive = true;
-    call("/context", ContextResponse, { tenantId }).then((r) => alive && setTimezone(r.data.timezone), () => undefined);
-    return () => { alive = false; };
-  }, [demo, tenantId, getAccessToken]);
-  return { port, timezone, tenantId };
-}
+export { InboxExtraProvider } from "./inbox-extra.ts";
 
-function NoTenant({ title }: { title: string }) {
-  return (
-    <div className="tn-stack">
-      <PageHeader id="msg-no-tenant" title={title} />
-      <StatusBanner tone="info">Selecione um negócio para ver o canal.</StatusBanner>
-    </div>
-  );
-}
-
-/**
- * Bloco do dono acima das conversas, fornecido pelo app (módulo não importa módulo). P45: o resumo semanal da Tinindo
- * por modelo fixo chega aqui, na caixa de Mensagens do dono.
- */
-const InboxExtraContext = createContext<ReactNode>(null);
-export const InboxExtraProvider = InboxExtraContext.Provider;
-
-function InboxLayout() {
-  const { port, timezone, tenantId } = usePort();
-  const extra = useContext(InboxExtraContext);
-  if (!port) return <NoTenant title="Mensagens" />;
-  return <InboxPage key={`${port.kind}:${tenantId ?? ""}`} port={port} timezone={timezone} extra={extra} />;
-}
-
-function ConversationLayout() {
-  const { port, timezone, tenantId } = usePort();
-  const { contactId = "" } = useParams();
-  if (!port) return <NoTenant title="Mensagens" />;
-  return <ConversationPage key={`${port.kind}:${tenantId ?? ""}:${contactId}`} port={port} timezone={timezone} contactId={contactId} />;
-}
-
-function SimulatorLayout() {
-  const { port, timezone, tenantId } = usePort();
-  if (!port) return <NoTenant title="Simulador do telefone" />;
-  return <SimulatorPage key={`${port.kind}:${tenantId ?? ""}`} port={port} timezone={timezone} />;
-}
+const routes = () => import("./routes.tsx");
 
 export const messagingModule: ModuleDefinition = {
   id: "messaging",
@@ -79,9 +17,9 @@ export const messagingModule: ModuleDefinition = {
   path: "mensagens",
   navLabel: "Mensagens",
   routes: [
-    { index: true, element: <InboxLayout /> },
-    { path: "simulador", element: <SimulatorLayout /> },
+    { index: true, lazy: screen(routes, (m) => m.InboxLayout) },
+    { path: "simulador", lazy: screen(routes, (m) => m.SimulatorLayout) },
     // Tela da conversa (a rota fixa "simulador" vence o parâmetro).
-    { path: ":contactId", element: <ConversationLayout /> },
+    { path: ":contactId", lazy: screen(routes, (m) => m.ConversationLayout) },
   ],
 };

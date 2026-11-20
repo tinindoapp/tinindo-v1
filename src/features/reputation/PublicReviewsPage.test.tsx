@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { tenantA } from "@contracts/fixtures.ts";
 import { createDemoPublicPort, resetDemoState } from "./demoPort.ts";
 import type { PublicReviewsPort } from "./port.ts";
-import { setPublicBusinessReader } from "./public-kit.tsx";
+import { setPublicBusinessReader } from "../../components/public/public-kit.tsx";
 import { PublicReviewsPage } from "./PublicReviewsPage.tsx";
 
 const open = (port: PublicReviewsPort, slug: string) =>

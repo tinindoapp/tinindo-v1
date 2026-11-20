@@ -1,25 +1,18 @@
 // Módulo Conta · dono: P01 (tasks/P01.md). Só esta pasta pertence ao módulo;
 // src/app/modules.ts e o roteador são do integrador.
-import { Outlet } from "react-router";
+// Manifesto (P53): a moldura e cada tela são carregadas sob demanda.
+import type { RouteObject } from "react-router";
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { AccountPage } from "./AccountPage.tsx";
-import { NewPasswordPage } from "./AuthPages.tsx";
-import { CreateBusinessPage } from "./CreateBusinessPage.tsx";
-import { MoreFeaturesPage } from "./MoreFeaturesPage.tsx";
-import { MyBookingsPage } from "./MyBookingsPage.tsx";
-import { RedeemLinkPage } from "./RedeemLinkPage.tsx";
-import { IdentityServicesProvider } from "./services.tsx";
+import { screen } from "../../app/lazy-route.ts";
 import "./identity.css";
 
-export { PublicRecoverPassword, PublicSignUp } from "./AuthPages.tsx";
+const auth = () => import("./AuthPages.tsx");
 
-function IdentityLayout() {
-  return (
-    <IdentityServicesProvider>
-      <Outlet />
-    </IdentityServicesProvider>
-  );
-}
+/** Cadastro e recuperação de senha (P01), fora do shell, que manda quem não tem sessão para /entrar. */
+export const identityPublicRoutes: RouteObject[] = [
+  { path: "/criar-conta", lazy: screen(auth, (m) => m.PublicSignUp) },
+  { path: "/recuperar-senha", lazy: screen(auth, (m) => m.PublicRecoverPassword) },
+];
 
 export const identityModule: ModuleDefinition = {
   id: "identity",
@@ -30,15 +23,15 @@ export const identityModule: ModuleDefinition = {
   navLabel: "Conta",
   routes: [
     {
-      element: <IdentityLayout />,
+      lazy: screen(() => import("./routes.tsx"), (m) => m.IdentityLayout),
       children: [
-        { index: true, element: <AccountPage /> },
-        { path: "novo-negocio", element: <CreateBusinessPage /> },
-        { path: "vincular", element: <RedeemLinkPage /> },
-        { path: "reservas", element: <MyBookingsPage /> },
-        { path: "nova-senha", element: <NewPasswordPage /> },
+        { index: true, lazy: screen(() => import("./AccountPage.tsx"), (m) => m.AccountPage) },
+        { path: "novo-negocio", lazy: screen(() => import("./CreateBusinessPage.tsx"), (m) => m.CreateBusinessPage) },
+        { path: "vincular", lazy: screen(() => import("./RedeemLinkPage.tsx"), (m) => m.RedeemLinkPage) },
+        { path: "reservas", lazy: screen(() => import("./MyBookingsPage.tsx"), (m) => m.MyBookingsPage) },
+        { path: "nova-senha", lazy: screen(auth, (m) => m.NewPasswordPage) },
         // P51: os seis módulos "por ativação".
-        { path: "recursos", element: <MoreFeaturesPage /> },
+        { path: "recursos", lazy: screen(() => import("./MoreFeaturesPage.tsx"), (m) => m.MoreFeaturesPage) },
       ],
     },
   ],

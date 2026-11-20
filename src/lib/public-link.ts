@@ -29,3 +29,12 @@ export function takeLinkToken(storageKey: string): string | null {
     return null;
   }
 }
+
+/** Esquece o token guardado (o link já foi usado): recarregar a página não o traz de volta. */
+export function forgetLinkToken(storageKey: string): void {
+  try {
+    sessionStorage.removeItem(storageKey);
+  } catch {
+    /* nada a limpar */
+  }
+}

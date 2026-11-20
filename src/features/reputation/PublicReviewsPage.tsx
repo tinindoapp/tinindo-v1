@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { StatusBanner } from "../../components/ui/index.tsx";
 import type { PublicReviewsPort, ReviewPublicList } from "./port.ts";
-import { type PublicBusiness, PublicFrame, PublicMissing, PublicSkeleton, usePublicBusiness } from "./public-kit.tsx";
+import { type PublicBusiness, PublicFrame, PublicMissing, PublicSkeleton, usePublicBusiness } from "../../components/public/public-kit.tsx";
 import { Badges, ReviewSummary, ReviewView } from "./ReviewViews.tsx";
 
 export function PublicReviewsPage({ port }: { port: PublicReviewsPort }) {
