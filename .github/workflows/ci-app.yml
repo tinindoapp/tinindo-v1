@@ -1,4 +1,6 @@
 # CI do aplicativo (P00). Roda em todo PR para main e em push na main.
+# Os cinco jobs abaixo são os checks obrigatórios do merge (docs/09, "Checks obrigatórios do CI"); renomear um job
+# exige atualizar a regra da main no GitHub.
 # Sem secrets: nenhum job recebe credencial de homologação/produção. Actions fixadas por SHA.
 # Runner fixado em ubuntu-24.04: ubuntu-latest migra para Ubuntu 26 a partir de 19/10/2026.
 # Não usar `|| true`, --passWithNoTests ou mocks no lugar do banco (docs/09).
@@ -117,6 +119,21 @@ jobs:
           PGPORT: "5432"
           PGUSER: postgres
           PGPASSWORD: postgres
+      # Recado #109: o script de publicação aplica as migrations num banco descartável pelo mesmo `supabase db push`
+      # que usa na homologação, e o smoke confere o resultado. Pega erro no script antes do Gabriel publicar.
+      - name: Publicação no banco local (release/publicar.sh local)
+        run: |
+          psql -qXc "create database tinindo_publicar"
+          psql -d tinindo_publicar -qX -v ON_ERROR_STOP=1 -c "alter database tinindo_publicar set search_path = \"\$user\", public, extensions" -f scripts/db-local/supabase_shim.sql >/dev/null
+          bash release/publicar.sh local
+          bash release/publicar.sh local | grep -q "nada a aplicar"
+          EXIGE_MAIN=0 bash release/publicar.sh homolog --conferir
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          LOCAL_DB: tinindo_publicar
       # OPS-01: dump, restore em banco novo, integridade e app utilizável, com tempo medido.
       - name: Ensaio de restore (OPS-01)
         run: npm run db:restore:drill

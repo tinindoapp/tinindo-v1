@@ -24,6 +24,28 @@ Hosting: começar com provedor que compile Vite e tenha preview por commit, logs
 
 Não usar `|| true`, `--passWithNoTests` ou mock no caminho de teste que deveria verificar banco real. Checks de documentação/coordenador não valem como CI do aplicativo. Se um teste só existe no papel, registrar pendência.
 
+## Checks obrigatórios do CI
+
+O workflow `app-ci` (`.github/workflows/ci-app.yml`) roda em todo PR para a `main` e em todo push na `main`. São cinco checks, e os cinco têm de estar verdes para o merge (decisão D38 (a): zero aprovações exigidas, CI obrigatório). Para exigir no GitHub: Settings › Branches › regra da `main` › "Require status checks to pass", marcando exatamente estes nomes:
+
+| Check | O que prova |
+|---|---|
+| `lint · typecheck · unit · contratos · build` | ESLint sem aviso, TypeScript, Vitest (unit e contratos), build de produção, testes do coordenador e `npm audit` crítico |
+| `edge functions (deno check)` | As 29 funções compilam no Deno com o lock |
+| `banco (migrations do zero · seed · pgTAP/RLS)` | Ordem das migrations, banco do zero com seed, pgTAP, lint de schema, concorrência, integração handler ↔ banco, dicionário igual às migrations, ensaio de restore e o `release/publicar.sh` aplicando as migrations num banco descartável |
+| `e2e smoke (desktop + mobile)` | Playwright sobre a demonstração (no PR, sem os módulos guardados; na `main`, todos) e a jornada do ciclo com servidor (P59) |
+| `varredura de segredos` | gitleaks nos commits do PR |
+
+CodeQL e o build de prévia da Cloudflare também aparecem no PR, mas não fazem parte da regra.
+
+O e2e contra a homologação (`npm run test:staging`, `tests/e2e-staging`) não roda no CI: precisa do ambiente no ar e da senha da conta técnica. Roda depois de cada publicação (abaixo).
+
+## Publicação em um comando
+
+`npm run publicar -- <ambiente>` (`release/publicar.sh`, passo a passo em `release/PUBLICAR.md`). Os ambientes ficam em `release/ambientes/<nome>.env`, só com dados públicos (projeto, endereço, arquivo do Worker). Ordem fixa, parando no primeiro erro: conferências (commit da `main`, ordem das migrations no repositório e no ambiente) → migrations → segredos das funções (gerados no terminal, nunca impressos) → funções → cron (quatro agendamentos; as rotinas dos módulos rodam pelo `job_ticks`) → Worker com o commit em `/version.json` → smoke (`release/smoke.sh`). `--conferir` só mostra o que faria. O ambiente `local` aplica as migrations num Postgres descartável com o mesmo `supabase db push`, e é como o CI testa o script.
+
+Depois de publicar: `npm run test:staging` (e2e com a jornada do UAT, cerca de 5 minutos) e, no UAT, `npm run preparar:uat` para ligar Mensagens só nos negócios do teste.
+
 ## Publicação
 
 PR revisado → main → homologação → smoke → aprovação do responsável → release/tag → produção. Só deploy pode usar segredos do ambiente correspondente. Validação de produção começa por conta técnica sintética sem marketing ativo. Uma pessoa publica por vez; fila de deploy não cancela migration em andamento. Não usar `pull_request_target` para executar código não confiável com secrets.
