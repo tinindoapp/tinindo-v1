@@ -135,4 +135,18 @@ describe("avaliações", () => {
     await waitFor(() => expect(withdraw).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Avaliação retirada.")).toBeInTheDocument();
   });
+
+  it("cliente: Publicar falhou, tocar de novo manda a mesma chave (o servidor não publica duas vezes)", async () => {
+    const port = createDemoCustomerPort();
+    const submit = vi.spyOn(port, "submit").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    wrap(<CustomerReviewPage port={port} />);
+    const form = await screen.findByRole("form", { name: /Avaliar Corte/ });
+    fireEvent.click(within(form).getByRole("radio", { name: "4 – Muito bom" }));
+    fireEvent.click(within(form).getByRole("button", { name: "Publicar avaliação" }));
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    fireEvent.click(await within(form).findByRole("button", { name: "Publicar avaliação" }));
+    expect(await screen.findByText("Obrigado! Sua avaliação foi publicada sem o seu nome.")).toBeInTheDocument();
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(submit.mock.calls[1]![3]).toBe(submit.mock.calls[0]![3]);
+  });
 });

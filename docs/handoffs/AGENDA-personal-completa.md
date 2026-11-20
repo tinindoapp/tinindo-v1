@@ -90,3 +90,20 @@ Migration `supabase/migrations/20261120132413_agenda_personal_series.sql`. É ap
 - Trava de módulo nos outros módulos: recado `para-felipe` (lista de 6 módulos por ativação e 11 guardados).
 - "Até uma data" no meio da semana ainda gera uma série por dia. Para juntar, o servidor precisaria de um parâmetro `until` em `booking.create_series`.
 - Mais de 12 semanas continua fora (limite do contrato).
+
+## Atualização · junção com a main (P53, P57)
+
+- O P53 criou a lista `LEGACY_CLIENT` (módulos que ainda criam o próprio cliente de API), com a Agenda nela. Para fechar o item 5, a Agenda passou a usar o cliente único da sessão: `SchedulingLayout` usa `useApi()`, e `serverPort` e `collect` recebem `ApiCall`. Ela saiu dessa lista também; nenhuma lista de legado tem mais arquivo da Agenda.
+- A main chegou com o lint vermelho. O P57 (`src/features/privacy/module.tsx`) entrou antes do P53 e cria o próprio cliente. Pus o arquivo na `LEGACY_CLIENT`, com comentário, no mesmo padrão que o P53 usou para as áreas que não migrou. A migração do módulo Privacidade fica com o dono dele.
+- Migration renomeada para `20261120132413_agenda_personal_series.sql`, posterior à do P57. Testes renumerados: pgTAP `42` e integração `51`.
+- Resultados sobre a main com o P53:
+
+| Verificação | Resultado |
+|---|---|
+| lint e typecheck | ok |
+| unit | 1058 |
+| contratos | 846 |
+| pgTAP, concorrência e dicionário | ok |
+| integração | 161 |
+| build | ok |
+| e2e | 318 |

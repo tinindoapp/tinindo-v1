@@ -7,10 +7,12 @@ import type { Profession } from "@contracts";
 import { PublicLayout } from "../../app/PublicLayout.tsx";
 import { useSession } from "../../app/session.tsx";
 import { Button, Card, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
+import { newIdempotencyKey, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { forgetLinkToken, takeLinkToken } from "../../lib/public-link.ts";
 import type { NetworkApi, PublicProfileData, ReferralInspectOutput, ReferralLinkData } from "./api.ts";
 import { PublicProfileView } from "./PublicProfileView.tsx";
 import { ShareLink } from "./ShareLink.tsx";
-import { CATEGORY_LABEL, errorMessage, formatDateTime, newIdempotencyKey, useNetworkApi } from "./useNetworkApi.ts";
+import { CATEGORY_LABEL, errorMessage, formatDateTime, useNetworkApi } from "./useNetworkApi.ts";
 import "./network.css";
 
 type Load<T> = { kind: "loading" } | { kind: "ok"; data: T } | { kind: "error"; message: string };
@@ -70,32 +72,8 @@ export function ProfilePreviewPage() {
 
 const INVITE_KEY = "tinindo.invite";
 
-function takeInviteToken(): string | null {
-  const match = /(?:^#|&)t=([A-Za-z0-9_-]{43})(?:&|$)/.exec(window.location.hash);
-  if (match?.[1]) {
-    try {
-      sessionStorage.setItem(INVITE_KEY, match[1]);
-    } catch {
-      /* sem armazenamento: o token vale só enquanto a página estiver aberta */
-    }
-    // Remove o token da barra de endereço e do histórico.
-    window.history.replaceState(window.history.state, "", window.location.pathname);
-    return match[1];
-  }
-  try {
-    return sessionStorage.getItem(INVITE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function forgetInviteToken() {
-  try {
-    sessionStorage.removeItem(INVITE_KEY);
-  } catch {
-    /* nada a limpar */
-  }
-}
+const takeInviteToken = () => takeLinkToken(INVITE_KEY);
+const forgetInviteToken = () => forgetLinkToken(INVITE_KEY);
 
 const INVITE_TEXT: Record<ReferralInspectOutput["kind"], { title: string; body: string; action: string }> = {
   professional_invites_peer: {
@@ -117,6 +95,7 @@ export function InvitePage() {
   const [token] = useState(takeInviteToken);
   const [info, setInfo] = useState<Load<ReferralInspectOutput>>(token ? { kind: "loading" } : { kind: "error", message: "Link inválido ou removido." });
   const [claim, setClaim] = useState<{ kind: "idle" | "busy" | "done" } | { kind: "error"; message: string }>({ kind: "idle" });
+  // Aceitar vale uma vez: chave fixa enquanto a página do convite está aberta.
   const [idemKey] = useState(newIdempotencyKey);
 
   useEffect(() => {
@@ -202,7 +181,7 @@ export function RecommendPage() {
   const [link, setLink] = useState<ReferralLinkData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [idemKey, setIdemKey] = useState(newIdempotencyKey);
+  const idem = useIdempotencyKey();
   const canAct = session.status === "signed_in" || session.status === "offline_demo";
   const { formRef, errors, show, clear } = useFormErrors<"name">();
 
@@ -212,9 +191,10 @@ export function RecommendPage() {
     setBusy(true);
     setError(null);
     try {
-      setLink(await api.createReferral({ kind: "customer_recommends_professional", invitee_name: name.trim(), invitee_category: category, origin: "web" }, idemKey));
+      const input = { kind: "customer_recommends_professional" as const, invitee_name: name.trim(), invitee_category: category, origin: "web" as const };
+      setLink(await api.createReferral(input, idem.keyFor(input)));
+      idem.reset();
       setName("");
-      setIdemKey(newIdempotencyKey());
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -240,7 +220,6 @@ export function RecommendPage() {
                 onChange={(e) => {
                   setName(e.target.value);
                   clear("name");
-                  setIdemKey(newIdempotencyKey());
                 }}
                 error={errors.name}
                 required

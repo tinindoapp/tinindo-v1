@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FX } from "@contracts/fixtures.ts";
 import { ApiError } from "../../lib/api/client.ts";
 import { createDemoNetworkApi, type NetworkApi, resetDemoNetwork } from "./api.ts";
-import { withBusinessSlug } from "./public-kit.tsx";
+import { withBusinessSlug } from "../../components/public/public-kit.tsx";
 
 const SLUG = "barbearia-jornada";
 const DAY = "2026-10-20";

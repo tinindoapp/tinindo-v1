@@ -9,10 +9,10 @@ import {
   PaymentEntry,
   ReceivableOutput,
 } from "@contracts";
-import type { createApiClient } from "../../lib/api/client.ts";
+import type { ApiCall } from "../../lib/api/session-client.ts";
 import type { BookingCollectPort } from "../../lib/collect.ts";
 
-type Call = ReturnType<typeof createApiClient>;
+type Call = ApiCall;
 
 export function createServerCollectPort(call: Call, tenantId: string): BookingCollectPort {
   const post = (body: unknown, idempotencyKey?: string) => ({ method: "POST" as const, tenantId, body, idempotencyKey });

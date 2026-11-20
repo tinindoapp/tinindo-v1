@@ -5,8 +5,9 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { ACTOR_LABEL, CHECK_LABEL, DELIVERY_LABEL, explain, formatCents, formatDateTime, SECTION_LABEL } from "./labels.ts";
-import { newKey, type PresenceOverview, type PresencePort, type SiteSection } from "./port.ts";
+import { type PresenceOverview, type PresencePort, type SiteSection } from "./port.ts";
 import { SitePreview } from "./SitePreview.tsx";
+import { useCommand } from "../../lib/idempotency.ts";
 
 /** Executa a ação; sucesso vira toast (com Desfazer quando `undo` existe), erro vira toast de perigo. Devolve se deu certo. */
 type Run = (action: () => Promise<PresenceOverview | void>, ok: string, undo?: (after: PresenceOverview) => { ok: string; action: () => Promise<PresenceOverview> }) => Promise<boolean>;
@@ -20,6 +21,8 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const live = o.site.status === "published" && o.published;
   const upToDate = live && o.preview_hash === o.published?.snapshot_hash;
+  // Falhou, tocar de novo na mesma ação manda a mesma chave; deu certo ou a ação é outra, chave nova.
+  const command = useCommand();
   return (
     <Card aria-labelledby="prs-site-title">
       <div className="tn-prs-head">
@@ -36,7 +39,8 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
       ) : null}
       <form className="tn-prs-form" aria-label="Conteúdo do site" onSubmit={(e: FormEvent) => {
         e.preventDefault();
-        void run(() => port.saveSite({ expected_version: o.site.version, headline: headline.trim() || null, sections, theme, service_ids: ids }, newKey()), "Rascunho salvo. Nada foi ao ar: confira a prévia e publique quando quiser.");
+        const input = { expected_version: o.site.version, headline: headline.trim() || null, sections, theme, service_ids: ids };
+        void run(() => command({ saveSite: input }, (key) => port.saveSite(input, key)), "Rascunho salvo. Nada foi ao ar: confira a prévia e publique quando quiser.");
       }}>
         <Field label="Frase de apresentação (opcional)" maxLength={o.rules.headline_max} value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Ex.: Corte na hora marcada, no centro" />
         {/* P46: rascunho no tom escolhido pelo Assistente; você revisa, copia e cola aqui. */}
@@ -80,7 +84,7 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
           <SitePreview site={o.preview} />
           <div className="tn-actions">
             {upToDate ? <p className="tn-muted">Esta prévia é exatamente o que está no ar.</p> : (
-              <Button onClick={() => void run(() => port.publish(o.preview_hash!, newKey()), "Site publicado: esta versão está no ar.")}>Publicar esta versão</Button>
+              <Button onClick={() => void run(() => command({ publish: [o.preview_hash!] }, (key) => port.publish(o.preview_hash!, key)), "Site publicado: esta versão está no ar.")}>Publicar esta versão</Button>
             )}
             {live ? <LinkButton to={`/s/${o.preview.slug}`} variant="secondary">Ver página pública</LinkButton> : null}
             {/* Tirar do ar volta atrás pondo a mesma versão no ar de novo: executa e oferece Desfazer. */}
@@ -89,9 +93,9 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
                 variant="ghost"
                 onClick={() => {
                   const versionNo = o.published!.version_no;
-                  void run(() => port.unpublish(o.site.version, newKey()), "Site fora do ar. Você pode pôr uma versão de volta quando quiser.", (after) => ({
+                  void run(() => command({ unpublish: [o.site.version] }, (key) => port.unpublish(o.site.version, key)), "Site fora do ar. Você pode pôr uma versão de volta quando quiser.", (after) => ({
                     ok: `Versão ${versionNo} no ar de novo, como foi aprovada.`,
-                    action: () => port.restore(versionNo, after.site.version, newKey()),
+                    action: () => command({ restore: [versionNo, after.site.version] }, (key) => port.restore(versionNo, after.site.version, key)),
                   }));
                 }}
               >
@@ -110,7 +114,7 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
               <li key={v.version_no}>
                 <span>Versão {v.version_no} · aprovada em {formatDateTime(v.approved_at)} · código {v.snapshot_hash.slice(0, 8)}</span>
                 {live && o.published?.version_no === v.version_no ? <strong>No ar</strong> : (
-                  <Button variant="ghost" onClick={() => void run(() => port.restore(v.version_no, o.site.version, newKey()), `Versão ${v.version_no} no ar de novo, como foi aprovada.`)}>
+                  <Button variant="ghost" onClick={() => void run(() => command({ restore: [v.version_no, o.site.version] }, (key) => port.restore(v.version_no, o.site.version, key)), `Versão ${v.version_no} no ar de novo, como foi aprovada.`)}>
                     Pôr no ar de novo
                   </Button>
                 )}
@@ -126,6 +130,7 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
 function DomainCard({ o, run, port, onCheck }: { o: PresenceOverview; run: Run; port: PresencePort; onCheck: (text: string, ok: boolean) => void }) {
   const [host, setHost] = useState("");
   const { formRef, errors, show, clear } = useFormErrors<"host">();
+  const command = useCommand();
   const d = o.domain;
   return (
     <Card aria-labelledby="prs-domain-title">
@@ -135,7 +140,7 @@ function DomainCard({ o, run, port, onCheck }: { o: PresenceOverview; run: Run; 
         <form className="tn-prs-inline" aria-label="Ligar domínio" ref={formRef} noValidate onSubmit={(e) => {
           e.preventDefault();
           if (!show({ host: host.trim().length >= 4 ? null : "Informe seu domínio, por exemplo minhabarbearia.com.br." })) return;
-          void run(() => port.addDomain(host, newKey()), "Domínio adicionado. Crie o registro abaixo no DNS e depois verifique.");
+          void run(() => command({ addDomain: [host] }, (key) => port.addDomain(host, key)), "Domínio adicionado. Crie o registro abaixo no DNS e depois verifique.");
         }}>
           <Field
             label="Seu domínio"
@@ -177,7 +182,7 @@ function DomainCard({ o, run, port, onCheck }: { o: PresenceOverview; run: Run; 
               consequence={`O site deixa de abrir em ${d.hostname}. Para ligar de novo, será preciso criar o registro no DNS e verificar outra vez.`}
               confirmLabel="Sim, desligar"
               onConfirm={async () => {
-                if (!(await run(() => port.removeDomain(d.id, d.version, newKey()), "Domínio desligado do site."))) throw new Error("falhou");
+                if (!(await run(() => command({ removeDomain: [d.id, d.version] }, (key) => port.removeDomain(d.id, d.version, key)), "Domínio desligado do site."))) throw new Error("falhou");
               }}
             />
           </div>
@@ -192,6 +197,7 @@ function GoogleCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Pre
   const [url, setUrl] = useState("");
   const [declared, setDeclared] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"name" | "declared">();
+  const command = useCommand();
   const g = o.google;
   return (
     <Card aria-labelledby="prs-google-title">
@@ -209,7 +215,7 @@ function GoogleCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Pre
               consequence={`A equipe Tinindo para de agir no perfil “${g.profile_name}”. Remova também a Tinindo dos gerentes no Google.`}
               confirmLabel="Sim, revogar"
               onConfirm={async () => {
-                if (!(await run(() => port.setGoogle({ action: "revoke", expected_version: g.version }, newKey()), "Acesso revogado. Remova também a Tinindo dos gerentes no Google."))) throw new Error("falhou");
+                if (!(await run(() => command({ revokeGoogle: g.version }, (key) => port.setGoogle({ action: "revoke", expected_version: g.version }, key)), "Acesso revogado. Remova também a Tinindo dos gerentes no Google."))) throw new Error("falhou");
               }}
             />
           </div>
@@ -222,7 +228,8 @@ function GoogleCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Pre
             declared: declared ? null : "Confirme que adicionou a Tinindo como gerente.",
           });
           if (!ok) return;
-          void run(() => port.setGoogle({ action: "grant", profile_name: name, profile_url: url.trim() || null, expected_version: g.version }, newKey()), "Acesso registrado. A equipe Tinindo só age no seu perfil enquanto ele estiver ativo.");
+          const input = { action: "grant" as const, profile_name: name, profile_url: url.trim() || null, expected_version: g.version };
+          void run(() => command({ setGoogle: input }, (key) => port.setGoogle(input, key)), "Acesso registrado. A equipe Tinindo só age no seu perfil enquanto ele estiver ativo.");
         }}>
           {g.status === "revoked" ? <StatusBanner tone="info">Acesso revogado em {formatDateTime(g.revoked_at!)}. Nada mais é feito no seu perfil.</StatusBanner> : null}
           <ol className="tn-prs-steps">

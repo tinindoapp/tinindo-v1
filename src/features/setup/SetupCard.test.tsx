@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { resetDemoJourney, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { createDemoPort, resetDemoState } from "./demoPort.ts";
-import { newKey, type SetupPort } from "./port.ts";
+import type { SetupPort } from "./port.ts";
+import { newIdempotencyKey as newKey } from "../../lib/idempotency.ts";
 import { SetupCard } from "./SetupCard.tsx";
 
 beforeEach(() => {
@@ -46,6 +47,20 @@ describe("cartão 'Deixe seu negócio pronto' (Home)", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Desfazer" })); });
     expect(dismiss).toHaveBeenLastCalledWith("photo_whatsapp", false, expect.any(String));
     expect(card).toHaveTextContent("Próximo (opcional): Pôr foto e WhatsApp no perfil");
+  });
+
+  it("'Agora não' falhou: tocar de novo manda a mesma chave (o servidor não dispensa duas vezes)", async () => {
+    setPublishedSlug("barbearia-exemplo-a");
+    const port = createDemoPort();
+    const dismiss = vi.spyOn(port, "dismiss").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    renderCard(port);
+    const card = await screen.findByRole("region", { name: /Deixe seu negócio pronto/ });
+    await act(async () => { fireEvent.click(within(card).getByRole("button", { name: "Agora não" })); });
+    await act(async () => { dismissToast(); });
+    await act(async () => { fireEvent.click(within(card).getByRole("button", { name: "Agora não" })); });
+    expect(await screen.findByText(/fica para depois/)).toBeInTheDocument();
+    expect(dismiss).toHaveBeenCalledTimes(2);
+    expect(dismiss.mock.calls[1]![2]).toBe(dismiss.mock.calls[0]![2]);
   });
 
   it("some quando os 8 estão feitos ou dispensados; falha na leitura não quebra a Home", async () => {

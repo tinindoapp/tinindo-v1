@@ -19,4 +19,3 @@ export interface DirectoryPort {
   cities(category?: DirectoryCard["category"] | null): Promise<DirectoryCities>;
 }
 
-export const newKey = () => crypto.randomUUID();

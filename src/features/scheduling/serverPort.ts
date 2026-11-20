@@ -23,11 +23,12 @@ import {
   WaitlistListOutput,
 } from "@contracts";
 import type { z } from "zod";
-import { ApiError, type createApiClient } from "../../lib/api/client.ts";
+import { ApiError } from "../../lib/api/client.ts";
+import type { ApiCall } from "../../lib/api/session-client.ts";
 import { newIdempotencyKey } from "../../lib/idempotency.ts";
 import type { CustomerRef, SchedulingPort } from "./port.ts";
 
-type Call = ReturnType<typeof createApiClient>;
+type Call = ApiCall;
 
 /** Teto de páginas por leitura de lista (100 itens cada): protege a tela de laço infinito. */
 const MAX_PAGES = 10;
