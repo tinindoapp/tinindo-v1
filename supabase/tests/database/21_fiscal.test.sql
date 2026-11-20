@@ -65,7 +65,7 @@ insert into r select 'p2', public.fiscal_profile_save((select tenant_a from ids)
 select is((pg_temp.got('p2')->'body'->'profile'->>'version')::int, 2, 'perfil MEI salvo');
 select throws_ok(format($$ select public.fiscal_representation_set(%L, 'grant', %L, 365, 'idem-fsc-rep-0000000001', %L) $$, (select tenant_a from ids), repeat('a', 64), pg_temp.h('r0')),
   'PT409', 'STALE_VERSION', 'autorização com termos diferentes dos vistos é recusada');
-select throws_ok(format($$ select public.fiscal_representation_set(%L, 'grant', %L, 400, 'idem-fsc-rep-0000000002', %L) $$, (select tenant_a from ids), app.fsc_terms_hash(), pg_temp.h('r1')),
+select throws_ok(format($$ select public.fiscal_representation_set(%L, 'grant', %L, 400, 'idem-fsc-rep-0000000002', %L) $$, (select tenant_a from ids), pg_temp.get_a()->'terms'->>'hash', pg_temp.h('r1')),
   'PT400', 'VALIDATION_ERROR', 'representação vale no máximo um ano');
 insert into r select 'rep', public.fiscal_representation_set((select tenant_a from ids), 'grant', (pg_temp.get_a()->'terms'->>'hash'), 365, 'idem-fsc-rep-0000000003', pg_temp.h('r2'));
 select ok((pg_temp.got('rep')->'body'->'representation'->>'active')::boolean, 'representação ativa');
