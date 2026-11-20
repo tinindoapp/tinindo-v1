@@ -123,6 +123,8 @@ export function SeriesSection({
       slot: c.occurrences[0]!.slot,
       weeks: c.weeks,
       all_or_nothing: false,
+      // Vários dias numa chamada só: a repetição inteira fica com um series_id.
+      ...(c.weekdays.length > 1 ? { weekdays: c.weekdays } : {}),
     }));
     // Uma chave por envio (mesmo conteúdo, mesma chave; mantida no erro) e, dela, uma por chamada.
     const base = keyFor(payloads);
@@ -134,7 +136,7 @@ export function SeriesSection({
     try {
       for (const [i, call] of calls.entries()) {
         try {
-          const out = await port.createSeries(payloads[i]!, seriesCallKey(base, call.weekday));
+          const out = await port.createSeries(payloads[i]!, seriesCallKey(base, call));
           created.push(...out.created);
           skipped.push(...out.conflicts);
         } catch (err) {
@@ -154,7 +156,6 @@ export function SeriesSection({
         return;
       }
       created.sort(byStart);
-      await port.rememberSeries(created.map((b) => b.id));
       onDone({ created, skipped: skipped.sort(byStart), description: describeSeries(weekdays, time) });
     } finally {
       setPending(false);

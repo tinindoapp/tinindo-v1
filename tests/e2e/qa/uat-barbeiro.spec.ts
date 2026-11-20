@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { bookFromAgenda, expectDemoLabel, noHorizontalScroll, openFromNav, PENDING } from "./helpers.ts";
+import { bookFromAgenda, expectDemoLabel, noHorizontalScroll, openCaixaHistory, openFromNav, PENDING } from "./helpers.ts";
 
 // UAT · Barbeiro (docs/10): cria corte de 30min; importa cinco clientes; agenda um; abre link público;
 // cliente escolhe vaga; aplica oferta terça com piso; cancela; lista de espera recupera; conclui;
@@ -193,6 +193,8 @@ test.describe("UAT barbeiro", () => {
     await expect(charged).toHaveCount(1);
     await expect(charged).toContainText("Falta R$ 60,00 de R$ 60,00");
     await expect(charged.getByLabel("Valor recebido (R$)")).toBeFocused();
+    await openCaixaHistory(page);
+    await expect(page.getByRole("region", { name: "Recebimentos no mês" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Recebimentos no mês" }).getByRole("listitem").filter({ hasText: "20/10/2026" })).toHaveCount(0);
   });
 
@@ -200,7 +202,8 @@ test.describe("UAT barbeiro", () => {
     await page.goto("/app");
     await openFromNav(page, "Caixa");
     await expect(page.getByRole("heading", { name: "Caixa", level: 1 })).toBeVisible();
-    await expect(page.getByText("Dados de exemplo.")).toBeVisible();
+    // D11 (b): a demonstração é dita só na faixa do topo; a tela não repete o aviso.
+    await expect(page.getByText("Dados de exemplo.")).toHaveCount(0);
     const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
     // Os dois de segunda 19/10 e o Corte de 28/09: pendência não tem mês.
     await expect(pending.getByRole("listitem")).toHaveCount(3);
@@ -215,6 +218,7 @@ test.describe("UAT barbeiro", () => {
     await item.getByRole("button", { name: /^Recebi R\$/ }).click();
     await expect(page.getByText(/Recebido R\$\s?40,00/)).toBeVisible();
     await expect(item).toHaveCount(0);
+    await openCaixaHistory(page);
     const payments = page.getByRole("region", { name: "Recebimentos no mês" });
     await expect(payments.getByRole("listitem").filter({ hasText: "20/10/2026" }).filter({ hasText: "R$ 40,00" })).toHaveCount(1);
   });

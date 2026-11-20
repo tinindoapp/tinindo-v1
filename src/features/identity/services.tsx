@@ -15,9 +15,10 @@ import {
   type OnboardingSaveInput,
 } from "@contracts";
 import { appEnv } from "../../app/env.ts";
+import type { ApiCall } from "../../app/api.tsx";
 import { useSession } from "../../app/session.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
 import { customerBookings } from "../../lib/demo/journey.ts";
+import { now } from "../../lib/time.ts";
 import { supabase } from "../../lib/supabase.ts";
 
 export type BusinessDraft = z.input<typeof BusinessCreateInput>;
@@ -86,9 +87,10 @@ const offline = (): never => {
 
 export function createDefaultServices(
   client: SupabaseClient | null,
-  getAccessToken: () => Promise<string | null>,
+  /** O cliente de API da sessão (P53: um por sessão); null na demonstração. */
+  call: ApiCall | null,
 ): IdentityServices {
-  if (!client || !appEnv.supabase) {
+  if (!client || !call || !appEnv.supabase) {
     return {
       online: false,
       createBusiness: offline,
@@ -115,11 +117,6 @@ export function createDefaultServices(
       refreshSession: async () => {},
     };
   }
-  const call = createApiClient({
-    baseUrl: appEnv.supabase.url,
-    publishableKey: appEnv.supabase.publishableKey,
-    getAccessToken,
-  });
   return {
     online: true,
     async createBusiness(input, idempotencyKey) {
@@ -169,7 +166,7 @@ export function createDefaultServices(
     async loadMyBookings() {
       const { data, error } = await client.rpc("my_bookings");
       if (error) throw new AuthFlowError("failed");
-      return { now: new Date().toISOString(), bookings: MyBooking.array().max(200).parse(data ?? []) };
+      return { now: now().toISOString(), bookings: MyBooking.array().max(200).parse(data ?? []) };
     },
     async redeemLink(code, idempotencyKey) {
       const { data } = await call("/identity/customer_link.redeem", CustomerLinkRedeemOutput, {
@@ -210,8 +207,8 @@ export function createDefaultServices(
 const ServicesContext = createContext<IdentityServices | null>(null);
 
 export function IdentityServicesProvider({ value, children }: { value?: IdentityServices; children: ReactNode }) {
-  const { getAccessToken } = useSession();
-  const services = useMemo(() => value ?? createDefaultServices(supabase, getAccessToken), [value, getAccessToken]);
+  const { api } = useSession();
+  const services = useMemo(() => value ?? createDefaultServices(supabase, api), [value, api]);
   return <ServicesContext.Provider value={services}>{children}</ServicesContext.Provider>;
 }
 

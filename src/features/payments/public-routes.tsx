@@ -5,7 +5,7 @@ import type { RouteObject } from "react-router";
 import { createDemoLinkPort } from "./demoPort.ts";
 import { PayLinkPage } from "./PayLinkPage.tsx";
 import type { PaymentLinkPort } from "./port.ts";
-import { anonCall } from "./public-kit.tsx";
+import { anonCall } from "../../components/public/public-kit.tsx";
 import { createServerLinkPort } from "./serverPort.ts";
 import "./payments.css";
 

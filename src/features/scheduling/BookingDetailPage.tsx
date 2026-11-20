@@ -22,11 +22,14 @@ import {
   waitlistHref,
   waitlistMatches,
   whatsAppDigits,
+  bookingLinkText,
+  confirmNoticeText,
+  rescheduleNoticeText,
 } from "./agenda.ts";
 import { AttendanceActions, cashierHref, toastFailure } from "./attendance.tsx";
 import type { CreatedNotice } from "./BookingFlowPage.tsx";
 import type { Operation } from "./errors.ts";
-import { seriesLabel, seriesMark } from "./series.ts";
+import { seriesLabel, seriesMark, seriesRemaining } from "./series.ts";
 import { formatDayLong, localParts } from "./time.ts";
 import { ErrorPanel, PolicyNote, ScreenNotes, StatusBadge } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
@@ -67,7 +70,7 @@ export function BookingDetailPage() {
   const done = (location.state as { done?: string } | null)?.done;
   // P49: recém-criado, com WhatsApp no cadastro: o texto de confirmação pronto, enquanto o atendimento segue confirmado.
   const notify = (location.state as { notify?: CreatedNotice } | null)?.notify;
-  const created = done === "criado" && notify?.bookingId === bookingId && state.data?.status === "confirmed" ? notify : null;
+  const created = (done === "criado" || done === "reagendado") && notify?.bookingId === bookingId && state.data?.status === "confirmed" ? notify : null;
   const loaded = state.data !== undefined;
   const toasted = useRef<string | null>(null);
   useEffect(() => {
@@ -102,7 +105,7 @@ export function BookingDetailPage() {
         <>
           {failure ? <ErrorPanel error={failure.err} operation={failure.op} /> : null}
           {nextStep ? <AfterCancel info={nextStep} /> : null}
-          {created ? <AfterCreate notice={created} /> : null}
+          {created && state.data ? <AfterCreate notice={created} booking={state.data} /> : null}
           <BookingDetail
             key={state.data.version}
             booking={state.data}
@@ -117,13 +120,18 @@ export function BookingDetailPage() {
 }
 
 /** Depois de criar: avisar o cliente pelo WhatsApp do dono, com o texto pronto (mesmo padrão do aviso de cancelamento). */
-function AfterCreate({ notice }: { notice: CreatedNotice }) {
+function AfterCreate({ notice, booking }: { notice: CreatedNotice; booking: Booking }) {
+  const { ctx } = useBase();
+  // Dia e hora do atendimento como ele está agora (não os do momento em que foi criado).
+  const start = localParts(booking.starts_at, ctx.timezone);
+  const parts = { name: notice.name, service: notice.service, day: formatDayLong(start.date), time: start.time, business: notice.business };
+  const text = notice.kind === "reschedule" ? rescheduleNoticeText(parts) : confirmNoticeText(parts);
   return (
     <section className="tn-sched-confirm tn-sched-after" aria-labelledby="after-create-title">
       <h2 id="after-create-title">Avise o cliente</h2>
-      <p className="tn-sched-notice">{notice.text}</p>
+      <p className="tn-sched-notice">{text}</p>
       <div className="tn-actions">
-        <a className="tn-button" data-variant="primary" href={`https://wa.me/${notice.phone}?text=${encodeURIComponent(notice.text)}`} target="_blank" rel="noreferrer noopener">
+        <a className="tn-button" data-variant="primary" href={`https://wa.me/${notice.phone}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer noopener">
           Avisar no WhatsApp
         </a>
       </div>
@@ -167,10 +175,14 @@ function BookingDetail({
   }, [port, booking.id, booking.source]);
   const date = localParts(booking.starts_at, tz).date;
   const who = contact?.name ?? customerRef?.name ?? null;
-  // Repetição semanal (D8 a). O servidor ainda não cancela "os próximos" de uma vez nem devolve o vínculo na leitura:
-  // a tela mostra o que conhece (port.seriesGroups) e só oferece cancelar este.
-  const series = useAsync(`series:${booking.id}`, () => port.seriesGroups());
+  // Repetição semanal (D8 a): o vínculo vem do servidor (series_id) e a série inteira de booking.series.
+  const seriesId = booking.series_id ?? null;
+  const series = useAsync(`series:${seriesId ?? "-"}:${booking.version}`, () => (seriesId ? port.series(seriesId) : Promise.resolve([])));
   const mark = seriesMark(series.data ?? [], booking.id);
+  const remaining = seriesId ? seriesRemaining(series.data ?? [], booking) : 0;
+  const [seriesReason, setSeriesReason] = useState("");
+  const [seriesReasonError, setSeriesReasonError] = useState<string | undefined>();
+  const [seriesKey] = useState(newIdempotencyKey);
 
   /** Falha de ação: painel acima do detalhe; dado desatualizado recarrega antes de nova tentativa. */
   function failed(err: unknown, op: Operation) {
@@ -191,6 +203,28 @@ function BookingDetail({
       const out = await port.cancel({ booking_id: booking.id, expected_version: booking.version, reason: text }, keys.cancel);
       toast("Atendimento cancelado. O horário voltou a ficar livre.");
       onCancelled({ booking: out, reason: text, contactName: who, phone: contact?.phone_e164 ?? customerRef?.phone ?? null });
+      reload();
+    } catch (err) {
+      failed(err, "cancel");
+      throw err;
+    }
+  }
+
+  /** "Cancelar os próximos": este e os seguintes ainda marcados, numa transação no servidor. */
+  async function cancelFromHere() {
+    const text = seriesReason.trim();
+    if (!text) {
+      setSeriesReasonError("Informe o motivo do cancelamento.");
+      requestAnimationFrame(() => document.getElementById("cancel-series-reason")?.focus());
+      throw new Error("motivo");
+    }
+    onFailure(null);
+    try {
+      const out = await port.cancelSeriesFrom({ booking_id: booking.id, expected_version: booking.version, reason: text }, seriesKey);
+      const n = out.cancelled.length;
+      toast(`${plural(n, "atendimento cancelado", "atendimentos cancelados")}. Os horários voltaram a ficar livres.`);
+      const self = out.cancelled.find((b) => b.id === booking.id);
+      if (self) onCancelled({ booking: self, reason: text, contactName: who, phone: contact?.phone_e164 ?? customerRef?.phone ?? null });
       reload();
     } catch (err) {
       failed(err, "cancel");
@@ -349,12 +383,7 @@ function BookingDetail({
                   O horário {formatRange(booking, tz)} fica livre para outro cliente. Nenhuma mensagem é enviada
                   automaticamente ao cliente.
                 </p>
-                {mark ? (
-                  <p>
-                    Os outros atendimentos da repetição continuam marcados. Ainda não dá para cancelar os próximos de uma
-                    vez: abra cada um e cancele.
-                  </p>
-                ) : null}
+                {mark ? <p>Os outros atendimentos da repetição continuam marcados.</p> : null}
                 <PolicyNote demo={port.kind === "fixture"} />
               </>
             }
@@ -377,8 +406,116 @@ function BookingDetail({
             />
           </ConfirmAction>
         ) : null}
+        {seriesId && canCancel(booking) && booking.status !== "held" && remaining > 1 ? (
+          <ConfirmAction
+            trigger="Cancelar os próximos"
+            triggerVariant="ghost"
+            title={`Cancelar este e os próximos ${remaining - 1}?`}
+            consequence={
+              <>
+                <p>
+                  {plural(remaining, "atendimento")} da repetição, a partir de {formatDayLong(date)}, ficam cancelados de uma vez e os
+                  horários voltam a ficar livres. Os que já aconteceram continuam como estão.
+                </p>
+                <p>Nenhuma mensagem é enviada automaticamente ao cliente.</p>
+                <PolicyNote demo={port.kind === "fixture"} />
+              </>
+            }
+            confirmLabel={`Sim, cancelar ${remaining}`}
+            onConfirm={cancelFromHere}
+          >
+            <Field
+              as="textarea"
+              id="cancel-series-reason"
+              label="Motivo"
+              hint="Fica registrado em cada atendimento. Não vai para o cliente."
+              value={seriesReason}
+              maxLength={280}
+              rows={3}
+              error={seriesReasonError}
+              onChange={(e) => {
+                setSeriesReason(e.target.value);
+                setSeriesReasonError(undefined);
+              }}
+            />
+          </ConfirmAction>
+        ) : null}
       </div>
+      {booking.status === "confirmed" || booking.status === "completed" ? (
+        <SendBookingLink booking={booking} name={who} phone={contact?.phone_e164 ?? customerRef?.phone ?? null} />
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * "Mandar link da reserva" (P55, D20): o cliente vê o horário e, depois do atendimento, avalia sem conta. O link é gerado
+ * no servidor (network/booking_link.issue) e o WhatsApp abre com o texto pronto; o dono revisa e envia.
+ */
+function SendBookingLink({ booking, name, phone }: { booking: Booking; name: string | null; phone: string | null }) {
+  const port = usePort();
+  const { ctx, services } = useBase();
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<unknown>(null);
+  const [link, setLink] = useState<{ url: string; demo: boolean } | null>(null);
+  const start = localParts(booking.starts_at, ctx.timezone);
+  const digits = whatsAppDigits(phone);
+  const text = bookingLinkText({
+    name, service: serviceName(services, booking.service_id), day: formatDayLong(start.date), time: start.time,
+    business: ctx.tenantName, url: link?.url ?? "", done: booking.status === "completed",
+  });
+
+  async function issue() {
+    setBusy(true);
+    setFailure(null);
+    // Abre a janela já no toque (o navegador bloqueia janela aberta depois de esperar a rede) e preenche quando o link chega.
+    const win = digits ? globalThis.open?.("about:blank", "_blank") ?? null : null;
+    try {
+      const out = await port.bookingLink(booking.id);
+      setLink(out);
+      const message = bookingLinkText({
+        name, service: serviceName(services, booking.service_id), day: formatDayLong(start.date), time: start.time,
+        business: ctx.tenantName, url: out.url, done: booking.status === "completed",
+      });
+      if (win && digits) win.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+      else win?.close();
+    } catch (err) {
+      win?.close();
+      setFailure(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="tn-sched-link" aria-labelledby="booking-link-title">
+      <h3 id="booking-link-title">Link da reserva para o cliente</h3>
+      <p className="tn-muted">
+        {booking.status === "completed"
+          ? "Pelo link, o cliente vê o atendimento e conta como foi, sem criar conta."
+          : "Pelo link, o cliente vê o dia, a hora e o local e, depois do atendimento, conta como foi. Sem criar conta."}
+      </p>
+      {failure ? <ErrorPanel error={failure} operation="load" /> : null}
+      <div className="tn-actions">
+        <Button variant="secondary" onClick={() => void issue()} loading={busy} loadingText="Gerando o link…">
+          Mandar link da reserva
+        </Button>
+      </div>
+      {link ? (
+        <div className="tn-stack" data-gap="sm">
+          <p className="tn-sched-notice">{text}</p>
+          {digits ? (
+            <a className="tn-button" data-variant="secondary" href={`https://wa.me/${digits}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer noopener">
+              Abrir no WhatsApp de novo
+            </a>
+          ) : (
+            <p className="tn-muted">Sem WhatsApp no cadastro: copie o texto e mande pelo canal de sempre.</p>
+          )}
+          {link.demo ? <p className="tn-muted">Demonstração: o link é de exemplo e não abre a reserva fora desta aba.</p> : null}
+          <p className="tn-muted">Abrir o WhatsApp não confirma que chegou. Quem tiver o link vê esta reserva: mande só para o cliente.</p>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

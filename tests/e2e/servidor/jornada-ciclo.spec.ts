@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { noHorizontalScroll, openFromNav } from "../qa/helpers.ts";
+import { noHorizontalScroll, openCaixaHistory, openFromNav } from "../qa/helpers.ts";
 import { moveBookingToPast, sql } from "./banco.ts";
 import { gatewayUrl } from "./portas.ts";
 
@@ -130,6 +130,8 @@ test("ciclo com gravação real: expediente, agendar, atender, receber e retorno
 
   const conferirCaixa = async () => {
     await expect(page.getByRole("heading", { name: "Caixa", level: 1 })).toBeVisible();
+    // P54: os recebimentos ficam no histórico do mês, que nasce recolhido.
+    await openCaixaHistory(page);
     const recebimentos = page.getByRole("region", { name: "Recebimentos no mês" });
     await expect(recebimentos.getByRole("listitem")).toHaveCount(1);
     await expect(recebimentos.getByRole("listitem")).toContainText(money(cenario.preco));

@@ -3,6 +3,7 @@
 // ícones da tela de Configuração. O servidor é a fonte do estado; aqui só a apresentação.
 import type { SetupStepCode, WeeklyWindow } from "@contracts";
 import type { IconName } from "../../components/ui/icons.tsx";
+import { formatCents } from "../../lib/money.ts";
 import { SETUP_STEPS, type SetupStepSpec } from "../../lib/setup/steps.ts";
 
 export interface StepSpec extends SetupStepSpec {
@@ -32,13 +33,14 @@ export const specOf =(step: SetupStepCode): StepSpec => STEP_CATALOG.find((s) =>
 
 export const PROFESSION_LABEL = { barber: "Barbearia", hairdresser: "Cabeleireira(o)", personal_trainer: "Personal trainer", other: "Outra" } as const;
 
-export function formatCents(cents: number): string {
-  return `R$ ${(cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/** "R$ 60,00" com espaço comum (o formatCents da lib usa o espaço inseparável do Intl): o texto da tela fica igual. */
+export function priceText(cents: number): string {
+  return formatCents(cents).replace(/\u00a0/g, " ");
 }
 
 export function priceRange(from: number | null, to: number | null): string | null {
   if (from === null || to === null) return null;
-  return from === to ? formatCents(from) : `${formatCents(from)} a ${formatCents(to)}`;
+  return from === to ? priceText(from) : `${priceText(from)} a ${priceText(to)}`;
 }
 
 const WEEKDAY_NAME = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];

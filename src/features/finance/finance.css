@@ -1,54 +1,47 @@
-/* Caixa (P07). Só tokens da marca; estado nunca só por cor. */
-.tn-fin { display: grid; gap: var(--tn-space-4); min-width: 0; }
+/* Caixa (P07; layout P54). Só tokens da marca; estado nunca só por cor. Seções, listas e resumo vêm do kit (ui.css). */
+.tn-fin { display: grid; min-width: 0; }
+.tn-fin > .tn-banner, .tn-fin > [role="status"] { margin-top: var(--tn-space-4); }
+/* Seletor de mês (filtro do PageHeader). */
 .tn-fin-period { display: flex; align-items: center; gap: var(--tn-space-3); }
-.tn-fin-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--tn-space-3); margin: 0; }
-.tn-fin-sum dt { font-size: var(--tn-text-support); color: var(--tn-text-muted); }
-.tn-fin-sum dd { margin: 0; font-size: var(--tn-text-section); font-weight: var(--tn-font-weight-semibold); }
-.tn-fin-section { display: grid; gap: var(--tn-space-3); min-width: 0; }
-.tn-fin-section h2 { margin: var(--tn-space-4) 0 0; }
-.tn-fin-list, .tn-fin-entries { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
-.tn-fin-entries { margin-top: var(--tn-space-2); padding-left: var(--tn-space-3); border-left: 2px solid var(--tn-border); }
-.tn-fin-item {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2);
-  padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0;
-}
-.tn-fin-item > div { min-width: 0; overflow-wrap: anywhere; }
-.tn-fin-item--column { display: block; }
-/* Forma + botões na mesma linha: alinhados pela base do campo. Confirmação ocupa a linha inteira. */
-.tn-fin-item > .tn-actions { align-items: flex-end; }
-.tn-fin-item .tn-confirm { flex: 1 1 100%; }
-.tn-fin-inline { display: grid; gap: var(--tn-space-1); font-size: var(--tn-text-support); }
+/* Resumo logo depois da abertura; o kit separa as seções seguintes. */
+.tn-fin-summary { margin-top: var(--tn-space-3); }
+.tn-fin-h2:focus { outline: none; }
+.tn-fin-h2:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: 2px; }
+
+/* Linha de lista (mesma marcação do ActionRow) com o que abre embaixo dela. */
+.tn-fin-row .tn-list__main { display: flex; align-items: center; gap: var(--tn-space-3); flex: 1; min-width: 0; }
+/* Ação larga ("Recebi R$ 60,00 no Pix ▾"): desce para a linha de baixo quando o texto não cabe ao lado. */
+.tn-fin-row .tn-list__row[data-wrap] { flex-wrap: wrap; row-gap: var(--tn-space-1); }
+.tn-fin-row .tn-list__row[data-wrap] > .tn-list__main { flex: 1 1 12rem; }
+.tn-fin-row .tn-list__row[data-wrap] > .tn-list__actions { margin-left: auto; }
+.tn-fin-row__below { display: grid; gap: var(--tn-space-3); padding: 0 var(--tn-space-4) var(--tn-space-3); min-width: 0; }
+.tn-list[data-plain] .tn-fin-row__below { padding-left: 0; padding-right: 0; }
+/* Linha empilhada: título em cima; embaixo, o apoio à esquerda e a ação à direita. */
+.tn-fin-row__stack { display: grid; gap: var(--tn-space-1); }
+.tn-fin-row__line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-1); min-width: 0; }
+/* "Recebi R$ 60,00 no Pix ▾" cabe na mesma linha da data em 360 px: respiro lateral menor (a altura de toque não muda). */
+.tn-fin-row .tn-split > .tn-button:first-child { padding-inline: var(--tn-space-2); }
+/* Atendimento pedido pela Agenda numa lista sem caixa: o indicador não encosta no texto. */
+.tn-list[data-plain] .tn-fin-row[data-focus="true"] > .tn-list__row { padding-left: var(--tn-space-3); }
+.tn-fin-summary .tn-help { margin-top: var(--tn-space-1); }
+.tn-fin-row__below .tn-confirm { margin: 0; }
+/* Atendimento pedido pela Agenda (?atendimento=<id>): a linha fica marcada com o indicador de seleção. */
+.tn-fin-row[data-focus="true"] { box-shadow: inset 4px 0 0 var(--tn-selected-border); }
+.tn-fin-entries { display: block; margin-top: 2px; }
+
+/* Histórico: o segmentado e a lista escolhida. */
+.tn-fin-panel { display: grid; gap: var(--tn-space-3); margin-top: var(--tn-space-3); min-width: 0; }
+.tn-fin-note { margin: 0; font-size: var(--tn-text-support); }
+
+/* Formulários (Registrar, recebimento de uma cobrança, venda de pacote). */
 .tn-fin-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; width: 100%; }
 .tn-fin-form .tn-field { flex: 1 1 10rem; min-width: 0; }
 .tn-fin select, .tn-fin input { min-height: var(--tn-size-touch); max-width: 100%; }
 .tn-fin-form .tn-field input, .tn-fin-form .tn-field select { width: 100%; min-width: 0; }
+.tn-fin-form__note { flex-basis: 100%; margin: 0; }
 @media (max-width: 30rem) {
   .tn-fin-form { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
-/* Destaque do mês: quanto sobrou (recebido − gasto). */
-.tn-fin-left { display: grid; gap: var(--tn-space-1); margin: var(--tn-space-2) 0 var(--tn-space-3); }
-.tn-fin-left__label { font-size: var(--tn-text-support); color: var(--tn-text-muted); font-weight: var(--tn-font-weight-medium); }
-.tn-fin-left__value { font-size: var(--tn-text-number-lg); font-weight: var(--tn-font-weight-semibold); line-height: 1.1; }
-.tn-fin-alert { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); margin-top: var(--tn-space-3); padding: var(--tn-space-3); border: 1px solid var(--tn-border-control); border-left-width: 4px; border-radius: var(--tn-radius-md); }
-.tn-fin-alert a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); font-weight: var(--tn-font-weight-medium); }
-.tn-fin-section h2:focus { outline: none; }
-.tn-fin-section h2:focus-visible { outline: 2px solid var(--tn-focus); outline-offset: 2px; }
 /* "+ Registrar" (item 56): painel que abre no lugar, logo abaixo do cabeçalho. */
-.tn-fin-register { display: grid; gap: var(--tn-space-3); min-width: 0; }
+.tn-fin-register { display: grid; gap: var(--tn-space-3); min-width: 0; margin-top: var(--tn-space-4); }
 .tn-fin-register h2 { margin: 0; }
-.tn-fin-form__note { flex-basis: 100%; margin: 0; }
-/* "Hoje · Semana · Mês" (P48): o recebido nos três períodos correntes, no topo. No compacto, cada período é uma linha
-   (rótulo à esquerda, valor à direita, regra 5.4 da revisão de 10/11); a partir dele, três colunas. */
-.tn-fin-recv__list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--tn-space-3); margin: 0; }
-.tn-fin-recv__item { display: grid; gap: var(--tn-space-1); min-width: 0; }
-.tn-fin-recv__item dt { display: grid; }
-.tn-fin-recv__label { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-semibold); }
-.tn-fin-recv__when { font-size: var(--tn-text-label); color: var(--tn-text-muted); }
-.tn-fin-recv__item dd { margin: 0; font-size: var(--tn-text-group); font-weight: var(--tn-font-weight-semibold); white-space: nowrap; }
-@media (max-width: 30rem) {
-  .tn-fin-recv__list { grid-template-columns: 1fr; gap: 0; }
-  .tn-fin-recv__item { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: var(--tn-space-2) 0; border-bottom: 1px solid var(--tn-border); }
-  .tn-fin-recv__item dt { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--tn-space-2); }
-}
-/* Atendimento pedido pela Agenda (?atendimento=<id>): a linha fica marcada com o indicador de seleção. */
-.tn-fin-item[data-focus="true"] { border-left: 4px solid var(--tn-selected-border); padding-left: var(--tn-space-3); }

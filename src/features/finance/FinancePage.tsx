@@ -1,59 +1,21 @@
 // Caixa registrado (P07): o que entrou, o que saiu e o que falta receber, com período e cobertura.
 // Separações que a tela nunca mistura: atendimento concluído ≠ cobrado ≠ recebido; crédito de pacote ≠ caixa.
-import { createContext, type FormEvent, type MouseEvent, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+// Ordem (P54; doc 07 §4.2, doc 11 §3.3): abertura com o mês e "Registrar" → resumo ("Sobrou no mês" e as linhas) →
+// atendimentos sem cobrança → A receber → histórico (Recebimentos, Despesas, Pacotes, uma lista por vez).
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import type { ExpenseCategory, PackageDetail, PaymentRecord, Receivable, TimeRange, UnchargedBooking } from "@contracts";
-import { Button, Card, ConfirmAction, Field, Help, IconButton, PageHeader, Segmented, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import type { PackageDetail, TimeRange, UnchargedBooking } from "@contracts";
+import { Button, Help, IconButton, PageHeader, StatusBanner, Summary, SummaryHero, type SummaryRowData, SummaryRows, toast } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import {
-  capitalizeFirst,
-  centsToInput,
-  endOfLocalDay,
-  formatCents,
-  formatDate,
-  formatMonth,
-  leftover,
-  localDate,
-  monthPeriod,
-  newestFirst,
-  noonOfLocalDay,
-  parseBRL,
-  pendingPeriod,
-  shiftMonth,
-  unchargedTotal,
-} from "./money.ts";
-import { useAttemptValue, useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
-import { explainFinanceError, METHOD_LABEL, METHODS, type Method, useCollectBooking } from "../../lib/collect.ts";
-import { CollectActions } from "../../components/ui/collect.tsx";
-import { plural } from "../../lib/text/plural.ts";
 import { receivedPeriods } from "../../lib/time.ts";
+import { capitalizeFirst, formatCents, formatDate, formatMonth, leftover, localDate, monthPeriod, newestFirst, pendingPeriod, shiftMonth } from "./money.ts";
+import { type RegisterKind, RegisterPanel } from "./forms.tsx";
+import { History } from "./sections/History.tsx";
+import { Receivables, Uncharged } from "./sections/Pending.tsx";
+import { type Ctx, explain, PageContext, usePage, usePort } from "./shared.tsx";
 import type { FinanceBase, FinancePort } from "./port.ts";
 
-const PortContext = createContext<FinancePort | null>(null);
-export const FinancePortProvider = PortContext.Provider;
-function usePort(): FinancePort {
-  const p = useContext(PortContext);
-  if (!p) throw new Error("usePort fora do Caixa");
-  return p;
-}
-
-// "Registrar" abre em "Recebi" (P48): o lançamento mais comum é o dinheiro que entrou agora.
-type RegisterKind = "receipt" | "expense" | "receivable" | "package";
-const REGISTER_OPTIONS: readonly { value: RegisterKind; label: string }[] = [
-  { value: "receipt", label: "Recebi" },
-  { value: "expense", label: "Despesa" },
-  { value: "receivable", label: "A receber" },
-  { value: "package", label: "Pacote" },
-];
-const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
-  supplies: "Material", rent: "Aluguel", utilities: "Contas (luz, água, internet)", fees: "Taxas",
-  transport: "Transporte", marketing: "Divulgação", other: "Outro",
-};
-const STATUS_LABEL: Record<Receivable["status"], string> = {
-  open: "Em aberto", partially_paid: "Recebido em parte", paid: "Recebido", cancelled: "Cancelado",
-};
-
-const explain = explainFinanceError;
+export { FinancePortProvider } from "./shared.tsx";
 
 interface MonthData {
   summary: Awaited<ReturnType<FinancePort["summary"]>>;
@@ -61,19 +23,6 @@ interface MonthData {
   uncharged: UnchargedBooking[];
   packages: PackageDetail[];
 }
-
-interface Ctx {
-  base: FinanceBase;
-  today: string;
-  reload(): void;
-  notify(tone: "success" | "danger", text: string): void;
-  customerName(id: string | null): string;
-  serviceName(id: string): string;
-  /** Atendimento pedido pelo link `?atendimento=<id>` (vindo da Agenda): a linha dele fica marcada. */
-  focusBooking: string | null;
-}
-const PageContext = createContext<Ctx | null>(null);
-const usePage = () => useContext(PageContext)!;
 
 export function FinancePage() {
   const port = usePort();
@@ -127,14 +76,14 @@ export function FinancePage() {
 
   if (baseError) {
     return (
-      <Shell demo={port.kind === "demo"}>
+      <Shell>
         <StatusBanner tone="danger">{explain(baseError)}</StatusBanner>
       </Shell>
     );
   }
   if (!base) {
     return (
-      <Shell demo={port.kind === "demo"}>
+      <Shell>
         <p role="status">Carregando o caixa…</p>
       </Shell>
     );
@@ -151,7 +100,7 @@ export function FinancePage() {
     focusBooking,
   };
   // Depois de uma ação, o mês é relido (nonce) com o dado anterior na tela: as seções não desmontam, então o foco,
-  // "Ver mais" e formulários abertos continuam. "Carregando o mês…" só aparece na troca de mês.
+  // "Ver todos" e formulários abertos continuam. "Carregando o mês…" só aparece na troca de mês.
   const current = data && data.month === month ? data : null;
   const registerButton = (
     <Button aria-expanded={register !== null} aria-controls="fin-register" onClick={() => setRegister(register ? null : "receipt")}>
@@ -159,32 +108,31 @@ export function FinancePage() {
       Registrar
     </Button>
   );
+  const monthPicker = (
+    <div className="tn-fin-period" role="group" aria-label="Período">
+      {/* Não há ícone de seta para a esquerda: a mesma seta, espelhada. */}
+      <IconButton icon="voltar" label="Mês anterior" variant="secondary" onClick={() => go(shiftMonth(month, -1))} />
+      <strong className="tn-fin-period__label">{capitalizeFirst(formatMonth(month))}</strong>
+      <IconButton icon="seta" label="Próximo mês" variant="secondary" onClick={() => go(shiftMonth(month, 1))} disabled={month >= currentMonth} />
+    </div>
+  );
 
   return (
     <PageContext.Provider value={ctx}>
-      <Shell demo={port.kind === "demo"} actions={registerButton}>
+      <Shell actions={registerButton} filter={monthPicker}>
         {register ? <RegisterPanel kind={register} onKind={setRegister} onClose={() => setRegister(null)} /> : null}
-        <Received today={today} nonce={nonce} />
-        <div className="tn-fin-period" role="group" aria-label="Período">
-          {/* Não há ícone de seta para a esquerda: a mesma seta, espelhada. */}
-          <IconButton icon="voltar" label="Mês anterior" variant="secondary" onClick={() => go(shiftMonth(month, -1))} />
-          <strong className="tn-fin-period__label">{capitalizeFirst(formatMonth(month))}</strong>
-          <IconButton icon="seta" label="Próximo mês" variant="secondary" onClick={() => go(shiftMonth(month, 1))} disabled={month >= currentMonth} />
-        </div>
         {current?.error ? (
           <StatusBanner tone="danger">{explain(current.error)}</StatusBanner>
         ) : !current?.value ? (
           <p role="status">Carregando o mês…</p>
         ) : (
           <>
-            {/* Ordem (item 56): o que pede ação (pendências), depois o resumo do mês e por fim o histórico. */}
+            <MonthSummary s={current.value.summary} month={month} current={month === currentMonth} nonce={nonce} />
             <Uncharged list={current.value.uncharged} packages={current.value.packages} />
             <Receivables list={current.value.ledger.receivables.filter((r) => r.status === "open" || r.status === "partially_paid")}
               truncated={current.value.ledger.truncated?.receivables} />
-            <Summary s={current.value.summary} month={month} uncharged={current.value.uncharged} />
-            <Payments list={current.value.ledger.payments} truncated={current.value.ledger.truncated?.payments} />
-            <Expenses list={current.value.ledger.expenses} truncated={current.value.ledger.truncated?.expenses} />
-            <Packages list={current.value.packages} />
+            <History payments={current.value.ledger.payments} expenses={current.value.ledger.expenses} packages={current.value.packages}
+              truncated={current.value.ledger.truncated} />
             <FocusBooking id={focusBooking} value={current.value} />
           </>
         )}
@@ -193,70 +141,84 @@ export function FinancePage() {
   );
 }
 
-function Shell({ demo, actions, children }: { demo: boolean; actions?: ReactNode; children: ReactNode }) {
+function Shell({ actions, filter, children }: { actions?: ReactNode; filter?: ReactNode; children: ReactNode }) {
+  // D11 (b): a faixa "Demonstração" do topo já identifica a demonstração; a tela não repete o aviso.
   return (
     <section aria-labelledby="fin-title" className="tn-fin">
-      <PageHeader id="fin-title" title="Caixa" subtitle="Recebíveis, recebimentos manuais e pacotes de sessões." actions={actions} />
-      {/* Um aviso só, em uma linha (item 19): a faixa "Demonstração" do topo já identifica a demonstração. */}
-      {demo ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> As mudanças valem só nesta aba.</StatusBanner> : null}
+      <PageHeader id="fin-title" title="Caixa" actions={actions} filter={filter} />
       {children}
     </section>
   );
 }
 
 /**
- * "Hoje · Semana · Mês" (P48): o recebido nos três períodos correntes, sempre a partir de hoje (o seletor de mês vale
- * para o resto da tela). Três chamadas a `finance.summary`, uma por período; o contrato não muda.
+ * Hoje e Semana (P48): o recebido nos períodos correntes, sempre a partir de hoje. Duas chamadas a `finance.summary`;
+ * o contrato não muda. O mês corrente vem do resumo do mês (não repete o valor).
  */
-function Received({ today, nonce }: { today: string; nonce: number }) {
+function useReceivedNow(today: string, nonce: number, enabled: boolean) {
   const port = usePort();
   const { base } = usePage();
   const tz = base.timezone;
-  const periods = receivedPeriods(today, tz);
-  const [data, setData] = useState<{ key: string; value?: [number, number, number]; failed?: boolean } | null>(null);
+  const [data, setData] = useState<{ value?: [number, number]; failed?: boolean } | null>(null);
   const key = `${today}#${nonce}`;
   useEffect(() => {
+    if (!enabled) return;
     let alive = true;
     const p = receivedPeriods(today, tz);
-    Promise.all([port.summary(p.day, tz), port.summary(p.week, tz), port.summary(p.month, tz)]).then(
-      ([d, w, m]) => alive && setData({ key, value: [d.received_cents, w.received_cents, m.received_cents] }),
-      () => alive && setData({ key, failed: true }),
+    Promise.all([port.summary(p.day, tz), port.summary(p.week, tz)]).then(
+      ([d, w]) => alive && setData({ value: [d.received_cents, w.received_cents] }),
+      () => alive && setData((old) => ({ ...old, failed: true })),
     );
     return () => {
       alive = false;
     };
-  }, [port, today, tz, key]);
+  }, [port, today, tz, key, enabled]);
   // Depois de uma ação, o valor anterior fica até chegar o novo (a linha não pisca).
-  const v = data?.value;
+  return data;
+}
+
+function MonthSummary({ s, month, current, nonce }: { s: MonthData["summary"]; month: string; current: boolean; nonce: number }) {
+  const { today, base } = usePage();
+  const now = useReceivedNow(today, nonce, current);
+  const left = leftover(s.received_cents, s.spent_cents);
   const ddmm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
-  const rows: [string, string, number | undefined][] = [
-    ["Hoje", ddmm(today), v?.[0]],
-    ["Semana", periods.weekFrom === today ? ddmm(today) : `${ddmm(periods.weekFrom)} a ${ddmm(today)}`, v?.[1]],
-    ["Mês", capitalizeFirst(formatMonth(today.slice(0, 7))), v?.[2]],
+  const week = receivedPeriods(today, base.timezone).weekFrom;
+  const v = now?.value;
+  const nowValue = (i: 0 | 1) => (v ? formatCents(v[i]) : now?.failed ? "—" : "…");
+  const rows: SummaryRowData[] = [
+    ...(current
+      ? [
+          { key: "day", label: <>Recebido hoje <span className="tn-num">{ddmm(today)}</span></>, value: nowValue(0) },
+          { key: "week", label: <>Recebido na semana <span className="tn-num">{week === today ? ddmm(today) : `${ddmm(week)} a ${ddmm(today)}`}</span></>, value: nowValue(1) },
+        ]
+      : []),
+    { key: "received", label: "Recebido no mês", value: formatCents(s.received_cents) },
+    { key: "spent", label: "Gasto no mês", value: formatCents(s.spent_cents) },
+    { key: "open", label: "A receber (hoje)", value: formatCents(s.receivable_open_cents) },
   ];
   return (
-    <section aria-labelledby="fin-recv-title" className="tn-fin-recv">
-      <h2 id="fin-recv-title" className="tn-visually-hidden">Recebido</h2>
-      {data?.failed && !v ? <p className="tn-muted">Não foi possível somar o recebido agora.</p> : (
-        <dl className="tn-fin-recv__list">
-          {rows.map(([label, when, cents]) => (
-            <div key={label} className="tn-fin-recv__item">
-              <dt>
-                <span className="tn-fin-recv__label">{label}</span>
-                <span className="tn-fin-recv__when tn-num">{when}</span>
-              </dt>
-              <dd className="tn-num">{cents === undefined ? "…" : formatCents(cents)}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+    <section aria-labelledby="fin-sum-title" className="tn-fin-summary">
+      <h2 id="fin-sum-title" className="tn-visually-hidden">Caixa registrado em {formatMonth(month)}</h2>
+      <Summary label={`Resumo de ${formatMonth(month)}`}>
+        <SummaryHero id="fin-left-label" label={left.label} value={<span data-testid="fin-left">{formatCents(Math.abs(left.cents))}</span>}
+          hint="Não é lucro nem saldo do banco." />
+        <SummaryRows label={`Números de ${formatMonth(month)}`} rows={rows} />
+      </Summary>
+      {/* A ressalva longa fica recolhida, junto do número que ela explica. */}
+      <Help label="Como esse número é feito">
+        <p>
+          {s.coverage_note} Baseado em {s.records_count} {s.records_count === 1 ? "registro" : "registros"}; atualizado em{" "}
+          {formatDate(s.as_of, base.timezone)}. Atendimento agendado ou concluído não conta como recebido. “A receber” só soma
+          cobranças já criadas; atendimentos sem cobrança ficam fora até você cobrar.
+        </p>
+      </Help>
     </section>
   );
 }
 
 /**
  * `?atendimento=<id>` (vindo de "Cobrar no Caixa" na Agenda): rola até o atendimento e põe o foco na ação. Sem cobrança,
- * o foco vai para "Recebi"; já cobrado, o recebimento da cobrança abre. Uma vez por atendimento pedido.
+ * o foco vai para "Recebi"; já cobrado, o recebimento da cobrança abre e o foco vai para o valor. Uma vez por atendimento.
  */
 function FocusBooking({ id, value }: { id: string | null; value: MonthData }) {
   const done = useRef<string | null>(null);
@@ -266,733 +228,8 @@ function FocusBooking({ id, value }: { id: string | null; value: MonthData }) {
     const item = document.getElementById(`fin-b-${id}`) ?? document.querySelector<HTMLElement>(`[data-booking="${CSS.escape(id)}"]`);
     if (!item) return;
     item.scrollIntoView?.({ block: "center" });
-    const target = item.querySelector<HTMLElement>("input, button");
+    const target = item.querySelector<HTMLElement>("input") ?? item.querySelector<HTMLElement>("button");
     target?.focus();
   }, [id, value]);
   return null;
-}
-
-/** Painel "Registrar": escolhe o que lançar e abre o formulário no lugar, com o foco no primeiro campo. */
-function RegisterPanel({ kind, onKind, onClose }: { kind: RegisterKind; onKind: (k: RegisterKind) => void; onClose: () => void }) {
-  const panel = useRef<HTMLElement>(null);
-  useEffect(() => {
-    panel.current?.querySelector<HTMLElement>("form input, form select, form textarea")?.focus();
-  }, []);
-  return (
-    <section ref={panel} id="fin-register" className="tn-card tn-fin-register" aria-labelledby="fin-reg-title">
-      <h2 id="fin-reg-title">Registrar</h2>
-      <Segmented label="O que registrar" value={kind} options={REGISTER_OPTIONS} onChange={onKind} />
-      {kind === "receipt" ? <ReceiptForm onDone={onClose} /> : kind === "expense" ? <ExpenseForm onDone={onClose} /> : kind === "receivable" ? <ReceivableForm onDone={onClose} /> : <PackageForm onDone={onClose} />}
-      <div className="tn-actions">
-        <Button variant="ghost" onClick={onClose}>Fechar</Button>
-      </div>
-    </section>
-  );
-}
-
-function Summary({ s, month, uncharged }: { s: MonthData["summary"]; month: string; uncharged: UnchargedBooking[] }) {
-  const { base } = usePage();
-  const left = leftover(s.received_cents, s.spent_cents);
-  const pendingCents = unchargedTotal(uncharged);
-  const n = uncharged.length;
-  const toPending = (e: MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const h = document.getElementById("fin-unch-title");
-    h?.scrollIntoView({ block: "start" });
-    h?.focus();
-  };
-  return (
-    <Card aria-labelledby="fin-sum-title">
-      <h2 id="fin-sum-title">Caixa registrado em {formatMonth(month)}</h2>
-      <p className="tn-fin-left">
-        <span className="tn-fin-left__label">{left.label}</span>
-        <strong className="tn-fin-left__value tn-num" data-testid="fin-left">{formatCents(Math.abs(left.cents))}</strong>
-        <span className="tn-muted">Entrou menos o que saiu. Não é lucro nem saldo do banco.</span>
-      </p>
-      <dl className="tn-fin-sum">
-        <div>
-          <dt>Recebido</dt>
-          <dd className="tn-num">{formatCents(s.received_cents)}</dd>
-        </div>
-        <div>
-          <dt>Gasto</dt>
-          <dd className="tn-num">{formatCents(s.spent_cents)}</dd>
-        </div>
-        <div>
-          <dt>A receber (hoje)</dt>
-          <dd className="tn-num">{formatCents(s.receivable_open_cents)}</dd>
-        </div>
-      </dl>
-      {n > 0 ? (
-        <p className="tn-fin-alert">
-          <strong>{n} {n === 1 ? "atendimento sem cobrança" : "atendimentos sem cobrança"} · <span className="tn-num">{formatCents(pendingCents)}</span></strong>
-          <a href="#fin-unch-title" onClick={toPending}>Cobrar agora →</a>
-        </p>
-      ) : null}
-      <Help label="Como esse número é feito">
-        <p>
-          {s.coverage_note} Baseado em {s.records_count} {s.records_count === 1 ? "registro" : "registros"}; atualizado em{" "}
-          {formatDate(s.as_of, base.timezone)}. Atendimento agendado ou concluído não conta como recebido. “A receber” só soma
-          cobranças já criadas; atendimentos sem cobrança ficam fora até você cobrar.
-        </p>
-      </Help>
-    </Card>
-  );
-}
-
-function MethodField({ id, className, value, onChange }: { id: string; className?: string; value: Method; onChange: (m: Method) => void }) {
-  return (
-    <Field as="select" label="Forma" id={id} className={className} value={value} onChange={(e) => onChange(e.target.value as Method)}>
-      {METHODS.map((m) => (
-        <option key={m} value={m}>
-          {METHOD_LABEL[m]}
-        </option>
-      ))}
-    </Field>
-  );
-}
-
-function Uncharged({ list, packages }: { list: UnchargedBooking[]; packages: PackageDetail[] }) {
-  const ctx = usePage();
-  return (
-    <section aria-labelledby="fin-unch-title" className="tn-fin-section">
-      <h2 id="fin-unch-title" tabIndex={-1}>Atendimentos concluídos sem cobrança</h2>
-      {list.length === 0 ? (
-        <p className="tn-muted">Nenhum atendimento concluído esperando cobrança.</p>
-      ) : (
-        <ul className="tn-fin-list">
-          {list.map((b) => (
-            <UnchargedItem key={b.booking_id} b={b} packages={packages.filter((p) => b.package_ids.includes(p.package_id))} ctx={ctx} />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-/**
- * Item que sai da lista depois da ação (cobrado, recebido, cancelado): se o foco estava nele, vai para o título da
- * seção em vez de cair no body. A limpeza do layout effect roda antes de o React tirar o <li> do DOM.
- */
-function useFocusHandoff(headingId: string) {
-  const ref = useRef<HTMLLIElement>(null);
-  useLayoutEffect(() => {
-    const li = ref.current;
-    return () => {
-      if (li?.contains(document.activeElement)) document.getElementById(headingId)?.focus();
-    };
-  }, [headingId]);
-  return ref;
-}
-
-function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: PackageDetail[]; ctx: Ctx }) {
-  const port = usePort();
-  const itemRef = useFocusHandoff("fin-unch-title");
-  // Atalho compartilhado com a Agenda e a Hoje (src/lib/collect.ts): uma chave por registro, então repetir depois de
-  // falha reaproveita a cobrança já criada e não duplica nada.
-  const collect = useCollectBooking(port, b.booking_id);
-  // Qual ação está rodando: o carregando aparece só no botão tocado; os outros esperam.
-  const [pending, setPending] = useState<string | null>(null);
-  const label = `${ctx.serviceName(b.service_id)} · ${ctx.customerName(b.customer_id)}`;
-
-  async function run(which: string, action: () => Promise<string>) {
-    setPending(which);
-    try {
-      ctx.notify("success", await action());
-    } catch (err) {
-      ctx.notify("danger", explain(err));
-    } finally {
-      setPending(null);
-      ctx.reload();
-    }
-  }
-
-  // Cobrança e recebimento são dois registros. Se o segundo falhar, a cobrança fica em aberto e visível.
-  const markPaid = (method: Method) =>
-    run("paid", async () => {
-      const r = await collect.receive(method);
-      return `Recebido ${formatCents(r.amount_cents)} (${METHOD_LABEL[method]}) de ${label}. Registro manual.`;
-    });
-  const chargeLater = () =>
-    run("later", async () => {
-      const r = await collect.later();
-      return `Cobrança de ${formatCents(r.amount_cents)} criada. Fica em "A receber" até registrar o recebimento.`;
-    });
-  const consumeCredit = (pkgId: string) =>
-    run(pkgId, async () => {
-      const bal = await collect.consumeCredit(pkgId, b.completed_event_id);
-      return `Crédito usado. Saldo: ${bal.remaining_credits} ${bal.remaining_credits === 1 ? "sessão" : "sessões"}. Nenhum valor novo entra no caixa.`;
-    });
-
-  return (
-    <li ref={itemRef} className="tn-fin-item" id={`fin-b-${b.booking_id}`} data-focus={ctx.focusBooking === b.booking_id ? "true" : undefined}>
-      <div>
-        <strong>{label}</strong>
-        <span className="tn-muted tn-num">
-          {" "}
-          {formatDate(b.starts_at, ctx.base.timezone)} · {formatCents(b.agreed_price_cents)}
-        </span>
-      </div>
-      <CollectActions idBase={`m-${b.booking_id}`} label={label} amountCents={b.agreed_price_cents} credits={packages} pending={pending}
-        onReceive={(m) => void markPaid(m)} onLater={() => void chargeLater()} onCredit={(id) => void consumeCredit(id)} />
-    </li>
-  );
-}
-
-/** P56 (D31 a): o servidor devolve no máximo 200 por lista; quando cortou, a tela avisa em vez de parecer completa. */
-function TruncatedNote({ truncated }: { truncated?: boolean }) {
-  return truncated ? <p className="tn-muted tn-fin-truncated">Mostrando os 200 mais recentes.</p> : null;
-}
-
-function Receivables({ list, truncated }: { list: Receivable[]; truncated?: boolean }) {
-  const ctx = usePage();
-  return (
-    <section aria-labelledby="fin-rec-title" className="tn-fin-section">
-      <h2 id="fin-rec-title" tabIndex={-1}>A receber</h2>
-      {list.length === 0 ? (
-        <p className="tn-muted">Nada em aberto.</p>
-      ) : (
-        <ul className="tn-fin-list">
-          {list.map((r) => (
-            <ReceivableItem key={r.id} r={r} ctx={ctx} />
-          ))}
-        </ul>
-      )}
-      <TruncatedNote truncated={truncated} />
-    </section>
-  );
-}
-
-function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
-  const port = usePort();
-  const itemRef = useFocusHandoff("fin-rec-title");
-  const { keyFor, reset: resetKey } = useIdempotencyKey();
-  // "Agora" entra no pedido. Na nova tentativa precisa ser o mesmo instante: com outro, a chave mudaria
-  // e o recebimento seria gravado duas vezes.
-  const instant = useAttemptValue<string>();
-  const command = useCommand();
-  // Vindo da Agenda com `?atendimento=<id>` já cobrado: o recebimento dessa cobrança abre direto.
-  const [open, setOpen] = useState(() => !!r.booking_id && r.booking_id === ctx.focusBooking);
-  const [amount, setAmount] = useState(centsToInput(r.open_cents));
-  const [method, setMethod] = useState<Method>("pix");
-  const [date, setDate] = useState(ctx.today);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { formRef, errors, show } = useFormErrors<"amount">();
-
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const cents = parseBRL(amount);
-    const amountError = !cents
-      ? "Informe o valor recebido."
-      : cents > r.open_cents
-        ? `O valor passa do que falta receber (${formatCents(r.open_cents)}).`
-        : null;
-    if (!show({ amount: amountError }) || !cents) return;
-    const received_at = date === ctx.today
-      ? instant.valueFor({ receivable_id: r.id, cents, method, date }, () => port.now().toISOString())
-      : noonOfLocalDay(date, ctx.base.timezone);
-    const payload = { receivable_id: r.id, amount_cents: cents, method, received_at };
-    setPending(true);
-    setError(null);
-    try {
-      await port.recordPayment(payload, keyFor(payload));
-      resetKey();
-      instant.reset();
-      ctx.notify("success", `Recebimento de ${formatCents(cents)} registrado (${METHOD_LABEL[method]}, manual).`);
-      ctx.reload();
-    } catch (err) {
-      setError(explain(err));
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function cancel() {
-    try {
-      await command({ cancel: r.id, version: r.version }, (key) => port.cancelReceivable({ receivable_id: r.id, expected_version: r.version }, key));
-      ctx.notify("success", "Cobrança cancelada.");
-    } catch (err) {
-      ctx.notify("danger", explain(err));
-    } finally {
-      ctx.reload();
-    }
-  }
-
-  return (
-    <li ref={itemRef} className="tn-fin-item" data-booking={r.booking_id ?? undefined}
-      data-focus={r.booking_id && r.booking_id === ctx.focusBooking ? "true" : undefined}>
-      <div>
-        <strong>{r.description}</strong> <span className="tn-muted">· {ctx.customerName(r.customer_id)}</span>
-        <div className="tn-muted tn-num">
-          Falta {formatCents(r.open_cents)} de {formatCents(r.amount_cents)} · {STATUS_LABEL[r.status]}
-          {r.due_at ? ` · vence ${formatDate(r.due_at, ctx.base.timezone)}` : ""}
-        </div>
-      </div>
-      {open ? (
-        <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate>
-          <Field label="Valor recebido (R$)" id={`a-${r.id}`} inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
-          <MethodField id={`m-${r.id}`} value={method} onChange={setMethod} />
-          <Field label="Data" id={`d-${r.id}`} type="date" max={ctx.today} value={date} onChange={(e) => setDate(e.target.value)} />
-          {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-          <div className="tn-actions">
-            <Button type="submit" loading={pending}>Registrar pagamento</Button>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Fechar</Button>
-          </div>
-        </form>
-      ) : (
-        <div className="tn-actions">
-          <Button variant="secondary" onClick={() => setOpen(true)}>
-            Registrar recebimento<span className="tn-visually-hidden"> de {r.description}</span>
-          </Button>
-          {r.status === "open" && !r.package_id ? (
-            <ConfirmAction
-              trigger="Cancelar cobrança"
-              triggerLabel={`Cancelar cobrança de ${r.description}`}
-              title="Cancelar cobrança?"
-              consequence={`${r.description} (${formatCents(r.amount_cents)}) sai de "A receber". Para cobrar de novo, crie outra cobrança.`}
-              confirmLabel="Sim, cancelar"
-              onConfirm={cancel}
-            />
-          ) : null}
-        </div>
-      )}
-    </li>
-  );
-}
-
-/** Estorno: não volta atrás, então confirma com a consequência e pede o motivo quando o contrato guarda. */
-function ReverseButton({ label, consequence, withReason = true, onReverse }: {
-  label: string; consequence: string; withReason?: boolean; onReverse: (reason: string) => Promise<void>;
-}) {
-  const [reason, setReason] = useState("");
-  return (
-    <ConfirmAction
-      trigger="Estornar"
-      triggerLabel={`Estornar ${label}`}
-      title={`Estornar ${label}?`}
-      consequence={consequence}
-      confirmLabel="Sim, estornar"
-      canConfirm={!withReason || !!reason.trim()}
-      missingHint="Escreva o motivo do estorno."
-      onConfirm={() => onReverse(reason.trim())}
-    >
-      {withReason ? <Field label="Motivo do estorno" maxLength={280} value={reason} onChange={(e) => setReason(e.target.value)} /> : null}
-    </ConfirmAction>
-  );
-}
-
-/** Histórico do mês (item 56): os mais recentes à vista; o resto a um toque, sem esticar a página. */
-const HISTORY_SHOWN = 5;
-function MoreButton({ total, all, onAll, one, many }: { total: number; all: boolean; onAll: () => void; one: string; many: string }) {
-  const rest = total - HISTORY_SHOWN;
-  if (all || rest <= 0) return null;
-  return <Button variant="ghost" onClick={onAll}>Ver mais {plural(rest, one, many)}</Button>;
-}
-
-function Payments({ list, truncated }: { list: PaymentRecord[]; truncated?: boolean }) {
-  const ctx = usePage();
-  const port = usePort();
-  const [all, setAll] = useState(false);
-  const command = useCommand();
-  const recent = [...list].sort((a, b) => b.received_at.localeCompare(a.received_at));
-  const reverse = (p: PaymentRecord) => async (reason: string) => {
-    try {
-      await command({ reversePayment: p.id, reason }, (key) => port.reversePayment({ payment_id: p.id, reason }, key));
-      ctx.notify("success", `Recebimento de ${formatCents(p.amount_cents)} estornado. O registro original continua no histórico.`);
-    } catch (err) {
-      ctx.notify("danger", explain(err));
-    } finally {
-      ctx.reload();
-    }
-  };
-  return (
-    <section aria-labelledby="fin-pay-title" className="tn-fin-section">
-      <h2 id="fin-pay-title">Recebimentos no mês</h2>
-      {list.length === 0 ? (
-        <>
-          <p className="tn-muted">Nenhum recebimento registrado.</p>
-          <SetupHint to="/app/agenda" action="Abrir a agenda">
-            Ainda não configurado: conclua um atendimento na Agenda e registre aqui o que recebeu. O Caixa passa a mostrar o que entrou e o que falta cobrar.
-          </SetupHint>
-        </>
-      ) : (
-        <ul className="tn-fin-list">
-          {(all ? recent : recent.slice(0, HISTORY_SHOWN)).map((p) => (
-            <li key={p.id} className="tn-fin-item">
-              <div className="tn-num">
-                {p.reversal_of ? <strong>Estorno de {formatCents(p.amount_cents)}</strong> : <strong>{formatCents(p.amount_cents)}</strong>}
-                <span className="tn-muted">
-                  {" "}
-                  · {METHOD_LABEL[p.method]} · {formatDate(p.received_at, ctx.base.timezone)} · {ctx.customerName(p.customer_id)} · manual
-                  {p.reversed ? " · estornado" : ""}
-                </span>
-              </div>
-              {!p.reversal_of && !p.reversed ? (
-                <ReverseButton label={`recebimento de ${formatCents(p.amount_cents)}`} onReverse={reverse(p)}
-                  consequence={`Sai ${formatCents(p.amount_cents)} do recebido no mês. O registro original continua no histórico.`} />
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-      <MoreButton total={list.length} all={all} onAll={() => setAll(true)} one="recebimento" many="recebimentos" />
-      <TruncatedNote truncated={truncated} />
-    </section>
-  );
-}
-
-/**
- * "Recebi" (P48, abre primeiro no "+ Registrar"): dinheiro que entrou fora de um atendimento da agenda. Valor, forma e
- * cliente opcional. No servidor são dois registros, como no atalho do atendimento: a cobrança e o pagamento dela.
- */
-function ReceiptForm({ onDone }: { onDone: () => void }) {
-  const ctx = usePage();
-  const port = usePort();
-  const charge = useIdempotencyKey();
-  const pay = useIdempotencyKey();
-  // Mesmo instante na nova tentativa (ver ReceivableItem): senão o recebimento seria gravado duas vezes.
-  const instant = useAttemptValue<string>();
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<Method>("pix");
-  const [customer, setCustomer] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const { formRef, errors, show } = useFormErrors<"amount">();
-
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const cents = parseBRL(amount);
-    if (!show({ amount: !cents && "Informe o valor recebido." }) || !cents) return;
-    const receivable = { description: "Recebimento avulso", amount_cents: cents, customer_id: customer || null };
-    setPending(true);
-    setError(null);
-    try {
-      const r = await port.createReceivable(receivable, charge.keyFor(receivable));
-      const payment = {
-        receivable_id: r.id, amount_cents: cents, method,
-        received_at: instant.valueFor({ receivable, method }, () => port.now().toISOString()),
-      };
-      await port.recordPayment(payment, pay.keyFor(payment));
-      charge.reset();
-      pay.reset();
-      instant.reset();
-      ctx.notify("success", `Recebimento de ${formatCents(cents)} registrado (${METHOD_LABEL[method]}, manual).`);
-      onDone();
-      ctx.reload();
-    } catch (err) {
-      setError(explain(err));
-      setPending(false);
-    }
-  }
-
-  return (
-    <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Novo recebimento">
-      <Field label="Valor recebido (R$)" id="rcp-amount" inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
-      <MethodField id="rcp-method" value={method} onChange={setMethod} />
-      <Field as="select" label="Cliente (opcional)" id="rcp-customer" value={customer} onChange={(e) => setCustomer(e.target.value)}>
-        <option value="">Sem cliente</option>
-        {ctx.base.customers.map((c) => (
-          <option key={c.id} value={c.id}>{c.name}</option>
-        ))}
-      </Field>
-      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-      <Button type="submit" loading={pending}>Salvar recebimento</Button>
-    </form>
-  );
-}
-
-/** Despesa (abre pelo "+ Registrar"). */
-function ExpenseForm({ onDone }: { onDone: () => void }) {
-  const ctx = usePage();
-  const port = usePort();
-  const { keyFor, reset: resetKey } = useIdempotencyKey();
-  // Mesmo instante na nova tentativa (ver ReceivableItem): senão a despesa seria gravada duas vezes.
-  const instant = useAttemptValue<string>();
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState<ExpenseCategory>("supplies");
-  const [date, setDate] = useState(ctx.today);
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const { formRef, errors, show } = useFormErrors<"amount">();
-
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const cents = parseBRL(amount);
-    if (!show({ amount: !cents && "Informe o valor da despesa." }) || !cents) return;
-    const text = description.trim() || null;
-    const payload = {
-      amount_cents: cents, category, description: text,
-      paid_at: date === ctx.today
-        ? instant.valueFor({ cents, category, text, date }, () => port.now().toISOString())
-        : noonOfLocalDay(date, ctx.base.timezone),
-    };
-    setPending(true);
-    setError(null);
-    try {
-      await port.recordExpense(payload, keyFor(payload));
-      resetKey();
-      instant.reset();
-      ctx.notify("success", `Despesa de ${formatCents(cents)} registrada.`);
-      onDone();
-      ctx.reload();
-    } catch (err) {
-      setError(explain(err));
-      setPending(false);
-    }
-  }
-
-  return (
-    <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Nova despesa">
-      <Field label="Valor da despesa (R$)" id="exp-amount" inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
-      <Field as="select" label="Categoria" id="exp-cat" value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
-        {(Object.keys(CATEGORY_LABEL) as ExpenseCategory[]).map((c) => (
-          <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
-        ))}
-      </Field>
-      <Field label="Data da despesa" id="exp-date" type="date" max={ctx.today} value={date} onChange={(e) => setDate(e.target.value)} />
-      <Field label="Descrição (opcional)" id="exp-desc" maxLength={120} value={description} onChange={(e) => setDescription(e.target.value)} />
-      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-      <Button type="submit" loading={pending}>Registrar despesa</Button>
-    </form>
-  );
-}
-
-function Expenses({ list, truncated }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["expenses"]; truncated?: boolean }) {
-  const ctx = usePage();
-  const port = usePort();
-  const [all, setAll] = useState(false);
-  const command = useCommand();
-  const recent = [...list].sort((a, b) => b.paid_at.localeCompare(a.paid_at));
-
-  const reverse = (id: string) => async (_reason: string) => {
-    try {
-      await command({ reverseExpense: id }, (key) => port.reverseExpense({ expense_id: id }, key));
-      ctx.notify("success", "Despesa estornada. O registro original continua no histórico.");
-    } catch (err) {
-      ctx.notify("danger", explain(err));
-    } finally {
-      ctx.reload();
-    }
-  };
-
-  return (
-    <section aria-labelledby="fin-exp-title" className="tn-fin-section">
-      <h2 id="fin-exp-title">Despesas</h2>
-      {list.length === 0 ? (
-        <p className="tn-muted">Nenhuma despesa no mês.</p>
-      ) : (
-        <ul className="tn-fin-list">
-          {(all ? recent : recent.slice(0, HISTORY_SHOWN)).map((x) => (
-            <li key={x.id} className="tn-fin-item">
-              <div className="tn-num">
-                <strong>{x.reversal_of ? `Estorno de ${formatCents(x.amount_cents)}` : formatCents(x.amount_cents)}</strong>
-                <span className="tn-muted">
-                  {" "}
-                  · {CATEGORY_LABEL[x.category]}{x.description ? ` · ${x.description}` : ""} · {formatDate(x.paid_at, ctx.base.timezone)}
-                  {x.reversed ? " · estornada" : ""}
-                </span>
-              </div>
-              {!x.reversal_of && !x.reversed ? (
-                // O contrato do estorno de despesa não guarda motivo: confirma sem pedir um texto que seria descartado.
-                <ReverseButton label={`despesa de ${formatCents(x.amount_cents)}`} withReason={false} onReverse={reverse(x.id)}
-                  consequence={`Sai ${formatCents(x.amount_cents)} do gasto no mês. O registro original continua no histórico.`} />
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-      <MoreButton total={list.length} all={all} onAll={() => setAll(true)} one="despesa" many="despesas" />
-      <TruncatedNote truncated={truncated} />
-    </section>
-  );
-}
-
-/** Venda de pacote: no "+ Registrar" e no botão da seção de pacotes. */
-function PackageForm({ onDone }: { onDone: () => void }) {
-  const ctx = usePage();
-  const port = usePort();
-  const { keyFor } = useIdempotencyKey();
-  const active = ctx.base.services.filter((s) => s.active);
-  const [customer, setCustomer] = useState("");
-  const [service, setService] = useState(active[0]?.id ?? "");
-  const [credits, setCredits] = useState("10");
-  const [total, setTotal] = useState("");
-  const [expires, setExpires] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const { formRef, errors, show } = useFormErrors<"customer" | "credits" | "total">();
-
-  async function sell(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const n = Number(credits);
-    const cents = parseBRL(total);
-    const ok = show({
-      customer: !customer && "Escolha o cliente.",
-      credits: (!Number.isInteger(n) || n < 1 || n > 500) && "Informe de 1 a 500 sessões.",
-      total: !cents && "Informe o valor total do pacote.",
-    });
-    if (!ok || !cents) return;
-    const payload = {
-      customer_id: customer, service_id: service, credits: n, total_price_cents: cents,
-      expires_at: expires ? endOfLocalDay(expires, ctx.base.timezone) : null,
-    };
-    setPending(true);
-    setError(null);
-    try {
-      await port.sellPackage(payload, keyFor(payload));
-      ctx.notify("success", `Pacote de ${n} sessões vendido. Um único valor de ${formatCents(cents)} ficou em "A receber".`);
-      onDone();
-      ctx.reload();
-    } catch (err) {
-      setError(explain(err));
-      setPending(false);
-    }
-  }
-
-  return (
-    <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void sell(e)} noValidate aria-label="Vender pacote">
-      <Field as="select" label="Cliente" id="pkg-customer" value={customer} error={errors.customer} onChange={(e) => setCustomer(e.target.value)}>
-        <option value="">Escolha…</option>
-        {ctx.base.customers.map((c) => (
-          <option key={c.id} value={c.id}>{c.name}</option>
-        ))}
-      </Field>
-      <Field as="select" label="Serviço" id="pkg-service" value={service} onChange={(e) => setService(e.target.value)}>
-        {active.map((s) => (
-          <option key={s.id} value={s.id}>{s.name}</option>
-        ))}
-      </Field>
-      <Field label="Sessões" id="pkg-credits" inputMode="numeric" value={credits} error={errors.credits} onChange={(e) => setCredits(e.target.value)} />
-      <Field label="Valor total (R$)" id="pkg-total" inputMode="decimal" value={total} error={errors.total} onChange={(e) => setTotal(e.target.value)} />
-      <Field label="Validade (opcional)" id="pkg-exp" type="date" min={ctx.today} value={expires} onChange={(e) => setExpires(e.target.value)} />
-      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-      <Button type="submit" loading={pending}>Confirmar venda</Button>
-    </form>
-  );
-}
-
-function Packages({ list }: { list: PackageDetail[] }) {
-  const ctx = usePage();
-  const port = usePort();
-  const [selling, setSelling] = useState(false);
-  const command = useCommand();
-  const formBox = useRef<HTMLDivElement>(null);
-  // Abre no lugar e leva o foco ao primeiro campo.
-  useEffect(() => {
-    if (selling) formBox.current?.querySelector<HTMLElement>("select, input")?.focus();
-  }, [selling]);
-
-  const reverse = (entryId: string) => async (reason: string) => {
-    try {
-      await command({ reversePackage: entryId, reason }, (key) => port.reversePackage({ entry_id: entryId, reason }, key));
-      ctx.notify("success", "Crédito devolvido ao pacote. O débito original continua no histórico.");
-    } catch (err) {
-      ctx.notify("danger", explain(err));
-    } finally {
-      ctx.reload();
-    }
-  };
-
-  return (
-    <section aria-labelledby="fin-pkg-title" className="tn-fin-section">
-      <h2 id="fin-pkg-title">Pacotes de sessões</h2>
-      <p className="tn-muted">Vender o pacote gera um único valor a receber. Usar uma sessão debita crédito, não gera caixa.</p>
-      {selling ? (
-        <div ref={formBox} className="tn-stack">
-          <PackageForm onDone={() => setSelling(false)} />
-          <div className="tn-actions">
-            <Button variant="ghost" onClick={() => setSelling(false)}>Fechar</Button>
-          </div>
-        </div>
-      ) : (
-        <Button variant="secondary" onClick={() => setSelling(true)}>Vender pacote</Button>
-      )}
-      {list.length === 0 ? (
-        <p className="tn-muted">Nenhum pacote vendido.</p>
-      ) : (
-        <ul className="tn-fin-list">
-          {list.map((p) => (
-            <li key={p.package_id} className="tn-fin-item tn-fin-item--column">
-              <div>
-                <strong>
-                  {ctx.serviceName(p.service_id)} · {ctx.customerName(p.customer_id)}
-                </strong>
-                <div className="tn-num">
-                  Saldo: {p.remaining_credits} {p.remaining_credits === 1 ? "sessão" : "sessões"} de {p.purchased_credits}
-                  <span className="tn-muted">
-                    {" "}
-                    · {formatCents(p.total_price_cents)} contratado
-                    {p.expires_at ? ` · válido até ${formatDate(p.expires_at, ctx.base.timezone)}` : ""}
-                  </span>
-                </div>
-              </div>
-              {p.entries.length ? (
-                <ul className="tn-fin-entries">
-                  {p.entries.map((e) => (
-                    <li key={e.id} className="tn-fin-item">
-                      <span className="tn-num">
-                        {e.reason === "consume" ? "Sessão usada (−1)" : "Crédito devolvido (+1)"} · {formatDate(e.created_at, ctx.base.timezone)}
-                        {e.reversed ? " · estornado" : ""}
-                      </span>
-                      {e.reason === "consume" && !e.reversed ? <ReverseButton label={`sessão usada em ${formatDate(e.created_at, ctx.base.timezone)}`} onReverse={reverse(e.id)} consequence="A sessão volta ao saldo do pacote. O registro original continua no histórico." /> : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-/** Cobrança avulsa (abre pelo "+ Registrar"): produto vendido, sinal ou valor combinado fora da agenda. */
-function ReceivableForm({ onDone }: { onDone: () => void }) {
-  const ctx = usePage();
-  const port = usePort();
-  const { keyFor } = useIdempotencyKey();
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [customer, setCustomer] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const { formRef, errors, show } = useFormErrors<"description" | "amount">();
-
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const cents = parseBRL(amount);
-    const ok = show({ description: !description.trim() && "Descreva a cobrança.", amount: !cents && "Informe o valor." });
-    if (!ok || !cents) return;
-    const payload = { description: description.trim(), amount_cents: cents, customer_id: customer || null };
-    setPending(true);
-    setError(null);
-    try {
-      await port.createReceivable(payload, keyFor(payload));
-      ctx.notify("success", `Cobrança de ${formatCents(cents)} criada em "A receber".`);
-      onDone();
-      ctx.reload();
-    } catch (err) {
-      setError(explain(err));
-      setPending(false);
-    }
-  }
-
-  return (
-    <form ref={formRef} className="tn-fin-form" onSubmit={(e) => void submit(e)} noValidate aria-label="Nova cobrança">
-      <p className="tn-muted tn-fin-form__note">Produto vendido, sinal ou valor combinado fora da agenda.</p>
-      <Field label="Descrição" id="rec-desc" maxLength={120} value={description} error={errors.description} onChange={(e) => setDescription(e.target.value)} />
-      <Field label="Valor (R$)" id="rec-amount" inputMode="decimal" value={amount} error={errors.amount} onChange={(e) => setAmount(e.target.value)} />
-      <Field as="select" label="Cliente (opcional)" id="rec-customer" value={customer} onChange={(e) => setCustomer(e.target.value)}>
-        <option value="">Sem cliente</option>
-        {ctx.base.customers.map((c) => (
-          <option key={c.id} value={c.id}>{c.name}</option>
-        ))}
-      </Field>
-      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-      <Button type="submit" loading={pending}>Criar cobrança</Button>
-    </form>
-  );
 }

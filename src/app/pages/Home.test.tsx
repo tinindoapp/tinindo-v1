@@ -103,8 +103,7 @@ describe("Hoje: o dia primeiro (P48, decisão D6)", () => {
   /** Na ordem do documento, os blocos da tela (sem o cabeçalho). */
   function blocks(): string[] {
     const main = document.querySelector(".tn-today")!;
-    return [...main.querySelectorAll("[aria-labelledby], .tn-stats")].map((e) =>
-      e.classList.contains("tn-stats") ? "números" : document.getElementById(e.getAttribute("aria-labelledby")!)!.textContent!);
+    return [...main.querySelectorAll("[aria-labelledby]")].map((e) => document.getElementById(e.getAttribute("aria-labelledby")!)!.textContent!);
   }
 
   it("Próximo, lista do dia, pendências, números, configuração em uma linha e uma sugestão; sem \"Ações rápidas\"", async () => {
@@ -117,7 +116,7 @@ describe("Hoje: o dia primeiro (P48, decisão D6)", () => {
     expect(at(/^Próximo:/)).toBe(0);
     expect(at(/^Atendimentos de hoje$/)).toBe(1);
     expect(at(/^Pendências$/)).toBe(2);
-    expect(at(/^números$/)).toBe(3);
+    expect(at(/^Números$/)).toBe(3);
     expect(at(/^Deixe seu negócio pronto/)).toBe(4);
     expect(at(/^Para você esta semana/)).toBe(5);
     expect(screen.queryByRole("list", { name: "Ações rápidas" })).not.toBeInTheDocument();
@@ -149,7 +148,7 @@ describe("Hoje: o dia primeiro (P48, decisão D6)", () => {
     expect(screen.queryByRole("region", { name: /^Próximo:/ })).not.toBeInTheDocument();
   });
 
-  it("números: atendimentos de hoje e recebido na semana, com o mês na nota", async () => {
+  it("números: uma linha por número (rótulo e valor), atendimentos de hoje e recebido na semana, com o mês na nota", async () => {
     renderHome(portAt("2026-10-20T11:20:00-03:00"));
     const stats = await screen.findByRole("group", { name: "Resumo" }, SLOW);
     const week = within(stats).getByRole("link", { name: /^Recebido na semana/ });
@@ -157,6 +156,20 @@ describe("Hoje: o dia primeiro (P48, decisão D6)", () => {
     expect(week).toHaveAttribute("href", "/app/caixa");
     expect(within(stats).getByRole("link", { name: /^Atendimentos hoje/ })).toBeInTheDocument();
     expect(within(stats).queryByRole("link", { name: /Recebido no mês/ })).not.toBeInTheDocument();
+    // Sem ladrilho: o valor fica na mesma linha do rótulo, em classe tabular.
+    expect(stats.querySelector(".tn-stat")).toBeNull();
+    expect(week.querySelector(".tn-summary__row-value")).toHaveClass("tn-num");
+  });
+
+  it("D15: concluído leva selo verde; confirmado não leva selo; reserva provisória em atenção", async () => {
+    renderHome(portAt("2026-10-20T11:20:00-03:00"));
+    const list = await screen.findByRole("list", { name: "Outros atendimentos de hoje" }, SLOW);
+    expect(list).toHaveAttribute("data-timeline");
+    const badges = [...list.querySelectorAll(".tn-badge")].map((b) => `${b.getAttribute("data-tone")}:${b.textContent}`);
+    expect(badges).toContain("warning:Reserva provisória");
+    expect(badges.some((b) => b.startsWith("neutral:Confirmado"))).toBe(false);
+    // Hora na coluna da linha do tempo, como <time>.
+    expect(list.querySelector("time")).toHaveTextContent(/^\d\d:\d\d$/);
   });
 
   it("Próximo que ainda não começou: sem Atendido e Faltou", async () => {

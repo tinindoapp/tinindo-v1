@@ -6,7 +6,6 @@ import { Button, Card, Field, PageHeader, StatusBanner } from "../../components/
 import { useCrmApi } from "./api.ts";
 import { CSV_MAX_BYTES, type PreviewRow, readCustomerCsv } from "./csv.ts";
 import { formatPhone, REJECT_LABEL } from "./format.ts";
-import { CrmDemoNotice } from "./shared.tsx";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { serverMessage } from "../../lib/errors.ts";
 import { plural } from "../../lib/text/plural.ts";
@@ -111,8 +110,7 @@ export function ImportPage() {
     <div className="tn-stack">
       <div className="tn-page-intro">
         <PageHeader id="crm-import-title" title="Importar clientes de planilha" />
-        <CrmDemoNotice />
-        <p>
+          <p>
           CSV com cabeçalho na primeira linha: <strong>nome</strong> (obrigatório), telefone, e-mail e origem. Até 500
           clientes por vez. Exporte do Excel ou do Google Planilhas como CSV.
         </p>

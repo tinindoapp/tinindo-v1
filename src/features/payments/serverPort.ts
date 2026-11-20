@@ -11,6 +11,7 @@ import {
   SimPayOutput,
 } from "@contracts";
 import type { createApiClient } from "../../lib/api/client.ts";
+import { now } from "../../lib/time.ts";
 import type { PaymentLinkPort, PaymentsPort } from "./port.ts";
 
 type Call = ReturnType<typeof createApiClient>;
@@ -21,8 +22,8 @@ export function createServerPort(call: Call, tenantId: string): PaymentsPort {
   return {
     kind: "server",
     async openReceivables() {
-      const now = Date.now();
-      const period = { starts_at: new Date(now - 90 * 86_400_000).toISOString(), ends_at: new Date(now + 86_400_000).toISOString() };
+      const at = now().getTime();
+      const period = { starts_at: new Date(at - 90 * 86_400_000).toISOString(), ends_at: new Date(at + 86_400_000).toISOString() };
       return (await call("/finance/finance.ledger", FinanceLedgerOutput, post({ period }))).data.receivables.filter((r) => r.status === "open" || r.status === "partially_paid");
     },
     async charges() {

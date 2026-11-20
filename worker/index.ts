@@ -3,6 +3,7 @@
 // redireciona) e as páginas do cliente final (/pagar, /orcamento, /avaliar, /reserva, /avaliacoes/*, /oferta), para a
 // prévia do link (worker/og.ts). Falhar aberto: qualquer erro devolve o app como ele é, sem prévia personalizada.
 import { injectTags, type OgConfig, routeOf, tagsFor } from "./og.ts";
+import { withSecurityHeaders } from "./security-headers.ts";
 
 interface Env {
   ASSETS: { fetch(input: Request | string): Promise<Response> };
@@ -20,7 +21,13 @@ async function config(env: Env, origin: string): Promise<OgConfig> {
   }
 }
 
+/** Toda resposta do Worker sai com os cabeçalhos de segurança (P57), inclusive o redirecionamento e a queda segura. */
 export async function handle(request: Request, env: Env, fetcher: typeof fetch = fetch): Promise<Response> {
+  const res = await route(request, env, fetcher);
+  return withSecurityHeaders(res, { supabase_url: null });
+}
+
+async function route(request: Request, env: Env, fetcher: typeof fetch): Promise<Response> {
   const url = new URL(request.url);
   const route = request.method === "GET" || request.method === "HEAD" ? routeOf(url.pathname) : null;
   // D19: /p absorveu o site. /s/:slug muda de vez para /p/:slug, com a mesma query, antes de tocar nos arquivos.

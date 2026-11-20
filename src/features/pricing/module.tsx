@@ -1,45 +1,9 @@
 // Módulo Preços · P05 (tasks/P05.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 // Sem Supabase (demonstração offline) usa a emulação local, rotulada; com Supabase, a função `pricing`.
-import { useMemo } from "react";
+// Manifesto (P53): a tela fica em routes.tsx e é carregada sob demanda.
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { appEnv } from "../../app/env.ts";
-import { useSession } from "../../app/session.tsx";
-import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
-import { createDemoPort } from "./demoPort.ts";
-import type { PricingPort } from "./port.ts";
-import { PricingPage, PricingPortProvider } from "./PricingPage.tsx";
-import { createServerPort } from "./serverPort.ts";
+import { screen } from "../../app/lazy-route.ts";
 import "./pricing.css";
-
-let demoPort: PricingPort | null = null;
-/** Uma emulação por carregamento de página: as mudanças valem enquanto a aba estiver aberta. */
-function getDemoPort(): PricingPort {
-  demoPort ??= createDemoPort();
-  return demoPort;
-}
-
-function PricingLayout() {
-  const { state, tenantId, getAccessToken } = useSession();
-  const port = useMemo<PricingPort | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return getDemoPort();
-    if (!tenantId) return null;
-    return createServerPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken }), tenantId);
-  }, [state.status, tenantId, getAccessToken]);
-  if (!port) {
-    return (
-      <section aria-labelledby="pr-no-tenant" className="tn-pr">
-        <PageHeader id="pr-no-tenant" title="Preços" />
-        <StatusBanner tone="info">Selecione um negócio para ver os preços.</StatusBanner>
-      </section>
-    );
-  }
-  return (
-    <PricingPortProvider value={port}>
-      <PricingPage key={`${port.kind}:${tenantId ?? ""}`} />
-    </PricingPortProvider>
-  );
-}
 
 export const pricingModule: ModuleDefinition = {
   id: "pricing",
@@ -48,5 +12,5 @@ export const pricingModule: ModuleDefinition = {
   level: "pilot",
   path: "precos",
   navLabel: "Preços",
-  routes: [{ index: true, element: <PricingLayout /> }],
+  routes: [{ index: true, lazy: screen(() => import("./routes.tsx"), (m) => m.PricingLayout) }],
 };

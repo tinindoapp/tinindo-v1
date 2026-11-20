@@ -1,0 +1,108 @@
+{
+  "hoje": {
+    "url": "/app",
+    "height": 1553,
+    "screens": 1.84,
+    "h1": "Hoje",
+    "textCount": 58,
+    "minRatio": 9.04,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 24,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 8,
+    "blackNonAction": [
+      "section.tn-today__next Próximo: 09:00 · Cliente Exemp",
+      "ul.tn-list 09:40 · CorteCliente Exemplo B",
+      "ul.tn-list 3 atendimentos sem cobrançaR$ "
+    ]
+  },
+  "caixa": {
+    "url": "/app/caixa",
+    "height": 3830,
+    "screens": 4.54,
+    "h1": "Caixa",
+    "textCount": 119,
+    "minRatio": 9.04,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 37,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 15,
+    "blackNonAction": [
+      "section.tn-card Caixa registrado em outubro de"
+    ]
+  },
+  "clientes": {
+    "url": "/app/clientes",
+    "height": 1067,
+    "screens": 1.26,
+    "h1": "Clientes",
+    "textCount": 32,
+    "minRatio": 9.04,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 20,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 11,
+    "blackNonAction": [
+      "input. ",
+      "div.tn-segmented__track TodosSem voltar há 30+ dias",
+      "section.tn-card Lista de clientesCliente AB (e",
+      "li.crm-item Cliente AB (exemplo)(11) 98888",
+      "li.crm-item Visitante sem login (exemplo)O"
+    ]
+  },
+  "ficha": {
+    "url": "/app/clientes/30000000-0000-4000-8000-0000000000a1",
+    "height": 3093,
+    "screens": 3.66,
+    "h1": "Cliente AB (exemplo)",
+    "textCount": 89,
+    "minRatio": 9.04,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 14,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 25,
+    "blackNonAction": [
+      "section.tn-card ContatoTelefone(11) 98888-7777",
+      "section.tn-card AtendimentosAté agora: 15 conc",
+      "li.crm-visit ter., 20/10, 09:00CorteConfirm",
+      "li.crm-visit ter., 20/10, 11:25CorteConfirm",
+      "li.crm-visit qui., 22/10, 09:00CorteConfirm",
+      "li.crm-visit seg., 19/10, 14:00CorteConcluí",
+      "li.crm-visit sex., 16/10, 10:00BarbaConcluí",
+      "li.crm-visit qui., 15/10, 15:00CorteConcluí",
+      "li.crm-visit ter., 13/10, 09:00CorteConcluí",
+      "li.crm-visit seg., 12/10, 10:00BarbaConcluí"
+    ]
+  },
+  "retorno": {
+    "url": "/app/relacionamento/retorno",
+    "height": 1204,
+    "screens": 1.43,
+    "h1": "Retorno",
+    "textCount": 33,
+    "minRatio": 9.35,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 13,
+    "smallTargets": [
+      {
+        "tag": "a",
+        "name": "Rita (exemplo)",
+        "w": 358,
+        "h": 24,
+        "inline": false
+      }
+    ],
+    "smallTargetCount": 1,
+    "blackFills": 2,
+    "blackNonAction": []
+  }
+}

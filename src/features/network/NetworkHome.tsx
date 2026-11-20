@@ -9,7 +9,8 @@ import type { BusinessBasics, NetworkApi, OwnerProfile, ReferralLinkData, Referr
 import { ProfileDetailsEditor } from "./ProfileDetails.tsx";
 import { ProfileMediaEditor } from "./ProfileMedia.tsx";
 import { ShareActions, ShareLink } from "./ShareLink.tsx";
-import { CATEGORY_LABEL, errorMessage, formatDateTime, newIdempotencyKey, useNetworkApi } from "./useNetworkApi.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { CATEGORY_LABEL, errorMessage, formatDateTime, useNetworkApi } from "./useNetworkApi.ts";
 import "./network.css";
 
 type PublicProfileField = z.infer<typeof PublicProfileFieldSchema>;
@@ -155,9 +156,9 @@ function ProfileEditor({
   const [error, setError] = useState<string | null>(null);
   const { formRef, errors, show, clear } = useFormErrors<"slug" | "area">();
   // Mesma chave enquanto o formulário não muda: um retry não publica duas vezes.
-  const [idemKey, setIdemKey] = useState(newIdempotencyKey);
-
-  const touch = () => setIdemKey(newIdempotencyKey());
+  const idem = useIdempotencyKey();
+  // Tirar do ar e o Desfazer: falhou, tocar de novo manda a mesma chave.
+  const command = useCommand();
 
   async function publish(e: FormEvent) {
     e.preventDefault();
@@ -169,9 +170,10 @@ function ProfileEditor({
     setBusy("publish");
     setError(null);
     try {
-      await api.publishProfile({ slug, category, area: area.trim(), public_fields: ["area", ...fields] }, idemKey);
+      const input = { slug, category, area: area.trim(), public_fields: ["area" as const, ...fields] };
+      await api.publishProfile(input, idem.keyFor(input));
+      idem.reset();
       toast("Perfil publicado.");
-      touch();
       await onSaved();
     } catch (err) {
       setError(errorMessage(err));
@@ -187,7 +189,7 @@ function ProfileEditor({
     setBusy("unpublish");
     setError(null);
     try {
-      await api.unpublishProfile(newIdempotencyKey());
+      await command({ unpublish: profile.slug }, (key) => api.unpublishProfile(key));
       await onSaved();
       toast({
         message: "Perfil removido do ar. Ninguém mais o encontra pelo link.",
@@ -195,7 +197,7 @@ function ProfileEditor({
           label: "Desfazer",
           onAction: async () => {
             try {
-              await api.publishProfile(before, newIdempotencyKey());
+              await command({ publish: before }, (key) => api.publishProfile(before, key));
               await onSaved();
               toast("Perfil de volta no ar, no mesmo endereço.");
             } catch (err) {
@@ -227,7 +229,6 @@ function ProfileEditor({
           onChange={(e) => {
             setSlug(slugify(e.target.value));
             clear("slug");
-            touch();
           }}
           placeholder="ex.: barbearia-do-centro"
           hint={
@@ -251,7 +252,6 @@ function ProfileEditor({
                 value={category}
                 onChange={(p) => {
                   setCategory(p);
-                  touch();
                 }}
               />
             </details>
@@ -261,7 +261,6 @@ function ProfileEditor({
             value={category}
             onChange={(p) => {
               setCategory(p);
-              touch();
             }}
           />
         )}
@@ -272,7 +271,6 @@ function ProfileEditor({
           onChange={(e) => {
             setArea(e.target.value);
             clear("area");
-            touch();
           }}
           placeholder="ex.: Centro, Campinas"
           error={errors.area}
@@ -289,7 +287,6 @@ function ProfileEditor({
               checked={fields.includes(field)}
               onChange={(on) => {
                 setFields((cur) => (on ? [...cur, field] : cur.filter((f) => f !== field)));
-                touch();
               }}
               title={label}
             />
@@ -339,7 +336,7 @@ function InvitePeer({ api, referrals, onCreated }: { api: NetworkApi; referrals:
   const [link, setLink] = useState<ReferralLinkData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [idemKey, setIdemKey] = useState(newIdempotencyKey);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show, clear } = useFormErrors<"name">();
 
   async function create(e: FormEvent) {
@@ -348,13 +345,11 @@ function InvitePeer({ api, referrals, onCreated }: { api: NetworkApi; referrals:
     setBusy(true);
     setError(null);
     try {
-      const created = await api.createReferral(
-        { kind: "professional_invites_peer", invitee_name: name.trim(), invitee_category: category || undefined, origin: "web" },
-        idemKey,
-      );
+      const input = { kind: "professional_invites_peer" as const, invitee_name: name.trim(), invitee_category: category || undefined, origin: "web" as const };
+      const created = await api.createReferral(input, idem.keyFor(input));
+      idem.reset();
       setLink(created);
       setName("");
-      setIdemKey(newIdempotencyKey());
       await onCreated();
     } catch (err) {
       setError(errorMessage(err));
@@ -379,7 +374,6 @@ function InvitePeer({ api, referrals, onCreated }: { api: NetworkApi; referrals:
           onChange={(e) => {
             setName(e.target.value);
             clear("name");
-            setIdemKey(newIdempotencyKey());
           }}
           error={errors.name}
           required

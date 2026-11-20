@@ -5,7 +5,8 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ChoiceCard, Field, StatusBanner, toast } from "../../components/ui/index.tsx";
 import type { NetworkApi, OwnerProfile } from "./api.ts";
 import { PhotoError, type ProcessedPhoto, processPhoto } from "./photo.ts";
-import { errorMessage, formatPhoneBr, newIdempotencyKey } from "./useNetworkApi.ts";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { errorMessage, formatPhoneBr } from "./useNetworkApi.ts";
 
 /** "+5511999990001" → "(11) 99999-0001". */
 
@@ -21,8 +22,7 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
   const [busy, setBusy] = useState<"photo" | "save" | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   // Mesma chave enquanto nada muda: um retry não grava duas vezes.
-  const [idemKey, setIdemKey] = useState(newIdempotencyKey);
-  const touch = () => setIdemKey(newIdempotencyKey());
+  const idem = useIdempotencyKey();
 
   const draftPreview = draft?.preview;
   useEffect(() => () => {
@@ -40,7 +40,6 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
       const photo = await processPhoto(file);
       setDraft({ photo, preview: URL.createObjectURL(photo.blob), uploaded: null });
       setRemoved(false);
-      touch();
     } catch (e) {
       setProblem(e instanceof PhotoError ? e.message : "Não foi possível abrir esta imagem. Tente outra foto.");
     } finally {
@@ -58,10 +57,9 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
         path = draft.uploaded ?? (await api.uploadProfilePhoto(draft.photo)).path;
         setDraft({ ...draft, uploaded: path });
       }
-      await api.setProfileMedia(
-        { photo_path: path, photo_alt: alt.trim() || null, show_photo: showPhoto && !!path, show_whatsapp: showWhatsapp, show_prices: showPrices },
-        idemKey,
-      );
+      const input = { photo_path: path, photo_alt: alt.trim() || null, show_photo: showPhoto && !!path, show_whatsapp: showWhatsapp, show_prices: showPrices };
+      await api.setProfileMedia(input, idem.keyFor(input));
+      idem.reset();
       // Uma foto por negócio: a anterior sai do Storage depois que o perfil já aponta para a nova.
       if (m.photo_path && m.photo_path !== path) await api.removeProfilePhoto(m.photo_path).catch(() => undefined);
       toast("Foto e opções do perfil salvas.");
@@ -105,7 +103,6 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
               hint="Lida para quem usa leitor de tela."
               onChange={(e) => {
                 setAlt(e.target.value);
-                touch();
               }}
             />
             <div className="tn-actions">
@@ -115,7 +112,6 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
                   setDraft(null);
                   setRemoved(true);
                   setShowPhoto(false);
-                  touch();
                 }}
               >
                 Remover foto
@@ -133,7 +129,6 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
             disabled={!hasPhoto}
             onChange={(on) => {
               setShowPhoto(on);
-              touch();
             }}
             title="Mostrar foto"
             description={hasPhoto ? "A foto aparece no perfil e na prévia do link." : "Escolha uma foto primeiro."}
@@ -145,7 +140,6 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
             checked={showWhatsapp}
             onChange={(on) => {
               setShowWhatsapp(on);
-              touch();
             }}
             title="Mostrar botão do WhatsApp"
             description={
@@ -161,7 +155,6 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
             checked={showPrices}
             onChange={(on) => {
               setShowPrices(on);
-              touch();
             }}
             title="Mostrar preços"
             description="Mostra “a partir de R$ X” em cada serviço, com o preço base do cadastro."

@@ -1,7 +1,8 @@
-// "Repetir toda semana" (decisão D8 a): contas puras da tela. O servidor já tem `booking.create_series`, que repete UM
-// horário por 2 a 12 semanas. Vários dias da semana viram uma chamada por dia; "até a data" vira número de semanas.
+// "Repetir toda semana" (decisão D8 a): contas puras da tela. `booking.create_series` repete um horário por 2 a 12
+// semanas, em um ou vários dias da semana, tudo com um series_id só. "Até a data" vira número de semanas; quando os
+// dias ficam com números de semanas diferentes (a data cai no meio de uma semana), vira uma chamada por dia.
 // Quem decide conflito é o servidor: aqui só se monta o pedido e se descreve o que ele devolveu.
-import type { TimeRange } from "@contracts";
+import type { Booking, TimeRange } from "@contracts";
 import { addDays, type CivilDate, formatDayShort, toZonedIso, weekdayOf, zonedInstant } from "./time.ts";
 
 /** Limites do contrato (BookingCreateSeriesInput.weeks). */
@@ -15,9 +16,9 @@ export interface SeriesOccurrence {
   slot: TimeRange;
 }
 
-/** Uma chamada a `booking.create_series`: um dia da semana, a primeira data e quantas semanas. */
+/** Uma chamada a `booking.create_series`: os dias da semana, quantas semanas e as datas (a primeira é o `slot`). */
 export interface SeriesCall {
-  weekday: number;
+  weekdays: number[];
   weeks: number;
   occurrences: SeriesOccurrence[];
 }
@@ -99,9 +100,15 @@ export function planSeries(input: {
       const date = addDays(first, 7 * i);
       return { date, slot: slotOf(date) };
     });
-    calls.push({ weekday, weeks, occurrences });
+    calls.push({ weekdays: [weekday], weeks, occurrences });
   }
-  const occurrences = calls.flatMap((c) => c.occurrences).sort((a, b) => Date.parse(a.slot.starts_at) - Date.parse(b.slot.starts_at));
+  const byStart = (a: SeriesOccurrence, b: SeriesOccurrence) => Date.parse(a.slot.starts_at) - Date.parse(b.slot.starts_at);
+  const occurrences = calls.flatMap((c) => c.occurrences).sort(byStart);
+  // Mesmo número de semanas em todos os dias: uma chamada só, um series_id para a repetição inteira. O servidor começa
+  // cada dia na primeira data a partir da primeira ocorrência, que é exatamente a primeira data de cada dia aqui.
+  if (calls.length > 1 && calls.every((c) => c.weeks === calls[0]!.weeks)) {
+    return { ok: true, calls: [{ weekdays, weeks: calls[0]!.weeks, occurrences }], occurrences };
+  }
   return { ok: true, calls, occurrences };
 }
 
@@ -109,12 +116,9 @@ export function planSeries(input: {
  * Chave de cada chamada, derivada da chave do envio: a nova tentativa manda as mesmas chaves, e a chamada que já tinha
  * dado certo devolve o mesmo resultado em vez de criar de novo.
  */
-export function seriesCallKey(base: string, weekday: number): string {
-  return `${base}-d${weekday}`;
+export function seriesCallKey(base: string, call: Pick<SeriesCall, "weekdays">): string {
+  return `${base}-d${call.weekdays.join("")}`;
 }
-
-/** Atendimentos criados juntos numa repetição, em ordem de data. */
-export type SeriesGroup = string[];
 
 export interface SeriesMark {
   /** Posição na repetição, a partir de 1. */
@@ -123,12 +127,22 @@ export interface SeriesMark {
   nextId: string | null;
 }
 
-export function seriesMark(groups: readonly SeriesGroup[], bookingId: string): SeriesMark | null {
-  for (const g of groups) {
-    const i = g.indexOf(bookingId);
-    if (i >= 0) return { position: i + 1, total: g.length, nextId: g[i + 1] ?? null };
-  }
-  return null;
+/**
+ * Posição do atendimento na repetição, a partir dos atendimentos da série lidos do servidor (`booking.series`). Os
+ * cancelados contam na posição (a data existiu), mas "Abrir o próximo" pula para o próximo ainda marcado.
+ */
+export function seriesMark(series: readonly Booking[], bookingId: string): SeriesMark | null {
+  const ordered = [...series].sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at) || a.id.localeCompare(b.id));
+  const i = ordered.findIndex((b) => b.id === bookingId);
+  if (i < 0 || ordered.length < 2) return null;
+  const next = ordered.slice(i + 1).find((b) => b.status === "confirmed" || b.status === "held");
+  return { position: i + 1, total: ordered.length, nextId: next?.id ?? null };
+}
+
+/** Quantos atendimentos da repetição, a partir deste, ainda estão marcados (o que "Cancelar os próximos" cancela). */
+export function seriesRemaining(series: readonly Booking[], booking: Booking): number {
+  const from = Date.parse(booking.starts_at);
+  return series.filter((b) => Date.parse(b.starts_at) >= from && (b.status === "confirmed" || b.status === "held")).length;
 }
 
 /** "Repete toda semana · 3 de 16" */

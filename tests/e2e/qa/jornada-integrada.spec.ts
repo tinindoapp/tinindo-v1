@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { expectDemoLabel, noHorizontalScroll } from "./helpers.ts";
+import { caixaSummaryValue, expectDemoLabel, noHorizontalScroll, openCaixaHistory } from "./helpers.ts";
 
 // Auditoria da demonstração (docs/qa/AUDITORIA-DEMO-2026-10-25.md): o MESMO atendimento atravessa os módulos na aba.
 // Agenda ("Atendido" → "Recebi R$ 60,00 no Pix", P48) → Caixa (recebido à mão → saldo) → cliente avalia. Concluir e
@@ -14,7 +14,7 @@ async function softGo(page: Page, path: string) {
   }, path);
 }
 
-const received = (page: Page) => page.locator(".tn-fin-sum div").filter({ has: page.locator("dt", { hasText: /^Recebido$/ }) }).locator("dd");
+const received = (page: Page) => caixaSummaryValue(page, "Recebido no mês");
 
 test("mesmo atendimento: Atendido na agenda → Recebi no Pix → recebido no Caixa → saldo → avaliação", async ({ page }) => {
   await page.goto("/app/agenda");
@@ -35,10 +35,11 @@ test("mesmo atendimento: Atendido na agenda → Recebi no Pix → recebido no Ca
   await expect(pending.getByRole("listitem")).toHaveCount(3);
   await expect(pending.getByRole("listitem").filter({ hasText: "20/10/2026" })).toHaveCount(0);
   // Um recebimento só, de R$ 60,00 no dia, e o saldo do mês sobe uma vez.
+  await openCaixaHistory(page);
   const payments = page.getByRole("region", { name: "Recebimentos no mês" });
   await expect(payments.getByRole("listitem").filter({ hasText: "20/10/2026" }).filter({ hasText: "R$ 60,00" })).toHaveCount(1);
   await expect(received(page)).toHaveText("R$ 1.800,00");
-  const today = page.getByRole("region", { name: "Recebido", exact: true }).locator("div").filter({ hasText: /^Hoje/ }).locator("dd");
+  const today = caixaSummaryValue(page, "Recebido hoje");
   await expect(today).toHaveText(/R\$\s?60,00/);
   await noHorizontalScroll(page);
 
@@ -138,7 +139,10 @@ test.describe("regressões da auditoria", () => {
   test("recebimento de valor zero é recusado e o saldo não muda", async ({ page }) => {
     await page.goto("/app/caixa");
     const pending = page.getByRole("region", { name: "Atendimentos concluídos sem cobrança" });
-    await pending.getByRole("listitem").filter({ hasText: "Bruno" }).filter({ hasText: "19/10/2026" }).getByRole("button", { name: /Cobrar depois/ }).click();
+    // P54: "Cobrar depois" fica no menu "⋯" da linha; a ação visível é "Recebi".
+    const row = pending.getByRole("listitem").filter({ hasText: "Bruno" }).filter({ hasText: "19/10/2026" });
+    await row.getByRole("button", { name: /^Mais ações/ }).click();
+    await row.getByRole("menuitem", { name: /Cobrar depois/ }).click();
     const open = page.getByRole("region", { name: "A receber" });
     await open.getByRole("button", { name: "Registrar recebimento de Barba", exact: true }).click();
     await open.getByLabel("Valor recebido (R$)").fill("0");

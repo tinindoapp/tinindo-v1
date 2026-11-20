@@ -1,0 +1,97 @@
+{
+  "hoje": {
+    "url": "/app",
+    "height": 1553,
+    "screens": 1.84,
+    "h1": "Hoje",
+    "textCount": 58,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 24,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 4,
+    "blackNonAction": [
+      "span. ",
+      "svg.[object SVGAnimatedString] "
+    ]
+  },
+  "caixa": {
+    "url": "/app/caixa",
+    "height": 3830,
+    "screens": 4.54,
+    "h1": "Caixa",
+    "textCount": 119,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 37,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 6,
+    "blackNonAction": [
+      "svg.[object SVGAnimatedString] "
+    ]
+  },
+  "clientes": {
+    "url": "/app/clientes",
+    "height": 1067,
+    "screens": 1.26,
+    "h1": "Clientes",
+    "textCount": 32,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 20,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 5,
+    "blackNonAction": [
+      "label.tn-segmented__option Todos",
+      "svg.[object SVGAnimatedString] "
+    ]
+  },
+  "ficha": {
+    "url": "/app/clientes/30000000-0000-4000-8000-0000000000a1",
+    "height": 3093,
+    "screens": 3.66,
+    "h1": "Cliente AB (exemplo)",
+    "textCount": 89,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 14,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 3,
+    "blackNonAction": [
+      "svg.[object SVGAnimatedString] "
+    ]
+  },
+  "retorno": {
+    "url": "/app/relacionamento/retorno",
+    "height": 1204,
+    "screens": 1.43,
+    "h1": "Retorno",
+    "textCount": 33,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 13,
+    "smallTargets": [
+      {
+        "tag": "a",
+        "name": "Rita (exemplo)",
+        "w": 358,
+        "h": 24,
+        "inline": false
+      }
+    ],
+    "smallTargetCount": 1,
+    "blackFills": 3,
+    "blackNonAction": [
+      "svg.[object SVGAnimatedString] "
+    ]
+  }
+}

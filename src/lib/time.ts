@@ -178,6 +178,11 @@ export function formatUtcOffset(value: Date | string, timeZone: string): string 
   return `UTC${formatOffset(offsetMinutes(value, timeZone)).replace("-", "−")}`;
 }
 
+/** Fuso do aparelho (IANA): só para o que é "no relógio de quem lê", como o prazo do link de pagamento. */
+export function deviceTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 /** O aparelho está num fuso com outro horário que o do negócio naquele instante (só então vale avisar). */
 export function deviceZoneDiffers(value: Date | string, timeZone: string): boolean {
   const instant = toDate(value);
@@ -302,6 +307,11 @@ export function formatDate(value: Date | string, timeZone: string): string {
   return fmt(timeZone, { day: "2-digit", month: "2-digit", year: "numeric" }).format(toDate(value));
 }
 
+/** "20/10/2026, 09:30": data com ano e hora (`dateStyle` e `timeStyle` curtos). */
+export function formatFullDateTime(value: Date | string, timeZone: string): string {
+  return fmt(timeZone, { dateStyle: "short", timeStyle: "short" }).format(toDate(value));
+}
+
 /** "20/10" */
 export function formatDayMonth(value: Date | string, timeZone: string): string {
   return fmt(timeZone, { day: "2-digit", month: "2-digit" }).format(toDate(value));
@@ -335,6 +345,12 @@ export function formatSlot(slot: { starts_at: string; ends_at: string }, timeZon
 /** "terça-feira, 20/10, às 09:00" */
 export function formatStart(value: Date | string, timeZone: string): string {
   return `${formatWeekdayLongDate(value, timeZone)}, às ${formatTime(value, timeZone)}`;
+}
+
+/** Data civil "2026-10-20" → "ter 20/10": dia da semana curto, sem ponto, e dia/mês (chip de dia). */
+export function formatWeekdayDayMonth(date: CivilDate): string {
+  const wd = fmt("UTC", { weekday: "short" }).format(civilToDate(date)).replace(".", "");
+  return `${wd} ${date.slice(8, 10)}/${date.slice(5, 7)}`;
 }
 
 /** Data civil "2026-10-20" → "20/10/2026", sem passar por fuso. */

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { RouteObject } from "react-router";
 import { createDemoPublicPort } from "./demoPort.ts";
 import type { PublicReviewsPort } from "./port.ts";
-import { anonCall } from "./public-kit.tsx";
+import { anonCall } from "../../components/public/public-kit.tsx";
 import { PublicReviewsPage } from "./PublicReviewsPage.tsx";
 import { createServerPublicPort } from "./serverPort.ts";
 import "./reputation.css";

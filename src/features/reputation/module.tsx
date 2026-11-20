@@ -1,48 +1,14 @@
 // Módulo Avaliações · P24 (tasks/P24.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
-import { useMemo } from "react";
+// Manifesto (P53): as telas ficam em routes.tsx e são carregadas sob demanda.
 import type { RouteObject } from "react-router";
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { appEnv } from "../../app/env.ts";
-import { useSession } from "../../app/session.tsx";
-import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
-import { createDemoCustomerPort, createDemoOwnerPort } from "./demoPort.ts";
-import type { CustomerReviewsPort, OwnerReviewsPort } from "./port.ts";
+import { screen } from "../../app/lazy-route.ts";
 import { reputationAnonRoutes } from "./public-routes.tsx";
-import { CustomerReviewPage, OwnerReviewsPage } from "./ReviewPages.tsx";
-import { createServerCustomerPort, createServerOwnerPort } from "./serverPort.ts";
 import "./reputation.css";
-
-function OwnerLayout() {
-  const { state, tenantId, getAccessToken } = useSession();
-  const port = useMemo<OwnerReviewsPort | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return createDemoOwnerPort();
-    if (!tenantId) return null;
-    return createServerOwnerPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken }), tenantId);
-  }, [state.status, tenantId, getAccessToken]);
-  if (!port) {
-    return (
-      <div className="tn-page-intro">
-        <PageHeader id="rev-no-tenant" title="Avaliações" />
-        <StatusBanner tone="info">Selecione um negócio.</StatusBanner>
-      </div>
-    );
-  }
-  return <OwnerReviewsPage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;
-}
-
-function CustomerReview() {
-  const { state, getAccessToken } = useSession();
-  const port = useMemo<CustomerReviewsPort>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return createDemoCustomerPort();
-    return createServerCustomerPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken }));
-  }, [state.status, getAccessToken]);
-  return <CustomerReviewPage port={port} />;
-}
 
 /** Rotas fora do shell: o cliente avalia (com login, sem negócio) e a lista pública do perfil. */
 export const reputationPublicRoutes: RouteObject[] = [
-  { path: "/avaliar", element: <CustomerReview /> },
+  { path: "/avaliar", lazy: screen(() => import("./routes.tsx"), (m) => m.CustomerReview) },
   ...reputationAnonRoutes,
 ];
 
@@ -53,5 +19,5 @@ export const reputationModule: ModuleDefinition = {
   level: "stored",
   path: "avaliacoes",
   navLabel: "Avaliações",
-  routes: [{ index: true, element: <OwnerLayout /> }],
+  routes: [{ index: true, lazy: screen(() => import("./routes.tsx"), (m) => m.OwnerLayout) }],
 };

@@ -425,6 +425,15 @@ describe("onda 3 da auditoria de UX (itens 19, 28, 29, 30, 32 e 34)", () => {
     expect(notice).toHaveTextContent("Texto pronto para você compartilhar");
     expect(notice).toHaveTextContent("Abrir não confirma que chegou.");
     expect(notice).not.toHaveTextContent(/enviad/i);
+
+    // Observação do P56/P59: depois de reagendar, o aviso mostrava a data antiga. Agora o texto sai do atendimento como
+    // ele está, e reagendar oferece o aviso com a data nova.
+    fireEvent.click(screen.getByRole("link", { name: "Reagendar" }));
+    fireEvent.click(await screen.findByRole("button", { name: "14:00" }, SLOW));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar reagendamento" }));
+    const moved = await screen.findByRole("region", { name: "Avise o cliente" }, SLOW);
+    expect(moved).toHaveTextContent("Olá, Carla Teste! Seu horário de Corte na Barbearia Exemplo A foi remarcado para terça-feira, 20 de outubro, às 14:00.");
+    expect(moved).not.toHaveTextContent("13:00");
   });
 
   it("cliente sem WhatsApp no cadastro: agendar não oferece o aviso (P49)", async () => {

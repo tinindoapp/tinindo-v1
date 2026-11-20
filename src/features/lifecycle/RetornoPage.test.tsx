@@ -54,7 +54,8 @@ describe("aba Retorno (P49, D2 b)", () => {
     renderPage(createDemoPort(), createDemoReturnSource());
     expect(await screen.findByRole("heading", { name: "Retorno", level: 1 })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Lembretes a mandar", "Quem não volta", "Lista de espera"]);
-    expect(screen.getByText(/Demonstração\./)).toBeInTheDocument();
+    // D11 (b): o aviso de demonstração fica só na faixa do topo.
+    expect(screen.queryByText(/Demonstração\./)).not.toBeInTheDocument();
   });
 
   it("demonstração: a confirmação do Carlos com o texto pronto e o WhatsApp; orçamento parado fica fora", async () => {
@@ -63,7 +64,7 @@ describe("aba Retorno (P49, D2 b)", () => {
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(1);
     const item = within(items[0]!);
-    expect(item.getByRole("heading", { level: 3 })).toHaveTextContent("Confirmação · Carlos (exemplo)");
+    expect(items[0]!.querySelector(".tn-list__title")).toHaveTextContent("Confirmação · Carlos (exemplo)");
     const body = "Olá, Carlos (exemplo)! Seu horário de Barba está confirmado para";
     expect(items[0]).toHaveTextContent(body);
     expect(items[0]).toHaveTextContent("Para você compartilhar");
@@ -143,6 +144,13 @@ describe("aba Retorno (P49, D2 b)", () => {
     expect(within(block("Quem não volta")).getByRole("link", { name: "Ver todos (6)" })).toHaveAttribute("href", "/app/clientes?filtro=sem-voltar");
     expect(within(block("Lembretes a mandar")).getAllByRole("listitem")).toHaveLength(5);
     expect(within(block("Lembretes a mandar")).getByRole("link", { name: "Ver todos (6)" })).toHaveAttribute("href", "/app/relacionamento");
+  });
+
+  it("lista cortada pela porta (P56): “Mostrando os 200 mais recentes.”", async () => {
+    const port = fakePort([step(1)]);
+    port.steps = vi.fn(async () => ({ steps: [step(1)], counts: { manual: 1 }, truncated: { steps: true } }));
+    renderPage(port, fakeSource());
+    expect(await within(block("Lembretes a mandar")).findByText("Mostrando os 200 mais recentes.")).toHaveClass("tn-list-foot__note");
   });
 
   it("falha na leitura da agenda não derruba os lembretes", async () => {

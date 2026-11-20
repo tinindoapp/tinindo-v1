@@ -11,11 +11,12 @@ import type { Profession, WeeklyWindow } from "@contracts";
 import { Button, Card, ChipGroup, ChoiceCard, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { useScope } from "../../app/scope.tsx";
+import { useCommand } from "../../lib/idempotency.ts";
 import { centsToInput, parseBRL } from "../../lib/money.ts";
 import { setupView } from "../../lib/setup/steps.ts";
 import { plural } from "../../lib/text/plural.ts";
-import { explain, formatCents, priceRange, PROFESSION_LABEL, specOf, stepWhy, summarizeHours } from "./labels.ts";
-import { type BusinessDescription, newKey, type SetupDescribeOutput, type SetupPort, type SetupProgress, type SetupServiceDraft, type SetupStepCode, type SetupTemplate } from "./port.ts";
+import { explain, priceRange, priceText, PROFESSION_LABEL, specOf, stepWhy, summarizeHours } from "./labels.ts";
+import { type BusinessDescription, type SetupDescribeOutput, type SetupPort, type SetupProgress, type SetupServiceDraft, type SetupStepCode, type SetupTemplate } from "./port.ts";
 import "./setup.css";
 
 const fail = (err: unknown) => toast({ tone: "danger", message: explain(err) });
@@ -23,12 +24,13 @@ const PROFESSIONS = ["barber", "hairdresser", "personal_trainer", "other"] as co
 
 function Steps({ progress, port, onChange }: { progress: SetupProgress; port: SetupPort; onChange: (p: SetupProgress) => void }) {
   const [busy, setBusy] = useState<SetupStepCode | null>(null);
+  const command = useCommand();
   // P51: passo cuja tela não aparece para o negócio fica fora da lista e da conta.
   const view = setupView(progress, useScope().canOpen);
   async function toggle(step: SetupStepCode, dismissed: boolean) {
     setBusy(step);
     try {
-      onChange(await port.dismiss(step, dismissed, newKey()));
+      onChange(await command({ dismiss: [step, dismissed] }, (key) => port.dismiss(step, dismissed, key)));
       toast(dismissed ? "Passo dispensado. Ele continua aqui, sem destaque." : "O passo volta a aparecer na Home.");
     } catch (err) {
       fail(err);
@@ -79,15 +81,19 @@ function Steps({ progress, port, onChange }: { progress: SetupProgress; port: Se
   );
 }
 
+/** Chave de lista do React (linhas, períodos e grupos da tela): só identifica a linha na tela, não vai ao servidor. */
+let localSeq = 0;
+const localKey = () => `k${++localSeq}`;
+
 type ServiceRow = { key: string; template_code: string | null; name: string; duration: string; price: string; range: string | null };
 const rowOf = (name: string, duration = "", price = "", template_code: string | null = null, range: string | null = null): ServiceRow =>
-  ({ key: newKey(), template_code, name, duration, price, range });
+  ({ key: localKey(), template_code, name, duration, price, range });
 const sameName = (a: string, b: string) => a.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === b.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 /** Dias que compartilham os mesmos períodos. O primeiro grupo é o expediente principal; os outros, dias com horário próprio. */
 type PeriodRow = { key: string; start: string; end: string };
 type DayGroup = { key: string; weekdays: number[]; periods: PeriodRow[] };
-const periodOf = (start = "", end = ""): PeriodRow => ({ key: newKey(), start, end });
+const periodOf = (start = "", end = ""): PeriodRow => ({ key: localKey(), start, end });
 const MAX_PERIODS = 3;
 const MAX_GROUPS = 4;
 const ORDINAL = ["", "2º", "3º"];
@@ -100,12 +106,12 @@ function groupsOf(draft: BusinessDescription): DayGroup[] {
   for (const [day, periods] of [...byDay.entries()].sort((a, b) => a[0] - b[0])) {
     const g = groups.find((x) => signature(x.periods) === signature(periods));
     if (g) g.weekdays.push(day);
-    else groups.push({ key: newKey(), weekdays: [day], periods: periods.slice(0, MAX_PERIODS) });
+    else groups.push({ key: localKey(), weekdays: [day], periods: periods.slice(0, MAX_PERIODS) });
   }
   // O grupo com mais dias vem primeiro (é o "expediente principal" da tela).
   groups.sort((a, b) => b.weekdays.length - a.weekdays.length);
   // Sem expediente lido: um grupo com os dias e o horário soltos que a frase trouxe, para o dono completar.
-  if (groups.length === 0) groups.push({ key: newKey(), weekdays: draft.weekdays, periods: [periodOf(draft.start ?? "", draft.end ?? "")] });
+  if (groups.length === 0) groups.push({ key: localKey(), weekdays: draft.weekdays, periods: [periodOf(draft.start ?? "", draft.end ?? "")] });
   return groups.slice(0, MAX_GROUPS);
 }
 
@@ -129,6 +135,7 @@ function FieldNotes({ draft, field }: { draft: BusinessDescription; field: Busin
 function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeOutput; port: SetupPort; onSaved: (p: SetupProgress) => void }) {
   const [profession, setProfession] = useState<Profession | "">(draft.profession ?? "");
   const [groups, setGroups] = useState<DayGroup[]>(() => groupsOf(draft));
+  const command = useCommand();
   const cited = draft.service_drafts.filter((d) => d.cited);
   const [rows, setRows] = useState<ServiceRow[]>(() => cited.map((d) =>
     rowOf(d.name, d.duration_min === null ? "" : String(d.duration_min), d.price_cents === null ? "" : centsToInput(d.price_cents), d.template_code, priceRange(d.price_from_cents, d.price_to_cents))));
@@ -179,7 +186,8 @@ function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeOutput; por
     setBusy(true);
     setSaveError(null);
     try {
-      const out = await port.applyDraft({ profession: profession || null, hours: hours.length ? hours : null, services: parsed }, newKey());
+      const input = { profession: profession || null, hours: hours.length ? hours : null, services: parsed };
+      const out = await command({ applyDraft: input }, (key) => port.applyDraft(input, key));
       const parts = [out.hours ? `expediente de ${plural(new Set(out.hours.map((h) => h.weekday)).size, "dia")}` : null, out.created.length ? plural(out.created.length, "serviço criado", "serviços criados") : null].filter(Boolean);
       toast(parts.length ? `Salvo: ${parts.join(" e ")}.` : "Profissão salva.");
       onSaved(out.progress);
@@ -198,7 +206,7 @@ function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeOutput; por
   const consequence = [
     profession ? `Profissão: ${PROFESSION_LABEL[profession]}.` : null,
     hours.length ? `Expediente: ${summarizeHours(hours)} (${reach.hours ? "substitui o atual da agenda principal" : "na demonstração, fica só nesta tela: a Agenda de exemplo não muda"}).` : "Expediente: não muda.",
-    parsed.length ? `Serviços: ${parsed.map((s) => `${s.name} (${s.duration_min} min, ${formatCents(Math.max(0, s.base_price_cents))})`).join("; ")}.${reach.services ? "" : " Na demonstração, os serviços ficam só nesta tela."}` : "Serviços: nenhum.",
+    parsed.length ? `Serviços: ${parsed.map((s) => `${s.name} (${s.duration_min} min, ${priceText(Math.max(0, s.base_price_cents))})`).join("; ")}.${reach.services ? "" : " Na demonstração, os serviços ficam só nesta tela."}` : "Serviços: nenhum.",
     repeated.length ? `Já no catálogo, não entram de novo: ${repeated.map((r) => r.name.trim()).join(", ")}.` : null,
   ].filter(Boolean).join(" ");
 
@@ -257,7 +265,7 @@ function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeOutput; por
           </div>
         ))}
         {groups.length < MAX_GROUPS ? (
-          <Button variant="secondary" onClick={() => setGroups((gs) => [...gs, { key: newKey(), weekdays: [], periods: [periodOf()] }])}>Adicionar dias com outro horário</Button>
+          <Button variant="secondary" onClick={() => setGroups((gs) => [...gs, { key: localKey(), weekdays: [], periods: [periodOf()] }])}>Adicionar dias com outro horário</Button>
         ) : null}
         <p className="tn-muted">Quem atende de manhã e à noite usa dois períodos (ex.: 06:00 às 12:00 e 17:00 às 21:00). Pausa para o almoço também são dois períodos.</p>
       </div>
@@ -310,6 +318,7 @@ function Describe({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgre
   const [sentence, setSentence] = useState("");
   const [draft, setDraft] = useState<{ id: string; value: SetupDescribeOutput } | null>(null);
   const [busy, setBusy] = useState(false);
+  const command = useCommand();
   const { formRef, errors, show } = useFormErrors<"sentence">();
   async function build(e: FormEvent) {
     e.preventDefault();
@@ -317,7 +326,8 @@ function Describe({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgre
     setBusy(true);
     try {
       // Cada rascunho montado recomeça a revisão (o que o dono tinha mexido no anterior não se mistura).
-      setDraft({ id: newKey(), value: await port.describe(sentence.trim().slice(0, 500), newKey()) });
+      const text = sentence.trim().slice(0, 500);
+      setDraft({ id: localKey(), value: await command({ describe: text }, (key) => port.describe(text, key)) });
     } catch (err) {
       fail(err);
     } finally {
@@ -344,6 +354,7 @@ function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSav
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const command = useCommand();
   const { formRef, errors, show } = useFormErrors<"pick">();
   const load = useCallback(() => {
     port.templates().then((d) => { setData(d); setError(null); onReady(); }, (err) => { setError(explain(err)); onReady(); });
@@ -359,7 +370,7 @@ function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSav
   async function create() {
     setBusy(true);
     try {
-      const out = await port.applyServices(drafts, newKey());
+      const out = await command({ applyServices: [drafts] }, (key) => port.applyServices(drafts, key));
       toast(`${plural(out.created.length, "serviço criado", "serviços criados")}: ${out.created.map((c) => c.name).join(", ")}.`);
       setPicked({});
       onSaved(out.progress);
@@ -406,7 +417,7 @@ function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSav
         ) : null}
         <div className="tn-actions">
           <ConfirmAction triggerVariant="primary" trigger={chosen.length ? `Criar ${plural(chosen.length, "serviço", "serviços")}` : "Criar serviços"} title="Criar os serviços marcados?"
-            consequence={drafts.length ? `Entram no catálogo: ${drafts.map((d) => `${d.name} (${d.duration_min} min, ${d.base_price_cents >= 0 ? formatCents(d.base_price_cents) : "sem preço"})`).join("; ")}.` : "Nenhum modelo marcado."}
+            consequence={drafts.length ? `Entram no catálogo: ${drafts.map((d) => `${d.name} (${d.duration_min} min, ${d.base_price_cents >= 0 ? priceText(d.base_price_cents) : "sem preço"})`).join("; ")}.` : "Nenhum modelo marcado."}
             confirmLabel="Criar" onConfirm={create} disabled={busy} beforeOpen={validate} canConfirm={problem === null} missingHint={problem ?? undefined} />
         </div>
       </form>
