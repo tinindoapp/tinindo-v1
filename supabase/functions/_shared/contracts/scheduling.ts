@@ -42,6 +42,8 @@ export const Booking = z.object({
   /** Preço congelado na confirmação; não muda com regra posterior. */
   agreed_price_cents: Cents.nullable(),
   source: BookingSource,
+  /** Repetição semanal a que o atendimento pertence (booking.create_series); null fora de série. Ausente em servidor antigo. */
+  series_id: Uuid.nullable().optional(),
   version: Version,
 });
 export type Booking = z.infer<typeof Booking>;
@@ -118,11 +120,42 @@ export const BookingCreateSeriesInput = z.object({
   weeks: z.int().min(2).max(12),
   /** true: um conflito desfaz tudo (409). false: cria as livres e devolve os conflitos. */
   all_or_nothing: z.boolean(),
+  /**
+   * Dias da semana da série (0 = domingo … 6 = sábado, no fuso do negócio). Cada dia começa na primeira data a partir
+   * do dia do `slot`, na mesma hora local, e repete `weeks` semanas; tudo com o mesmo series_id. Ausente: só o dia do
+   * `slot` (como antes).
+   */
+  weekdays: z.array(z.int().min(0).max(6)).min(1).max(7)
+    .refine((d) => new Set(d).size === d.length, { message: "Dia repetido." }).optional(),
 });
+/** Até 12 semanas × 7 dias. */
+export const MAX_SERIES_BOOKINGS = 84;
 export const BookingCreateSeriesOutput = z.object({
   series_id: Uuid,
-  created: z.array(Booking).min(1).max(12),
-  conflicts: z.array(TimeRange).max(12),
+  created: z.array(Booking).min(1).max(MAX_SERIES_BOOKINGS),
+  conflicts: z.array(TimeRange).max(MAX_SERIES_BOOKINGS),
+});
+
+/** Atendimentos de uma série, em ordem (para "3 de 16" e "Abrir o próximo"). */
+export const BookingSeriesInput = z.object({ series_id: Uuid });
+export const BookingSeriesOutput = z.object({
+  series_id: Uuid,
+  bookings: z.array(Booking).min(1).max(MAX_SERIES_BOOKINGS),
+});
+
+/**
+ * Cancela este atendimento e os próximos da mesma série que ainda estão marcados, numa transação, com o mesmo motivo.
+ * Passados, concluídos, com falta ou já cancelados ficam como estão (`kept` conta os que não eram cancelados).
+ */
+export const BookingCancelSeriesFromInput = z.object({
+  booking_id: Uuid,
+  expected_version: Version,
+  reason: z.string().trim().min(1).max(280),
+});
+export const BookingCancelSeriesFromOutput = z.object({
+  series_id: Uuid,
+  cancelled: z.array(Booking).max(MAX_SERIES_BOOKINGS),
+  kept: z.int().min(0),
 });
 
 export const BookingListInput = z.object({

@@ -223,12 +223,8 @@ export function formatMinutes(total: number): string {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
-const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
-/** Centavos inteiros → "R$ 60,00". A divisão é só para exibição. */
-export function formatCents(cents: number): string {
-  return brl.format(cents / 100);
-}
+// Dinheiro: um formatador só no app (src/lib/money.ts).
+export { formatCents } from "../../lib/money.ts";
 
 export function serviceName(services: ProviderService[], id: string): string {
   return services.find((s) => s.id === id)?.name ?? "Serviço";
@@ -259,6 +255,20 @@ export function whatsAppDigits(phone: string | null | undefined): string | null 
 export function confirmNoticeText(p: { name: string | null; service: string; day: string; time: string; business: string }): string {
   const hello = p.name ? `Olá, ${p.name}!` : "Olá!";
   return `${hello} Seu horário de ${p.service} está marcado para ${p.day}, às ${p.time}, na ${p.business}. Se precisar remarcar, é só responder esta mensagem.`;
+}
+
+/** Texto do link da reserva (P55): o horário, o link e, depois do atendimento, o convite para avaliar. */
+export function bookingLinkText(p: { name: string | null; service: string; day: string; time: string; business: string; url: string; done: boolean }): string {
+  const hello = p.name ? `Olá, ${p.name}!` : "Olá!";
+  return p.done
+    ? `${hello} Obrigado pelo atendimento de ${p.service} na ${p.business}. Se puder, conte como foi por este link (leva um minuto): ${p.url}`
+    : `${hello} Seu horário de ${p.service} na ${p.business} está marcado para ${p.day}, às ${p.time}. Veja os detalhes da reserva por este link: ${p.url}`;
+}
+
+/** Aviso de horário remarcado, com a data nova. */
+export function rescheduleNoticeText(p: { name: string | null; service: string; day: string; time: string; business: string }): string {
+  const hello = p.name ? `Olá, ${p.name}!` : "Olá!";
+  return `${hello} Seu horário de ${p.service} na ${p.business} foi remarcado para ${p.day}, às ${p.time}. Se não puder, é só responder esta mensagem.`;
 }
 
 export function cancelNoticeText(p: { name: string | null; service: string; day: string; time: string; business: string }): string {

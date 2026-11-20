@@ -6,14 +6,26 @@ import { SCHEDULING_ROUTES } from "../../../supabase/functions/scheduling/handle
 
 const dir = new URL("../../../supabase/migrations/", import.meta.url);
 const sql = readdirSync(dir)
-  .filter((f) => /^\d{14}_p03_.*\.sql$/.test(f))
+  // P03 e a agenda do personal (série com vários dias, cancelar os próximos, trava de módulo), em ordem de aplicação.
+  .filter((f) => /^\d{14}_(p03_|agenda_personal_).*\.sql$/.test(f))
+  .sort()
   .map((f) => readFileSync(new URL(f, dir), "utf8"))
   .join("\n");
 
+/** Parâmetros da definição mais recente (a última migration que cria a função vence). */
 function sqlParams(fn: string): string[] {
-  const m = new RegExp(`create function public\\.${fn}\\(([\\s\\S]*?)\\)\\s*returns`, "m").exec(sql);
+  const all = [...sql.matchAll(new RegExp(`create function public\\.${fn}\\(([\\s\\S]*?)\\)\\s*returns`, "gm"))];
+  const m = all.at(-1);
   if (!m?.[1]) throw new Error(`função ${fn} não encontrada`);
   return m[1].split(",").map((p) => p.trim().split(/\s+/)[0] ?? "").filter(Boolean);
+}
+
+/** Corpo da definição mais recente (create ou create or replace) de uma RPC pública. */
+function defOf(fn: string): string {
+  const starts = [...sql.matchAll(new RegExp(`create (?:or replace )?function public\\.${fn}\\(`, "g"))];
+  const at = starts.at(-1)?.index ?? -1;
+  if (at < 0) throw new Error(`função ${fn} não encontrada`);
+  return sql.slice(at).split(/\nend \$\$;/)[0]!;
 }
 
 const schedulingOps = (Object.keys(OPERATIONS) as OperationName[]).filter((n) => OPERATIONS[n].module === "scheduling");
@@ -46,16 +58,17 @@ describe("scheduling · função ↔ SQL", () => {
   it("toda RPC pública revoga anon e é SECURITY DEFINER com search_path vazio", () => {
     for (const route of Object.values(SCHEDULING_ROUTES)) {
       expect(sql, route.rpc).toMatch(new RegExp(`revoke all on function public\\.${route.rpc}\\([^)]*\\) from public, anon;`));
-      const def = sql.slice(sql.indexOf(`create function public.${route.rpc}(`)).split(/\nend \$\$;/)[0]!;
+      const def = defOf(route.rpc);
       expect(def, route.rpc).toContain("security definer set search_path = ''");
-      expect(def, route.rpc).toMatch(/app\.is_member\(p_tenant_id/);
+      // Papel no negócio: direto (P03) ou pela autorização comum, que também confere o módulo ligado.
+      expect(def, route.rpc).toMatch(/app\.(is_member|authorize)\(p_tenant_id/);
     }
   });
 
   it("comandos usam o nome da operação no claim de idempotência", () => {
     for (const [name, route] of Object.entries(SCHEDULING_ROUTES)) {
       if (!route.command) continue;
-      const def = sql.slice(sql.indexOf(`create function public.${route.rpc}(`)).split(/\nend \$\$;/)[0]!;
+      const def = defOf(route.rpc);
       expect(def, name).toContain(`app.idempotency_claim(p_tenant_id, v_uid, '${name}'`);
       expect(def, name).toContain(`app.idempotency_complete(p_tenant_id, v_uid, '${name}'`);
     }

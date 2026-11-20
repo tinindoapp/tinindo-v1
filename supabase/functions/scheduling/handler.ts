@@ -5,6 +5,8 @@ import {
   AvailabilityListInput,
   AvailabilityListOutput,
   BookingCancelInput,
+  BookingCancelSeriesFromInput,
+  BookingCancelSeriesFromOutput,
   BookingCompleteInput,
   BookingConfirmInput,
   BookingCreateInput,
@@ -17,6 +19,8 @@ import {
   BookingNoShowInput,
   BookingOutput,
   BookingRescheduleInput,
+  BookingSeriesInput,
+  BookingSeriesOutput,
   ScheduleBlockCreateInput,
   ScheduleBlockOutput,
   ScheduleBlockRemoveInput,
@@ -63,7 +67,17 @@ export const SCHEDULING_ROUTES: Record<string, Route> = {
     args: (i) => ({
       p_resource_id: i.resource_id, p_service_id: i.service_id, p_customer_id: i.customer_id,
       p_guest_ref: i.guest_ref, ...slotArgs(i.slot), p_weeks: i.weeks, p_all_or_nothing: i.all_or_nothing,
+      p_weekdays: i.weekdays ?? null,
     }),
+  }),
+  "booking.series": route({
+    rpc: "scheduling_booking_series", input: BookingSeriesInput, output: BookingSeriesOutput, command: false,
+    args: (i) => ({ p_series_id: i.series_id }),
+  }),
+  "booking.cancel_series_from": route({
+    rpc: "scheduling_booking_cancel_series_from", input: BookingCancelSeriesFromInput, output: BookingCancelSeriesFromOutput,
+    command: true,
+    args: (i) => ({ p_booking_id: i.booking_id, p_expected_version: i.expected_version, p_reason: i.reason }),
   }),
   "booking.confirm": route({
     rpc: "scheduling_booking_confirm", input: BookingConfirmInput, output: BookingOutput, command: true,
