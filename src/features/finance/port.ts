@@ -52,7 +52,3 @@ export interface FinancePort {
   consumePackage(input: In<typeof PackageConsumeInput>, key: string): Promise<z.infer<typeof PackageBalance>>;
   reversePackage(input: In<typeof PackageReverseInput>, key: string): Promise<void>;
 }
-
-export function newKey(): string {
-  return crypto.randomUUID();
-}

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { createDemoPort, DEMO_CUSTOMERS, resetDemoState } from "./demoPort.ts";
-import { newKey } from "./port.ts";
+import { newIdempotencyKey } from "../../lib/idempotency.ts";
 import { RecurrencePage } from "./RecurrencePage.tsx";
 
 beforeEach(() => resetDemoState());
@@ -11,7 +11,7 @@ afterEach(() => act(() => dismissToast()));
 async function withSubscriber() {
   const port = createDemoPort();
   const [plan] = await port.plans();
-  await port.subscribe(plan!.id, DEMO_CUSTOMERS[0]!.id, newKey());
+  await port.subscribe(plan!.id, DEMO_CUSTOMERS[0]!.id, newIdempotencyKey());
   render(<><RecurrencePage port={port} /><Toaster /></>);
   const subs = await screen.findByRole("list", { name: "Assinaturas" });
   await within(subs).findByText(/Ativa/);
@@ -43,6 +43,15 @@ describe("Assinaturas: desfazer e confirmar", () => {
     fireEvent.click(subs.getByRole("button", { name: /Cancelar agora/ }));
     await act(async () => { fireEvent.click(subs.getByRole("button", { name: "Sim, encerrar agora" })); });
     expect(cancel).toHaveBeenCalledWith(expect.anything(), false, null, expect.any(String));
+  });
+
+  it("Cancelar no fim do ciclo: se o comando falha, tocar de novo manda a mesma chave", async () => {
+    const { port, subs } = await withSubscriber();
+    const cancel = vi.spyOn(port, "cancel").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    await act(async () => { fireEvent.click(subs.getByRole("button", { name: "Cancelar no fim do ciclo" })); });
+    await act(async () => { fireEvent.click(await subs.findByRole("button", { name: "Cancelar no fim do ciclo" })); });
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(cancel.mock.calls[1]![3]).toBe(cancel.mock.calls[0]![3]);
   });
 
   it("criar plano: depois de uma falha de rede, repetir manda a mesma chave e o mesmo pedido", async () => {

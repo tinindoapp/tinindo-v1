@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setClockForTest } from "../../lib/time.ts";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { AccountsPage } from "./AccountsPage.tsx";
 import { createDemoPort, resetDemoState } from "./demoPort.ts";
@@ -23,6 +24,28 @@ describe("Contas: nova tentativa depois de falha de rede não cria a conta em do
     expect(save).toHaveBeenCalledTimes(2);
     expect(save.mock.calls[1]![1]).toBe(save.mock.calls[0]![1]);
     expect(save.mock.calls[1]![0]).toEqual(save.mock.calls[0]![0]);
+  });
+});
+
+describe("Contas: pagar de novo depois de uma falha repete o mesmo pedido", () => {
+  it("a segunda tentativa sai com a mesma chave e o mesmo instante, mesmo com o relógio andando", async () => {
+    let ticks = 0;
+    const restore = setClockForTest(() => new Date(Date.UTC(2026, 10, 10, 15, 0, (ticks += 1))));
+    try {
+      const port = createDemoPort();
+      const pay = vi.spyOn(port, "pay").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+      render(<><AccountsPage port={port} /><Toaster /></>);
+      fireEvent.click(await screen.findByRole("radio", { name: "A pagar" }));
+      const list = within(await screen.findByRole("list", { name: "Contas a pagar" }));
+      const name = (await list.findAllByRole("button", { name: /^Pagar / }))[0]!.getAttribute("aria-label")!;
+      await act(async () => { fireEvent.click(list.getByRole("button", { name })); });
+      await act(async () => { fireEvent.click(await list.findByRole("button", { name })); });
+      expect(pay).toHaveBeenCalledTimes(2);
+      expect(pay.mock.calls[1]![2]).toBe(pay.mock.calls[0]![2]);
+      expect(pay.mock.calls[1]![1]).toBe(pay.mock.calls[0]![1]);
+    } finally {
+      restore();
+    }
   });
 });
 

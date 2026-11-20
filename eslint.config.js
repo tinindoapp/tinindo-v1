@@ -74,15 +74,11 @@ const LEGACY_KEY = [
   "src/features/campaigns/port.ts",
   "src/features/crm/api.ts",
   "src/features/field-service/port.ts",
-  "src/features/finance-advanced/port.ts",
-  "src/features/finance/port.ts",
   "src/features/fiscal/port.ts",
   "src/features/growth-advice/port.ts",
   "src/features/lifecycle/port.ts",
-  "src/features/materials/port.ts",
   "src/features/messaging/port.ts",
   "src/features/pricing/port.ts",
-  "src/features/recurrence/port.ts",
   "src/features/resources/port.ts",
   "src/features/sales/port.ts",
   "src/features/service-ops/port.ts",
@@ -100,7 +96,6 @@ const LEGACY_KEY = [
 ];
 const LEGACY_CLOCK = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
-  "src/features/finance-advanced/AccountsPage.tsx",
   // Parte 2
   "src/features/analytics/module.tsx",
   "src/features/identity/services.tsx",
