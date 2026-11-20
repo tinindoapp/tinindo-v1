@@ -17,8 +17,9 @@ const STEP_ICON: Record<SetupStepCode, IconName> = {
 /**
  * P50: por que a antecedência para cancelar importa. O texto antigo prometia que a política "aparece para o cliente
  * antes de reservar" quando o link público ainda não a mostrava (revisão de 04/11, achado A3). O passo é obrigatório
- * porque o link público mostra a regra; o texto diz o que o dono define e onde o cliente vê. O catálogo comum
- * (src/lib/setup/steps.ts) e a migration guardam o texto antigo: a tela usa este.
+ * porque o link público mostra a regra; o texto diz o que o dono define e onde o cliente vê. Desde o recado #115 o
+ * catálogo comum (src/lib/setup/steps.ts) e app.setup_steps() (migration 20261120090000) têm o mesmo texto; a tela
+ * continua sobrepondo até a migration valer em todo banco que ela lê.
  */
 export const CANCELLATION_WHY = "Você define até quantas horas antes o cliente cancela sem custo. É a regra que o link público mostra a quem vai reservar.";
 

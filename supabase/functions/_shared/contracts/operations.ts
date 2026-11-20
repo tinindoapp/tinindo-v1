@@ -774,6 +774,8 @@ export const OPERATIONS = {
   // P51 · escopo visível do piloto: a sessão lê profissão, plano e os módulos; o dono liga os "por ativação".
   "setup.scope": { module: "setup", owner: "P51", kind: "query", idempotent: false, input: scope.SetupScopeInput, output: scope.SetupScopeOutput },
   "setup.module_set": { module: "setup", owner: "P51", kind: "command", idempotent: true, input: scope.SetupModuleSetInput, output: scope.SetupModuleSetOutput },
+  // Rota própria no handler (não é "uma RPC"): regras primeiro e o modelo de linguagem do P46 só para o que faltar.
+  "setup.describe": { module: "setup", owner: "P50", kind: "query", idempotent: false, input: setup.SetupDescribeInput, output: setup.SetupDescribeOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;

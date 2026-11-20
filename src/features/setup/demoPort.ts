@@ -3,13 +3,13 @@
 // cliente e recebimentos; o perfil só fica "feito" quando o dono o publica na tela Perfil desta aba); passo obrigatório
 // não se dispensa; nada é criado sem a confirmação; o evento do passo sai uma vez. Nada persiste.
 //
-// P50: o estado mora em supabase/functions/_shared/domain/setup/demo.ts, o mesmo que o "Me ajuda a configurar" do
+// P50: o estado mora em src/lib/demo/setup.ts, o mesmo que o "Me ajuda a configurar" do
 // Assistente lê (progresso igual nas duas telas). O que o dono confirma aqui (expediente, serviços, profissão) é
 // publicado para a Agenda, os Serviços e o perfil de exemplo por `publishDemoSetup`; `reach` diz se há leitor ligado.
 import { DEFAULT_MESSAGES, ERROR_STATUS, type ErrorCode, RETRYABLE, type WeeklyWindow } from "@contracts";
 import {
   DEMO_SETUP_NOW, demoSetupDismiss, demoSetupProgress, demoSetupReach, demoSetupState, publishDemoSetup, resetDemoSetup,
-} from "../../../supabase/functions/_shared/domain/setup/demo.ts";
+} from "../../lib/demo/setup.ts";
 import { describeBusiness } from "../../../supabase/functions/_shared/domain/setup/describe.ts";
 import { SERVICE_TEMPLATES, templateKey } from "../../../supabase/functions/_shared/domain/setup/templates.ts";
 import { ApiError } from "../../lib/api/client.ts";
