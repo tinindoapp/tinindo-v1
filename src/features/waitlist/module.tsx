@@ -54,6 +54,8 @@ export const waitlistPublicRoutes: RouteObject[] = [{ path: "/oferta", element: 
 export const waitlistModule: ModuleDefinition = {
   id: "waitlist",
   owner: "P06",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "lista-de-espera",
   navLabel: "Lista de espera",
   routes: [{ index: true, element: <WaitlistLayout /> }],

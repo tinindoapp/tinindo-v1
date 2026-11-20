@@ -48,5 +48,3 @@ export interface QuoteLinkPort {
   accept(token: string, view: QuoteView, key: string): Promise<QuoteDecision>;
   decline(token: string, view: QuoteView, key: string): Promise<QuoteDecision>;
 }
-
-export const newKey = () => crypto.randomUUID();

@@ -21,6 +21,7 @@ import {
   ServiceListOutput,
 } from "@contracts";
 import { ApiError, type createApiClient } from "../../lib/api/client.ts";
+import { readDemoSetup } from "../../lib/demo/setup.ts";
 import { demoVisitSummary, readVisitSummary, type VisitSummary } from "../../lib/visits.ts";
 import { fold } from "./format.ts";
 
@@ -173,6 +174,21 @@ export const DEMO_CUSTOMERS: CrmCustomer[] = [
 const readOnlyError = () =>
   new ApiError("POLICY_REJECTED", "Demonstração sem servidor: nada é gravado.", 0, null, false);
 
+// Ponte da demonstração (recado #115): os serviços que o dono confirma na Configuração entram no catálogo de exemplo,
+// como no servidor (setup.services_apply cria em provider_services com piso = preço base e sem intervalos). O leitor
+// fica ligado desde o carregamento do módulo; os anteriores continuam.
+const setupServices: ProviderService[] = [];
+readDemoSetup("services", (created) => {
+  for (const c of created) {
+    if (setupServices.some((s) => s.id === c.id)) continue;
+    setupServices.push({
+      id: c.id, tenant_id: tenantA.id, name: c.name, duration_min: c.duration_min, buffer_before_min: 0, buffer_after_min: 0,
+      base_price_cents: c.base_price_cents, min_price_cents: c.base_price_cents, estimated_cost_cents: null, fee_bps: null,
+      active: true, version: 1,
+    });
+  }
+});
+
 export function createDemoCrmApi(): CrmApi {
   const customers = DEMO_CUSTOMERS;
   const services = fixtureServices.filter((s) => s.tenant_id === tenantA.id);
@@ -214,7 +230,7 @@ export function createDemoCrmApi(): CrmApi {
       };
     },
     listServices: async ({ include_inactive }) => ({
-      items: services.filter((s) => include_inactive || s.active),
+      items: [...services, ...setupServices.filter((c) => !services.some((s) => s.id === c.id))].filter((s) => include_inactive || s.active),
       next_cursor: null,
     }),
     importPreview: async (rows) => ({

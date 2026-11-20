@@ -33,6 +33,8 @@ function RecurrenceLayout() {
 export const recurrenceModule: ModuleDefinition = {
   id: "recurrence",
   owner: "P20",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "activation",
   path: "assinaturas",
   navLabel: "Assinaturas",
   routes: [{ index: true, element: <RecurrenceLayout /> }],

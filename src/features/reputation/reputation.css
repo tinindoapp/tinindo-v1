@@ -30,3 +30,8 @@
 .tn-rev-rating .tn-segmented__option input { z-index: 1; }
 .tn-rev-page { max-width: 640px; margin: 0 auto; padding: var(--tn-space-6) var(--tn-space-4) var(--tn-space-8); display: grid; gap: var(--tn-space-3); }
 .tn-rev-page h1 { margin: 0; font-size: var(--tn-text-title); }
+/* Lista pública (cliente final), dentro da moldura do negócio. */
+.tn-rev-pub { display: grid; gap: var(--tn-space-3); min-width: 0; }
+.tn-rev-pub > h1 { margin: 0; font-size: var(--tn-text-title); line-height: var(--tn-line-height-tight); overflow-wrap: anywhere; }
+.tn-rev-pub > p { margin: 0; }
+.tn-rev-back { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }

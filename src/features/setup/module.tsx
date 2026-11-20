@@ -41,6 +41,8 @@ function SetupLayout() {
 export const setupModule: ModuleDefinition = {
   id: "setup",
   owner: "P44",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "configurar",
   navLabel: "Configuração",
   routes: [{ index: true, element: <SetupLayout /> }],

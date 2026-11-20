@@ -55,10 +55,13 @@ test("'Pular' no guia do Assistente fica gravado e aparece na Configuração; #m
   await softNavigate(page, "/app/assistente");
   await page.getByRole("button", { name: "Me ajuda a configurar" }).click();
   const panel = page.locator("#ag-panel-setup");
-  await expect(panel).toContainText("6 de 8");
+  // P51: "Conectar e verificar seu número" não entra enquanto Mensagens está guardado: 7 passos, e depois de pular a
+  // foto não resta passo a fazer.
+  await expect(panel).toContainText("6 de 7");
   await expect(panel.getByRole("heading", { name: /Pôr foto e WhatsApp no perfil/ })).toBeVisible();
   await panel.getByRole("button", { name: "Pular por agora" }).click();
-  await expect(panel.getByRole("heading", { name: /Conectar e verificar seu número/ })).toBeVisible();
+  await expect(panel).toContainText("Tudo pronto");
+  await expect(panel.getByRole("heading", { name: /Conectar e verificar seu número/ })).toHaveCount(0);
   await noHorizontalScroll(page);
 
   // A Configuração lê o mesmo estado: o passo pulado no Assistente aparece dispensado.
@@ -66,7 +69,7 @@ test("'Pular' no guia do Assistente fica gravado e aparece na Configuração; #m
   await expect(page.getByRole("heading", { name: /Modelos de serviço · Barbearia/ })).toBeFocused();
   const steps = page.getByRole("list", { name: "Passos da configuração" }).getByRole("listitem");
   await expect(steps.filter({ hasText: "Pôr foto e WhatsApp no perfil" })).toContainText("dispensado");
-  await expect(page.getByText("Barbearia Exemplo A: 6 de 8 passos feitos.")).toBeVisible();
+  await expect(page.getByText("Barbearia Exemplo A: 6 de 7 passos feitos.")).toBeVisible();
   // O porquê da antecedência não promete o que o link não mostra.
   await expect(page.getByText(/A política aparece para o cliente antes de reservar/)).toHaveCount(0);
 });

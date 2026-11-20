@@ -8,8 +8,6 @@
 .tn-pay-item h3 { margin: 0; }
 .tn-pay-code { display: block; overflow-wrap: anywhere; padding: var(--tn-space-2); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-sm); font-family: monospace; font-size: var(--tn-text-support); }
 .tn-pay-box { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); }
-.tn-pay-public { max-width: 36rem; margin: 0 auto; padding: var(--tn-space-4) var(--tn-space-3); display: grid; gap: var(--tn-space-3); }
-.tn-pay-amount { font-size: var(--tn-text-number); font-weight: var(--tn-font-weight-semibold); margin: 0; }
 @media (max-width: 30rem) { .tn-pay-form { display: grid; grid-template-columns: minmax(0, 1fr); } }
 .tn-pay-check { display: flex; gap: var(--tn-space-2); align-items: center; min-height: var(--tn-size-touch); }
 /* Copiar e compartilhar: botão primeiro, código completo recolhido em "Ver código". */
@@ -18,3 +16,14 @@
 .tn-pay-details summary { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); cursor: pointer; font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
 .tn-pay-details[open] { display: grid; gap: var(--tn-space-1); }
 .tn-pay-share a:not(.tn-button) { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }
+/* Página do link (cliente final): valor grande, etiqueta do estado, prazo e botão de copiar de largura total. */
+.tn-pay-pub { display: grid; gap: var(--tn-space-4); min-width: 0; }
+.tn-pay-pub > h1 { margin: 0; font-size: var(--tn-text-title); line-height: var(--tn-line-height-tight); overflow-wrap: anywhere; }
+.tn-pay-pub p { margin: 0; }
+.tn-pay-amount { margin: 0; font-size: var(--tn-text-number-lg); line-height: var(--tn-line-height-tight); font-weight: var(--tn-font-weight-semibold); }
+.tn-pay-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2) var(--tn-space-3); }
+.tn-pay-tag { padding: var(--tn-space-1) var(--tn-space-3); border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
+.tn-pay-facts { width: 100%; padding-block: var(--tn-space-3); border-block: 1px solid var(--tn-border); }
+.tn-pay-copy .tn-copy { display: grid; }
+.tn-pay-copy .tn-copy .tn-button { width: 100%; justify-content: center; }
+.tn-pay-safety { padding: var(--tn-space-3); border-radius: var(--tn-radius-md); background: var(--tn-surface-sunken); font-size: var(--tn-text-support); }

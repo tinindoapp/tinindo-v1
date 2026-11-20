@@ -74,6 +74,8 @@ function SimulatorLayout() {
 export const messagingModule: ModuleDefinition = {
   id: "messaging",
   owner: "P12",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "mensagens",
   navLabel: "Mensagens",
   routes: [

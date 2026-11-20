@@ -11,11 +11,11 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 125 |
-| Com RLS ligada | 125 |
-| Políticas (todas de leitura) | 96 |
-| FKs | 264 (130 compostas) |
-| Funções em `public` / `app` | 277 / 268 |
+| Tabelas em `public` | 127 |
+| Com RLS ligada | 127 |
+| Políticas (todas de leitura) | 97 |
+| FKs | 268 (132 compostas) |
+| Funções em `public` / `app` | 286 / 285 |
 | Rotinas periódicas (`job_ticks`) | 8 |
 
 ## Rotinas periódicas
@@ -261,6 +261,24 @@ Expediente semanal em horário local; o conjunto é trocado inteiro por scheduli
 - **Chaves e unicidade:** PK (id); única (tenant_id, id)
 - **Referências:** (tenant_id, resource_id) → `resources`; (tenant_id) → `tenants`
 - **Leitura:** `availability_rules_select_member` (authenticated)
+- **Só acrescenta:** não
+
+### `booking_links`
+
+Backend-only. Link com token para o cliente ver a reserva e avaliar sem conta (D20). Guarda só o sha256 do token.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | uuid |
+| `tenant_id` | uuid |
+| `booking_id` | uuid |
+| `token_hash` | text |
+| `origin` | text |
+| `created_at` | timestamp with time zone |
+
+- **Chaves e unicidade:** PK (id); única (tenant_id, id); única (token_hash)
+- **Referências:** (tenant_id, booking_id) → `bookings`; (tenant_id) → `tenants`
+- **Leitura:** nenhuma política (só as RPCs leem)
 - **Só acrescenta:** não
 
 ### `bookings`
@@ -2019,6 +2037,10 @@ Backend-only. Pedido do link público: contato informado e código. Sem acesso p
 | `confirmed_at` | timestamp with time zone ? |
 | `created_at` | timestamp with time zone |
 | `replaced_request_id` | uuid ? |
+| `neighborhood` | text ? |
+| `resends` | integer |
+| `queued_at` | timestamp with time zone |
+| `booking_token` | text ? |
 
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id, idem_key)
 - **Referências:** (tenant_id, booking_id) → `bookings`; (tenant_id, connection_id) → `channel_connections`; (replaced_request_id) → `public_booking_requests`; (tenant_id, replaced_request_id) → `public_booking_requests`; (tenant_id) → `tenants`
@@ -2046,6 +2068,10 @@ Projeção pública opt-in do negócio. Nunca copia dados do CRM. Leitura públi
 | `show_photo` | boolean |
 | `show_whatsapp` | boolean |
 | `show_prices` | boolean |
+| `address` | text ? |
+| `home_service` | boolean |
+| `opening_hours` | text ? |
+| `cancellation_policy` | text ? |
 
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id)
 - **Referências:** (tenant_id) → `tenants`
@@ -2278,7 +2304,7 @@ Experiência de cliente com atendimento concluído e vínculo verificado. Não �
 | `id` | uuid |
 | `tenant_id` | uuid |
 | `booking_id` | uuid |
-| `author_user_id` | uuid |
+| `author_user_id` | uuid ? |
 | `rating` | smallint |
 | `body` | text ? |
 | `service_name` | text |
@@ -2290,9 +2316,10 @@ Experiência de cliente com atendimento concluído e vínculo verificado. Não �
 | `created_at` | timestamp with time zone |
 | `updated_at` | timestamp with time zone |
 | `version` | integer |
+| `author_link_id` | uuid ? |
 
 - **Chaves e unicidade:** PK (id); única (booking_id); única (tenant_id, id)
-- **Referências:** (author_user_id) → `auth.users` (cascade); (tenant_id, booking_id) → `bookings`; (tenant_id) → `tenants`
+- **Referências:** (tenant_id, author_link_id) → `booking_links`; (author_user_id) → `auth.users` (cascade); (tenant_id, booking_id) → `bookings`; (tenant_id) → `tenants`
 - **Leitura:** nenhuma política (só as RPCs leem)
 - **Só acrescenta:** não
 
@@ -2722,6 +2749,25 @@ Papel de um login dentro de um negócio. Papel decidido no servidor.
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id, user_id)
 - **Referências:** (tenant_id) → `tenants`; (user_id) → `auth.users` (cascade)
 - **Leitura:** `tenant_memberships_select` (authenticated)
+- **Só acrescenta:** não
+
+### `tenant_modules`
+
+Chave de módulo por negócio (P51). Sem linha = desligado. Escrita só por RPC; módulo guardado só pelo backend.
+
+| Coluna | Tipo |
+|---|---|
+| `tenant_id` | uuid |
+| `module` | text |
+| `enabled` | boolean |
+| `updated_by` | uuid ? |
+| `created_at` | timestamp with time zone |
+| `updated_at` | timestamp with time zone |
+| `version` | integer |
+
+- **Chaves e unicidade:** PK (tenant_id, module)
+- **Referências:** (tenant_id) → `tenants`
+- **Leitura:** `tenant_modules_select_member` (authenticated)
 - **Só acrescenta:** não
 
 ### `tenant_onboarding`

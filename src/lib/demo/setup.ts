@@ -5,15 +5,16 @@
 // Assistente refazia a conta por conta própria e não via o passo dispensado nem o que o rascunho salvou (revisão de
 // 04/11, achado A5). Agora os dois leem e gravam aqui.
 //
-// Por que nesta pasta: é o único caminho da área do P50 que os dois módulos podem importar. O lugar natural é
-// src/lib/demo/ (ponte da demonstração, do integrador); a mudança está pedida no handoff do P50.
+// Por que nesta pasta: é a ponte da demonstração (integrador), que todo módulo pode importar. Veio de
+// supabase/functions/_shared/domain/setup/demo.ts no recado #115.
 //
 // Ponte com o resto da demonstração (decisão D5: só o ciclo central): o que o dono confirma na Configuração
 // (expediente, serviços, profissão) é publicado aqui. A Agenda, os Serviços e o perfil de exemplo passam a ler isto
-// ligando um leitor com `readDemoSetup`. Enquanto nenhum leitor de um tipo está ligado, `demoSetupReach` diz que a
-// gravação não sai da tela de Configuração, e a tela avisa isso em vez de prometer que a Agenda mudou.
-import type { Profession, SetupProgress, SetupServicesApplyOutput, SetupStep, SetupStepCode, WeeklyWindow } from "../../contracts/index.ts";
-import { FIXED_NOW, tenantA } from "../../contracts/fixtures.ts";
+// ligando um leitor com `readDemoSetup` (recado #115: Agenda em scheduling/fixturePort.ts, catálogo em crm/api.ts e
+// perfil em network/api.ts, todos ao carregar o módulo). Enquanto nenhum leitor de um tipo está ligado, `demoSetupReach`
+// diz que a gravação não sai da tela de Configuração, e a tela avisa isso em vez de prometer que a Agenda mudou.
+import type { Profession, SetupProgress, SetupServicesApplyOutput, SetupStep, SetupStepCode, WeeklyWindow } from "@contracts";
+import { FIXED_NOW, tenantA } from "@contracts/fixtures.ts";
 
 type CreatedService = SetupServicesApplyOutput["created"][number];
 

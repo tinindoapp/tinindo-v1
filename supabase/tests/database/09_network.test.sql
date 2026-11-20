@@ -120,8 +120,8 @@ select pg_temp.logout();
 set local role anon;
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(public.network_public_profile('barbearia-a')) k),
-  array['area', 'category', 'photo', 'public_fields', 'published_at', 'reputation', 'slug', 'values', 'whatsapp_e164'],
-  'perfil público tem só a projeção fixa (sem tenant_id, contatos, versão nem as chaves do dono)'
+  array['area', 'category', 'details', 'photo', 'public_fields', 'published_at', 'reputation', 'slug', 'values', 'whatsapp_e164'],
+  'perfil público tem só a projeção fixa (sem tenant_id, contatos, versão nem as chaves do dono; detalhes D21 do P55)'
 );
 select is(
   public.network_public_profile('barbearia-a') -> 'values',

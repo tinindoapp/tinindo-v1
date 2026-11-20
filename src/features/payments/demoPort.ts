@@ -279,6 +279,7 @@ export function createDemoLinkPort(): PaymentLinkPort {
   return {
     kind: "demo",
     businessName: DEMO_BUSINESS,
+    now: () => new Date(state().clock),
     async view(token): Promise<LinkView> {
       const c = find(token);
       return { charge_id: c.id, business_name: DEMO_BUSINESS, description: c.description, amount_cents: c.amount_cents, provider: c.provider, simulated: true,

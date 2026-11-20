@@ -70,8 +70,8 @@ select is(pg_temp.steps(pg_temp.bid('b1')), 'confirmation:v1=manual,reminder:v1-
   'confirmação sai agora (sem canal: manual) e dois lembretes ficam agendados');
 select is((select due_at from public.lifecycle_steps where aggregate_id = pg_temp.bid('b1') and step_key = 'v1-h24'), pg_temp.at(2, '10:00') - interval '24 hours',
   'lembrete de 24 h no horário certo');
-select ok((select body from public.lifecycle_steps where aggregate_id = pg_temp.bid('b1') and rule = 'confirmation') ~ 'Seu horário de Corte está confirmado para',
-  'texto renderizado com serviço e horário');
+select ok((select body from public.lifecycle_steps where aggregate_id = pg_temp.bid('b1') and rule = 'confirmation') ~ ' confirmou seu horário de Corte em ' and (select body from public.lifecycle_steps where aggregate_id = pg_temp.bid('b1') and rule = 'confirmation') !~ '\{\{negocio\}\}',
+  'texto renderizado com o negócio, o serviço e o horário');
 -- Reprocessar o mesmo evento não duplica (consumidor idempotente).
 update public.outbox_events set status = 'pending', next_run_at = now() - interval '1 second'
 where aggregate_id = pg_temp.bid('b1') and event_type = 'booking.confirmed.v1';
@@ -206,7 +206,7 @@ insert into r select 'rc', public.finance_receivable_create((select tenant_a fro
 reset role;
 insert into r select 'run13', public.jobs_run(100);
 select is((select status from public.lifecycle_steps where rule = 'receivable_reminder'), 'manual', 'recebível vencido há mais de 1 dia: lembrete de cobrança');
-select ok((select body from public.lifecycle_steps where rule = 'receivable_reminder') ~ 'R\$ 25,00 \(Produto\)', 'texto com valor e descrição');
+select ok((select body from public.lifecycle_steps where rule = 'receivable_reminder') ~ 'Ficou em aberto R\$ 25,00 de Produto', 'texto com valor e descrição');
 select pg_temp.login_as((select owner_a from ids));
 set local role authenticated;
 select public.finance_record_payment((select tenant_a from ids), (pg_temp.got('rc')->'body'->'receivable'->>'id')::uuid, 2500, 'cash', now(), 'idem-lc-pay-0000001', pg_temp.h('pay'));

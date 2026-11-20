@@ -33,6 +33,8 @@ function MaterialsLayout() {
 export const materialsModule: ModuleDefinition = {
   id: "materials",
   owner: "P30",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "materiais",
   navLabel: "Materiais",
   routes: [{ index: true, element: <MaterialsLayout /> }],

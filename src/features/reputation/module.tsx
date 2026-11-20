@@ -6,10 +6,11 @@ import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
-import { createDemoCustomerPort, createDemoOwnerPort, createDemoPublicPort } from "./demoPort.ts";
-import type { CustomerReviewsPort, OwnerReviewsPort, PublicReviewsPort } from "./port.ts";
-import { CustomerReviewPage, OwnerReviewsPage, PublicReviewsPage } from "./ReviewPages.tsx";
-import { createServerCustomerPort, createServerOwnerPort, createServerPublicPort } from "./serverPort.ts";
+import { createDemoCustomerPort, createDemoOwnerPort } from "./demoPort.ts";
+import type { CustomerReviewsPort, OwnerReviewsPort } from "./port.ts";
+import { reputationAnonRoutes } from "./public-routes.tsx";
+import { CustomerReviewPage, OwnerReviewsPage } from "./ReviewPages.tsx";
+import { createServerCustomerPort, createServerOwnerPort } from "./serverPort.ts";
 import "./reputation.css";
 
 function OwnerLayout() {
@@ -39,23 +40,17 @@ function CustomerReview() {
   return <CustomerReviewPage port={port} />;
 }
 
-function PublicReviews() {
-  const port = useMemo<PublicReviewsPort>(() => {
-    if (!appEnv.supabase) return createDemoPublicPort();
-    return createServerPublicPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken: async () => null }));
-  }, []);
-  return <PublicReviewsPage port={port} />;
-}
-
 /** Rotas fora do shell: o cliente avalia (com login, sem negócio) e a lista pública do perfil. */
 export const reputationPublicRoutes: RouteObject[] = [
   { path: "/avaliar", element: <CustomerReview /> },
-  { path: "/avaliacoes/:slug", element: <PublicReviews /> },
+  ...reputationAnonRoutes,
 ];
 
 export const reputationModule: ModuleDefinition = {
   id: "reputation",
   owner: "P24",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "avaliacoes",
   navLabel: "Avaliações",
   routes: [{ index: true, element: <OwnerLayout /> }],

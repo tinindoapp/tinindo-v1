@@ -2,6 +2,10 @@
 // HTTP (servidor real) e demonstração offline (memória da aba, rotulada, nada é salvo).
 import {
   AvailabilityListOutput,
+  BookingLinkReviewOutput,
+  BookingLinkView,
+  type ProfileDetailsInput,
+  PublicRequestState,
   type ProfilePublishInput,
   type PublicBookInput,
   PublicBookOutput,
@@ -27,7 +31,8 @@ import {
   type ReferralSummary,
 } from "@contracts";
 import { ApiError, type CallOptions } from "../../lib/api/client.ts";
-import { currentReviewSummary, providePublicContact, publicBooking, setPublishedSlug } from "../../lib/demo/journey.ts";
+import { completedVisits, currentReviewSummary, providePublicContact, publicBooking, setPublishedSlug } from "../../lib/demo/journey.ts";
+import { readDemoSetup } from "../../lib/demo/setup.ts";
 import { demoSlots } from "./demo-slots.ts";
 import type { ProcessedPhoto } from "./photo.ts";
 
@@ -56,6 +61,9 @@ export type BookRequest = z.infer<typeof PublicBookOutput> & {
   demoCode?: string;
 };
 export type BookConfirmed = z.infer<typeof PublicConfirmOutput>;
+export type RequestState = z.infer<typeof PublicRequestState>;
+export type BookingView = z.infer<typeof BookingLinkView>;
+export type LinkReview = z.infer<typeof BookingLinkReviewOutput>["review"];
 
 /** Nome e profissão do negócio, para sugerir o endereço e a categoria do perfil (E9). */
 export interface BusinessBasics {
@@ -85,6 +93,16 @@ export interface NetworkApi {
   book(input: z.input<typeof PublicBookInput>, idempotencyKey: string): Promise<BookRequest>;
   /** Confirma com o código recebido. */
   confirmBooking(input: z.input<typeof PublicConfirmInput>, idempotencyKey: string): Promise<BookConfirmed>;
+  /** P55: estado real do envio do código, tentativas e reenvios restantes. */
+  requestState(requestId: string): Promise<RequestState>;
+  /** P55: reenvia o mesmo código (até 2 vezes, 30 s entre eles). */
+  resendCode(requestId: string, idempotencyKey: string): Promise<RequestState>;
+  /** P55 (D21): endereço ou domicílio, horário e política do perfil. */
+  setProfileDetails(input: z.input<typeof ProfileDetailsInput>, idempotencyKey: string): Promise<OwnerProfile>;
+  /** P55 (D20): a reserva vista pelo link com token, sem conta. */
+  bookingByLink(token: string): Promise<BookingView>;
+  reviewByLink(token: string, rating: number, body: string | null, idempotencyKey: string): Promise<LinkReview>;
+  withdrawByLink(token: string, idempotencyKey: string): Promise<LinkReview>;
   createReferral(input: z.input<typeof ReferralCreateInput>, idempotencyKey: string): Promise<ReferralLinkData>;
   listReferrals(): Promise<ReferralSummary[]>;
   inspectReferral(token: string): Promise<ReferralInspectOutput>;
@@ -153,6 +171,26 @@ export function createHttpNetworkApi(
     async confirmBooking(input, idempotencyKey) {
       return (await call("/network/public.confirm", PublicConfirmOutput, { method: "POST", body: input, idempotencyKey })).data;
     },
+    async requestState(requestId) {
+      return (await call("/network/public.status", PublicRequestState, { method: "POST", body: { request_id: requestId } })).data;
+    },
+    async resendCode(requestId, idempotencyKey) {
+      return (await call("/network/public.resend", PublicRequestState, { method: "POST", body: { request_id: requestId }, idempotencyKey })).data;
+    },
+    async setProfileDetails(input, idempotencyKey) {
+      const profile = (await call("/network/profile.details", OwnerProfileOutput, { method: "POST", tenantId: tenant, body: input, idempotencyKey })).data.profile;
+      if (!profile) throw new ApiError("NOT_FOUND", "Perfil não encontrado.", 404, null, false);
+      return profile;
+    },
+    async bookingByLink(token) {
+      return (await call("/network/public.booking", BookingLinkView, { method: "POST", body: { token } })).data;
+    },
+    async reviewByLink(token, rating, body, idempotencyKey) {
+      return (await call("/network/public.review", BookingLinkReviewOutput, { method: "POST", body: { token, rating, body }, idempotencyKey })).data.review;
+    },
+    async withdrawByLink(token, idempotencyKey) {
+      return (await call("/network/public.review_withdraw", BookingLinkReviewOutput, { method: "POST", body: { token }, idempotencyKey })).data.review;
+    },
     async createReferral(input, idempotencyKey) {
       return (await call("/network/referral.create", ReferralLink, { method: "POST", tenantId: tenant, body: input, idempotencyKey })).data;
     },
@@ -189,6 +227,18 @@ interface DemoBookRequest {
   contactPhone: string;
   /** Trocado por um pedido novo do mesmo contato: o código deixa de valer. */
   replaced: boolean;
+  /** P55: tentativas esgotadas (horário liberado). */
+  exhausted: boolean;
+  resends: number;
+  queuedAt: number;
+  neighborhood: string | null;
+  token: string | null;
+}
+
+/** Avaliação feita pelo link na demonstração (por atendimento). */
+interface DemoLinkReview {
+  bookingId: string;
+  review: { id: string; rating: number; body: string | null; status: "published" | "withdrawn" | "hidden" };
 }
 
 interface DemoState {
@@ -199,9 +249,14 @@ interface DemoState {
   requests: Map<string, DemoBookRequest>;
   /** Horários segurados quando a Agenda da demonstração não está carregada (testes do módulo). */
   localHolds: { starts_at: string; ends_at: string }[];
+  /** P55: links da reserva (token → pedido) e avaliações feitas por eles. */
+  links: Map<string, DemoBookRequest>;
+  linkReviews: DemoLinkReview[];
 }
 
-const demoState: DemoState = { profile: null, photos: new Map(), referrals: [], requests: new Map(), localHolds: [] };
+const demoState: DemoState = { profile: null, photos: new Map(), referrals: [], requests: new Map(), localHolds: [], links: new Map(), linkReviews: [] };
+/** Mesmas regras do banco (app.pbk_rules). */
+export const LINK_RULES = { maxAttempts: 5, maxResends: 2, resendWaitSeconds: 30 } as const;
 /** Número fictício do negócio A, como se estivesse conectado no canal (Mensagens) da demonstração. */
 export const DEMO_BUSINESS_WHATSAPP = "+5511999990001";
 
@@ -211,8 +266,16 @@ providePublicContact((bookingId) => {
   return r ? { name: r.contactName, phone_e164: r.contactPhone } : null;
 });
 
+// Ponte da demonstração (recado #115): a profissão que o dono confirma na Configuração vale para o perfil de exemplo
+// (é a categoria sugerida na publicação). O leitor fica ligado desde o carregamento do módulo.
+let setupProfession: Profession | null = null;
+readDemoSetup("profession", (p) => {
+  setupProfession = p;
+});
+
 /** Só para testes: volta a demonstração ao estado inicial. */
 export function resetDemoNetwork() {
+  setupProfession = null;
   demoState.profile = null;
   for (const url of demoState.photos.values()) URL.revokeObjectURL?.(url);
   demoState.photos.clear();
@@ -220,6 +283,8 @@ export function resetDemoNetwork() {
   demoState.referrals = [];
   demoState.requests.clear();
   demoState.localHolds = [];
+  demoState.links.clear();
+  demoState.linkReviews = [];
 }
 
 function randomToken(): string {
@@ -246,9 +311,30 @@ function toPublic(p: OwnerProfile): PublicProfileData {
   const m = p.media;
   return {
     slug: p.slug, category: p.category, area: p.area, fields: p.fields, published_at: p.published_at, reputation,
+    details: p.details ?? noDetails(),
     // Como no servidor: foto e WhatsApp só com a chave ligada.
     photo: m.show_photo && m.photo_url ? { url: m.photo_url, alt: m.photo_alt } : null,
     whatsapp_e164: m.show_whatsapp ? m.whatsapp_e164 : null,
+  };
+}
+
+const DEMO_TZ = tenantA.timezone;
+const noDetails = (): NonNullable<OwnerProfile["details"]> => ({ address: null, home_service: false, opening_hours: null, cancellation_policy: null });
+const placeOf = (d: OwnerProfile["details"] | undefined) =>
+  d?.address ? { kind: "address" as const, text: d.address } : d?.home_service ? { kind: "home" as const } : null;
+
+/** Estado do pedido para quem pediu, como app.pbk_state_json. */
+function stateOf(r: DemoBookRequest, now: number): z.infer<typeof PublicRequestState> {
+  const status = r.confirmed ? "confirmed" : !r.replaced && !r.exhausted && Date.parse(r.request.expires_at) > now ? "pending" : "expired";
+  return {
+    request_id: r.request.request_id,
+    status,
+    // Demonstração: nada é enviado; o canal simulado "entrega" na hora.
+    delivery: "sent",
+    expires_at: r.request.expires_at,
+    attempts_left: Math.max(LINK_RULES.maxAttempts - r.attempts, 0),
+    resends_left: Math.max(LINK_RULES.maxResends - r.resends, 0),
+    resend_available_at: new Date(r.queuedAt + LINK_RULES.resendWaitSeconds * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
   };
 }
 
@@ -262,7 +348,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
   return {
     demo: true,
     async getBusiness() {
-      return { name: tenantA.name, profession: tenantA.profession };
+      return { name: tenantA.name, profession: setupProfession ?? tenantA.profession };
     },
     async getOwnProfile() {
       return demoState.profile;
@@ -285,6 +371,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         reputation: { identity_verified: false, reviews_count: 0 },
         version: (demoState.profile?.version ?? 0) + 1,
         media: demoState.profile?.media ?? demoMedia(),
+        details: demoState.profile?.details ?? noDetails(),
       };
       setPublishedSlug(input.slug);
       return toPublic(demoState.profile);
@@ -352,7 +439,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
     },
     async book(input, key) {
       if (!demoState.profile?.published_at || demoState.profile.slug !== input.slug) throw notFound();
-      const hash = JSON.stringify({ ...input, replace_existing: undefined });
+      const hash = JSON.stringify({ ...input, replace_existing: undefined, supersedes_request_id: undefined });
       const prior = demoState.requests.get(key);
       if (prior) {
         if (prior.hash !== hash) throw new ApiError("IDEMPOTENCY_MISMATCH", "Pedido diferente com a mesma chave.", 409, null, false);
@@ -360,17 +447,34 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
       }
       const service = services.find((s) => s.id === input.service_id && s.tenant_id === tenantA.id);
       if (!service) throw notFound();
+      const details = demoState.profile.details ?? noDetails();
+      const hood = input.neighborhood?.trim() || null;
+      if (details.home_service && !hood) throw new ApiError("VALIDATION_ERROR", "Informe o bairro.", 400, null, false, "neighborhood");
       const agenda = publicBooking();
+      // Mesmas regras do banco: no máximo 3 pedidos por contato por hora.
+      const recent = [...demoState.requests.values()].filter((r) => r.contactPhone === input.contact.phone_e164 && Date.now() - r.queuedAt < 3_600_000);
+      if (recent.length >= 3) throw new ApiError("QUOTA_EXCEEDED", "Muitos pedidos.", 429, null, true, "rate_limit");
+      const release = async (r: DemoBookRequest) => {
+        if (agenda) await agenda.release(r.bookingId);
+        else demoState.localHolds = demoState.localHolds.filter((h) => h.starts_at !== r.request.slot.starts_at);
+      };
+      // "Corrigir o número": o pedido anterior desta sessão é liberado antes.
+      const own = input.supersedes_request_id
+        ? [...demoState.requests.values()].find((r) => r.request.request_id === input.supersedes_request_id && !r.confirmed && !r.replaced && !r.exhausted)
+        : undefined;
+      if (own) {
+        await release(own);
+        own.replaced = true;
+      }
       // Mesma regra do banco: o mesmo WhatsApp com pedido aguardando código só troca com replace_existing.
-      const pending = [...demoState.requests.values()].find((r) => r.contactPhone === input.contact.phone_e164 && !r.confirmed && !r.replaced);
+      const pending = [...demoState.requests.values()].find((r) => r.contactPhone === input.contact.phone_e164 && !r.confirmed && !r.replaced && !r.exhausted);
       if (pending && !input.replace_existing) {
         throw new ApiError("PENDING_REQUEST_EXISTS", "Você já tem um pedido aguardando confirmação.", 409, null, false, "contact.phone_e164", {
           request_id: pending.request.request_id, expires_at: pending.request.expires_at,
         });
       }
       if (pending) {
-        if (agenda) await agenda.release(pending.bookingId);
-        else demoState.localHolds = demoState.localHolds.filter((h) => h.starts_at !== pending.request.slot.starts_at);
+        await release(pending);
         pending.replaced = true;
       }
       let hold: { booking_id: string; starts_at: string; ends_at: string; hold_expires_at: string };
@@ -389,26 +493,110 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
         expires_at: hold.hold_expires_at,
         delivery: "queued",
         ...(pending ? { replaced: true as const } : {}),
+        service_name: service.name,
+        duration_min: service.duration_min,
+        price_cents: service.base_price_cents,
+        place: placeOf(details),
+        policy: details.cancellation_policy,
         demoCode: code,
       };
-      // Trocar não zera as tentativas de código já gastas no pedido anterior.
-      demoState.requests.set(key, { request, bookingId: hold.booking_id, code, attempts: pending?.attempts ?? 0, confirmed: null, hash,
-        serviceName: service.name, contactName: input.contact.name.trim(), contactPhone: input.contact.phone_e164, replaced: false });
+      // P55: pedido novo começa com as tentativas zeradas (o limite é por contato e por hora).
+      const entry: DemoBookRequest = { request, bookingId: hold.booking_id, code, attempts: 0, confirmed: null, hash,
+        serviceName: service.name, contactName: input.contact.name.trim(), contactPhone: input.contact.phone_e164, replaced: false,
+        exhausted: false, resends: 0, queuedAt: Date.now(), neighborhood: details.home_service ? hood : null, token: null };
+      demoState.requests.set(key, entry);
+      Object.assign(request, stateOf(entry, Date.parse(FIXED_NOW)), { delivery: "queued" as const });
       return request;
     },
     async confirmBooking(input) {
       const r = [...demoState.requests.values()].find((x) => x.request.request_id === input.request_id);
       if (!r) throw notFound();
       if (r.confirmed) return r.confirmed;
+      if (r.exhausted || r.attempts >= LINK_RULES.maxAttempts) throw rejected("attempts");
       if (r.replaced) throw rejected("expires_at");
-      if (r.attempts >= 5) throw rejected("attempts");
       if (input.code !== r.code) {
         r.attempts += 1;
-        throw rejected("code");
+        if (r.attempts >= LINK_RULES.maxAttempts) {
+          // A 5ª errada libera o horário e encerra o pedido (como no banco).
+          r.exhausted = true;
+          const agenda = publicBooking();
+          if (agenda) await agenda.release(r.bookingId);
+          else demoState.localHolds = demoState.localHolds.filter((h) => h.starts_at !== r.request.slot.starts_at);
+          throw rejected("attempts");
+        }
+        throw new ApiError("POLICY_REJECTED", "Código não confere.", 422, null, false, "code", { attempts_left: LINK_RULES.maxAttempts - r.attempts });
       }
       await publicBooking()?.confirm(r.bookingId);
-      r.confirmed = { status: "confirmed", slot: r.request.slot, timezone: tenantA.timezone, service_name: r.serviceName };
+      r.token = randomToken();
+      demoState.links.set(r.token, r);
+      r.confirmed = {
+        status: "confirmed", slot: r.request.slot, timezone: tenantA.timezone, service_name: r.serviceName,
+        duration_min: r.request.duration_min, price_cents: r.request.price_cents ?? null, business_name: tenantA.name,
+        place: r.request.place ?? null, policy: r.request.policy ?? null, booking_token: r.token,
+      };
       return r.confirmed;
+    },
+    async requestState(requestId) {
+      const r = [...demoState.requests.values()].find((x) => x.request.request_id === requestId);
+      if (!r) throw notFound();
+      return stateOf(r, Date.parse(FIXED_NOW));
+    },
+    async resendCode(requestId) {
+      const r = [...demoState.requests.values()].find((x) => x.request.request_id === requestId);
+      if (!r) throw notFound();
+      if (stateOf(r, Date.parse(FIXED_NOW)).status !== "pending") throw rejected("expires_at");
+      if (r.resends >= LINK_RULES.maxResends) throw new ApiError("QUOTA_EXCEEDED", "Limite de reenvios.", 429, null, false, "resend");
+      if (Date.now() - r.queuedAt < LINK_RULES.resendWaitSeconds * 1000) throw new ApiError("QUOTA_EXCEEDED", "Espere.", 429, null, true, "resend_wait");
+      r.resends += 1;
+      r.queuedAt = Date.now();
+      return stateOf(r, Date.parse(FIXED_NOW));
+    },
+    async setProfileDetails(input) {
+      const p = demoState.profile;
+      if (!p) throw notFound();
+      const clean = (v: string | null | undefined) => v?.trim() || null;
+      demoState.profile = { ...p, version: p.version + 1, details: {
+        address: clean(input.address), home_service: input.home_service, opening_hours: clean(input.opening_hours), cancellation_policy: clean(input.cancellation_policy),
+      } };
+      return demoState.profile;
+    },
+    async bookingByLink(token) {
+      const r = demoState.links.get(token);
+      if (!r?.confirmed) throw notFound();
+      const done = completedVisits().find((v) => v.booking_id === r.bookingId);
+      const existing = demoState.linkReviews.find((x) => x.bookingId === r.bookingId)?.review ?? null;
+      const p = demoState.profile;
+      return {
+        business: { name: tenantA.name, slug: p?.published_at ? p.slug : null, whatsapp_e164: p?.published_at && p.media.show_whatsapp ? p.media.whatsapp_e164 : null },
+        service_name: r.serviceName,
+        slot: done ? { starts_at: done.starts_at, ends_at: done.ends_at } : r.confirmed.slot,
+        timezone: DEMO_TZ,
+        status: done ? "completed" : "confirmed",
+        price_cents: done?.agreed_price_cents ?? r.confirmed.price_cents ?? null,
+        place: r.confirmed.place ?? null,
+        policy: r.confirmed.policy ?? null,
+        review: { can_review: !!done && !existing, window_days: 30, existing },
+      };
+    },
+    async reviewByLink(token, rating, body) {
+      const view = await this.bookingByLink(token);
+      const r = demoState.links.get(token)!;
+      const prior = demoState.linkReviews.find((x) => x.bookingId === r.bookingId);
+      if (prior) {
+        if (prior.review.rating === rating && prior.review.body === (body?.trim() || null)) return prior.review;
+        throw rejected("already_reviewed");
+      }
+      if (!view.review.can_review) throw rejected("booking_status");
+      const review = { id: crypto.randomUUID(), rating, body: body?.trim() || null, status: "published" as const };
+      demoState.linkReviews.push({ bookingId: r.bookingId, review });
+      return review;
+    },
+    async withdrawByLink(token) {
+      const r = demoState.links.get(token);
+      const prior = r && demoState.linkReviews.find((x) => x.bookingId === r.bookingId);
+      if (!prior) throw notFound();
+      prior.review = { ...prior.review, status: "withdrawn" };
+      return prior.review;
     },
     async createReferral(input) {
       const token = randomToken();

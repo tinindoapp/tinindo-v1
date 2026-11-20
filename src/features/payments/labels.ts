@@ -41,10 +41,27 @@ export function splitDescription(description: string): { service: string; name: 
   const name = description.slice(i + 3).replace(/\s*\(exemplo\)\s*$/, "").trim();
   return { service: description.slice(0, i).trim(), name: name || null };
 }
-/** Mensagem pronta para a cliente. Abrir o WhatsApp não significa que ela recebeu. */
-export function pixMessage(description: string, amountCents: number, link: string): string {
+/** Mensagem pronta para a cliente: diz quem manda (05 #8). Abrir o WhatsApp não significa que ela recebeu. */
+export function pixMessage(description: string, amountCents: number, link: string, business?: string | null): string {
   const { service, name } = splitDescription(description);
-  return `Oi${name ? `, ${name.split(" ")[0]}` : ""}! Segue o Pix de ${service} de ${formatCents(amountCents)}: ${link}`;
+  return `Oi${name ? `, ${name.split(" ")[0]}` : ""}!${business ? ` Aqui é ${business}.` : ""} Segue o Pix de ${service} de ${formatCents(amountCents)}: ${link}`;
+}
+/** Prazo da cobrança no relógio de quem paga: "Pague até 14:35 de hoje"; em outro dia, com a data. */
+export function deadlineText(expiresAt: string, now: Date, timeZone?: string): string {
+  const at = new Date(expiresAt);
+  const time = new Intl.DateTimeFormat("pt-BR", { timeZone, hour: "2-digit", minute: "2-digit" }).format(at);
+  const day = (d: Date) => d.toLocaleDateString("en-CA", { timeZone });
+  if (day(at) === day(now)) return `Pague até ${time} de hoje`;
+  return `Pague até ${time} de ${new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(at)}`;
+}
+/** Link que não vale mais: não sugere que foi pago nem manda pagar por outro caminho (05 #11). */
+export const missingText = (business?: string | null) =>
+  `Ele venceu ou foi cancelado. Não pague por outro caminho sem falar com ${business ?? "quem te cobrou"}: peça um novo link.`;
+/** "20/10 às 13:05", no relógio de quem lê. */
+export function formatPaidAt(v: string, timeZone?: string): string {
+  const d = new Date(v);
+  const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("pt-BR", { timeZone, ...o }).format(d);
+  return `${f({ day: "2-digit", month: "2-digit" })} às ${f({ hour: "2-digit", minute: "2-digit" })}`;
 }
 /** Cobranças sem confirmação: só aparece quando há alguma. */
 export const unknownNote = (n: number) => (n <= 0 ? null : `${n} ${n === 1 ? "cobrança" : "cobranças"} sem confirmação do banco`);

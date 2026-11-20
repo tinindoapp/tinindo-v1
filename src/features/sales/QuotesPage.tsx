@@ -4,7 +4,8 @@ import { createContext, type FormEvent, useContext, useEffect, useState } from "
 import type { SalesQuote } from "@contracts";
 import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, PageHeader, ShareActions, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { newKey, type QuoteDetail, type QuoteDraft, type QuoteMaterialCost, type SalesBase, type SalesPort } from "./port.ts";
+import { withBusinessSlug } from "./public-kit.tsx";
+import { type QuoteDetail, type QuoteDraft, type QuoteMaterialCost, type SalesBase, type SalesPort } from "./port.ts";
 import {
   centsToInput,
   explain,
@@ -18,6 +19,12 @@ import {
   STATUS_LABEL,
   validUntilInDays,
 } from "./rules.ts";
+import { newIdempotencyKey, useCommand } from "../../lib/idempotency.ts";
+import { localParts } from "../../lib/time.ts";
+
+// Id de linha do formulário (chave do React), não é chave de idempotência.
+let rowSeq = 0;
+const rowId = () => `item-${(rowSeq += 1)}`;
 
 const PortContext = createContext<SalesPort | null>(null);
 export const SalesPortProvider = PortContext.Provider;
@@ -27,13 +34,14 @@ function usePort(): SalesPort {
   return p;
 }
 
-export function quoteLink(token: string): string {
-  return `${window.location.origin}/orcamento#t=${token}`;
+/** Com perfil publicado, o endereço do negócio entra no caminho: /orcamento/<endereço>#t=… */
+export function quoteLink(token: string, slug?: string | null): string {
+  return withBusinessSlug(`${window.location.origin}/orcamento#t=${token}`, slug);
 }
 
-/** Mensagem curta e pronta para o cliente; o dono pode mudar antes de mandar. */
-export function quoteMessage(title: string | null, link: string): string {
-  return `Olá! Segue o orçamento${title ? ` "${title}"` : ""}. Para ver e aceitar, abra: ${link}`;
+/** Mensagem curta e pronta para o cliente, dizendo quem manda; o dono pode mudar antes de mandar. */
+export function quoteMessage(title: string | null, link: string, business?: string | null): string {
+  return `Olá!${business ? ` Aqui é ${business}.` : ""} Segue o orçamento${title ? ` "${title}"` : ""}. Para ver e aceitar, abra: ${link}`;
 }
 
 /** O telefone vem quando a base de clientes trouxer (hoje só id e nome). */
@@ -56,7 +64,7 @@ interface FormState {
   notes: string;
 }
 
-const emptyItem = (): ItemRow => ({ key: newKey(), service_id: "", description: "", quantity: "1", price: "" });
+const emptyItem = (): ItemRow => ({ key: rowId(), service_id: "", description: "", quantity: "1", price: "" });
 
 /** Título sugerido pelos itens (item 46): "Corte", "Corte e Barba", "Corte, Barba e Hidratação", "Corte, Barba e mais 2 itens". */
 export function suggestTitle(items: readonly { description: string }[]): string {
@@ -82,11 +90,11 @@ function formFromQuote(q: SalesQuote, base: SalesBase): FormState {
   const v = q.current;
   return {
     customer_id: q.customer_id, title: v.title, titleTouched: true,
-    items: v.items.map((i) => ({ key: newKey(), service_id: i.service_id ?? "", description: i.description, quantity: String(i.quantity),
+    items: v.items.map((i) => ({ key: rowId(), service_id: i.service_id ?? "", description: i.description, quantity: String(i.quantity),
       price: centsToInput(i.unit_price_cents) })),
     days: "7", withSlot: v.slot !== null, slotService: v.slot?.service_id ?? "",
     slotDate: v.slot ? localDate(v.slot.starts_at, base.timezone) : "",
-    slotTime: v.slot ? new Intl.DateTimeFormat("en-GB", { timeZone: base.timezone, hour: "2-digit", minute: "2-digit" }).format(new Date(v.slot.starts_at)) : "10:00",
+    slotTime: v.slot ? localParts(v.slot.starts_at, base.timezone).time : "10:00",
     notes: v.notes ?? "",
   };
 }
@@ -124,7 +132,10 @@ function toDraft(f: FormState, base: SalesBase, now: Date): { draft: QuoteDraft 
     notes: f.notes.trim() || null } };
 }
 
-export function QuotesPage() {
+export function QuotesPage({ business }: {
+  /** Nome do negócio (entra na mensagem pronta) e endereço do perfil publicado (entra no caminho do link). */
+  business?: { name?: string | null; slug?: string | null };
+} = {}) {
   const port = usePort();
   const [base, setBase] = useState<SalesBase | null>(null);
   const [quotes, setQuotes] = useState<SalesQuote[] | null>(null);
@@ -142,8 +153,9 @@ export function QuotesPage() {
   // Custo de materiais da versão atual (P30). "unavailable" = sem estoque cadastrado ou módulo fora do ar: o orçamento não depende disso.
   const [costOf, setCostOf] = useState<{ quoteId: string; value: QuoteMaterialCost | "unavailable" } | null>(null);
   const [pending, setPending] = useState(false);
-  const [keys, setKeys] = useState(() => ({ save: newKey() }));
+  const [keys, setKeys] = useState(() => ({ save: newIdempotencyKey() }));
   const [customerQuery, setCustomerQuery] = useState("");
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -201,7 +213,7 @@ export function QuotesPage() {
       setCustomerQuery("");
       setEditing(null);
       setComposing(false);
-      setKeys({ save: newKey() });
+      setKeys({ save: newIdempotencyKey() });
     } catch (err) {
       setFormError(explain(err));
     } finally {
@@ -215,7 +227,7 @@ export function QuotesPage() {
     setEditing(q);
     setComposing(true);
     setForm(formFromQuote(q, base));
-    setKeys({ save: newKey() });
+    setKeys({ save: newIdempotencyKey() });
     setFormError(null);
     show({});
     document.getElementById("qt-form-title")?.scrollIntoView?.({ block: "start" });
@@ -260,10 +272,10 @@ export function QuotesPage() {
           <div className="tn-stack">
             <h2 id="qt-link-title">Link do orçamento</h2>
             <p className="tn-muted">A Tinindo não envia mensagens. Mande o link ao cliente pelo WhatsApp ou copie. Gerar outro link invalida este.</p>
-            <code className="tn-qt-code">{quoteLink(fresh.token)}</code>
+            <code className="tn-qt-code">{quoteLink(fresh.token, business?.slug)}</code>
             <ShareActions
-              message={quoteMessage(freshQuote?.current.title ?? null, quoteLink(fresh.token))}
-              copyText={quoteLink(fresh.token)}
+              message={quoteMessage(freshQuote?.current.title ?? null, quoteLink(fresh.token, business?.slug), business?.name)}
+              copyText={quoteLink(fresh.token, business?.slug)}
               copyLabel="Copiar link"
               phone={freshCustomer ? phoneOf(freshCustomer) : null}
             />
@@ -381,7 +393,7 @@ export function QuotesPage() {
                 <div className="tn-actions">
                   {q.status === "draft" ? (
                     <Button disabled={pending} onClick={() => void run(async () => {
-                      const r = await port.send(q, newKey());
+                      const r = await command({ send: q.id, version: q.current.version_no }, (key) => port.send(q, key));
                       if (r.token) setFresh({ quoteId: q.id, token: r.token });
                       return "Link gerado. Compartilhe com o cliente.";
                     })}>Gerar link</Button>
@@ -396,7 +408,7 @@ export function QuotesPage() {
                       consequence={<p>O link que {customer(q.customer_id)} já recebeu para de funcionar. Você manda o novo em seguida.</p>}
                       confirmLabel="Sim, gerar novo link"
                       onConfirm={() => run(async () => {
-                        const r = await port.send(q, newKey());
+                        const r = await command({ resend: q.id, version: q.current.version_no }, (key) => port.send(q, key));
                         if (r.token) setFresh({ quoteId: q.id, token: r.token });
                         return "Novo link gerado. O link anterior não funciona mais.";
                       })}
@@ -420,7 +432,7 @@ export function QuotesPage() {
                       }
                       confirmLabel="Sim, cancelar"
                       onConfirm={() => run(async () => {
-                        await port.cancel(q.id, newKey());
+                        await command({ cancel: q.id }, (key) => port.cancel(q.id, key));
                         return "Orçamento cancelado. O link deixou de funcionar.";
                       })}
                     />

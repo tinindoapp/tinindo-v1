@@ -90,6 +90,13 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `public.book` | slug, service, início, contato (nome e telefone), `replace_existing` (padrão false), key | Reserva provisória e código enviado ao contato pelo canal do negócio; não é confirmação (anônimo). O mesmo WhatsApp com pedido aguardando código no negócio: sem `replace_existing` → 409 `PENDING_REQUEST_EXISTS` com `details {request_id, expires_at}` (sem serviço nem horário, para não revelar o pedido de outra pessoa); com ele, o anterior vence (`replaced`), o código antigo deixa de valer, sai `booking.hold_released.v1` e a resposta traz `replaced: true`. A troca conta nos mesmos limites e não zera as tentativas |
 | `public.confirm` | request_id, código, key | Provisória vira confirmada; código errado conta tentativa (máx. 5); vencido não confirma (anônimo) |
 | `public.contact` | booking_id | Dono: nome e WhatsApp informados no pedido pelo link |
+| `public.status` | request_id | P55: estado do pedido (envio do código: na fila, enviado, falhou), tentativas e reenvios restantes, sem contato nem código (anônimo) |
+| `public.resend` | request_id | P55: reenvia o mesmo código; até 2 por pedido, 30 s entre eles (anônimo) |
+| `profile.details` | endereço, `home_service`, horário de funcionamento, política de cancelamento, key | P55 (D21): campos opcionais do perfil; o público recebe `details` |
+| `booking_link.issue` | booking_id | P55 (D20): dono gera o link `/reserva#t=…` para o cliente ver a reserva e avaliar sem conta |
+| `public.booking` | token | P55: o cliente vê a reserva pelo link: negócio, serviço, horário, preço, local, política e avaliação (anônimo) |
+| `public.review` | token, nota, comentário | P55: avaliar pelo link, mesmas regras do `review.submit`, sem autor (anônimo) |
+| `public.review_withdraw` | token | P55: retirar a avaliação feita pelo link (anônimo) |
 | `referral.create` | kind, dados mínimos, origem | Link pessoal de convite, sem envio automático |
 | `referral.inspect` | token (no corpo) | Leitura mínima do convite; não muda estado (anônimo) |
 | `referral.claim` | token, key | Convite usado uma vez, contato confirmado |
@@ -263,6 +270,9 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `setup.templates` | — | Modelos de serviço da profissão (só por migration), com faixa de preço e se já existe no catálogo |
 | `setup.services_apply` | serviços confirmados (modelo opcional, nome, duração, preço), key | Cria pela RPC do P02, tudo ou nada; devolve criados e o progresso |
 | `setup.draft_apply` | profissão (opcional), expediente (opcional, substitui), serviços, key | Aplica o rascunho "descreva seu negócio" revisado: profissão, regras da agenda principal (P03) e serviços (P02), tudo ou nada |
+| `setup.scope` | — | Escopo do negócio para a sessão (P51): profissão, plano (só o nome; no piloto o plano não libera nada, D3 b) e os 27 módulos com nível (`pilot`, `activation`, `stored`) e se valem para o negócio |
+| `setup.module_set` | módulo, ligado (sim ou não), key | O dono liga ou desliga um módulo "por ativação" (P51). Módulo do piloto → 400; guardado → 403 (só o backend liga). Idempotente e auditado; devolve o escopo atualizado |
+| `setup.describe` | frase (8 a 500 caracteres), key opcional | Lê a frase do negócio pelas regras e devolve o rascunho por campo, com a origem (regras ou assistente) e as ressalvas; só o que as regras não leram vai ao modelo de linguagem (P46), com franquia e chave; sem provedor, devolve o rascunho das regras. Não grava nada |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 

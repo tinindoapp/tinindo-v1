@@ -48,6 +48,8 @@ export const discoveryPublicRoutes: RouteObject[] = [
 export const discoveryModule: ModuleDefinition = {
   id: "discovery",
   owner: "P23",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "diretorio",
   navLabel: "Diretório",
   routes: [{ index: true, element: <SettingsLayout /> }],

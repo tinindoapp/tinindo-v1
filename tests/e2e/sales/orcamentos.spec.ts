@@ -62,13 +62,34 @@ test("orçamento: rascunho, link, nova versão, aceite da versão vista com hor�
 
   // O cliente abre o link: vê a versão 2; abrir não aceita; o token sai da URL.
   await soft(page, new URL(link).pathname + new URL(link).hash);
-  await expect(page.getByRole("heading", { name: "Orçamento", level: 1 })).toBeVisible();
+  // D18: o negócio no topo, a Tinindo só no rodapé; a versão fica pequena no rodapé, sem código técnico.
+  await expect(page.getByRole("heading", { name: "Orçamento: Corte e barba", level: 1 })).toBeVisible();
   await expect(page).toHaveURL(/\/orcamento$/);
-  await expect(page.getByText(/Versão 2 · código/)).toBeVisible();
-  await expect(page.getByRole("table")).toContainText(/R\$\s95,00/);
+  await expect(page.getByRole("banner")).toContainText("Barbearia Exemplo A");
+  await expect(page.getByRole("contentinfo")).toContainText("Página feita com a Tinindo");
+  await expect(page.getByRole("contentinfo")).toContainText("Versão 2");
+  await expect(page.getByRole("main")).not.toContainText("código");
+  await expect(page.getByText(/^Válido até \d{2}\/\d{2}$/)).toBeVisible();
+  const items = page.getByRole("list", { name: "Itens do orçamento" });
+  await expect(items.getByRole("listitem")).toHaveCount(2);
+  await expect(items).toContainText(/R\$\s35,00/);
+  await expect(page.locator(".tn-qt-totalband")).toContainText(/Total\s*R\$\s95,00/);
+  await expect(page.getByText("Ao aceitar, você reserva:")).toBeVisible();
   await expect(page.getByText("Abrir esta página não aceita nada")).toBeVisible();
-  await page.getByRole("button", { name: "Aceitar orçamento" }).click();
-  await expect(page.getByText(/Orçamento aceito\. Horário reservado/)).toBeVisible();
+  // Recusar é discreto e pede confirmação; Voltar não muda nada.
+  await page.getByRole("button", { name: "Recusar" }).click();
+  const refuse = page.getByRole("group", { name: "Recusar este orçamento?" });
+  await expect(refuse).toContainText("Barbearia Exemplo A verá a recusa");
+  await refuse.getByRole("button", { name: "Voltar" }).click();
+  const accept = page.getByRole("button", { name: "Aceitar orçamento" });
+  const col = (await page.getByRole("main").boundingBox())!.width;
+  expect((await accept.boundingBox())!.width).toBeGreaterThanOrEqual(col - 40);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await accept.click();
+  // Aceito é uma tela própria.
+  await expect(page.getByRole("heading", { name: "Orçamento aceito", level: 1 })).toBeVisible();
+  await expect(page.getByText("Horário reservado", { exact: true })).toBeVisible();
+  await expect(page.getByText("O pagamento é combinado com Barbearia Exemplo A.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Aceitar orçamento" })).toHaveCount(0);
 
   await soft(page, "/app/orcamentos");
@@ -113,6 +134,13 @@ test("orçamento: formulário explica o que falta e não grava", async ({ page }
 
 test("link de orçamento desconhecido não aceita nada", async ({ page }) => {
   await page.goto(`/orcamento#t=${"x".repeat(43)}`);
+  await expect(page.getByRole("heading", { name: "Este orçamento não está mais disponível", level: 1 })).toBeVisible();
   await expect(page.getByText(/não é válido/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Aceitar orçamento" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Tentar de novo" })).toBeVisible();
+
+  // O link pode trazer o endereço do negócio no caminho: o token sai da barra e o caminho fica.
+  await page.goto(`/orcamento/barbearia-exemplo-a#t=${"x".repeat(43)}`);
+  await expect(page.getByRole("heading", { name: "Este orçamento não está mais disponível", level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/\/orcamento\/barbearia-exemplo-a$/);
 });

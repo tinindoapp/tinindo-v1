@@ -3,7 +3,8 @@
 #  1. 20 visitantes pedem o MESMO horário → 1 reserva provisória e 19 SLOT_CONFLICT.
 #  2. 10 repetições simultâneas do MESMO pedido (mesma chave) → 1 pedido e 10 respostas iguais.
 #  3. 5 confirmações simultâneas com o código certo → 1 reserva confirmada e 1 evento.
-#  4. Código errado conta tentativa; depois de 5, nem o certo confirma. Código de outro pedido não confirma.
+#  4. Código errado conta tentativa; depois de 5, nem o certo confirma e o horário é liberado (P55). Código de outro
+#     pedido não confirma. 4b: oito erradas ao mesmo tempo liberam uma vez só. 4c: corrigir o número mantém o horário.
 #  5. Pedido vencido não confirma e o horário volta a ficar livre.
 #  6. Limite por contato no negócio; o contato não vira cliente do CRM nem contato do canal.
 #  6b. O mesmo contato pede dois horários ao mesmo tempo → um pedido e um PENDING_REQUEST_EXISTS; trocando ao mesmo tempo → um só ativo.
@@ -102,8 +103,9 @@ check "código de outro pedido não confirma" "$(confirm "$REQ2" "$CODE" | grep 
 for i in 1 2 3 4 5; do confirm "$REQ2" "$WRONG" >/dev/null 2>&1 || true; done
 check "tentativas erradas ficam gravadas (no máximo 5)" "$(psql -qXtA -c "select attempts from public.public_booking_requests where id = '$REQ2'")" 5
 check "depois de 5 tentativas, nem o código certo confirma" "$(confirm "$REQ2" "$CODE2" 2>&1 | grep -c 'POLICY_REJECTED' || true)" 1
-check "o horário continua provisório" "$(psql -qXtA -c "select b.status from public.bookings b
-  join public.public_booking_requests q on q.booking_id = b.id where q.id = '$REQ2'")" held
+# P55: na 5ª errada o horário é liberado e o pedido se encerra (antes ficava preso até vencer).
+check "o horário foi liberado" "$(psql -qXtA -c "select b.status from public.bookings b
+  join public.public_booking_requests q on q.booking_id = b.id where q.id = '$REQ2'")" expired
 
 # 5 · pedido vencido
 ask "pedido-vencido-link-1" 0 "14:00" "+5511930000001" >/dev/null
@@ -144,9 +146,26 @@ check "e um só horário segurado por esse contato" "$(psql -qXtA -c "select cou
 OUT=$(psql -qXtA -c "set role service_role; select public.channel_dispatch_claim(50)")
 check "o despacho leva códigos de pedidos pendentes" "$(echo "$OUT" | grep -o '"pbk:' | wc -l | tr -d ' ')" \
   "$(psql -qXtA -c "select count(*) from public.public_booking_requests where status = 'pending' and expires_at > now()")"
-check "o código vai para o contato informado, com o modelo de reserva" "$(echo "$OUT" | grep -c "\"to\": \"+5511920000001\".*codigo_reserva\|codigo_reserva.*\"to\": \"+5511920000001\"" || true)" 1
+check "o código vai para o contato informado, com o modelo de reserva (pedido ainda pendente)" "$(echo "$OUT" | grep -c "\"to\": \"+5511930000002\".*codigo_reserva\|codigo_reserva.*\"to\": \"+5511930000002\"" || true)" 1
 check "o pedido confirmado não é reenviado" "$(echo "$OUT" | grep -c "pbk:$REQ\"" || true)" 0
 psql -qXtA -c "set role service_role; select public.channel_dispatch_result('pbk:$REQ2', 'sent', 'sim-1', null)" >/dev/null
 check "o resultado do envio fica no pedido" "$(psql -qXtA -c "select dispatch_status from public.public_booking_requests where id = '$REQ2'")" sent
+
+# 4b · P55 (segunda seguinte, longe dos horários acima): oito códigos errados ao mesmo tempo → exatamente 5 tentativas, uma liberação e um evento
+ask "tentativas-simult-p55-1" 7 "10:00" "+5511930000077" >/dev/null
+REQ4=$(request_of 7 10:00)
+for i in 1 2 3 4 5 6 7 8; do confirm "$REQ4" "999999" >"$TMP/att.$i" 2>&1 & done
+wait
+check "erradas simultâneas: 5 tentativas gravadas" "$(psql -qXtA -c "select attempts || ':' || status from public.public_booking_requests where id = '$REQ4'")" "5:exhausted"
+check "erradas simultâneas: o horário é liberado uma vez só" "$(psql -qXtA -c "select count(*) from public.outbox_events e
+  join public.public_booking_requests q on q.booking_id = e.aggregate_id
+  where q.id = '$REQ4' and e.event_type = 'booking.hold_released.v1'")" 1
+
+# 4c · P55: corrigir o número pede o mesmo horário de novo, sem colidir com o próprio pedido
+ask "corrige-numero-p55-01" 7 "11:00" "+5511930000088" >/dev/null
+REQ5=$(request_of 7 11:00)
+check "com o número corrigido, o mesmo horário é aceito" "$(as_anon "select public.public_booking_request('$SLUG', '$CORTE_A', $(at 7 11:00),
+  'Visitante', '+5511930000089', 'corrige-numero-p55-02', repeat('2', 64), null, false, '$REQ5')" 2>&1 | grep -c '"status_code" *: *201' || true)" 1
+check "o pedido do número errado foi encerrado" "$(psql -qXtA -c "select status from public.public_booking_requests where id = '$REQ5'")" cancelled
 
 finish "P43 concorrência"

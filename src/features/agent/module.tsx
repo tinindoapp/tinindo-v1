@@ -41,6 +41,8 @@ function AgentLayout() {
 export const agentModule: ModuleDefinition = {
   id: "agent",
   owner: "P08",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "assistente",
   navLabel: "Assistente",
   routes: [{ index: true, element: <AgentLayout /> }],

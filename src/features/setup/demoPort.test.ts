@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupProgress, SetupServicesApplyOutput, SetupTemplatesOutput } from "@contracts";
-import { demoSetupDismiss, demoSetupProgress, readDemoSetup } from "../../../supabase/functions/_shared/domain/setup/demo.ts";
+import { demoSetupDismiss, demoSetupProgress, readDemoSetup } from "../../lib/demo/setup.ts";
 import { resetDemoJourney, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { SETUP_STEPS } from "../../lib/setup/steps.ts";
 import { createDemoPort, demoSetupEvents, resetDemoState } from "./demoPort.ts";

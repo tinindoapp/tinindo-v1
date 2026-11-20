@@ -56,6 +56,7 @@ function fakeServices(over: Partial<IdentityServices> = {}): IdentityServices {
 function renderPage(element: ReactNode, services: IdentityServices, path = "/app/conta") {
   const router = createMemoryRouter(
     [
+      { path: "/app", element: <p>Home</p> },
       { path: "/app/conta", element: <IdentityServicesProvider value={services}>{element}</IdentityServicesProvider> },
       { path: "/app/conta/novo-negocio", element: <IdentityServicesProvider value={services}>{element}</IdentityServicesProvider> },
       { path: "/app/conta/vincular", element: <IdentityServicesProvider value={services}>{element}</IdentityServicesProvider> },
@@ -143,7 +144,10 @@ describe("criar negócio", () => {
     expect(await screen.findByText(/Sem conexão com o servidor/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Criar negócio" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/app/conta"));
+    // Recado #115: o negócio novo abre na Home, com a confirmação em toast.
+    await waitFor(() => expect(router.state.location.pathname).toBe("/app"));
+    expect(await screen.findByText(/Negócio criado/)).toBeInTheDocument();
+    expect(screen.getByText("Salão Exemplo C")).toBeInTheDocument();
 
     const [first, second] = createBusiness.mock.calls;
     expect(first?.[0]).toEqual({

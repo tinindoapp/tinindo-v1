@@ -100,7 +100,9 @@ describe("P12 · canal simulado de ponta a ponta", () => {
     await fails("messaging", "message.send", { ...owner, key: true, body: { contact_id: contactId, kind: "template", template_code: "promo_inexistente", template_params: [] } }, "POLICY_REJECTED", "template_code");
     await fails("messaging", "message.send", { ...owner, key: true, body: { contact_id: contactId, kind: "template", template_code: "lembrete_agendamento", template_params: ["só um"] } }, "VALIDATION_ERROR", "template_params");
     const t = await ok(MessageSendOutput, "messaging", "message.send", { ...owner, key: true, body: { contact_id: contactId, kind: "template", template_code: "lembrete_agendamento", template_params: ["Corte", "quarta às 10h"] } });
-    expect(t.message).toMatchObject({ kind: "template", template_code: "lembrete_agendamento", body: "Lembrete: Corte em quarta às 10h. Se precisar remarcar, responda esta mensagem." });
+    expect(t.message).toMatchObject({ kind: "template", template_code: "lembrete_agendamento", body: expect.stringMatching(/^Lembrete de .+: Corte em quarta às 10h\. Se precisar remarcar, responda esta mensagem\.$/) });
+    // P55: as mensagens ao cliente dizem o nome do negócio, sem o marcador cru.
+    expect(t.message.body).not.toContain("{{negocio}}");
     expect(await runDispatch()).toMatchObject({ sent: 1 });
   });
 

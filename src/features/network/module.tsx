@@ -3,11 +3,14 @@
 import type { RouteObject } from "react-router";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { NetworkHome } from "./NetworkHome.tsx";
-import { InvitePage, ProfilePreviewPage, PublicProfilePage, RecommendPage } from "./PublicPages.tsx";
+import { InvitePage, ProfilePreviewPage, RecommendPage } from "./PublicPages.tsx";
+import { networkAnonRoutes } from "./public-routes.tsx";
 
 export const networkModule: ModuleDefinition = {
   id: "network",
   owner: "P09",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "perfil",
   navLabel: "Perfil",
   routes: [
@@ -22,7 +25,8 @@ export const networkModule: ModuleDefinition = {
  * Não aceitam nada por GET: inspeção e aceite são POST disparados por ação explícita.
  */
 export const networkPublicRoutes: RouteObject[] = [
-  { path: "/p/:slug", element: <PublicProfilePage /> },
+  // /p/:slug vem de public-routes.tsx (sem sessão), o mesmo arquivo que o pacote das páginas do cliente usa.
+  ...networkAnonRoutes,
   { path: "/convite", element: <InvitePage /> },
   { path: "/indicar", element: <RecommendPage /> },
 ];
