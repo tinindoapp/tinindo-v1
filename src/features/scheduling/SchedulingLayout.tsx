@@ -2,9 +2,7 @@
 // Sem Supabase (demonstração offline) usa a emulação sobre fixtures, sempre rotulada.
 import { createContext, type ReactNode, useContext, useEffect, useEffectEvent, useMemo, useState } from "react";
 import { Outlet } from "react-router";
-import { appEnv } from "../../app/env.ts";
-import { useSession } from "../../app/session.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
+import { useApi } from "../../app/api.tsx";
 import type { BookingCollectPort } from "../../lib/collect.ts";
 import { completionEventId, demoCollect, provideCustomerBookings, providePublicBooking, publishCompletedVisit } from "../../lib/demo/journey.ts";
 import { createServerCollectPort } from "./collect.ts";
@@ -191,18 +189,13 @@ function BaseLoader({ port }: { port: SchedulingPort }) {
 }
 
 export function SchedulingLayout() {
-  const session = useSession();
-  const { state, tenantId, getAccessToken } = session;
+  // Cliente único da sessão (P53): o módulo não cria o próprio cliente.
+  const { demo, call, tenantId } = useApi();
   const ports = useMemo<{ port: SchedulingPort; collect: BookingCollectPort | null } | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return { port: getDemoPort(), collect: demoCollect() };
-    if (!tenantId) return null;
-    const call = createApiClient({
-      baseUrl: appEnv.supabase.url,
-      publishableKey: appEnv.supabase.publishableKey,
-      getAccessToken,
-    });
+    if (demo) return { port: getDemoPort(), collect: demoCollect() };
+    if (!tenantId || !call) return null;
     return { port: createServerPort(call, tenantId), collect: createServerCollectPort(call, tenantId) };
-  }, [state.status, tenantId, getAccessToken]);
+  }, [demo, call, tenantId]);
 
   if (!ports) return <p>Selecione um negócio para ver a agenda.</p>;
   const { port } = ports;

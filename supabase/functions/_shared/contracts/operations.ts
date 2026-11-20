@@ -163,6 +163,14 @@ export const OPERATIONS = {
     module: "scheduling", owner: "P03", kind: "command", idempotent: true,
     input: scheduling.BookingCreateSeriesInput, output: scheduling.BookingCreateSeriesOutput,
   },
+  "booking.series": {
+    module: "scheduling", owner: "P03", kind: "query", idempotent: false,
+    input: scheduling.BookingSeriesInput, output: scheduling.BookingSeriesOutput,
+  },
+  "booking.cancel_series_from": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.BookingCancelSeriesFromInput, output: scheduling.BookingCancelSeriesFromOutput,
+  },
   "booking.list": {
     module: "scheduling", owner: "P03", kind: "query", idempotent: false,
     input: scheduling.BookingListInput, output: scheduling.BookingListOutput,

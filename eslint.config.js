@@ -58,18 +58,15 @@ const restricted = (...groups) => ["error", SECRET_KEY, ...groups.flat()];
 const LEGACY_MONEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
-  "src/features/scheduling/agenda.ts",
 ];
 const LEGACY_KEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
   "src/features/agent/port.ts",
-  "src/features/scheduling/port.ts",
 ];
 const LEGACY_CLOCK = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
-  "src/features/scheduling/attendance.tsx",
 ];
 
 // P53 (R4): um cliente de API por sessão (src/app/session.tsx). Módulo usa useApi/usePort de src/app/api.tsx e só
@@ -80,9 +77,11 @@ const LEGACY_CLIENT = [
   "src/features/finance/module.tsx",
   "src/features/lifecycle/module.tsx",
   "src/features/messaging/unread.ts",
+  // P57 entrou na main antes do P53 e cria o próprio cliente; a main ficou com lint vermelho. Fica aqui até a migração
+  // (anotado no handoff da Agenda do personal).
+  "src/features/privacy/module.tsx",
   "src/features/sales/owner-slug.ts",
   "src/features/sales/public-kit.tsx",
-  "src/features/scheduling/SchedulingLayout.tsx",
 ];
 
 const APP_CODE = ["src/features/**/*.{ts,tsx}", "src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"];

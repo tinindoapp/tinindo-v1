@@ -39,7 +39,9 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `booking.complete` | id, expected_version, key | Atendimento concluído; caixa não presumido |
 | `booking.confirm` | booking_id, expected_version, key | Hold vira reserva confirmada se o prazo (no banco) não venceu |
 | `booking.no_show` | booking_id, expected_version, motivo, revert, key | Falta marcada ou revertida com motivo |
-| `booking.create_series` | serviço, cliente, primeiro slot, semanas (2–12), tudo-ou-nada, key | Ocorrências semanais materializadas; conflitos explícitos |
+| `booking.create_series` | serviço, cliente, primeiro slot, semanas (2–12), dias da semana (opcional, um series_id para todos), tudo-ou-nada, key | Ocorrências semanais materializadas; conflitos explícitos |
+| `booking.series` | series_id | Atendimentos da série em ordem (até 84) |
+| `booking.cancel_series_from` | id, expected_version, motivo, key | Cancela este e os próximos ainda marcados da série numa transação; passados e concluídos ficam |
 | `booking.list` | janela (≤ 62 dias), cursor, limit | Reservas do tenant que começam na janela |
 | `booking.list_by_customer` | customer_id, cursor, limit | Todas as reservas de um cliente do tenant, da mais recente para a mais antiga, sem janela |
 | `booking.get` | booking_id | Reserva na visão do dono |
