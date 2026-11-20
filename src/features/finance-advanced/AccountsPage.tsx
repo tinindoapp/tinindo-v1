@@ -4,14 +4,16 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, Stat, Stats, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { errorInfo } from "../../lib/errors.ts";
+import { useAttemptValue, useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { parseBRL } from "../../lib/money.ts";
 import { plural, pluralWord } from "../../lib/text/plural.ts";
+import { addDays, formatCivilDate, formatDate, formatMonth, now } from "../../lib/time.ts";
 import {
-  addDays, BASE_LABEL, EXPENSE_BASES, explain, formatCents, formatDay, METHOD_LABEL, monthLabel, periodLabel, SOURCE_LABEL, STATUS_LABEL,
+  BASE_LABEL, EXPENSE_BASES, explain, formatCents, METHOD_LABEL, periodLabel, SOURCE_LABEL, STATUS_LABEL,
 } from "./labels.ts";
 import {
-  type AccCategory, type AccEntry, type AccountsBase, type AccountsPort, type AccPayable, type AccReconciliationRow, type AccSeries, type AccStatement, newKey,
+  type AccCategory, type AccEntry, type AccountsBase, type AccountsPort, type AccPayable, type AccReconciliationRow, type AccSeries, type AccStatement,
 } from "./port.ts";
 
 type Tab = "month" | "payables" | "reconcile" | "categories";
@@ -48,8 +50,8 @@ function PayableForm({ port, base, categories, onDone }: { port: AccountsPort; b
         category_id: custom, base_category: custom ? "other" as const : (cat.slice(5) as AccPayable["base_category"]) };
       const r = await port.savePayable(payload, idem.keyFor(payload));
       idem.reset();
-      toast(r.created > 1 ? `“${r.payable.description}” todo mês: ${r.created} contas criadas, a primeira vence em ${formatDay(r.payable.due_on)}.`
-        : `Conta “${r.payable.description}” criada para ${formatDay(r.payable.due_on)}.`);
+      toast(r.created > 1 ? `“${r.payable.description}” todo mês: ${r.created} contas criadas, a primeira vence em ${formatCivilDate(r.payable.due_on)}.`
+        : `Conta “${r.payable.description}” criada para ${formatCivilDate(r.payable.due_on)}.`);
       onDone();
     } catch (err) {
       fail(err);
@@ -75,13 +77,20 @@ function PayableForm({ port, base, categories, onDone }: { port: AccountsPort; b
 
 function PayableRow({ p, port, onChange }: { p: AccPayable; port: AccountsPort; onChange: () => void }) {
   const [busy, setBusy] = useState(false);
+  const command = useCommand();
+  // "Agora" entra no pedido. Na nova tentativa do mesmo pagamento precisa ser o mesmo instante: com outro, o
+  // servidor veria a mesma chave com corpo diferente.
+  const instant = useAttemptValue<string>();
   async function pay() {
     setBusy(true);
     try {
-      const paid = await port.pay(p, new Date().toISOString(), newKey());
+      const intent = { pay: p.id, version: p.version };
+      const paidAt = instant.valueFor(intent, () => now().toISOString());
+      const paid = await command(intent, (key) => port.pay(p, paidAt, key));
+      instant.reset();
       onChange();
       toast({ message: `“${p.description}” paga: ${formatCents(p.amount_cents)} saiu no Caixa.`, action: { label: "Desfazer", onAction: async () => {
-        try { await port.reverse(paid, newKey()); toast("Pagamento desfeito: a despesa foi estornada no Caixa."); } catch (err) { fail(err); }
+        try { await command({ reverse: paid.id, version: paid.version }, (key) => port.reverse(paid, key)); toast("Pagamento desfeito: a despesa foi estornada no Caixa."); } catch (err) { fail(err); }
         onChange();
       } } });
     } catch (err) {
@@ -95,7 +104,7 @@ function PayableRow({ p, port, onChange }: { p: AccPayable; port: AccountsPort; 
     <li className="tn-acc-item" data-status={p.status}>
       <div>
         <strong>{p.description}</strong>{p.supplier ? ` · ${p.supplier}` : ""}
-        <div className="tn-muted">vence {formatDay(p.due_on)} · {p.category_name ?? BASE_LABEL[p.base_category]}{p.series_id ? " · todo mês" : ""}{p.reversals ? ` · ${plural(p.reversals, "estorno")}` : ""}</div>
+        <div className="tn-muted">vence {formatCivilDate(p.due_on)} · {p.category_name ?? BASE_LABEL[p.base_category]}{p.series_id ? " · todo mês" : ""}{p.reversals ? ` · ${plural(p.reversals, "estorno")}` : ""}</div>
       </div>
       <div className="tn-acc-right">
         <span className="tn-num">{formatCents(p.amount_cents)}</span>
@@ -104,16 +113,16 @@ function PayableRow({ p, port, onChange }: { p: AccPayable; port: AccountsPort; 
       <div className="tn-actions">
         {p.status === "open" || p.status === "overdue" ? (
           <>
-            <Button variant="secondary" loading={busy} onClick={() => void pay()} aria-label={`Pagar ${p.description} de ${formatDay(p.due_on)}`}>Pagar</Button>
-            <ConfirmAction trigger="Cancelar" triggerLabel={`Cancelar ${p.description} de ${formatDay(p.due_on)}`} title="Cancelar esta conta?"
+            <Button variant="secondary" loading={busy} onClick={() => void pay()} aria-label={`Pagar ${p.description} de ${formatCivilDate(p.due_on)}`}>Pagar</Button>
+            <ConfirmAction trigger="Cancelar" triggerLabel={`Cancelar ${p.description} de ${formatCivilDate(p.due_on)}`} title="Cancelar esta conta?"
               consequence={<p>Ela sai da lista de contas a pagar e não entra no Caixa. Para voltar, crie a conta de novo.</p>} confirmLabel="Sim, cancelar"
-              onConfirm={async () => { try { await port.cancel(p, newKey()); toast("Conta cancelada."); onChange(); } catch (err) { fail(err); throw err; } }} />
+              onConfirm={async () => { try { await command({ cancel: p.id, version: p.version }, (key) => port.cancel(p, key)); toast("Conta cancelada."); onChange(); } catch (err) { fail(err); throw err; } }} />
           </>
         ) : null}
         {p.status === "paid" ? (
           <ConfirmAction trigger="Estornar pagamento" triggerLabel={`Estornar pagamento de ${p.description}`} title="Estornar o pagamento?"
             consequence={<p>A despesa de {formatCents(p.amount_cents)} recebe um estorno no Caixa e a conta volta a ficar a pagar.</p>} confirmLabel="Sim, estornar"
-            onConfirm={async () => { try { await port.reverse(p, newKey()); toast("Pagamento estornado no Caixa."); onChange(); } catch (err) { fail(err); throw err; } }} />
+            onConfirm={async () => { try { await command({ reverse: p.id, version: p.version }, (key) => port.reverse(p, key)); toast("Pagamento estornado no Caixa."); onChange(); } catch (err) { fail(err); throw err; } }} />
         ) : null}
       </div>
     </li>
@@ -121,20 +130,21 @@ function PayableRow({ p, port, onChange }: { p: AccPayable; port: AccountsPort; 
 }
 
 function SeriesRow({ s, port, onChange }: { s: AccSeries; port: AccountsPort; onChange: () => void }) {
+  const command = useCommand();
   return (
     <li className="tn-acc-item">
       <div>
         <strong>{s.description}</strong> · todo dia {s.day_of_month} · {formatCents(s.amount_cents)}
-        <div className="tn-muted">{s.active ? `contas criadas até ${formatDay(s.generated_until)}` : "encerrada"}</div>
+        <div className="tn-muted">{s.active ? `contas criadas até ${formatCivilDate(s.generated_until)}` : "encerrada"}</div>
       </div>
       {s.active ? (
         <div className="tn-actions">
-          <Button variant="ghost" onClick={() => void port.updateSeries(s, "extend", newKey()).then((r) => { toast(`${r.affected} contas novas de “${s.description}”.`); onChange(); }, fail)}>
+          <Button variant="ghost" onClick={() => void command({ extend: s.id, version: s.version }, (key) => port.updateSeries(s, "extend", key)).then((r) => { toast(`${r.affected} contas novas de “${s.description}”.`); onChange(); }, fail)}>
             Criar mais 12 meses
           </Button>
           <ConfirmAction trigger="Encerrar" triggerLabel={`Encerrar ${s.description}`} title={`Encerrar “${s.description}”?`}
             consequence={<p>As contas futuras ainda não pagas são canceladas. As já pagas ficam como estão.</p>} confirmLabel="Sim, encerrar"
-            onConfirm={async () => { try { const r = await port.updateSeries(s, "end", newKey()); toast(`Encerrada: ${plural(r.affected, "conta futura cancelada", "contas futuras canceladas")}.`); onChange(); } catch (err) { fail(err); throw err; } }} />
+            onConfirm={async () => { try { const r = await command({ end: s.id, version: s.version }, (key) => port.updateSeries(s, "end", key)); toast(`Encerrada: ${plural(r.affected, "conta futura cancelada", "contas futuras canceladas")}.`); onChange(); } catch (err) { fail(err); throw err; } }} />
         </div>
       ) : null}
     </li>
@@ -142,6 +152,7 @@ function SeriesRow({ s, port, onChange }: { s: AccSeries; port: AccountsPort; on
 }
 
 function StatementView({ st, entries, categories, port, onChange }: { st: AccStatement; entries: AccEntry[]; categories: AccCategory[]; port: AccountsPort; onChange: () => void }) {
+  const command = useCommand();
   const c = st.coverage;
   const gaps = [
     c.uncharged_bookings ? `${plural(c.uncharged_bookings, "atendimento concluído", "atendimentos concluídos")} sem cobrança (${formatCents(c.uncharged_cents)})` : null,
@@ -153,7 +164,7 @@ function StatementView({ st, entries, categories, port, onChange }: { st: AccSta
   return (
     <>
       <Card aria-labelledby="acc-month-title">
-        <h2 id="acc-month-title">Caixa de {monthLabel(st.period.month)}</h2>
+        <h2 id="acc-month-title">Caixa de {formatMonth(st.period.month)}</h2>
         <p className="tn-muted">Período: {periodLabel(st.period)} · fuso {st.period.timezone}. Regime de caixa: o que foi registrado como recebido e pago.</p>
         <Stats label="Resumo do mês">
           <Stat label="Entrou" value={formatCents(st.in_cents)} />
@@ -188,10 +199,10 @@ function StatementView({ st, entries, categories, port, onChange }: { st: AccSta
             <li key={e.entry_id} className="tn-acc-item">
               <div>
                 <strong>{e.entry_kind === "payment" ? "Entrou" : "Saiu"} {formatCents(e.amount_cents)}</strong> · {e.description || BASE_LABEL[e.base]}
-                <div className="tn-muted">{new Date(e.at).toLocaleDateString("pt-BR", { timeZone: st.period.timezone })}{e.method ? ` · ${METHOD_LABEL[e.method]}` : ""}</div>
+                <div className="tn-muted">{formatDate(e.at, st.period.timezone)}{e.method ? ` · ${METHOD_LABEL[e.method]}` : ""}</div>
               </div>
               <Field as="select" label="Categoria" className="tn-acc-classify" value={e.category_id ?? ""}
-                onChange={(ev) => void port.classify(e, ev.target.value || null, newKey()).then(() => { toast("Categoria salva."); onChange(); }, fail)}>
+                onChange={(ev) => { const category = ev.target.value || null; void command({ classify: e.entry_id, kind: e.entry_kind, category }, (key) => port.classify(e, category, key)).then(() => { toast("Categoria salva."); onChange(); }, fail); }}>
                 <option value="">{originLabel(e)} (de origem)</option>
                 {categories.filter((c2) => c2.active && c2.kind === (e.entry_kind === "payment" ? "income" : "expense")).map((c2) => <option key={c2.id} value={c2.id}>{c2.name}</option>)}
               </Field>
@@ -206,6 +217,7 @@ function StatementView({ st, entries, categories, port, onChange }: { st: AccSta
 function ReconcileRow({ r, day, port, onChange }: { r: AccReconciliationRow; day: string; port: AccountsPort; onChange: () => void }) {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"value">();
   const label = `${METHOD_LABEL[r.method]} ${SOURCE_LABEL[r.source]}`;
   async function submit(e: FormEvent) {
@@ -214,7 +226,8 @@ function ReconcileRow({ r, day, port, onChange }: { r: AccReconciliationRow; day
     if (!show({ value: (cents === null || cents === undefined) && "Informe o valor que aparece no extrato." }) || cents === null || cents === undefined) return;
     setBusy(true);
     try {
-      const diff = await port.reconcile(day, r.method, r.source, cents, newKey());
+      const diff = await port.reconcile(day, r.method, r.source, cents, idem.keyFor({ day, method: r.method, source: r.source, cents }));
+      idem.reset();
       toast(diff === 0 ? `${label}: bate com o extrato.` : { tone: "warning", message: `${label}: diferença de ${formatCents(diff)} em relação ao registrado.` });
       setValue("");
       onChange();
@@ -248,18 +261,21 @@ function CategoryForm({ port, onDone }: { port: AccountsPort; onDone: () => void
   const [name, setName] = useState("");
   const [baseCat, setBaseCat] = useState<(typeof EXPENSE_BASES)[number]>("other");
   const [busy, setBusy] = useState(false);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"name">();
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!show({ name: !name.trim() && "Dê um nome à categoria." })) return;
     setBusy(true);
     try {
-      const c = await port.saveCategory({ kind, name: name.trim(), base: kind === "expense" ? baseCat : null }, newKey());
+      const input = { kind, name: name.trim(), base: kind === "expense" ? baseCat : null };
+      const c = await port.saveCategory(input, idem.keyFor(input));
+      idem.reset();
       toast(`Categoria “${c.name}” criada.`);
       setName("");
       onDone();
     } catch (err) {
-      if ((err as { field?: string }).field === "name") show({ name: explain(err) });
+      if (errorInfo(err).field === "name") show({ name: explain(err) });
       else fail(err);
     } finally {
       setBusy(false);

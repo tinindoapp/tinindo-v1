@@ -42,5 +42,3 @@ export interface MaterialsPort {
   bookings(period: TimeRange): Promise<MaterialBooking[]>;
   margin(period: TimeRange): Promise<MarginReport>;
 }
-
-export const newKey = () => crypto.randomUUID();

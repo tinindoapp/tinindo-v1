@@ -22,12 +22,12 @@ import {
   shiftMonth,
   unchargedTotal,
 } from "./money.ts";
-import { useAttemptValue, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { useAttemptValue, useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { explainFinanceError, METHOD_LABEL, METHODS, type Method, useCollectBooking } from "../../lib/collect.ts";
 import { CollectActions } from "../../components/ui/collect.tsx";
 import { plural } from "../../lib/text/plural.ts";
 import { receivedPeriods } from "../../lib/time.ts";
-import { type FinanceBase, type FinancePort, newKey } from "./port.ts";
+import type { FinanceBase, FinancePort } from "./port.ts";
 
 const PortContext = createContext<FinancePort | null>(null);
 export const FinancePortProvider = PortContext.Provider;
@@ -463,6 +463,7 @@ function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
   // "Agora" entra no pedido. Na nova tentativa precisa ser o mesmo instante: com outro, a chave mudaria
   // e o recebimento seria gravado duas vezes.
   const instant = useAttemptValue<string>();
+  const command = useCommand();
   // Vindo da Agenda com `?atendimento=<id>` já cobrado: o recebimento dessa cobrança abre direto.
   const [open, setOpen] = useState(() => !!r.booking_id && r.booking_id === ctx.focusBooking);
   const [amount, setAmount] = useState(centsToInput(r.open_cents));
@@ -502,7 +503,7 @@ function ReceivableItem({ r, ctx }: { r: Receivable; ctx: Ctx }) {
 
   async function cancel() {
     try {
-      await port.cancelReceivable({ receivable_id: r.id, expected_version: r.version }, newKey());
+      await command({ cancel: r.id, version: r.version }, (key) => port.cancelReceivable({ receivable_id: r.id, expected_version: r.version }, key));
       ctx.notify("success", "Cobrança cancelada.");
     } catch (err) {
       ctx.notify("danger", explain(err));
@@ -586,10 +587,11 @@ function Payments({ list }: { list: PaymentRecord[] }) {
   const ctx = usePage();
   const port = usePort();
   const [all, setAll] = useState(false);
+  const command = useCommand();
   const recent = [...list].sort((a, b) => b.received_at.localeCompare(a.received_at));
   const reverse = (p: PaymentRecord) => async (reason: string) => {
     try {
-      await port.reversePayment({ payment_id: p.id, reason }, newKey());
+      await command({ reversePayment: p.id, reason }, (key) => port.reversePayment({ payment_id: p.id, reason }, key));
       ctx.notify("success", `Recebimento de ${formatCents(p.amount_cents)} estornado. O registro original continua no histórico.`);
     } catch (err) {
       ctx.notify("danger", explain(err));
@@ -753,11 +755,12 @@ function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["
   const ctx = usePage();
   const port = usePort();
   const [all, setAll] = useState(false);
+  const command = useCommand();
   const recent = [...list].sort((a, b) => b.paid_at.localeCompare(a.paid_at));
 
   const reverse = (id: string) => async (_reason: string) => {
     try {
-      await port.reverseExpense({ expense_id: id }, newKey());
+      await command({ reverseExpense: id }, (key) => port.reverseExpense({ expense_id: id }, key));
       ctx.notify("success", "Despesa estornada. O registro original continua no histórico.");
     } catch (err) {
       ctx.notify("danger", explain(err));
@@ -865,6 +868,7 @@ function Packages({ list }: { list: PackageDetail[] }) {
   const ctx = usePage();
   const port = usePort();
   const [selling, setSelling] = useState(false);
+  const command = useCommand();
   const formBox = useRef<HTMLDivElement>(null);
   // Abre no lugar e leva o foco ao primeiro campo.
   useEffect(() => {
@@ -873,7 +877,7 @@ function Packages({ list }: { list: PackageDetail[] }) {
 
   const reverse = (entryId: string) => async (reason: string) => {
     try {
-      await port.reversePackage({ entry_id: entryId, reason }, newKey());
+      await command({ reversePackage: entryId, reason }, (key) => port.reversePackage({ entry_id: entryId, reason }, key));
       ctx.notify("success", "Crédito devolvido ao pacote. O débito original continua no histórico.");
     } catch (err) {
       ctx.notify("danger", explain(err));
