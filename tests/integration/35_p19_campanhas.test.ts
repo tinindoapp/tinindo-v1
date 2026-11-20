@@ -85,6 +85,9 @@ describe("P19 · campanhas pelos handlers", () => {
       name: "Só observação", segment: { kind: "marketing_all" }, audience_hash: p.audience_hash, control_pct: 0, max_sends: 3, window_days: 7 } });
     expect(obs.campaign).toMatchObject({ treatment_count: 3, control_count: 0, result: { design: "observational", verdict: "observation_only" } });
     await sql("update public.campaigns set ends_at = clock_timestamp() - interval '1 minute' where id = $1", [obs.campaign.id]);
+    // P51 (D4): Campanhas é módulo guardado. Sem o módulo no negócio a rotina não fecha; ligado pelo backend, fecha.
+    expect(((await runJobs()) as Jobs).campaigns?.closed).toBe(0);
+    await sql("select app.module_admin_set($1, 'campaigns', true)", [T.A]);
     expect(((await runJobs()) as Jobs).campaigns?.closed).toBe(1);
     expect(((await runJobs()) as Jobs).campaigns?.closed).toBe(0);
     const g = await ok(CampaignGetOutput, "campaigns", "campaign.get", { ...owner, body: { campaign_id: obs.campaign.id } });

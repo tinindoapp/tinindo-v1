@@ -1,17 +1,21 @@
-// Configuração (P44): os 8 passos com por quê e a tela que resolve; "descreva seu negócio em uma frase" (analisador
-// por regras → rascunho que o dono revisa campo a campo); modelos de serviço da profissão como sugestão marcável.
+// Configuração (P44): os 8 passos com por quê e a tela que resolve; "descreva seu negócio em uma frase" (regras
+// primeiro, assistente só para o que faltar → rascunho que o dono revisa campo a campo); modelos de serviço da
+// profissão como sugestão marcável.
+// P50: o rascunho aceita mais de um período por dia e dias com horários diferentes; os serviços vêm com a duração e a
+// faixa de preço do modelo da profissão; cada campo recusado diz o motivo; campo preenchido pelo assistente leva selo.
 // O que a tela promete é o que o banco garante: nenhum serviço, horário ou preço é gravado sem a confirmação explícita,
 // e cada confirmação passa pelas mesmas regras do catálogo (P02) e da agenda (P03).
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router";
 import type { Profession, WeeklyWindow } from "@contracts";
 import { Button, Card, ChipGroup, ChoiceCard, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { describeBusiness, draftToWeeklyWindows } from "../../../supabase/functions/_shared/domain/setup/describe.ts";
+import { useScope } from "../../app/scope.tsx";
 import { centsToInput, parseBRL } from "../../lib/money.ts";
+import { setupView } from "../../lib/setup/steps.ts";
 import { plural } from "../../lib/text/plural.ts";
-import { explain, formatCents, priceRange, PROFESSION_LABEL, specOf, summarizeHours } from "./labels.ts";
-import { newKey, type SetupDescribeDraft, type SetupPort, type SetupProgress, type SetupServiceDraft, type SetupStepCode, type SetupTemplate } from "./port.ts";
+import { explain, formatCents, priceRange, PROFESSION_LABEL, specOf, stepWhy, summarizeHours } from "./labels.ts";
+import { type BusinessDescription, newKey, type SetupDescribeOutput, type SetupPort, type SetupProgress, type SetupServiceDraft, type SetupStepCode, type SetupTemplate } from "./port.ts";
 import "./setup.css";
 
 const fail = (err: unknown) => toast({ tone: "danger", message: explain(err) });
@@ -19,6 +23,8 @@ const PROFESSIONS = ["barber", "hairdresser", "personal_trainer", "other"] as co
 
 function Steps({ progress, port, onChange }: { progress: SetupProgress; port: SetupPort; onChange: (p: SetupProgress) => void }) {
   const [busy, setBusy] = useState<SetupStepCode | null>(null);
+  // P51: passo cuja tela não aparece para o negócio fica fora da lista e da conta.
+  const view = setupView(progress, useScope().canOpen);
   async function toggle(step: SetupStepCode, dismissed: boolean) {
     setBusy(step);
     try {
@@ -33,7 +39,7 @@ function Steps({ progress, port, onChange }: { progress: SetupProgress; port: Se
   return (
     <Card aria-labelledby="setup-steps-title">
       <h2 id="setup-steps-title">
-        Passos <span className="tn-num tn-muted">· {progress.done_count} de {progress.total} feitos</span>
+        Passos <span className="tn-num tn-muted">· {view.done} de {view.total} feitos</span>
       </h2>
       {progress.ready ? (
         <StatusBanner tone="success">Seu negócio está pronto para receber reservas pelo link. Os passos que faltam são opcionais.</StatusBanner>
@@ -41,10 +47,10 @@ function Steps({ progress, port, onChange }: { progress: SetupProgress; port: Se
         <p className="tn-muted">Os quatro primeiros deixam o link público funcionando. Os outros podem ficar para depois.</p>
       )}
       <ol className="tn-setup-steps" aria-label="Passos da configuração">
-        {progress.steps.map((s, i) => {
+        {view.steps.map((s, i) => {
           const spec = specOf(s.step);
           return (
-            <li key={s.step} className="tn-setup-step" data-done={s.done || undefined} data-dismissed={s.dismissed || undefined} data-next={progress.next === s.step || undefined}>
+            <li key={s.step} className="tn-setup-step" data-done={s.done || undefined} data-dismissed={s.dismissed || undefined} data-next={view.next?.step === s.step || undefined}>
               <span className="tn-setup-step__mark" aria-hidden="true">{s.done ? "✓" : i + 1}</span>
               <div className="tn-setup-step__body">
                 <p className="tn-setup-step__title">
@@ -53,7 +59,7 @@ function Steps({ progress, port, onChange }: { progress: SetupProgress; port: Se
                   {!s.required ? <span className="tn-setup-step__tag">opcional</span> : null}
                   {s.dismissed ? <span className="tn-setup-step__tag">dispensado</span> : null}
                 </p>
-                {s.why ? <p className="tn-setup-step__why">{s.why}</p> : null}
+                {stepWhy(s) ? <p className="tn-setup-step__why">{stepWhy(s)}</p> : null}
                 {!s.done ? (
                   <div className="tn-setup-step__actions">
                     <Link to={s.link} className="tn-setup-step__go">{spec.cta}<Icon name="seta" size={16} /></Link>
@@ -73,91 +79,223 @@ function Steps({ progress, port, onChange }: { progress: SetupProgress; port: Se
   );
 }
 
-type ServiceRow = { key: string; template_code: string | null; name: string; duration: string; price: string };
-const rowOf = (name: string, duration = "", price = "", template_code: string | null = null): ServiceRow => ({ key: newKey(), template_code, name, duration, price });
+type ServiceRow = { key: string; template_code: string | null; name: string; duration: string; price: string; range: string | null };
+const rowOf = (name: string, duration = "", price = "", template_code: string | null = null, range: string | null = null): ServiceRow =>
+  ({ key: newKey(), template_code, name, duration, price, range });
+const sameName = (a: string, b: string) => a.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === b.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+/** Dias que compartilham os mesmos períodos. O primeiro grupo é o expediente principal; os outros, dias com horário próprio. */
+type PeriodRow = { key: string; start: string; end: string };
+type DayGroup = { key: string; weekdays: number[]; periods: PeriodRow[] };
+const periodOf = (start = "", end = ""): PeriodRow => ({ key: newKey(), start, end });
+const MAX_PERIODS = 3;
+const MAX_GROUPS = 4;
+const ORDINAL = ["", "2º", "3º"];
+
+function groupsOf(draft: BusinessDescription): DayGroup[] {
+  const byDay = new Map<number, PeriodRow[]>();
+  for (const w of draft.windows) byDay.set(w.weekday, [...(byDay.get(w.weekday) ?? []), periodOf(w.local_start, w.local_end)]);
+  const groups: DayGroup[] = [];
+  const signature = (ps: PeriodRow[]) => ps.map((p) => `${p.start}-${p.end}`).join("|");
+  for (const [day, periods] of [...byDay.entries()].sort((a, b) => a[0] - b[0])) {
+    const g = groups.find((x) => signature(x.periods) === signature(periods));
+    if (g) g.weekdays.push(day);
+    else groups.push({ key: newKey(), weekdays: [day], periods: periods.slice(0, MAX_PERIODS) });
+  }
+  // O grupo com mais dias vem primeiro (é o "expediente principal" da tela).
+  groups.sort((a, b) => b.weekdays.length - a.weekdays.length);
+  // Sem expediente lido: um grupo com os dias e o horário soltos que a frase trouxe, para o dono completar.
+  if (groups.length === 0) groups.push({ key: newKey(), weekdays: draft.weekdays, periods: [periodOf(draft.start ?? "", draft.end ?? "")] });
+  return groups.slice(0, MAX_GROUPS);
+}
+
+/** Selo do campo que o assistente preencheu (o resto veio das regras ou do próprio dono). */
+function Seal({ on }: { on: boolean }) {
+  return on ? <span className="tn-setup-seal">preenchido pelo assistente</span> : null;
+}
+
+/** Ressalvas e recusas de um campo, com o motivo, logo acima dele. */
+function FieldNotes({ draft, field }: { draft: BusinessDescription; field: BusinessDescription["notes"][number]["field"] }) {
+  const notes = draft.notes.filter((n) => n.field === field);
+  if (notes.length === 0) return null;
+  return (
+    <ul className="tn-setup-notes" aria-label={`Avisos de ${{ profession: "profissão", team_size: "equipe", weekdays: "dias", hours: "horário", services: "serviços" }[field]}`}>
+      {notes.map((n, i) => <li key={i} data-level={n.level}>{n.text}</li>)}
+    </ul>
+  );
+}
 
 /** Rascunho da frase, campo a campo. Nada é salvo até "Salvar" e a confirmação. */
-function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeDraft; port: SetupPort; onSaved: (p: SetupProgress) => void }) {
+function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeOutput; port: SetupPort; onSaved: (p: SetupProgress) => void }) {
   const [profession, setProfession] = useState<Profession | "">(draft.profession ?? "");
-  const [weekdays, setWeekdays] = useState<number[]>(draft.weekdays);
-  const [start, setStart] = useState(draft.start ?? "");
-  const [end, setEnd] = useState(draft.end ?? "");
-  const [pauseStart, setPauseStart] = useState(draft.pause?.start ?? "");
-  const [pauseEnd, setPauseEnd] = useState(draft.pause?.end ?? "");
-  const [rows, setRows] = useState<ServiceRow[]>(draft.services.map((n) => rowOf(n)));
+  const [groups, setGroups] = useState<DayGroup[]>(() => groupsOf(draft));
+  const cited = draft.service_drafts.filter((d) => d.cited);
+  const [rows, setRows] = useState<ServiceRow[]>(() => cited.map((d) =>
+    rowOf(d.name, d.duration_min === null ? "" : String(d.duration_min), d.price_cents === null ? "" : centsToInput(d.price_cents), d.template_code, priceRange(d.price_from_cents, d.price_to_cents))));
+  // Nomes já no catálogo (pelos modelos da profissão atual): o rascunho marca em vez de recusar tudo ao salvar.
+  const [existing, setExisting] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { formRef, errors, show } = useFormErrors<"profession" | "weekdays" | "hours" | "services">();
+  useEffect(() => {
+    let alive = true;
+    port.templates().then((t) => alive && setExisting(t.templates.filter((x) => x.exists).map((x) => x.name)), () => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [port]);
+  const exists = (name: string) => existing.some((n) => sameName(n, name));
 
-  const hours: WeeklyWindow[] = useMemo(() => {
-    const pause = pauseStart && pauseEnd && pauseEnd > pauseStart ? { start: pauseStart, end: pauseEnd } : null;
-    return draftToWeeklyWindows({ weekdays, start: start || null, end: end || null, pause });
-  }, [weekdays, start, end, pauseStart, pauseEnd]);
-  const services = rows.filter((r) => r.name.trim());
+  const setGroup = (key: string, patch: (g: DayGroup) => DayGroup) => setGroups((gs) => gs.map((g) => (g.key === key ? patch(g) : g)));
+  const setPeriod = (gKey: string, pKey: string, patch: Partial<PeriodRow>) =>
+    setGroup(gKey, (g) => ({ ...g, periods: g.periods.map((p) => (p.key === pKey ? { ...p, ...patch } : p)) }));
+
+  const hours: WeeklyWindow[] = useMemo(() => groups.flatMap((g) => g.weekdays.flatMap((weekday) =>
+    g.periods.filter((p) => p.start && p.end && p.end > p.start).map((p) => ({ weekday, local_start: p.start, local_end: p.end }))))
+    .sort((a, b) => a.weekday - b.weekday || a.local_start.localeCompare(b.local_start)), [groups]);
+  const services = rows.filter((r) => r.name.trim() && !exists(r.name));
+  const repeated = rows.filter((r) => r.name.trim() && exists(r.name));
   // Preço vazio (null) ou inválido (undefined) vira -1, que servicesOk recusa com a mensagem do campo.
   const parsed: SetupServiceDraft[] = services.map((r) => ({ template_code: r.template_code, name: r.name.trim(), duration_min: Number(r.duration), base_price_cents: parseBRL(r.price) ?? -1 }));
-  const servicesOk = parsed.every((s) => Number.isInteger(s.duration_min) && s.duration_min >= 5 && s.duration_min <= 1440 && s.base_price_cents >= 0);
+  const badService = parsed.find((s) => !(Number.isInteger(s.duration_min) && s.duration_min >= 5 && s.duration_min <= 1440 && s.base_price_cents >= 0));
+  const twice = parsed.find((s, i) => parsed.some((o, j) => j < i && sameName(o.name, s.name)));
 
-  const wantsHours = weekdays.length > 0 || !!start || !!end;
+  const used = groups.filter((g) => g.weekdays.length > 0 || g.periods.some((p) => p.start || p.end));
+  const wantsHours = used.length > 0;
+  const filled = (g: DayGroup) => g.periods.filter((p) => p.start || p.end);
+  const badPeriod = used.some((g) => filled(g).length === 0 || filled(g).some((p) => !p.start || !p.end || p.end <= p.start));
+  const overlap = used.some((g) => [...filled(g)].sort((a, b) => a.start.localeCompare(b.start)).some((p, i, all) => i > 0 && all[i - 1]!.end > p.start));
+  const dayTwice = used.some((g, i) => g.weekdays.some((d) => used.some((o, j) => j < i && o.weekdays.includes(d))));
   const problems = {
     profession: !profession && "Escolha a profissão.",
-    weekdays: wantsHours && weekdays.length === 0 && "Marque os dias de atendimento.",
-    hours: wantsHours && (!start || !end || end <= start) && "Informe início e fim; o fim vem depois do início.",
-    services: services.length > 0 && !servicesOk && "Cada serviço precisa de duração entre 5 e 1440 minutos e preço em reais (ex.: 35,00).",
+    weekdays: wantsHours && (used.some((g) => g.weekdays.length === 0) ? "Marque os dias de atendimento." : dayTwice && "Um dia não pode estar em dois grupos de horário. Deixe cada dia em um só."),
+    hours: wantsHours && (badPeriod ? "Informe início e fim de cada período; o fim vem depois do início." : overlap && "Os períodos do mesmo dia não podem se sobrepor."),
+    services: badService ? `${badService.name}: informe a duração (entre 5 e 1440 minutos) e o preço em reais (ex.: 35,00).`
+      : twice ? `${twice.name} aparece duas vezes. Deixe um só.` : null,
   };
   const problem = Object.values(problems).find((v): v is string => typeof v === "string") ?? null;
   const validate = () => show(problems);
   async function save() {
     setBusy(true);
+    setSaveError(null);
     try {
       const out = await port.applyDraft({ profession: profession || null, hours: hours.length ? hours : null, services: parsed }, newKey());
       const parts = [out.hours ? `expediente de ${plural(new Set(out.hours.map((h) => h.weekday)).size, "dia")}` : null, out.created.length ? plural(out.created.length, "serviço criado", "serviços criados") : null].filter(Boolean);
       toast(parts.length ? `Salvo: ${parts.join(" e ")}.` : "Profissão salva.");
       onSaved(out.progress);
     } catch (err) {
-      fail(err);
+      // Nome repetido: diz quais nomes foram enviados, em vez de "esse nome" (achado A8).
+      const e = err as { code?: string; field?: string } | null;
+      if (e?.code === "VALIDATION_ERROR" && e.field === "name") {
+        setSaveError(`Já existe um serviço ativo com um destes nomes: ${parsed.map((s) => s.name).join(", ")}. Tire o repetido e salve de novo. Nada foi salvo, nem o expediente.`);
+      } else fail(err);
     } finally {
       setBusy(false);
     }
   }
+  // Na demonstração, a gravação só chega à Agenda e aos Serviços desta aba quando essas telas estão ligadas à Configuração.
+  const reach = port.kind === "demo" ? port.reach ?? { hours: false, services: false } : { hours: true, services: true };
   const consequence = [
     profession ? `Profissão: ${PROFESSION_LABEL[profession]}.` : null,
-    hours.length ? `Expediente: ${summarizeHours(hours)} (substitui o atual da agenda principal).` : "Expediente: não muda.",
-    parsed.length ? `Serviços: ${parsed.map((s) => `${s.name} (${s.duration_min} min, ${formatCents(Math.max(0, s.base_price_cents))})`).join("; ")}.` : "Serviços: nenhum.",
+    hours.length ? `Expediente: ${summarizeHours(hours)} (${reach.hours ? "substitui o atual da agenda principal" : "na demonstração, fica só nesta tela: a Agenda de exemplo não muda"}).` : "Expediente: não muda.",
+    parsed.length ? `Serviços: ${parsed.map((s) => `${s.name} (${s.duration_min} min, ${formatCents(Math.max(0, s.base_price_cents))})`).join("; ")}.${reach.services ? "" : " Na demonstração, os serviços ficam só nesta tela."}` : "Serviços: nenhum.",
+    repeated.length ? `Já no catálogo, não entram de novo: ${repeated.map((r) => r.name.trim()).join(", ")}.` : null,
   ].filter(Boolean).join(" ");
+
+  const suggestions = draft.service_drafts.filter((d) => !exists(d.name) && !rows.some((r) => sameName(r.name, d.name)));
+  const unknownText = draft.unknown.map((u) => ({ profession: "a profissão", weekdays: "os dias", hours: "o horário" })[u]);
+  const groupTitle = (i: number): ReactNode => (i === 0 ? "Dias de atendimento" : `Dias com outro horário (grupo ${i + 1})`);
+  const periodLabel = (gi: number, pi: number, what: "Início" | "Fim") => `${what}${pi > 0 ? ` do ${ORDINAL[pi]} período` : ""}${gi > 0 ? ` (grupo ${gi + 1})` : ""}`;
 
   return (
     <form ref={formRef} className="tn-setup-draft" aria-label="Rascunho do seu negócio" onSubmit={(e) => e.preventDefault()} noValidate>
+      {draft.assistant ? (
+        <StatusBanner tone="info">O assistente completou o que não deu para ler pelas regras. Os campos com o selo “preenchido pelo assistente” vieram dele: confira antes de salvar.</StatusBanner>
+      ) : null}
       {draft.unknown.length ? (
-        <StatusBanner tone="info">
-          Não entendi {draft.unknown.map((u) => ({ profession: "a profissão", weekdays: "os dias", hours: "o horário" })[u]).join(", ")}. Complete abaixo.
-        </StatusBanner>
+        <StatusBanner tone="info">Não entendi {unknownText.join(", ")}. O motivo está em cada campo; complete abaixo.</StatusBanner>
       ) : null}
       {draft.team_size !== null && draft.team_size > 1 ? (
-        <p className="tn-muted">{plural(draft.team_size, "pessoa atende", "pessoas atendem")}. A agenda principal é uma; outros profissionais entram em Negócio → Equipe.</p>
+        <p className="tn-muted">{plural(draft.team_size, "pessoa atende", "pessoas atendem")}. <Seal on={draft.sources.team_size === "assistant"} /> A agenda principal é uma; outros profissionais entram em Negócio → Equipe.</p>
       ) : null}
-      <Field as="select" label="Profissão" value={profession} error={errors.profession} onChange={(e) => setProfession(e.target.value as Profession | "")}>
-        <option value="">Escolha…</option>
-        {PROFESSIONS.map((p) => <option key={p} value={p}>{PROFESSION_LABEL[p]}</option>)}
-      </Field>
-      <ChipGroup label="Dias de atendimento" options={WEEKDAY_CHIPS} shortcuts={WEEKDAY_SHORTCUTS} value={weekdays} onChange={setWeekdays} error={errors.weekdays} errorId="setup-draft-weekdays-error" />
-      <div className="tn-form-grid">
-        <Field label="Início" type="time" value={start} error={errors.hours} onChange={(e) => setStart(e.target.value)} />
-        <Field label="Fim" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
-        <Field label="Pausa: de (opcional)" type="time" value={pauseStart} onChange={(e) => setPauseStart(e.target.value)} />
-        <Field label="Pausa: até" type="time" value={pauseEnd} onChange={(e) => setPauseEnd(e.target.value)} />
+      {draft.at_home ? (
+        <p className="tn-muted">Você atende a domicílio. Depois de salvar, defina a área de atendimento em <Link to="/app/domicilio">Domicílio</Link>.</p>
+      ) : null}
+      <div className="tn-setup-field">
+        <Seal on={draft.sources.profession === "assistant"} />
+        <FieldNotes draft={draft} field="profession" />
+        <Field as="select" label="Profissão" value={profession} error={errors.profession} onChange={(e) => setProfession(e.target.value as Profession | "")}>
+          <option value="">Escolha…</option>
+          {PROFESSIONS.map((p) => <option key={p} value={p}>{PROFESSION_LABEL[p]}</option>)}
+        </Field>
       </div>
-      <fieldset className="tn-setup-services">
-        <legend>Serviços (você põe duração e preço)</legend>
-        {errors.services ? <p className="tn-field__error" id="setup-draft-services-error">{errors.services}</p> : null}
-        {rows.map((r, i) => (
-          <div key={r.key} className="tn-setup-services__row">
-            <Field label={`Serviço ${i + 1}`} value={r.name} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, name: e.target.value } : x)))} />
-            <Field label="Minutos" inputMode="numeric" value={r.duration} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, duration: e.target.value } : x)))} />
-            <Field label="Preço (R$)" inputMode="decimal" value={r.price} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, price: e.target.value } : x)))} />
-            <Button variant="ghost" onClick={() => setRows(rows.filter((x) => x.key !== r.key))} aria-label={`Tirar ${r.name || `serviço ${i + 1}`}`}>Tirar</Button>
+      <div className="tn-setup-field">
+        <Seal on={draft.sources.weekdays === "assistant" || draft.sources.hours === "assistant"} />
+        <FieldNotes draft={draft} field="weekdays" />
+        <FieldNotes draft={draft} field="hours" />
+        {groups.map((g, gi) => (
+          <div key={g.key} className="tn-setup-group">
+            <ChipGroup label={groupTitle(gi)} options={WEEKDAY_CHIPS} shortcuts={gi === 0 ? WEEKDAY_SHORTCUTS : undefined} value={g.weekdays}
+              onChange={(weekdays) => setGroup(g.key, (x) => ({ ...x, weekdays }))} error={gi === 0 ? errors.weekdays : undefined} errorId={`setup-draft-weekdays-error-${gi}`} />
+            {g.periods.map((p, pi) => (
+              <div key={p.key} className="tn-setup-period">
+                <Field label={periodLabel(gi, pi, "Início")} type="time" value={p.start} error={gi === 0 && pi === 0 ? errors.hours : undefined} onChange={(e) => setPeriod(g.key, p.key, { start: e.target.value })} />
+                <Field label={periodLabel(gi, pi, "Fim")} type="time" value={p.end} onChange={(e) => setPeriod(g.key, p.key, { end: e.target.value })} />
+                {pi > 0 ? (
+                  <Button variant="ghost" aria-label={`Tirar o ${ORDINAL[pi]} período${gi > 0 ? ` do grupo ${gi + 1}` : ""}`} onClick={() => setGroup(g.key, (x) => ({ ...x, periods: x.periods.filter((y) => y.key !== p.key) }))}>Tirar</Button>
+                ) : null}
+              </div>
+            ))}
+            <div className="tn-actions">
+              {g.periods.length < MAX_PERIODS ? (
+                <Button variant="ghost" onClick={() => setGroup(g.key, (x) => ({ ...x, periods: [...x.periods, periodOf()] }))}>
+                  Adicionar período{gi > 0 ? ` ao grupo ${gi + 1}` : ""}
+                </Button>
+              ) : null}
+              {gi > 0 ? <Button variant="ghost" onClick={() => setGroups((gs) => gs.filter((x) => x.key !== g.key))}>Tirar o grupo {gi + 1}</Button> : null}
+            </div>
           </div>
         ))}
-        <Button variant="secondary" onClick={() => setRows([...rows, rowOf("")])}>Adicionar serviço</Button>
+        {groups.length < MAX_GROUPS ? (
+          <Button variant="secondary" onClick={() => setGroups((gs) => [...gs, { key: newKey(), weekdays: [], periods: [periodOf()] }])}>Adicionar dias com outro horário</Button>
+        ) : null}
+        <p className="tn-muted">Quem atende de manhã e à noite usa dois períodos (ex.: 06:00 às 12:00 e 17:00 às 21:00). Pausa para o almoço também são dois períodos.</p>
+      </div>
+      <fieldset className="tn-setup-services">
+        <legend>Serviços (confira a duração e ponha o seu preço) <Seal on={draft.sources.services === "assistant"} /></legend>
+        <FieldNotes draft={draft} field="services" />
+        {errors.services ? <p className="tn-field__error" id="setup-draft-services-error">{errors.services}</p> : null}
+        {saveError ? <p className="tn-field__error" role="alert">{saveError}</p> : null}
+        {rows.map((r, i) => {
+          const dup = r.name.trim() !== "" && exists(r.name);
+          return (
+            <div key={r.key} className="tn-setup-services__row" data-exists={dup || undefined}>
+              <Field label={`Serviço ${i + 1}`} value={r.name} hint={dup ? "Já no catálogo: não será criado de novo." : undefined}
+                onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, name: e.target.value, template_code: null } : x)))} />
+              <Field label="Minutos" inputMode="numeric" value={r.duration} disabled={dup} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, duration: e.target.value } : x)))} />
+              <Field label="Preço (R$)" inputMode="decimal" value={r.price} disabled={dup} hint={!dup && r.range ? `Faixa de partida: ${r.range}.` : undefined}
+                onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, price: e.target.value } : x)))} />
+              <Button variant="ghost" onClick={() => setRows(rows.filter((x) => x.key !== r.key))} aria-label={`Tirar ${r.name || `serviço ${i + 1}`}`}>Tirar</Button>
+            </div>
+          );
+        })}
+        {suggestions.length ? (
+          <div className="tn-setup-suggest" role="group" aria-label="Serviços sugeridos">
+            <span className="tn-muted">{cited.length ? "Também da sua profissão:" : "A frase não cita serviços. Os mais comuns da sua profissão:"}</span>
+            {suggestions.map((d) => (
+              <Button key={d.name} variant="secondary" disabled={rows.length >= 20}
+                onClick={() => setRows([...rows, rowOf(d.name, d.duration_min === null ? "" : String(d.duration_min), "", d.template_code, priceRange(d.price_from_cents, d.price_to_cents))])}>
+                Adicionar {d.name}{d.duration_min !== null ? ` (${d.duration_min} min)` : ""}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+        <Button variant="secondary" disabled={rows.length >= 20} onClick={() => setRows([...rows, rowOf("")])}>Adicionar serviço</Button>
+        {draft.packages.map((p, i) => (
+          <p key={i} className="tn-muted">
+            Pacote de {p.sessions} sessões{p.service ? ` de ${p.service}` : ""}: vende-se no Caixa como pacote, depois de criar o serviço avulso. Não vira serviço nem equipe.
+          </p>
+        ))}
       </fieldset>
       <div className="tn-actions">
         {/* Os erros aparecem embaixo dos campos ao tocar em Salvar; a confirmação só abre com tudo válido. */}
@@ -170,38 +308,48 @@ function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeDraft; port
 
 function Describe({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgress) => void }) {
   const [sentence, setSentence] = useState("");
-  const [draft, setDraft] = useState<SetupDescribeDraft | null>(null);
+  const [draft, setDraft] = useState<{ id: string; value: SetupDescribeOutput } | null>(null);
+  const [busy, setBusy] = useState(false);
   const { formRef, errors, show } = useFormErrors<"sentence">();
-  function build(e: FormEvent) {
+  async function build(e: FormEvent) {
     e.preventDefault();
     if (!show({ sentence: sentence.trim().length < 8 && "Escreva uma frase sobre o seu negócio." })) return;
-    setDraft(describeBusiness(sentence));
+    setBusy(true);
+    try {
+      // Cada rascunho montado recomeça a revisão (o que o dono tinha mexido no anterior não se mistura).
+      setDraft({ id: newKey(), value: await port.describe(sentence.trim().slice(0, 500), newKey()) });
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
   }
   return (
     <Card aria-labelledby="setup-describe-title">
       <h2 id="setup-describe-title" tabIndex={-1}>Descreva seu negócio em uma frase</h2>
-      <p className="tn-muted">Exemplo: “Sou barbeiro, sozinho, de terça a sábado das 9 às 19”. Montamos um rascunho e você revisa cada campo antes de salvar.</p>
-      <form ref={formRef} aria-label="Descrever o negócio" onSubmit={build} noValidate>
-        <Field as="textarea" label="Sua frase" rows={2} value={sentence} error={errors.sentence} onChange={(e) => setSentence(e.target.value)} />
+      <p className="tn-muted">Exemplo: “Sou barbeiro, sozinho, de terça a sábado das 9 às 19, faço corte e barba”. Montamos um rascunho e você revisa cada campo antes de salvar.</p>
+      <form ref={formRef} aria-label="Descrever o negócio" onSubmit={(e) => void build(e)} noValidate>
+        <Field as="textarea" label="Sua frase" rows={2} maxLength={500} value={sentence} error={errors.sentence} onChange={(e) => setSentence(e.target.value)} />
         <div className="tn-actions">
-          <Button type="submit" variant={draft ? "secondary" : "primary"}>{draft ? "Montar de novo" : "Montar rascunho"}</Button>
+          <Button type="submit" variant={draft ? "secondary" : "primary"} loading={busy} loadingText="Montando…">{draft ? "Montar de novo" : "Montar rascunho"}</Button>
         </div>
       </form>
-      {draft ? <DraftReview key={sentence} draft={draft} port={port} onSaved={onSaved} /> : null}
+      {draft ? <DraftReview key={draft.id} draft={draft.value} port={port} onSaved={onSaved} /> : null}
     </Card>
   );
 }
 
-function Templates({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgress) => void }) {
+function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSaved: (p: SetupProgress) => void; version: number; onReady: () => void }) {
   const [data, setData] = useState<{ profession: Profession; templates: SetupTemplate[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const { formRef, errors, show } = useFormErrors<"pick">();
   const load = useCallback(() => {
-    port.templates().then((d) => { setData(d); setError(null); }, (err) => setError(explain(err)));
-  }, [port]);
-  useEffect(load, [load]);
+    port.templates().then((d) => { setData(d); setError(null); onReady(); }, (err) => { setError(explain(err)); onReady(); });
+  }, [port, onReady]);
+  // `version` muda quando o rascunho salva: a profissão ou o catálogo podem ter mudado.
+  useEffect(load, [load, version]);
   if (error) return <StatusBanner tone="danger">{error}</StatusBanner>;
   if (!data) return <p role="status" className="tn-muted">Carregando modelos…</p>;
   const chosen = data.templates.filter((t) => t.kind === "service" && t.code in picked);
@@ -266,25 +414,41 @@ function Templates({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgr
   );
 }
 
+const ANCHORS: Record<string, string> = { "#descrever": "setup-describe-title", "#modelos": "setup-templates-title" };
+
 export function SetupPage({ port }: { port: SetupPort }) {
   const [progress, setProgress] = useState<SetupProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [templatesReady, setTemplatesReady] = useState(false);
+  const [templatesVersion, setTemplatesVersion] = useState(0);
   const { hash } = useLocation();
   const load = useCallback(() => {
     port.progress().then((p) => { setProgress(p); setError(null); }, (err) => setError(explain(err)));
   }, [port]);
   useEffect(load, [load]);
+  const onTemplatesReady = useCallback(() => setTemplatesReady(true), []);
+  // Âncoras (#descrever, #modelos): só rola depois que os passos e os modelos carregaram. Antes disso o título de
+  // "Modelos" nem existe e o de "Descreva" muda de lugar quando a lista de passos entra.
+  const settled = (progress !== null || error !== null) && templatesReady;
   useEffect(() => {
-    if (!hash) return;
-    const el = document.getElementById(hash.slice(1) === "descrever" ? "setup-describe-title" : hash.slice(1) === "modelos" ? "setup-templates-title" : "");
-    el?.scrollIntoView?.();
-    el?.focus();
-  }, [hash]);
+    const id = ANCHORS[hash];
+    if (!id || !settled) return;
+    const el = document.getElementById(id);
+    el?.scrollIntoView?.({ block: "start" });
+    el?.focus({ preventScroll: true });
+  }, [hash, settled]);
+  // P51: a conta só com os passos cuja tela aparece para o negócio, a mesma da lista e da Home.
+  const scope = useScope();
+  const view = progress ? setupView(progress, scope.canOpen) : null;
+  const onDraftSaved = useCallback((p: SetupProgress) => {
+    setProgress(p);
+    setTemplatesVersion((v) => v + 1);
+  }, []);
   return (
     <div className="tn-setup">
       <div className="tn-page-intro">
         <PageHeader id="setup-title" title="Deixe seu negócio pronto" eyebrow="Configuração"
-          subtitle={progress ? `${progress.business_name}: ${progress.done_count} de ${progress.total} passos feitos.` : "Cada passo diz por que importa e leva à tela certa."} />
+          subtitle={progress && view ? `${progress.business_name}: ${view.done} de ${view.total} passos feitos.` : "Cada passo diz por que importa e leva à tela certa."} />
         {port.kind === "demo" ? <StatusBanner tone="info">Demonstração: o que você salvar aqui vale só nesta aba.</StatusBanner> : null}
         {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
         <Help label="Como funciona">
@@ -292,8 +456,8 @@ export function SetupPage({ port }: { port: SetupPort }) {
         </Help>
       </div>
       {progress ? <Steps progress={progress} port={port} onChange={setProgress} /> : <p role="status" className="tn-muted">Carregando os passos…</p>}
-      <Describe port={port} onSaved={setProgress} />
-      <Templates port={port} onSaved={setProgress} />
+      <Describe port={port} onSaved={onDraftSaved} />
+      <Templates port={port} onSaved={setProgress} version={templatesVersion} onReady={onTemplatesReady} />
     </div>
   );
 }

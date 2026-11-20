@@ -14,7 +14,19 @@ const STEP_ICON: Record<SetupStepCode, IconName> = {
   first_customer: "cliente", photo_whatsapp: "perfil", channel: "mensagem", first_cash: "receber",
 };
 
-export const STEP_CATALOG: readonly StepSpec[] = SETUP_STEPS.map((s) => ({ ...s, icon: STEP_ICON[s.step] }));
+/**
+ * P50: por que a antecedência para cancelar importa. O texto antigo prometia que a política "aparece para o cliente
+ * antes de reservar" quando o link público ainda não a mostrava (revisão de 04/11, achado A3). O passo é obrigatório
+ * porque o link público mostra a regra; o texto diz o que o dono define e onde o cliente vê. Desde o recado #115 o
+ * catálogo comum (src/lib/setup/steps.ts) e app.setup_steps() (migration 20261120090000) têm o mesmo texto; a tela
+ * continua sobrepondo até a migration valer em todo banco que ela lê.
+ */
+export const CANCELLATION_WHY = "Você define até quantas horas antes o cliente cancela sem custo. É a regra que o link público mostra a quem vai reservar.";
+
+export const STEP_CATALOG: readonly StepSpec[] = SETUP_STEPS.map((s) => ({ ...s, why: s.step === "cancellation_policy" ? CANCELLATION_WHY : s.why, icon: STEP_ICON[s.step] }));
+
+/** Porquê do passo como a tela mostra: o do servidor, menos no passo cujo texto o P50 corrigiu. null = passo feito. */
+export const stepWhy = (s: { step: SetupStepCode; why: string | null }): string | null => (s.why === null ? null : s.step === "cancellation_policy" ? CANCELLATION_WHY : s.why);
 
 export const specOf =(step: SetupStepCode): StepSpec => STEP_CATALOG.find((s) => s.step === step)!;
 
@@ -31,18 +43,22 @@ export function priceRange(from: number | null, to: number | null): string | nul
 
 const WEEKDAY_NAME = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
-/** "ter a sáb, 09:00 às 19:00" a partir das janelas (resumo para a confirmação). */
-export function summarizeHours(rules: readonly WeeklyWindow[]): string {
-  if (rules.length === 0) return "sem expediente";
-  const days = [...new Set(rules.map((r) => r.weekday))].sort((a, b) => a - b);
+function daysText(days: readonly number[]): string {
   const names = days.map((d) => WEEKDAY_NAME[d]!);
   const consecutive = days.every((d, i) => i === 0 || d === days[i - 1]! + 1);
-  const dayText = days.length === 7 ? "todos os dias" : consecutive && days.length > 2 ? `${names[0]} a ${names[names.length - 1]}` : names.join(", ");
+  return days.length === 7 ? "todos os dias" : consecutive && days.length > 2 ? `${names[0]} a ${names[names.length - 1]}` : names.join(", ");
+}
+
+/** "terça a sábado, 09:00 às 19:00"; com horários diferentes, um trecho por grupo de dias, separados por ponto e vírgula. */
+export function summarizeHours(rules: readonly WeeklyWindow[]): string {
+  if (rules.length === 0) return "sem expediente";
   const byDay = new Map<number, string[]>();
-  for (const r of rules) byDay.set(r.weekday, [...(byDay.get(r.weekday) ?? []), `${r.local_start} às ${r.local_end}`]);
-  const first = byDay.get(days[0]!)!.join(" e ");
-  const same = days.every((d) => byDay.get(d)!.join(" e ") === first);
-  return same ? `${dayText}, ${first}` : `${dayText}, horários diferentes por dia`;
+  for (const r of [...rules].sort((a, b) => a.weekday - b.weekday || a.local_start.localeCompare(b.local_start))) {
+    byDay.set(r.weekday, [...(byDay.get(r.weekday) ?? []), `${r.local_start} às ${r.local_end}`]);
+  }
+  const bySchedule = new Map<string, number[]>();
+  for (const [day, blocks] of byDay) bySchedule.set(blocks.join(" e "), [...(bySchedule.get(blocks.join(" e ")) ?? []), day]);
+  return [...bySchedule.entries()].map(([schedule, days]) => `${daysText(days)}, ${schedule}`).join("; ");
 }
 
 export function explain(err: unknown): string {
@@ -50,6 +66,7 @@ export function explain(err: unknown): string {
   switch (e?.code) {
     case "VALIDATION_ERROR":
       if (e.field === "name") return "Já existe um serviço ativo com esse nome. Nada foi criado.";
+      if (e.field === "sentence") return "Escreva uma frase sobre o seu negócio (de 8 a 500 letras).";
       if (e.field === "step") return "Este passo é obrigatório e não pode ser dispensado.";
       if (e.field === "hours" || e.field === "rules") return "Confira os horários: o fim precisa vir depois do início e os blocos não podem se sobrepor. Nada foi salvo.";
       return "Confira os dados. Nada foi salvo.";

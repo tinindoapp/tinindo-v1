@@ -4,8 +4,10 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { DEMO_CUSTOMERS } from "./demoPort.ts";
-import { explain, formatTime } from "./labels.ts";
-import { type MessagingPort, newKey, type SimPhone } from "./port.ts";
+import { explain } from "./labels.ts";
+import type { MessagingPort, SimPhone } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatDateTime } from "../../lib/time.ts";
 import { plural, pluralWord } from "../../lib/text/plural.ts";
 
 export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezone: string }) {
@@ -17,6 +19,8 @@ export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezon
   const [busy, setBusy] = useState(false);
   const { formRef, errors, show } = useFormErrors<"text">();
   const [nonce, setNonce] = useState(0);
+  const idem = useIdempotencyKey();
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -31,7 +35,9 @@ export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezon
     setBusy(true);
     setWriteError(null);
     try {
-      const r = await port.simInbound({ kind: "inbound", phone_e164: phone.trim(), text: text.trim() }, newKey());
+      const body = { kind: "inbound" as const, phone_e164: phone.trim(), text: text.trim() };
+      const r = await port.simInbound(body, idem.keyFor(body));
+      idem.reset();
       setText("");
       toast(r.applied ? "Mensagem da cliente recebida pelo webhook." : { tone: "info", message: "O webhook ignorou o evento (canal inativo ou duplicado)." });
       refresh();
@@ -43,7 +49,7 @@ export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezon
   }
   async function mark(providerMessageId: string, status: "delivered" | "read" | "failed") {
     try {
-      const r = await port.simInbound({ kind: "status", provider_message_id: providerMessageId, status }, newKey());
+      const r = await command({ mark: providerMessageId, status }, (key) => port.simInbound({ kind: "status", provider_message_id: providerMessageId, status }, key));
       toast(r.applied ? `Provedor confirmou: ${status === "delivered" ? "entregue" : status === "read" ? "lida" : "falhou"}.` : { tone: "info", message: "Estado não avança para trás; nada mudou." });
     } catch (err) {
       toast({ tone: "danger", message: explain(err) });
@@ -68,7 +74,7 @@ export function SimulatorPage({ port, timezone }: { port: MessagingPort; timezon
           {shown?.messages.map((m, i) => (
             <li key={`${m.provider_message_id ?? i}`} className="tn-msg-bubble">
               <p>{m.body}</p>
-              <p className="tn-muted">{formatTime(m.created_at, timezone)}</p>
+              <p className="tn-muted">{formatDateTime(m.created_at, timezone)}</p>
               {m.provider_message_id ? (
                 <div className="tn-actions">
                   <Button variant="ghost" onClick={() => void mark(m.provider_message_id!, "delivered")}>Marcar entregue</Button>

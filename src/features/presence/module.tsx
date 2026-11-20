@@ -37,6 +37,8 @@ export { presencePublicRoutes };
 export const presenceModule: ModuleDefinition = {
   id: "presence",
   owner: "P17",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "site",
   navLabel: "Site e Google",
   routes: [{ index: true, element: <PresenceLayout /> }],

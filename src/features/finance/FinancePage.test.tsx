@@ -64,6 +64,20 @@ describe("Caixa: nova tentativa depois de falha de rede não grava em dobro", ()
     expect(expense.mock.calls[1]![0]).toEqual(expense.mock.calls[0]![0]);
   });
 
+  it("cancelar cobrança: se o comando falha, confirmar de novo manda a mesma chave", async () => {
+    const port = renderPage();
+    const cancel = vi.spyOn(port, "cancelReceivable").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    const open = within(await screen.findByRole("region", { name: "A receber" }));
+    const label = open.getAllByRole("button", { name: /^Cancelar cobrança de / })[0]!.getAttribute("aria-label")!;
+    for (let i = 0; i < 2; i += 1) {
+      fireEvent.click(await open.findByRole("button", { name: label }));
+      await act(async () => { fireEvent.click(open.getByRole("button", { name: "Sim, cancelar" })); });
+    }
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(cancel.mock.calls[1]![1]).toBe(cancel.mock.calls[0]![1]);
+    expect(cancel.mock.calls[1]![0]).toEqual(cancel.mock.calls[0]![0]);
+  });
+
   it("valor diferente é outro pedido: chave nova", async () => {
     const port = renderPage();
     tickingClock(port);

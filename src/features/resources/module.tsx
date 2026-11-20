@@ -33,6 +33,8 @@ function ResourcesLayout() {
 export const resourcesModule: ModuleDefinition = {
   id: "resources",
   owner: "P28",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "equipe",
   navLabel: "Equipe",
   routes: [{ index: true, element: <ResourcesLayout /> }],

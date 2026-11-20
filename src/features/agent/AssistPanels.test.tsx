@@ -1,11 +1,13 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentPage, AgentPortProvider } from "./AgentPage.tsx";
 import { SetupProgressOutput } from "@contracts";
 import { FX } from "@contracts/fixtures.ts";
 import { createApiClient } from "../../lib/api/client.ts";
 import { SETUP_STEPS } from "../../lib/setup/steps.ts";
+import { resetDemoSetup } from "../../lib/demo/setup.ts";
+import { resetDemoJourney, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { createDemoPort } from "./demoPort.ts";
 import { createServerPort } from "./serverPort.ts";
 import type { AgentPort } from "./port.ts";
@@ -15,6 +17,11 @@ function page(over: Partial<AgentPort> = {}, initialDraft?: { kind?: "message" |
   render(<MemoryRouter><AgentPortProvider value={port}><AgentPage initialDraft={initialDraft} /></AgentPortProvider></MemoryRouter>);
   return port;
 }
+
+beforeEach(() => {
+  resetDemoSetup();
+  resetDemoJourney();
+});
 
 describe("Me ajuda a configurar (P46 + setup.progress do P44)", () => {
   it("mostra quantos passos estão prontos e conduz um passo por vez, com o porquê e o link da tela", async () => {
@@ -29,7 +36,7 @@ describe("Me ajuda a configurar (P46 + setup.progress do P44)", () => {
     expect(screen.queryByRole("button", { name: "Pular por agora" })).toBeNull();
   });
 
-  it("'Já fiz, conferir' lê o progresso de novo e avança; passo opcional pode ser pulado", async () => {
+  it("'Já fiz, conferir' lê o progresso de novo e avança", async () => {
     const base = (await createDemoPort().setupProgress())!;
     let calls = 0;
     const setupProgress = vi.fn(async () => {
@@ -45,10 +52,48 @@ describe("Me ajuda a configurar (P46 + setup.progress do P44)", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Já fiz, conferir" })); });
     expect(await screen.findByText(/6 de 8/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Pôr foto e WhatsApp no perfil/ })).toBeInTheDocument();
+  });
+
+  it("P50 · 'Pular' grava a dispensa (setup.dismiss): o passo não volta ao reabrir o guia nem em outra leitura do progresso", async () => {
+    setPublishedSlug("barbearia-exemplo-a");
+    const port = page();
+    const dismiss = vi.spyOn(port, "setupDismiss");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Me ajuda a configurar" })); });
+    expect(await screen.findByRole("heading", { name: /Pôr foto e WhatsApp no perfil/ })).toBeInTheDocument();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Pular por agora" })); });
+    expect(dismiss).toHaveBeenCalledWith("photo_whatsapp", expect.any(String));
     expect(screen.getByRole("heading", { name: /Conectar e verificar seu número/ })).toBeInTheDocument();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Pular por agora" })); });
-    expect(screen.getByText(/Tudo pronto/)).toBeInTheDocument();
+    expect(screen.getByText(/Tudo pronto \(os passos opcionais que você pulou continuam em Configuração\)/)).toBeInTheDocument();
+    // Fechar e reabrir o painel relê o progresso: os dois continuam dispensados (antes, o "pular" morria com o painel).
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Me ajuda a configurar" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Me ajuda a configurar" })); });
+    expect(await screen.findByText(/Tudo pronto/)).toBeInTheDocument();
+    const again = (await createDemoPort().setupProgress())!;
+    expect(again.steps.filter((s) => s.dismissed).map((s) => s.step)).toEqual(["photo_whatsapp", "channel"]);
+    expect(again.resolved_count).toBe(8);
+  });
+
+  it("P50 · 'Pular' que o servidor recusa: avisa, e o passo continua na tela", async () => {
+    setPublishedSlug("barbearia-exemplo-a");
+    page({ setupDismiss: async () => { throw new Error("offline"); } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Me ajuda a configurar" })); });
+    await screen.findByRole("heading", { name: /Pôr foto e WhatsApp no perfil/ });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Pular por agora" })); });
+    expect(screen.getByText(/Não foi possível guardar o “pular” agora/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Pôr foto e WhatsApp no perfil/ })).toBeInTheDocument();
+  });
+
+  it("P50 · com servidor, 'Pular' chama setup.dismiss com chave de idempotência e usa o progresso devolvido", async () => {
+    const base = (await createDemoPort().setupProgress())!;
+    const progress = SetupProgressOutput.parse({ ...base, steps: base.steps.map((s) => (s.step === "channel" ? { ...s, dismissed: true } : s)), resolved_count: 6 });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: { step: "channel", dismissed: true, progress }, meta: { request_id: "7a1f8a52-2b0c-4b4e-9f1e-3c0f6b5d2a10", as_of: "2026-10-20T12:00:00Z", schema_version: 1 } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    const call = createApiClient({ baseUrl: "https://exemplo.supabase.co", publishableKey: "sb_publishable_exemplo", getAccessToken: async () => "jwt", fetch: fetchMock as unknown as typeof fetch });
+    expect(await createServerPort(call, FX.tenants.A).setupDismiss("channel", "chave-pular-000000001")).toEqual(progress);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://exemplo.supabase.co/functions/v1/setup/setup.dismiss");
+    expect(JSON.parse(String(init.body))).toEqual({ step: "channel", dismissed: true });
+    expect(new Headers(init.headers).get("Idempotency-Key")).toBe("chave-pular-000000001");
   });
 
   it("com servidor: aceita a resposta de setup.progress no formato do contrato e mostra o passo pelo catálogo", async () => {
@@ -73,7 +118,9 @@ describe("Me ajuda a configurar (P46 + setup.progress do P44)", () => {
     expect(await screen.findByText(/2 de 8/)).toBeInTheDocument();
     // Rótulo, porquê e link vêm do catálogo comum (o mesmo da tela de Configuração), não do texto livre da resposta.
     expect(screen.getByRole("heading", { name: "Definir a antecedência para cancelar" })).toBeInTheDocument();
-    expect(screen.getByText(/A política aparece para o cliente antes de reservar/)).toBeInTheDocument();
+    // P50: o porquê da antecedência diz o que o dono define e onde o cliente vê, sem a promessa antiga.
+    expect(screen.getByText(/até quantas horas antes o cliente cancela sem custo/)).toBeInTheDocument();
+    expect(screen.queryByText(/A política aparece para o cliente antes de reservar/)).toBeNull();
     expect(screen.getByRole("link", { name: "Definir antecedência" })).toHaveAttribute("href", "/app/conta");
     expect(screen.queryByText(/do servidor/)).toBeNull();
   });

@@ -2,7 +2,7 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Profession } from "@contracts";
-import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
@@ -51,7 +51,9 @@ export function CreateBusinessPage() {
       idem.reset();
       session.selectTenant(created.tenant.id);
       await services.refreshSession();
-      navigate("/app/conta?novo=1", { replace: true });
+      // Recado #115 (P50): o negócio novo abre na Home, onde o cartão de configuração mostra o próximo passo.
+      toast({ message: <>Negócio criado. Você é dono(a) de <strong>{created.tenant.name}</strong>.</> });
+      navigate("/app", { replace: true });
     } catch (err) {
       setError(messageFor(err, "business"));
     } finally {

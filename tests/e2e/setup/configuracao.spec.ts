@@ -12,7 +12,8 @@ test("negócio pronto pela Home: próximo passo → perfil no ar → link públi
   // P48 (decisão D6): com atendimento no dia, a configuração é uma linha fina, abaixo do dia, com o próximo passo como link.
   const card = page.getByRole("region", { name: /Deixe seu negócio pronto/ });
   await expect(card).toBeVisible();
-  await expect(card).toContainText("5 de 8");
+  // P51: "Conectar e verificar seu número" sai da conta enquanto Mensagens está guardado: 7 passos.
+  await expect(card).toContainText("5 de 7");
   await expect(card.getByRole("progressbar", { name: "Passos feitos" })).toHaveAttribute("aria-valuenow", "5");
   await expect(card).not.toContainText("O link público é como o cliente reserva com você.");
   const lineBox = (await card.boundingBox())!;
@@ -35,7 +36,7 @@ test("negócio pronto pela Home: próximo passo → perfil no ar → link públi
 
   // De volta à Home (sem recarregar, para manter a demonstração): o passo ficou feito e o próximo é opcional.
   await softNavigate(page, "/app");
-  await expect(card).toContainText("6 de 8");
+  await expect(card).toContainText("6 de 7");
   await expect(card.getByRole("link", { name: /^Pôr foto e WhatsApp/ })).toHaveAttribute("href", "/app/perfil");
 
   // Opcionais são dispensados na tela Configuração (o título da linha leva até lá); obrigatórios não têm "Agora não".
@@ -44,8 +45,8 @@ test("negócio pronto pela Home: próximo passo → perfil no ar → link públi
   const steps = page.getByRole("list", { name: "Passos da configuração" }).getByRole("listitem");
   await steps.filter({ hasText: "Pôr foto e WhatsApp no perfil" }).getByRole("button", { name: "Agora não" }).click();
   await expect(steps.filter({ hasText: "Pôr foto e WhatsApp no perfil" })).toContainText("dispensado");
-  await steps.filter({ hasText: "Conectar e verificar seu número" }).getByRole("button", { name: "Agora não" }).click();
-  await expect(steps.filter({ hasText: "Conectar e verificar seu número" })).toContainText("dispensado");
+  // O passo do canal não aparece no piloto (Mensagens guardado): não há o que dispensar.
+  await expect(steps.filter({ hasText: "Conectar e verificar seu número" })).toHaveCount(0);
   await softNavigate(page, "/app");
   await expect(page.getByRole("heading", { name: "Atendimentos de hoje" })).toBeVisible();
   await expect(card).toHaveCount(0);
@@ -57,11 +58,11 @@ test("configuração: passos com por quê, frase do negócio vira rascunho revis
   await expect(page.getByRole("heading", { name: "Deixe seu negócio pronto", level: 1 })).toBeVisible();
   await expect(page.getByText("Demonstração: o que você salvar aqui vale só nesta aba.")).toBeVisible();
   const steps = page.getByRole("list", { name: "Passos da configuração" }).getByRole("listitem");
-  await expect(steps).toHaveCount(8);
+  await expect(steps).toHaveCount(7);
   await expect(steps.nth(3)).toContainText("Publicar seu perfil e mandar o link");
   await expect(steps.nth(3).getByRole("link", { name: /Publicar perfil/ })).toHaveAttribute("href", "/app/perfil");
   await expect(steps.nth(2).getByRole("button", { name: "Agora não" })).toHaveCount(0);
-  await expect(steps.nth(6).getByRole("button", { name: "Agora não" })).toBeVisible();
+  await expect(steps.nth(5).getByRole("button", { name: "Agora não" })).toBeVisible();
 
   // Frase → rascunho: cada campo preenchido para revisão; nada salvo até confirmar.
   await page.getByLabel("Sua frase").fill("Sou barbeiro, sozinho, de terça a sábado das 9 às 19. Faço sobrancelha.");

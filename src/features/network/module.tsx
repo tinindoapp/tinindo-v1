@@ -9,6 +9,8 @@ import { networkAnonRoutes } from "./public-routes.tsx";
 export const networkModule: ModuleDefinition = {
   id: "network",
   owner: "P09",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "perfil",
   navLabel: "Perfil",
   routes: [

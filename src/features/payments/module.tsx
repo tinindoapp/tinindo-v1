@@ -53,6 +53,8 @@ export { paymentsPublicRoutes };
 export const paymentsModule: ModuleDefinition = {
   id: "payments",
   owner: "P14",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "pagamentos",
   navLabel: "Pagamentos",
   routes: [{ index: true, element: <PaymentsLayout /> }],

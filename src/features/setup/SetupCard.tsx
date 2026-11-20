@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Button, LinkButton, toast } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { explain, specOf } from "./labels.ts";
+import { useScope } from "../../app/scope.tsx";
+import { setupView } from "../../lib/setup/steps.ts";
+import { explain, specOf, stepWhy } from "./labels.ts";
 import { newKey, type SetupPort, type SetupProgress } from "./port.ts";
 import "./setup.css";
 
@@ -16,6 +18,7 @@ import "./setup.css";
 export function SetupCard({ port, compact = false }: { port: SetupPort; compact?: boolean }) {
   const [progress, setProgress] = useState<SetupProgress | null>(null);
   const [busy, setBusy] = useState(false);
+  const scope = useScope();
 
   useEffect(() => {
     let alive = true;
@@ -26,8 +29,10 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
   }, [port]);
 
   // Nada a mostrar: carregando, falhou (as outras seções da Home continuam) ou tudo resolvido.
-  if (!progress || progress.resolved_count >= progress.total) return null;
-  const next = progress.next ? progress.steps.find((s) => s.step === progress.next)! : null;
+  // P51: só os passos cuja tela aparece para o negócio entram na conta (setupView).
+  const view = progress ? setupView(progress, scope.canOpen) : null;
+  if (!progress || !view || view.resolved >= view.total) return null;
+  const next = view.next;
   const spec = next ? specOf(next.step) : null;
   const needsBasics = progress.steps.some((s) => (s.step === "hours" || s.step === "service") && !s.done);
 
@@ -52,8 +57,8 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
   }
 
   const bar = (
-    <div className="tn-setup-card__bar" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done_count} aria-label="Passos feitos">
-      <span style={{ width: `${Math.round((progress.done_count / progress.total) * 100)}%` }} />
+    <div className="tn-setup-card__bar" role="progressbar" aria-valuemin={0} aria-valuemax={view.total} aria-valuenow={view.done} aria-label="Passos feitos">
+      <span style={{ width: `${Math.round((view.done / view.total) * 100)}%` }} />
     </div>
   );
 
@@ -61,7 +66,7 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
     return (
       <section className="tn-setup-line" aria-labelledby="setup-card-title" data-ready={progress.ready || undefined}>
         <h2 id="setup-card-title" className="tn-setup-line__title">
-          <Link to="/app/configurar">Deixe seu negócio pronto</Link> <span className="tn-num tn-muted">· {progress.done_count} de {progress.total}</span>
+          <Link to="/app/configurar">Deixe seu negócio pronto</Link> <span className="tn-num tn-muted">· {view.done} de {view.total}</span>
         </h2>
         {next && spec ? (
           <Link to={next.link} className="tn-setup-line__next">
@@ -77,7 +82,7 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
     <section className="tn-card tn-setup-card" aria-labelledby="setup-card-title" data-ready={progress.ready || undefined}>
       <div className="tn-setup-card__head">
         <h2 id="setup-card-title" className="tn-setup-card__title">
-          Deixe seu negócio pronto <span className="tn-num tn-muted">· {progress.done_count} de {progress.total}</span>
+          Deixe seu negócio pronto <span className="tn-num tn-muted">· {view.done} de {view.total}</span>
         </h2>
         {bar}
         {progress.ready ? <p className="tn-setup-card__ready">Seu link público já recebe reservas. O que falta é opcional.</p> : null}
@@ -89,14 +94,14 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
             <p className="tn-setup-card__step">
               <span className="tn-muted">Próximo{next.required ? "" : " (opcional)"}:</span> {next.title}
             </p>
-            {next.why ? <p className="tn-setup-card__why">{next.why}</p> : null}
+            {stepWhy(next) ? <p className="tn-setup-card__why">{stepWhy(next)}</p> : null}
           </div>
         </div>
       ) : null}
       <div className="tn-actions">
         {next && spec ? <LinkButton to={next.link}>{spec.cta}</LinkButton> : null}
         {next && !next.required ? <Button variant="secondary" onClick={() => void dismiss()} loading={busy} loadingText="Guardando…">Agora não</Button> : null}
-        <Link to="/app/configurar" className="tn-setup-card__all">Ver os {progress.total} passos</Link>
+        <Link to="/app/configurar" className="tn-setup-card__all">Ver os {view.total} passos</Link>
       </div>
       {needsBasics ? (
         <p className="tn-setup-card__describe">

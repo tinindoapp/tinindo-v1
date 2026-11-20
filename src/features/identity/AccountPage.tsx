@@ -57,6 +57,17 @@ export function AccountPage() {
 
       {active?.role === "owner" ? <BusinessOnboarding key={active.tenant_id} tenantId={active.tenant_id} /> : null}
 
+      {/* P51: os recursos opcionais do negócio. A equipe vê o estado; só o dono liga. */}
+      {active ? (
+        <Card aria-labelledby="features-link-title">
+          <h2 id="features-link-title">Mais recursos</h2>
+          <p className="tn-muted">Assinaturas, orçamentos, metas e outros recursos opcionais. Ligue só o que for usar.</p>
+          <div className="tn-actions">
+            <LinkButton to="recursos" variant="secondary">Ver mais recursos</LinkButton>
+          </div>
+        </Card>
+      ) : null}
+
       <MyLinks />
 
       <Card aria-labelledby="security-title">

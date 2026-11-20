@@ -20,5 +20,3 @@ export interface LifecyclePort {
   /** Só na demonstração: uma rodada do worker (no servidor, o cron faz isso). */
   tick?(): Promise<{ sent: number; manual: number; skipped: number; deferred: number; cancelled: number; created: number }>;
 }
-
-export const newKey = () => crypto.randomUUID();

@@ -176,7 +176,9 @@ async function audit(page: Page, width: number): Promise<{ problems: string[]; l
 async function sweep(page: Page, width: number, scheme: Scheme) {
   await page.emulateMedia({ colorScheme: scheme });
   const routes = await menuRoutes(page);
-  expect(routes.length).toBeGreaterThan(15);
+  // P51: o menu do piloto tem 14 telas (Hoje e os 10 módulos, com Horários, Serviços e Retorno). As telas dos módulos
+  // por ativação e dos guardados ficam com os e2e deles (projetos *-recursos e *-guardados).
+  expect(routes.length).toBeGreaterThanOrEqual(14);
   expect(routes, "a configuração guiada entra na varredura").toContain("/app/configurar");
   const problems: string[] = [];
   const lowContrast: string[] = [];

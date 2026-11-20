@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupProgress, SetupServicesApplyOutput, SetupTemplatesOutput } from "@contracts";
+import { demoSetupDismiss, demoSetupProgress, readDemoSetup } from "../../lib/demo/setup.ts";
 import { resetDemoJourney, setPublishedSlug } from "../../lib/demo/journey.ts";
+import { SETUP_STEPS } from "../../lib/setup/steps.ts";
 import { createDemoPort, demoSetupEvents, resetDemoState } from "./demoPort.ts";
 import { newKey } from "./port.ts";
 
@@ -78,5 +80,64 @@ describe("emulação da Configuração (mesmas regras do banco)", () => {
     expect(out.created.map((c) => c.name)).toEqual(["Escova"]);
     expect((await port.templates()).profession).toBe("hairdresser");
     expect((await port.templates()).templates.find((t) => t.code === "hair_escova")!.exists).toBe(true);
+  });
+
+  it("P50 · rascunho é tudo ou nada: serviço repetido não troca a profissão nem o expediente; blocos sobrepostos são recusados", async () => {
+    const port = createDemoPort();
+    await expect(port.applyDraft({ profession: "hairdresser", hours: [{ weekday: 2, local_start: "09:00", local_end: "19:00" }], services: [{ name: "Corte", duration_min: 45, base_price_cents: 8000 }] }, newKey()))
+      .rejects.toMatchObject({ code: "VALIDATION_ERROR", field: "name" });
+    expect((await port.templates()).profession).toBe("barber");
+    await expect(port.applyDraft({ hours: [{ weekday: 2, local_start: "09:00", local_end: "13:00" }, { weekday: 2, local_start: "12:00", local_end: "18:00" }] }, newKey()))
+      .rejects.toMatchObject({ code: "VALIDATION_ERROR", field: "hours" });
+    // Dois turnos no mesmo dia são aceitos.
+    const out = await port.applyDraft({ hours: [{ weekday: 2, local_start: "17:00", local_end: "21:00" }, { weekday: 2, local_start: "06:00", local_end: "12:00" }] }, newKey());
+    expect(out.hours).toEqual([{ weekday: 2, local_start: "06:00", local_end: "12:00" }, { weekday: 2, local_start: "17:00", local_end: "21:00" }]);
+  });
+
+  it("P50 · o que o dono confirma é publicado para a Agenda, os Serviços e o perfil da aba; `reach` diz se há leitor ligado", async () => {
+    const port = createDemoPort();
+    expect(port.reach).toEqual({ hours: false, services: false });
+    const hours = vi.fn();
+    const services = vi.fn();
+    const profession = vi.fn();
+    const off = [readDemoSetup("hours", hours), readDemoSetup("services", services), readDemoSetup("profession", profession)];
+    try {
+      expect(port.reach).toEqual({ hours: true, services: true });
+      const key = newKey();
+      const input = { profession: "hairdresser" as const, hours: [{ weekday: 2, local_start: "09:00", local_end: "19:00" }], services: [{ name: "Escova", duration_min: 40, base_price_cents: 6000 }] };
+      const out = await port.applyDraft(input, key);
+      expect(hours).toHaveBeenCalledWith([{ weekday: 2, local_start: "09:00", local_end: "19:00" }]);
+      expect(services).toHaveBeenCalledWith(out.created);
+      expect(profession).toHaveBeenCalledWith("hairdresser");
+      // Repetir com a mesma chave não publica de novo.
+      await port.applyDraft(input, key);
+      expect(hours).toHaveBeenCalledTimes(1);
+      await port.applyServices([{ template_code: "hair_corte", name: "Corte feminino", duration_min: 45, base_price_cents: 9000 }], newKey());
+      expect(services).toHaveBeenCalledTimes(2);
+      // Recusado não publica nada.
+      await expect(port.applyServices([{ template_code: null, name: "Escova", duration_min: 40, base_price_cents: 1 }], newKey())).rejects.toMatchObject({ field: "name" });
+      expect(services).toHaveBeenCalledTimes(2);
+    } finally {
+      off.forEach((fn) => fn());
+    }
+    expect(port.reach).toEqual({ hours: false, services: false });
+  });
+
+  it("P50 · um estado só: o passo dispensado fora desta porta (guia do Assistente) aparece aqui, e o progresso é o mesmo", async () => {
+    const port = createDemoPort();
+    expect(demoSetupDismiss(SETUP_STEPS, "channel", true)).toBe(true);
+    expect(demoSetupDismiss(SETUP_STEPS, "hours", true)).toBe(false);
+    const p = await port.progress();
+    expect(p.steps.find((s) => s.step === "channel")!.dismissed).toBe(true);
+    const shared = demoSetupProgress(SETUP_STEPS, { profilePublished: false });
+    expect({ done: p.done_count, resolved: p.resolved_count, next: p.next, steps: p.steps.map((s) => [s.step, s.done, s.dismissed]) })
+      .toEqual({ done: shared.done_count, resolved: shared.resolved_count, next: shared.next, steps: shared.steps.map((s) => [s.step, s.done, s.dismissed]) });
+  });
+
+  it("P50 · a frase na demonstração usa as mesmas regras do servidor, sem assistente", async () => {
+    const d = await createDemoPort().describe("Sou personal trainer, de segunda a sexta das 6 às 12 e das 17 às 21", newKey());
+    expect(d.assistant).toBe(false);
+    expect(d.windows).toHaveLength(10);
+    expect(d.sources).toMatchObject({ profession: "rules", hours: "rules" });
   });
 });

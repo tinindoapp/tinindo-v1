@@ -5,9 +5,10 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { ci, DESIGN, explain, formatCents, formatDate, offerLabel, pct, segmentLabel, STATUS, VERDICT } from "./labels.ts";
-import { type Campaign, type CampaignDetail, type CampaignSegment, type CampaignsPort, newKey, type Preview } from "./port.ts";
-import { parseBRL } from "../../lib/money.ts";
+import { ci, DESIGN, explain, formatDate, offerLabel, pct, segmentLabel, STATUS, VERDICT } from "./labels.ts";
+import { type Campaign, type CampaignDetail, type CampaignSegment, type CampaignsPort, type Preview } from "./port.ts";
+import { newIdempotencyKey, useCommand } from "../../lib/idempotency.ts";
+import { formatCents, parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 /** Retorno de uma ação: aviso curto (Toast), sempre à vista; `null` só atualiza a tela. */
@@ -26,7 +27,7 @@ function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services
   const [pctValue, setPctValue] = useState("10");
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [key, setKey] = useState(newKey);
+  const [key, setKey] = useState(newIdempotencyKey);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { formRef, errors, show } = useFormErrors<"name" | "kind" | "days" | "cap">();
@@ -59,11 +60,11 @@ function NewCampaign({ port, services, onDone }: { port: CampaignsPort; services
       const c = await port.approve({ name: name.trim(), segment, audience_hash: preview.audience_hash, control_pct: Number(control), max_sends: Number(maxSends),
         spend_cap_cents: capCents, window_days: Number(windowDays),
         offer: offerKind === "none" ? { kind: "none" } : { kind: "discount_pct", pct: Number(pctValue), service_id: serviceId || null } }, key);
-      setKey(newKey());
+      setKey(newIdempotencyKey());
       setName("");
       onDone(`Campanha “${c.name}” aprovada: ${plural(c.treatment_count, "cliente recebe", "clientes recebem")} a oferta, ${c.control_count} no grupo de controle. Janela de ${c.window_days} dias; ${DESIGN[c.result.design]}.`, true);
     } catch (err) {
-      setKey(newKey());
+      setKey(newIdempotencyKey());
       const p = await port.preview(segment).catch(() => null);
       setPreview(p);
       setError(explain(err));
@@ -125,6 +126,7 @@ function Result({ c }: { c: Campaign }) {
 
 function CampaignItem({ c, port, onDone }: { c: Campaign; port: CampaignsPort; onDone: (n: Notice) => void }) {
   const [detail, setDetail] = useState<CampaignDetail | null>(null);
+  const command = useCommand();
   const act = (run: () => Promise<unknown>, ok: string) => run().then(() => onDone(ok), (e: unknown) => onDone(failed(e)));
   return (
     <li className="tn-cp-item">
@@ -141,7 +143,7 @@ function CampaignItem({ c, port, onDone }: { c: Campaign; port: CampaignsPort; o
             title={`Cancelar a campanha “${c.name}”?`}
             consequence="As mensagens que ainda não saíram param e não dá para retomar; as que saíram não mudam. O resultado fica congelado como observação parcial."
             confirmLabel="Sim, cancelar"
-            onConfirm={() => act(() => port.cancel(c, newKey()), "Campanha cancelada: o que ainda não saiu parou; o que saiu não muda. Resultado congelado como observação parcial.")}
+            onConfirm={() => act(() => command({ cancel: c.id, version: c.version }, (key) => port.cancel(c, key)), "Campanha cancelada: o que ainda não saiu parou; o que saiu não muda. Resultado congelado como observação parcial.")}
           />
         ) : null}
         {c.status === "running" && port.simulate ? <ActionButton variant="ghost" onAct={() => act(() => port.simulate!(c.id), "Simulação: parte das clientes agendou e a janela fechou pelo worker.")}>Simular janela (demonstração)</ActionButton> : null}

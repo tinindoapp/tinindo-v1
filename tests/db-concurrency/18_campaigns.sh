@@ -26,6 +26,8 @@ check "12 participantes: 6 controle, 6 tratadas" "$(psql -qXtA -c "select string
 check "6 passos de campanha" "$(psql -qXtA -c "select count(*) from public.lifecycle_steps where rule = 'campaign'")" 6
 
 psql -qX -c "update public.campaigns set ends_at = clock_timestamp() - interval '1 minute'" >/dev/null
+# P51 (D4): Campanhas é módulo guardado; a rotina só fecha para o negócio com o módulo ligado pelo backend.
+psql -qX -c "select app.module_admin_set('$TENANT_A', 'campaigns', true)" >/dev/null
 for w in 1 2 3; do
   psql -qXtA -c "set role service_role; select public.jobs_run(100)" >"$TMP/j.$w" 2>&1 &
 done

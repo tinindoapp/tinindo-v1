@@ -5,7 +5,7 @@
 //   2. a lista do dia; 3. pendências (sem cobrança, de qualquer mês, e reservas provisórias);
 //   4. números (atendimentos de hoje e recebido na semana, com o mês na nota);
 //   5. configuração: uma linha fina quando há atendimento no dia, o cartão inteiro quando não há;
-//   6. uma sugestão do motor diário (P45), com "Ver todas".
+//   6. uma sugestão do motor diário (P45), com "Ver todas", quando o dono ligou "Metas e sugestões" (P51).
 // "Novo agendamento" é o botão "+" (flutuante no celular, como na Agenda); a grade "Ações rápidas" saiu.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
@@ -30,6 +30,7 @@ import { canComplete, formatCents as formatSchedulingCents, formatMinutes, whats
 import { ListStatusBadge } from "../../features/scheduling/parts.tsx";
 import { dayWindow, formatDayLong, formatTime, localParts } from "../../features/scheduling/time.ts";
 import { appEnv } from "../env.ts";
+import { useScope } from "../scope.tsx";
 import { useSession } from "../session.tsx";
 import { plural } from "../../lib/text/plural.ts";
 import { receivedPeriods } from "../../lib/time.ts";
@@ -124,6 +125,7 @@ async function loadToday(p: Ports): Promise<Today> {
 
 export function Home() {
   const session = useSession();
+  const scope = useScope();
   const { state, tenantId, getAccessToken } = session;
   // P44: "Deixe seu negócio pronto · N de 8", a mesma porta da tela Configuração. Some quando tudo está resolvido.
   const setupPort = useSetupPort();
@@ -245,8 +247,8 @@ export function Home() {
 
           {/* 5. Configuração: uma linha quando há atendimento no dia; o cartão inteiro quando o dia está vazio. */}
           {setupPort ? <SetupCard port={setupPort} compact={day.length > 0} /> : null}
-          {/* 6. Uma sugestão do motor diário (P45), com "Ver todas". */}
-          <InsightsCard port={ports.advice} limit={1} />
+          {/* 6. Uma sugestão do motor diário (P45), com "Ver todas". Só com "Metas e sugestões" ligado (P51). */}
+          {scope.isVisible("growth-advice") ? <InsightsCard port={ports.advice} limit={1} /> : null}
         </>
       ) : null}
 

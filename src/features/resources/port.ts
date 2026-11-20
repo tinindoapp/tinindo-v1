@@ -51,5 +51,3 @@ export interface ResourcesPort {
   commissions(period: TimeRange): Promise<TeamCommissions>;
   reverseCommission(entryId: string, key: string): Promise<TeamCommissionEntry>;
 }
-
-export const newKey = () => crypto.randomUUID();

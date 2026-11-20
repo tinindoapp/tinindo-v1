@@ -24,5 +24,3 @@ export interface RecurrencePort {
   /** Só na demonstração: uma rodada do worker (renova o que venceu). */
   tick?(): Promise<{ renewed: number; closed: number }>;
 }
-
-export const newKey = () => crypto.randomUUID();
