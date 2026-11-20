@@ -27,13 +27,14 @@ test("4 · sub-abas têm pelo menos 44 px e a ativa fica à vista", async ({ pag
   for (const box of await Promise.all((await tabs.all()).map((l) => l.boundingBox()))) expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   await expect(page.getByRole("navigation", { name: "Telas de Agenda" }).getByRole("link", { name: "Espera" })).toBeVisible();
 
-  // Última tela de Clientes: a faixa rola até ela e indica que há mais telas do outro lado.
-  await page.goto("/app/avaliacoes");
+  // Última tela de Clientes no piloto (P51: Orçamentos e Avaliações não aparecem): a ativa fica à vista. Com três telas
+  // a faixa cabe inteira em 375 px e não precisa indicar que há mais de um lado.
+  await page.goto("/app/relacionamento");
   const clientes = page.getByRole("navigation", { name: "Telas de Clientes" });
   const active = clientes.locator('[aria-current="page"]');
-  await expect(active).toHaveText("Avaliações");
+  await expect(active).toHaveText("Lembretes");
   await expect(active).toBeInViewport({ ratio: 1 });
-  await expect(clientes.locator("ul")).toHaveAttribute("data-more-start", "true");
+  await expect(clientes.locator("ul")).not.toHaveAttribute("data-more-start", "true");
 });
 
 test("3 · aba ativa tem aria-current, rótulo de 12 px em 600 e pílula com contraste", async ({ page, isMobile }) => {
@@ -72,22 +73,20 @@ test("2 · com o app rolado, a barra lateral começa abaixo da barra superior", 
   expect(padding).toBeGreaterThanOrEqual(header.y + header.height);
 });
 
-test("D2 · Retorno é a quinta aba; Mensagens e o Assistente ficam juntos no menu (item 39)", async ({ page, isMobile }) => {
+test("D2 · Retorno é a quinta aba; no piloto o Assistente fica sozinho no menu, sem Mensagens (P51)", async ({ page, isMobile }) => {
   await page.goto("/app/assistente");
   await expect(page.getByRole("heading", { name: "Assistente", level: 1 })).toBeVisible();
+  const menu = page.getByRole("navigation", { name: "Principal" });
   if (isMobile) {
     const tabbar = page.getByRole("navigation", { name: "Abas" });
     await expect(tabbar.getByRole("link")).toHaveText(["Hoje", "Agenda", "Clientes", "Retorno", "Dinheiro"]);
     // No Assistente nenhuma aba acende; o botão Menu marca a área.
     await expect(tabbar.locator('[aria-current="page"]')).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Menu" })).toHaveAttribute("data-active", "true");
-    const sub = page.getByRole("navigation", { name: "Telas de Mensagens" });
-    await expect(sub.getByRole("link", { name: "Assistente" })).toHaveAttribute("aria-current", "page");
-    await sub.getByRole("link", { name: "Mensagens" }).click();
+    // Mensagens está guardado: sem faixa de sub-abas (o grupo tem uma tela só).
+    await expect(page.getByRole("navigation", { name: "Telas de Mensagens" })).toHaveCount(0);
   } else {
-    const menu = page.getByRole("navigation", { name: "Principal" });
     await expect(menu.getByRole("link", { name: "Assistente", exact: true })).toHaveAttribute("aria-current", "page");
-    await menu.getByRole("link", { name: "Mensagens", exact: true }).click();
   }
-  await expect(page.getByRole("heading", { name: "Mensagens", level: 1 })).toBeVisible();
+  await expect(menu.getByRole("link", { name: "Mensagens", exact: true })).toHaveCount(0);
 });

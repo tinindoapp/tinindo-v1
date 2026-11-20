@@ -2,6 +2,7 @@
 // fluxo dono), metas por indicador do Resultado (progresso = o indicador, com denominador), sugestões do mês por regras
 // sobre dado existente (sem LLM) com decisão registrada e acompanhamento observacional, conteúdo aprovado por profissão
 // publicado só pelo escopo autorizado do Perfil (P09) e o resumo semanal. O que a tela promete é o que o banco garante.
+import { useScope } from "../../app/scope.tsx";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { InsightsSection, WeeklyDigestCard } from "./Insights.tsx";
@@ -106,11 +107,14 @@ function Suggestions({ advice, port, onDone }: { advice: Advice; port: GrowthAdv
   const command = useCommand();
   const act = (rule: string, decision: "accepted" | "dismissed") =>
     command({ decide: rule, decision }, (key) => port.decide(rule, decision, key)).then(() => onDone(decision === "accepted" ? "Sugestão aceita. Em 30 dias medimos o indicador de novo e mostramos a variação observada (não é prova de efeito)." : "Sugestão dispensada neste mês."), (e: unknown) => onDone(failed(e)));
+  // P51: sugestão cuja ação fica numa tela que o negócio não vê (ex.: Campanhas, guardado) não aparece.
+  const scope = useScope();
+  const suggestions = advice.suggestions.filter((s) => scope.canOpen(s.route));
   return (
     <>
-      {advice.suggestions.length === 0 ? <p className="tn-muted">Nenhuma sugestão agora: as regras só falam quando há dado suficiente.</p> : null}
+      {suggestions.length === 0 ? <p className="tn-muted">Nenhuma sugestão agora: as regras só falam quando há dado suficiente.</p> : null}
       <ul className="tn-ga-list" aria-label="Sugestões">
-        {advice.suggestions.map((s) => (
+        {suggestions.map((s) => (
           <li key={s.rule_code} className="tn-ga-item">
             <h3>{s.title}</h3>
             <p>{s.text}</p>

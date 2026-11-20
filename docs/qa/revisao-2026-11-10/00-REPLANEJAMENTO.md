@@ -152,7 +152,15 @@ Cada linha traz as opções e a recomendação da auditoria. As marcadas com ★
 | D6 | O que a Hoje mostra primeiro | (b) o dia primeiro; configuração em uma linha quando há atendimento |
 | D14 | Laranja na interface | (B) um ou dois elementos que não são texto, botão nem estado (registrado em `brand/DECISIONS.md`, D31) |
 
-Continuam em aberto, entre as que destravam pacote: D4, D8, D18, D19, D36 e D37.
+**Decididas em 20/11 pelo Felipe** (aplicadas no P51 e no "Repetir toda semana"; ver `docs/handoffs/P51-claude-p51.md`):
+
+| # | Decisão | Escolha |
+|---|---|---|
+| D3 | O que cada plano libera | (b) piloto sem distinção entre planos; o texto do plano diz isso e não promete diferença |
+| D4 | Congelar a periferia | Sim: módulo guardado não recebe função nova; a rotina periódica dele fica desligada no negócio que não tem o módulo; os e2e dele saem da bateria do PR e rodam só na `main` |
+| D8 | Agenda do personal | (a) "Repetir toda semana" no Novo agendamento, usando `booking.create_series` |
+
+Continuam em aberto, entre as que destravam pacote: D18, D19, D36 e D37.
 
 ### Produto e escopo
 

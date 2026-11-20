@@ -32,6 +32,8 @@ function ReferralsLayout() {
 export const referralsModule: ModuleDefinition = {
   id: "referrals",
   owner: "P21",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "activation",
   path: "indicacoes",
   navLabel: "Indicações",
   routes: [{ index: true, element: <ReferralsLayout /> }],

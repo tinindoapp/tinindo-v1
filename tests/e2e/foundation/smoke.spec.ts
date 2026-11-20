@@ -42,12 +42,13 @@ test("alvos de toque da navegação têm pelo menos 44px (abas, menu e barra lat
 
 test("menu agrupa as telas e fecha ao navegar", async ({ page }) => {
   await page.goto("/app");
-  await openFromNav(page, "Campanhas");
-  await expect(page.getByRole("heading", { name: "Campanhas", level: 1 })).toBeVisible();
+  // P51: Campanhas está guardado; Preços é a tela do piloto que fica numa faixa de sub-abas (Agenda).
+  await openFromNav(page, "Preços");
+  await expect(page.getByRole("heading", { name: "Preços", level: 1 })).toBeVisible();
   const principal = page.getByRole("navigation", { name: "Principal" });
   if (!(await principal.isVisible())) {
     await expect(page.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-expanded", "false");
-    await expect(page.getByRole("navigation", { name: "Telas de Crescer" }).getByRole("link", { name: "Campanhas" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("navigation", { name: "Telas de Agenda" }).getByRole("link", { name: "Preços" })).toHaveAttribute("aria-current", "page");
   }
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

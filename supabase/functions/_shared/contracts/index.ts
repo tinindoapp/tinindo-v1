@@ -30,6 +30,7 @@ export * from "./materials.ts";
 export * from "./finance-advanced.ts";
 export * from "./field-service.ts";
 export * from "./setup.ts";
+export * from "./scope.ts";
 export * from "./network.ts";
 export * from "./events.ts";
 export * from "./operations.ts";

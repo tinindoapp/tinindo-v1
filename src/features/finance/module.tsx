@@ -54,6 +54,8 @@ function FinanceLayout() {
 export const financeModule: ModuleDefinition = {
   id: "finance",
   owner: "P07",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "caixa",
   navLabel: "Caixa",
   routes: [{ index: true, element: <FinanceLayout /> }],

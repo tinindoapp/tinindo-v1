@@ -32,6 +32,8 @@ function FiscalLayout() {
 export const fiscalModule: ModuleDefinition = {
   id: "fiscal",
   owner: "P16",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "stored",
   path: "notas",
   navLabel: "Notas fiscais",
   routes: [{ index: true, element: <FiscalLayout /> }],

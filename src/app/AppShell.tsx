@@ -5,6 +5,7 @@ import { Icon, IconSprite } from "../components/ui/icons.tsx";
 import { MODULES } from "./modules.ts";
 import { unreadLabel, useUnreadMessages } from "../features/messaging/unread.ts";
 import { activeTo, buildNavigation, HOME, type NavSection, sectionFor } from "./navigation.ts";
+import { ScopeProvider, useScope, visibleModules } from "./scope.tsx";
 import { useSession } from "./session.tsx";
 import "./shell.css";
 import { InboxExtraProvider } from "../features/messaging/module.tsx";
@@ -95,18 +96,31 @@ function SectionTabs({ section, active }: { section: NavSection; active: string 
   );
 }
 
+/** O shell monta o escopo do negócio (P51) em volta de tudo que fica sob /app: menu, sub-abas, telas e a porta das rotas. */
 export function AppShell() {
+  return (
+    <ScopeProvider modules={MODULES}>
+      <Shell />
+    </ScopeProvider>
+  );
+}
+
+function Shell() {
   const session = useSession();
   const { state } = session;
   const { pathname } = useLocation();
-  const sections = useMemo(() => buildNavigation(MODULES), []);
+  const scope = useScope();
+  // P51: menu, sub-abas e barra só com os módulos que aparecem para o negócio (piloto + o que o dono ligou).
+  const sections = useMemo(() => buildNavigation(visibleModules(MODULES, scope)), [scope]);
+  const messagingOn = scope.isVisible("messaging");
   // Menu do celular aberto na rota em que foi aberto: navegar fecha sem efeito colateral.
   const [openAt, setOpenAt] = useState<string | null>(null);
   const menuOpen = openAt === pathname;
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const navRef = useRef<HTMLElement>(null);
-  const unread = useUnreadMessages(pathname);
+  // Com Mensagens guardado não há selo nem leitura do contador.
+  const unread = useUnreadMessages(pathname, messagingOn);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -223,11 +237,11 @@ export function AppShell() {
                     to={i.to}
                     className="tn-nav__link"
                     aria-current={i.to === active ? "page" : undefined}
-                    aria-label={s.badge === "unread" && i.to === s.to ? withUnread(i.label, unread) : undefined}
+                    aria-label={s.badge === "unread" && i.module === "messaging" ? withUnread(i.label, unread) : undefined}
                   >
                     <Icon name={i.icon} size={20} />
                     {i.label}
-                    {s.badge === "unread" && i.to === s.to ? <UnreadBadge count={unread} className="tn-nav__badge" /> : null}
+                    {s.badge === "unread" && i.module === "messaging" ? <UnreadBadge count={unread} className="tn-nav__badge" /> : null}
                   </Link>
                 </li>
               ))}

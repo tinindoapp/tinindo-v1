@@ -29,14 +29,16 @@ export const DEMO_OPERATOR = { user_id: FX.users.outsider, display_name: "Operad
 const hash = (n: number) => n.toString(16).padStart(64, "0");
 const CATALOG: OfferingVersion[] = [
   { id: "90000000-0000-4000-8000-000000000001", code: "free", kind: "plan", version_no: 1, name: "Grátis",
-    description: "Perfil e gestão básica para experimentar a Tinindo.", price_cents: 0, billing: "monthly",
-    included: ["Agenda, clientes e caixa registrado", "Perfil público", "Exportação básica dos seus dados"],
+    // P51 (D3 b): texto igual ao do servidor; no piloto os dois planos dão as mesmas funções.
+    description: "No piloto, todos os negócios usam as mesmas funções da Tinindo, sem cobrança.", price_cents: 0, billing: "monthly",
+    included: ["Agenda, clientes e caixa registrado", "Perfil público com link de reserva", "Assistente: até 200 perguntas por mês"],
     excluded: ["Atendimento humano", "Serviços assistidos", "Emissão fiscal"], agent_questions_month: 200, assisted_minutes: null,
     sla_days: null, scope_hash: hash(1), published_at: "2026-10-18T12:00:00Z" },
   { id: "90000000-0000-4000-8000-000000000002", code: "founder", kind: "plan", version_no: 1, name: "Completo (fundador)",
-    description: "Preço de fundador por 12 meses para adesões elegíveis.", price_cents: 7900, billing: "monthly",
-    included: ["Tudo do Grátis", "Assistente com franquia mensal", "Ofertas de vaga e recuperação de agenda"],
-    excluded: ["Atendimento humano ilimitado", "Serviços assistidos (contratados à parte)", "Emissão fiscal", "Marketing pago"],
+    description: "Reserva o preço de fundador por 12 meses, para adesões elegíveis, quando a cobrança começar. No piloto as funções são as mesmas do Grátis e nada é cobrado.",
+    price_cents: 7900, billing: "monthly",
+    included: ["As mesmas funções do Grátis durante o piloto", "Assistente: até 200 perguntas por mês, igual ao Grátis"],
+    excluded: ["Funções a mais que o Grátis durante o piloto", "Atendimento humano ilimitado", "Serviços assistidos (contratados à parte)", "Emissão fiscal", "Marketing pago"],
     agent_questions_month: 200, assisted_minutes: null, sla_days: null, scope_hash: hash(2), published_at: "2026-10-18T12:00:00Z" },
   { id: "90000000-0000-4000-8000-000000000003", code: "implantacao_exemplo", kind: "service", version_no: 1,
     name: "Implantação assistida (exemplo)", description: "Cadastro inicial de serviços, horários e clientes pela equipe Tinindo.",
