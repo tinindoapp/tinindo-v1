@@ -1,7 +1,7 @@
 // Acesso dos módulos ao servidor (P53, R4 e R5 do doc 15): um cliente por sessão, criado em session.tsx, e o contexto
 // do negócio já carregado. Módulo não cria cliente (`createApiClient` em `src/features` é barrado pelo lint) nem pede
 // `/context` para saber fuso ou papel: usa `useApi()`, `usePort()` e `useBusiness()`.
-import { type DependencyList, useMemo } from "react";
+import { useMemo } from "react";
 import type { MemberRole, Profession } from "@contracts";
 import { Button, StatusBanner } from "../components/ui/index.tsx";
 import { createApiClient } from "../lib/api/client.ts";
@@ -36,27 +36,23 @@ export interface PortFactories<P> {
 
 /**
  * A porta do módulo para a sessão atual: a de demonstração ou a do servidor, recriada só quando muda o modo, o cliente
- * ou o negócio (e `deps`, se a fábrica depender de mais alguma coisa). null quando o servidor exige negócio e não há
- * negócio escolhido: a tela mostra "Selecione um negócio".
+ * ou o negócio. As fábricas precisam ser funções estáveis (as do módulo, declaradas fora do componente). null quando
+ * o servidor exige negócio e não há negócio escolhido: a tela mostra "Selecione um negócio".
  */
-export function usePort<P>(factories: PortFactories<P>, deps: DependencyList = []): P | null {
+export function usePort<P>(factories: PortFactories<P>): P | null {
   const { demo, call, tenantId } = useApi();
+  const { demo: makeDemo, server: makeServer } = factories;
   return useMemo(
-    () => (demo ? factories.demo() : call && tenantId ? factories.server(call, tenantId) : null),
-    // As fábricas são funções novas a cada render; o que importa é o modo, o cliente, o negócio e `deps`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [demo, call, tenantId, ...deps],
+    () => (demo ? makeDemo() : call && tenantId ? makeServer(call, tenantId) : null),
+    [demo, call, tenantId, makeDemo, makeServer],
   );
 }
 
 /** Igual a `usePort`, para portas que não dependem de negócio (cliente final logado, sem negócio). */
-export function useSessionPort<P>(factories: { demo(): P; server(call: ApiCall): P }, deps: DependencyList = []): P {
+export function useSessionPort<P>(factories: { demo(): P; server(call: ApiCall): P }): P {
   const { demo, call } = useApi();
-  return useMemo(
-    () => (demo || !call ? factories.demo() : factories.server(call)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [demo, call, ...deps],
-  );
+  const { demo: makeDemo, server: makeServer } = factories;
+  return useMemo(() => (demo || !call ? makeDemo() : makeServer(call)), [demo, call, makeDemo, makeServer]);
 }
 
 export interface Business {

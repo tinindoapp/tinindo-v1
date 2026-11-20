@@ -153,7 +153,7 @@ export function SessionProvider({ client, children }: { client: SupabaseClient |
     };
   }, [client]);
 
-  const memberships = state.status === "signed_in" || state.status === "offline_demo" ? state.memberships : [];
+  const memberships = useMemo(() => (state.status === "signed_in" || state.status === "offline_demo" ? state.memberships : []), [state]);
   const effectiveTenant =
     memberships.find((m) => m.tenant_id === tenantId)?.tenant_id ?? memberships[0]?.tenant_id ?? null;
 
