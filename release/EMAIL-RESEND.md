@@ -1,60 +1,72 @@
 # E-mail do Auth pelo Resend (homologação)
 
-Recado #75. Objetivo: o Supabase de homologação (`tinindo-homolog`) enviar cadastro e "Esqueci minha senha" por SMTP próprio, com o remetente `nao-responda@mail.tinindoapp.com.br`, e religar "Confirm email".
+Recados #75 e #109. Resultado: o Supabase de homologação manda o "Confirme seu e-mail" e o "Crie uma nova senha" por SMTP próprio, com o remetente `nao-responda@mail.tinindoapp.com.br`, caindo na caixa de entrada; e o "Confirm email" volta a ser exigido.
 
-Quem executa: Gabriel (o domínio, a Cloudflare e a org do Supabase estão na conta dele). Nada aqui é automático e nenhuma chave entra no repositório.
+Quem executa: Gabriel (domínio, Cloudflare e organização do Supabase estão na conta dele). Tempo: 30 a 45 minutos, quase tudo esperando o DNS. Nenhuma chave entra no repositório nem em mensagem: a API key vai do Resend direto para o painel do Supabase.
 
-## 1 · Resend
+## Antes de começar
 
-1. Criar a conta no Resend (plano grátis; tem limite diário de envios, suficiente para a homologação). **Se pedir cartão ou aparecer cobrança, parar e avisar o Felipe.**
-2. Domains → Add domain → `mail.tinindoapp.com.br` (região mais próxima disponível).
-3. Anotar os registros que o Resend mostrar (DKIM, SPF/MX do subdomínio de retorno). Não copiar valores para este arquivo.
-4. Criar uma API key com permissão só de envio ("Sending access"), restrita ao domínio `mail.tinindoapp.com.br`. Ela vai direto para o painel do Supabase (passo 3).
+- Acesso ao Resend, à Cloudflare (zona `tinindoapp.com.br`) e ao Supabase (`tinindo-homolog`).
+- Um Gmail que nunca usou a homologação, para o teste do fim.
+- **Se o Resend pedir cartão ou mostrar cobrança, pare e avise o Felipe.** O plano grátis basta para a homologação (cerca de 100 e-mails por dia).
 
-## 2 · DNS na Cloudflare
+## 1 · Resend (5 min)
 
-- Acrescentar **só** os registros que o Resend pediu para o subdomínio (`resend._domainkey.mail…`, `send.mail…` ou equivalentes), com proxy desligado (nuvem cinza).
-- **Não mexer** no MX da raiz, no SPF da raiz (Email Routing) nem no DMARC `p=reject` da raiz.
-- O DMARC da raiz vale para o subdomínio. Com DKIM alinhado em `mail.tinindoapp.com.br`, a mensagem passa; por isso o DKIM precisa estar "Verified" no Resend antes do teste.
-- Esperar o Resend marcar o domínio como verificado.
+1. Domains › Add domain › `mail.tinindoapp.com.br`, na região mais próxima disponível.
+2. Deixe a tela com os registros DNS aberta (próximo passo). Não copie os valores para nenhum arquivo.
+3. API Keys › Create › permissão **Sending access**, restrita ao domínio `mail.tinindoapp.com.br`. Copie a chave só quando for colar no Supabase (passo 3).
 
-## 3 · Supabase de homologação
+## 2 · DNS na Cloudflare (5 min + espera)
 
-Authentication → Emails → SMTP Settings → Enable custom SMTP:
+1. Em `tinindoapp.com.br` › DNS, acrescente **exatamente** os registros que o Resend mostrou para o subdomínio: o DKIM (`resend._domainkey.mail`) e os de retorno (`send.mail`, MX e TXT de SPF). Proxy **desligado** (nuvem cinza) em todos.
+2. **Não mexa** no MX da raiz, no SPF da raiz (Email Routing) nem no DMARC `p=reject` da raiz. O DMARC da raiz vale para o subdomínio; com o DKIM alinhado em `mail.tinindoapp.com.br`, a mensagem passa.
+3. No Resend, "Verify DNS records". Espere todos ficarem **Verified** antes do passo 3.
+
+Se não verificar em 30 minutos: confira se o nome não ficou duplicado (`resend._domainkey.mail.tinindoapp.com.br.tinindoapp.com.br`; a Cloudflare acrescenta o domínio sozinha) e se o proxy está mesmo desligado.
+
+## 3 · Supabase de homologação (10 min)
+
+Authentication › Emails › SMTP Settings › Enable custom SMTP:
 
 | Campo | Valor |
 |---|---|
 | Sender email | `nao-responda@mail.tinindoapp.com.br` |
 | Sender name | `Tinindo` |
 | Host | `smtp.resend.com` |
-| Port | `465` (ou `587`) |
+| Port | `465` |
 | Username | `resend` |
-| Password | a API key do passo 1.4 (só no painel) |
+| Password | a API key do passo 1.3 |
 
-Depois:
+Depois, no mesmo painel:
 
-1. Authentication → Rate limits: conferir o limite de e-mails por hora (o padrão sobe quando há SMTP próprio; deixar compatível com o limite diário do Resend).
-2. Authentication → Sign In / Providers → Email: religar **Confirm email**.
-3. Authentication → Emails → Templates:
+1. Authentication › Rate limits: o limite de e-mails por hora compatível com o plano do Resend (30 por hora é folgado para o UAT).
+2. Authentication › Emails › Templates:
    - **Confirm signup**: assunto `Confirme seu e-mail na Tinindo`; corpo = conteúdo de `supabase/templates/confirmation.html`.
-   - **Reset password**: assunto `Crie uma nova senha na Tinindo`; corpo = conteúdo de `supabase/templates/recovery.html`.
-   - O texto de recuperação diz que o link vale 1 hora. Se o "Email OTP Expiration" do projeto for outro, ajustar o texto.
-4. Conferir que Site URL e Redirect URLs apontam para `https://homolog.tinindoapp.com.br`.
+   - **Reset password**: assunto `Crie uma nova senha na Tinindo`; corpo = conteúdo de `supabase/templates/recovery.html`. O texto diz que o link vale 1 hora: se o "Email OTP Expiration" do projeto for outro, ajuste o texto.
+3. Authentication › URL Configuration: Site URL `https://homolog.tinindoapp.com.br` e Redirect URLs `https://homolog.tinindoapp.com.br/**`.
+4. Authentication › Sign In / Providers › Email: religue **Confirm email**. Por último, para não travar cadastro enquanto o SMTP não funcionava.
 
-Localmente, `supabase/config.toml` usa os mesmos modelos; no `supabase start` dá para ver o resultado no Inbucket (porta 54324).
+Localmente, `supabase/config.toml` usa os mesmos modelos; com `supabase start` o resultado aparece no Inbucket (porta 54324).
 
-## 4 · Teste
+## 4 · Teste (10 min)
 
-Com um e-mail novo (Gmail que nunca usou a homologação):
+Com o Gmail novo:
 
-- [ ] Cadastro → chega "Confirme seu e-mail na Tinindo" na caixa de entrada (não no spam) → o botão confirma e abre a homologação logado.
-- [ ] Sair → "Esqueci minha senha" → chega "Crie uma nova senha na Tinindo" → trocar a senha → entrar com a nova.
-- [ ] No Gmail, "Mostrar original": SPF, DKIM e DMARC = `PASS`.
-- [ ] Entrar com a conta técnica `teste@tinindoapp.com.br` continua funcionando.
-- [ ] Apagar a conta de teste da homologação ao fim.
+- [ ] Cadastro em `https://homolog.tinindoapp.com.br/criar-conta` › chega "Confirme seu e-mail na Tinindo" na **caixa de entrada** › o botão confirma e abre a homologação logado.
+- [ ] Sair › "Esqueci minha senha" › chega "Crie uma nova senha na Tinindo" › trocar a senha › entrar com a nova.
+- [ ] No Gmail, ⋮ › "Mostrar original": SPF, DKIM e DMARC = `PASS`.
+- [ ] A conta técnica sintética continua entrando (`npm run test:staging` passa).
+- [ ] Apague a conta de teste em Authentication › Users.
 
-Ao terminar, marcar o item de e-mail em `release/CHECKLIST.md` (data e evidência: print do "Mostrar original", sem endereço pessoal) e atualizar o "Estado" de `release/P42-LIBERACAO.md`.
+Ao terminar, marque o item de e-mail no `CHECKLIST.md` (data e print do "Mostrar original" sem o endereço pessoal) e comente no recado #109.
 
-## Reversão
+## Se der errado
 
-Se o envio falhar ou cair no spam: desligar o custom SMTP e "Confirm email" no painel (volta ao estado do piloto de 28/10). Os registros DNS do subdomínio podem ficar; não afetam a raiz.
+| Sintoma | Causa provável |
+|---|---|
+| E-mail não chega e o log do Auth mostra erro de SMTP | API key errada ou sem permissão para o domínio; porta 465 bloqueada (tente 587) |
+| Chega no spam | DKIM ainda não verificado, ou remetente diferente de `@mail.tinindoapp.com.br` |
+| "Mostrar original" com DMARC `FAIL` | DKIM assinando com outro domínio: confira o domínio da API key no Resend |
+| O link do e-mail abre `localhost` | Site URL e Redirect URLs (passo 3.3) |
+
+Reversão: desligue o custom SMTP e o "Confirm email" no painel (volta ao estado de 28/10). Os registros DNS do subdomínio podem ficar: não afetam a raiz.
