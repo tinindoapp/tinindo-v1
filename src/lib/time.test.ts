@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  addDays, dayWindow, deviceZoneDiffers, endOfLocalDay, formatCivilDate, formatDate, formatDateTime, formatDayMonth, formatFullDateTime, formatMonth, formatSlot,
+  addDays, dayWindow, deviceTimeZone, deviceZoneDiffers, endOfLocalDay, formatCivilDate, formatDate, formatDateTime, formatDayMonth, formatFullDateTime, formatMonth, formatSlot,
   formatStart, formatTime, formatWeekdayDate, formatWeekdayDateTime, formatWeekdayDay, formatWeekdayDayMonth, formatWeekdayLongDate, friendlyZone, isCivilDate,
   localDate, localParts, localToIso, noonOfLocalDay, now, receivedPeriods, setClockForTest, startOfLocalDay, startOfNextLocalDay, today,
   toZonedIso, weekStart, zonedInstant,
@@ -39,6 +39,12 @@ describe("tempo no fuso do negócio", () => {
 });
 
 describe("fuso do aparelho e nome amigável (auditoria de UX, item 34)", () => {
+  it("fuso do aparelho é o que o Intl usa quando a tela não diz o fuso", () => {
+    const at = new Date("2026-10-21T03:30:00Z");
+    const plain = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(at);
+    expect(formatTime(at, deviceTimeZone())).toBe(plain);
+  });
+
   it("só avisa quando o aparelho está noutro horário que o do negócio", () => {
     const at = "2026-10-20T12:00:00Z";
     const spy = vi.spyOn(Date.prototype, "getTimezoneOffset");

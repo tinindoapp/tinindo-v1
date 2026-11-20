@@ -178,6 +178,11 @@ export function formatUtcOffset(value: Date | string, timeZone: string): string 
   return `UTC${formatOffset(offsetMinutes(value, timeZone)).replace("-", "−")}`;
 }
 
+/** Fuso do aparelho (IANA): só para o que é "no relógio de quem lê", como o prazo do link de pagamento. */
+export function deviceTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 /** O aparelho está num fuso com outro horário que o do negócio naquele instante (só então vale avisar). */
 export function deviceZoneDiffers(value: Date | string, timeZone: string): boolean {
   const instant = toDate(value);
