@@ -2,6 +2,7 @@
 // ao servidor por POST. O negócio vem primeiro (D18); a Tinindo só no rodapé. Mostra quem recebe, o valor, o prazo e o
 // Pix copia e cola. D22: a simulação de pagamento só aparece na demonstração offline; com servidor, cobrança simulada
 // vira um aviso de teste, sem código Pix e sem botão de pagar.
+import { takeLinkToken } from "../../lib/public-link.ts";
 import { now } from "../../lib/time.ts";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
@@ -13,24 +14,7 @@ import { type PublicBusiness, PublicDone, PublicFrame, PublicMissing, PublicSkel
 
 const KEY = "tinindo.pay";
 
-function takeToken(): string | null {
-  const m = /(?:^#|&)t=([A-Za-z0-9_-]{43})(?:&|$)/.exec(window.location.hash);
-  if (m?.[1]) {
-    try {
-      sessionStorage.setItem(KEY, m[1]);
-    } catch {
-      /* sem armazenamento: vale enquanto a página estiver aberta */
-    }
-    // Tira só o fragmento: o caminho (com o endereço do negócio, se houver) continua na barra.
-    window.history.replaceState(window.history.state, "", window.location.pathname);
-    return m[1];
-  }
-  try {
-    return sessionStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
+const takeToken = () => takeLinkToken(KEY);
 
 export const MISSING_TITLE = "Este link de pagamento não vale mais";
 /** Estados em que o link não serve mais para pagar. */

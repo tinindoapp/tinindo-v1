@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { Button, ConfirmAction, Field, StatusBanner, toast, whatsappHref } from "../../../components/ui/index.tsx";
 import { ApiError } from "../../../lib/api/client.ts";
+import { takeLinkToken } from "../../../lib/public-link.ts";
 import { formatTime } from "../../../lib/time.ts";
 import type { BookingView, LinkReview } from "../api.ts";
 import { BookingFacts } from "../PublicProfileView.tsx";
@@ -14,23 +15,7 @@ import "../network.css";
 
 const KEY = "tinindo.reserva";
 
-function takeToken(): string | null {
-  const m = /(?:^#|&)t=([A-Za-z0-9_-]{43})(?:&|$)/.exec(window.location.hash);
-  if (m?.[1]) {
-    try {
-      sessionStorage.setItem(KEY, m[1]);
-    } catch {
-      /* sem armazenamento: vale enquanto a página estiver aberta */
-    }
-    window.history.replaceState(window.history.state, "", window.location.pathname);
-    return m[1];
-  }
-  try {
-    return sessionStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
+const takeToken = () => takeLinkToken(KEY);
 
 const STATUS: Record<string, string> = {
   confirmed: "Confirmado",

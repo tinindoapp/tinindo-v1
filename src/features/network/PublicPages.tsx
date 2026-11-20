@@ -7,6 +7,7 @@ import type { Profession } from "@contracts";
 import { PublicLayout } from "../../app/PublicLayout.tsx";
 import { useSession } from "../../app/session.tsx";
 import { Button, Card, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
+import { forgetLinkToken, takeLinkToken } from "../../lib/public-link.ts";
 import type { NetworkApi, PublicProfileData, ReferralInspectOutput, ReferralLinkData } from "./api.ts";
 import { PublicProfileView } from "./PublicProfileView.tsx";
 import { ShareLink } from "./ShareLink.tsx";
@@ -70,32 +71,8 @@ export function ProfilePreviewPage() {
 
 const INVITE_KEY = "tinindo.invite";
 
-function takeInviteToken(): string | null {
-  const match = /(?:^#|&)t=([A-Za-z0-9_-]{43})(?:&|$)/.exec(window.location.hash);
-  if (match?.[1]) {
-    try {
-      sessionStorage.setItem(INVITE_KEY, match[1]);
-    } catch {
-      /* sem armazenamento: o token vale só enquanto a página estiver aberta */
-    }
-    // Remove o token da barra de endereço e do histórico.
-    window.history.replaceState(window.history.state, "", window.location.pathname);
-    return match[1];
-  }
-  try {
-    return sessionStorage.getItem(INVITE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function forgetInviteToken() {
-  try {
-    sessionStorage.removeItem(INVITE_KEY);
-  } catch {
-    /* nada a limpar */
-  }
-}
+const takeInviteToken = () => takeLinkToken(INVITE_KEY);
+const forgetInviteToken = () => forgetLinkToken(INVITE_KEY);
 
 const INVITE_TEXT: Record<ReferralInspectOutput["kind"], { title: string; body: string; action: string }> = {
   professional_invites_peer: {

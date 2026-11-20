@@ -10,7 +10,7 @@ Um só de cada. Módulo (`src/features/<módulo>`) não copia nada daqui: import
 | Datas e fuso | `time.ts` | `now`, `today`, `localDate`, `startOfLocalDay`, `endOfLocalDay`, `noonOfLocalDay`, `formatDate`, `formatDateTime`, `formatSlot` e os demais; sempre com o fuso do negócio |
 | Erros de API | `errors.ts` | `errorExplainer({ "CODIGO.campo": "frase" })`, `errorInfo`, `serverMessage`, `SAFE_RETRY` |
 | Telefone | `phone.ts` | `normalizePhoneBR`, `phoneToE164`, `formatPhone`, `telHref`, `whatsappHref` |
-| Link público | `public-link.ts` | `takeLinkToken(chaveDaSessão)` |
+| Link público | `public-link.ts` | `takeLinkToken(chaveDaSessão)`, `forgetLinkToken(chaveDaSessão)` depois de usar |
 | Cliente da API | `api/client.ts` | `createApiClient`, `ApiError` |
 
 ## Regras
