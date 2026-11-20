@@ -12,16 +12,29 @@
      Os valores apontam para a escala da marca: o papel muda de tamanho num lugar só. */
   --tn-text-title: var(--tn-font-size-2xl);   /* h1 da tela (32 px a partir de 900 px) */
   --tn-text-section: var(--tn-font-size-xl);  /* h2: seção da tela */
-  --tn-text-group: var(--tn-font-size-lg);    /* h3: título de cartão ou grupo */
+  --tn-text-group: var(--tn-font-size-md);    /* h3: título de cartão ou grupo (16 px, peso 600; P54) */
+  --tn-text-lead: var(--tn-font-size-lg);     /* título do item em foco ("Próximo"); um por tela */
   --tn-text-body: var(--tn-font-size-md);     /* texto corrido, campos e botões */
   --tn-text-support: var(--tn-font-size-sm);  /* apoio: meta de linha, dica, nota */
   --tn-text-label: var(--tn-font-size-xs);    /* rótulo em caixa-alta, selo (mínimo de 12 px) */
   --tn-text-number: var(--tn-font-size-2xl);  /* número em destaque (indicador, valor) */
   --tn-text-number-lg: var(--tn-font-size-3xl); /* número principal da tela ("Sobrou no mês") */
+  --tn-text-number-sm: var(--tn-font-size-xl); /* valor de linha de resumo e de indicador */
 
-  /* "Selecionado" (item 9): uma aparência só. Preenchido com a cor de ação, texto invertido e peso 600. */
-  --tn-selected-bg: var(--tn-action);
-  --tn-selected-text: var(--tn-text-on-action);
+  /* Ritmo vertical (P54, revisão de 10/11 doc 07 §6): quatro papéis de espaço, do menor ao maior. Seção se separa de bloco;
+     bloco, de item. Os módulos usam os papéis, não o --tn-space-* cru, entre blocos de primeiro nível. */
+  --tn-gap-item: var(--tn-space-2);     /* entre linhas e campos irmãos */
+  --tn-gap-block: var(--tn-space-4);    /* entre blocos da mesma seção */
+  --tn-gap-section: var(--tn-space-8);  /* entre seções (40 px no largo) */
+  --tn-gap-opener: var(--tn-space-3);   /* dentro da abertura de tela */
+  --tn-row-min: 56px;                   /* altura mínima da linha de lista */
+  --tn-measure: 68ch;                   /* comprimento máximo de linha de texto corrido */
+
+  /* "Selecionado" (item 9): uma aparência só. P54 (revisão de 10/11, doc 06 achado 03): preto preenchido fica só para
+     ação; o valor escolhido (segmentado, chip, sub-aba) é fundo sutil, texto normal em peso 600 e contorno de 2 px no
+     indicador. Texto sobre o fundo: 16,10:1 no claro e 13,41:1 no escuro; contorno: 17,60:1. */
+  --tn-selected-bg: var(--tn-action-subtle);
+  --tn-selected-text: var(--tn-text);
   --tn-selected-border: var(--tn-selected-indicator);
   --tn-selected-weight: var(--tn-font-weight-semibold);
 
@@ -74,7 +87,7 @@
    - largo: (min-width: 900px), com o complemento (max-width: 899.98px). Menu lateral no lugar da barra de abas.
    Entre os dois, o layout se ajusta sozinho (grid auto-fit do .tn-form-grid, flex com quebra). */
 @media (min-width: 900px) {
-  :root { --tn-text-title: var(--tn-font-size-3xl); --tn-text-section: var(--tn-font-size-2xl); }
+  :root { --tn-text-title: var(--tn-font-size-3xl); --tn-text-section: var(--tn-font-size-2xl); --tn-gap-section: var(--tn-space-10); }
 }
 
 *,
@@ -97,6 +110,8 @@ body {
   font-size: var(--tn-text-body);
   line-height: var(--tn-line-height-normal);
   font-optical-sizing: auto;
+  /* Número alinhado por padrão (D17 b): valor, hora e contagem em coluna sem depender de classe aplicada à mão. */
+  font-variant-numeric: tabular-nums;
 }
 
 h1,

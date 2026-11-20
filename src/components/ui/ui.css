@@ -18,7 +18,10 @@
 .tn-button:active:not(:disabled) { transform: scale(.98); }
 .tn-button[data-variant="primary"] { background: var(--tn-action); color: var(--tn-text-on-action); }
 .tn-button[data-variant="secondary"] { background: var(--tn-surface); color: var(--tn-text); border-color: var(--tn-border-control); }
-.tn-button[data-variant="ghost"] { background: transparent; color: var(--tn-text); }
+/* Fantasma (P54, doc 07 regra 5.5): sem fundo nem borda, mas sublinhado na cor de link para ler como ação, não como texto. */
+.tn-button[data-variant="ghost"] { background: transparent; color: var(--tn-link); text-decoration: underline; text-underline-offset: 3px; }
+/* Compacto (ação de linha): texto de 14 px e respiro menor; a área de toque continua com 44 px. */
+.tn-button[data-size="compact"] { padding: 0 var(--tn-space-3); font-size: var(--tn-text-support); }
 /* Perigo: só no botão que confirma o que não volta atrás ("Sim, cancelar"). Vermelho com texto e ícone, nunca só cor. */
 .tn-button[data-variant="danger"] { background: var(--tn-danger-action); color: var(--tn-text-on-action); }
 .tn-button[data-block] { width: 100%; }
@@ -242,7 +245,12 @@
 /* O rádio cobre a opção inteira (44 px) e fica por cima: o toque e o clique caem nele. */
 .tn-segmented__option input { position: absolute; z-index: 1; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .tn-segmented__option:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
-.tn-segmented__option[data-selected] { background: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
+.tn-segmented__option[data-selected] { background: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); box-shadow: inset 0 0 0 2px var(--tn-selected-border); }
+/* No compacto o trilho não quebra (quatro opções numa linha, doc 07 achado 10): respiro menor e rolagem lateral. */
+@media (max-width: 30rem) {
+  .tn-segmented__track { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tn-segmented__option { padding: 0 var(--tn-space-3); white-space: nowrap; }
+}
 
 /* ChipNav: o mesmo desenho das sub-abas do shell. */
 .tn-chipnav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
@@ -262,7 +270,7 @@
   white-space: nowrap;
 }
 .tn-chipnav a[aria-current="page"],
-.tn-subnav a[aria-current="page"] { background: var(--tn-selected-bg); border-color: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
+.tn-subnav a[aria-current="page"] { background: var(--tn-selected-bg); border-color: var(--tn-selected-border); box-shadow: inset 0 0 0 1px var(--tn-selected-border); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
 
 /* ChoiceCard: opção grande; marcada = borda de 2 px no indicador, fundo sutil, peso 600 e ✓. */
 .tn-choice {
@@ -308,21 +316,28 @@
 }
 
 /* ------------------------------------------------------------------ linguagem de app */
+/* Abertura de tela (P54, doc 07 regra 5.1): rótulo em caixa-alta, título, uma linha de apoio, uma ação principal e o filtro
+   da tela, nesta ordem e sempre nos mesmos lugares. Aviso de ambiente não entra (D11 b: só a faixa do topo). */
 .tn-page-header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--tn-space-3);
-  margin-bottom: var(--tn-space-4);
+  gap: var(--tn-gap-opener);
+  margin-bottom: var(--tn-gap-block);
 }
 .tn-page-header__text { min-width: 0; flex: 1 1 16rem; }
 .tn-page-header h1 { margin: 0; }
 .tn-page-header .tn-caps { margin: 0 0 var(--tn-space-1); }
 .tn-page-header__sub { margin: var(--tn-space-1) 0 0; color: var(--tn-text-muted); }
 .tn-page-header__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+.tn-page-header__filter { flex: 1 1 100%; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
+.tn-page-header .tn-help { margin: 0; flex: 1 1 100%; }
 
-.tn-section { margin-top: var(--tn-space-6); }
+/* Seção (doc 07 regra 5.2): 32 px entre seções (40 no largo), 16 entre blocos da mesma seção; h2 num tamanho só. */
+.tn-section { margin-top: var(--tn-gap-section); }
+.tn-section > * + * { margin-top: var(--tn-gap-block); }
+.tn-section > .tn-section__head + * { margin-top: 0; }
 .tn-section__head {
   display: flex;
   align-items: center;
@@ -330,7 +345,8 @@
   gap: var(--tn-space-3);
   margin-bottom: var(--tn-space-2);
 }
-.tn-section__head h2 { margin: 0; font-size: var(--tn-text-group); }
+.tn-section__head h2 { margin: 0; }
+.tn-section__count { color: var(--tn-text-muted); font-weight: var(--tn-font-weight-regular); }
 .tn-section__head a { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); min-height: var(--tn-size-touch); display: inline-flex; align-items: center; }
 
 .tn-list {
@@ -348,7 +364,7 @@
   display: flex;
   align-items: center;
   gap: var(--tn-space-3);
-  min-height: 60px;
+  min-height: var(--tn-row-min);
   padding: var(--tn-space-3) var(--tn-space-4);
   color: var(--tn-text);
   text-decoration: none;
@@ -369,6 +385,71 @@
 .tn-list__meta { font-size: var(--tn-text-support); color: var(--tn-text-muted); overflow-wrap: anywhere; }
 .tn-list__trailing { flex: none; font-size: var(--tn-text-support); color: var(--tn-text-muted); font-variant-numeric: tabular-nums; text-align: right; }
 .tn-list__chevron { color: var(--tn-text-muted); }
+/* Linha com ação (doc 07 regra 5.3): no máximo uma ação visível, compacta, e o resto no menu "⋯". O link da linha e a ação
+   são irmãos (nunca botão dentro de link). */
+.tn-list__row--split { padding-right: var(--tn-space-2); }
+.tn-list__row > .tn-list__main { display: flex; align-items: center; gap: var(--tn-space-3); flex: 1; min-width: 0; min-height: var(--tn-size-touch); color: inherit; text-decoration: none; }
+.tn-list__actions { display: flex; flex: none; align-items: center; gap: var(--tn-space-1); }
+.tn-list__value { flex: none; font-weight: var(--tn-font-weight-medium); text-align: right; }
+/* Lista sem caixa em volta (dentro de cartão ou seção já delimitada): só os divisores. Nunca cartão dentro de cartão. */
+.tn-list[data-plain] { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.tn-list[data-plain] .tn-list__row { padding-left: 0; padding-right: 0; }
+/* "Ver todos (N)" e "Mostrando os 200 mais recentes": a nota de fim de lista. */
+.tn-list-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); margin-top: var(--tn-space-2); }
+.tn-list-foot__note { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+
+/* Resumo de número (doc 07 regra 5.4; D17 b): o número principal sozinho, grande e tabular, com rótulo em caixa-alta;
+   os outros em linhas (rótulo à esquerda, valor à direita). R$ 999.999,99 cabe em 320 px: o valor quebra de linha antes
+   de sair da caixa. */
+.tn-summary { display: grid; gap: var(--tn-space-3); min-width: 0; }
+.tn-summary__hero { display: grid; gap: var(--tn-space-1); min-width: 0; }
+.tn-summary__hero-label { margin: 0; }
+.tn-summary__hero-value {
+  margin: 0;
+  font-family: var(--tn-font-display);
+  font-size: var(--tn-text-number-lg);
+  font-weight: var(--tn-font-weight-semibold);
+  letter-spacing: var(--tn-letter-spacing-display);
+  line-height: var(--tn-line-height-tight);
+  overflow-wrap: anywhere;
+}
+.tn-summary__hero-hint { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); max-width: var(--tn-measure); }
+.tn-summary__rows { list-style: none; margin: 0; padding: 0; display: grid; }
+.tn-summary__rows > li { border-top: 1px solid var(--tn-border); }
+.tn-summary__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: var(--tn-space-3); padding: var(--tn-space-2) 0; min-height: var(--tn-size-touch); color: var(--tn-text); text-decoration: none; }
+a.tn-summary__row { align-items: center; }
+.tn-summary__row-label { font-size: var(--tn-text-support); color: var(--tn-text-muted); }
+.tn-summary__row-value { font-size: var(--tn-text-number-sm); font-weight: var(--tn-font-weight-semibold); text-align: right; overflow-wrap: anywhere; }
+.tn-summary__row-hint { grid-column: 1 / -1; font-size: var(--tn-text-label); color: var(--tn-text-muted); }
+@media (hover: hover) { a.tn-summary__row:hover { background: var(--tn-action-subtle); } }
+
+/* Barra de ações (doc 07 regra 5.5): uma ação principal; secundárias como fantasma; o resto no "⋯". */
+.tn-actionbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); min-width: 0; }
+.tn-actionbar > .tn-menu { margin-left: auto; }
+
+/* Selo de estado com tom (doc 06 achados 02, 06 e 09; D15): ícone + texto, fundo derivado do tom (12% sobre o cartão,
+   como o aviso). "Neutro" para o estado que não pede atenção ("Confirmado"). Nunca pílula preta. */
+.tn-badge {
+  --tn-tone: var(--tn-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tn-space-1);
+  min-height: 24px;
+  padding: 2px var(--tn-space-2);
+  border-radius: var(--tn-radius-pill);
+  background: color-mix(in srgb, var(--tn-tone) 12%, var(--tn-surface));
+  color: var(--tn-tone);
+  font-size: var(--tn-text-label);
+  font-weight: var(--tn-font-weight-medium);
+  line-height: var(--tn-line-height-snug);
+  white-space: nowrap;
+}
+.tn-badge[data-tone="success"] { --tn-tone: var(--tn-success-text); }
+.tn-badge[data-tone="warning"] { --tn-tone: var(--tn-warning-text); }
+.tn-badge[data-tone="danger"] { --tn-tone: var(--tn-danger-text); }
+.tn-badge[data-tone="info"] { --tn-tone: var(--tn-info-text); }
+.tn-badge[data-tone="neutral"] { color: var(--tn-text-muted); background: var(--tn-surface-sunken); }
+.tn-badge .tn-tone-icon { flex: none; }
 
 .tn-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--tn-space-3); }
 .tn-stat {
@@ -378,14 +459,14 @@
   min-height: 96px;
   padding: var(--tn-space-4);
   border: 1px solid var(--tn-border);
-  border-radius: var(--tn-radius-lg);
+  border-radius: var(--tn-radius-md);
   background: var(--tn-surface);
   color: var(--tn-text);
   text-decoration: none;
 }
 @media (hover: hover) { a.tn-stat:hover { background: var(--tn-action-subtle); } }
 .tn-stat__label { font-size: var(--tn-text-support); color: var(--tn-text-muted); }
-.tn-stat__value { font-family: var(--tn-font-display); font-size: var(--tn-text-number); font-weight: var(--tn-font-weight-semibold); letter-spacing: var(--tn-letter-spacing-display); }
+.tn-stat__value { font-family: var(--tn-font-display); font-size: var(--tn-text-number); font-weight: var(--tn-font-weight-semibold); letter-spacing: var(--tn-letter-spacing-display); overflow-wrap: anywhere; }
 .tn-stat__hint { font-size: var(--tn-text-label); color: var(--tn-text-muted); }
 
 /* Títulos de tela: tamanhos por papel em global.css (--tn-text-title/section/group), compactos no celular. */
@@ -403,9 +484,7 @@
 .tn-main__inner .tn-card:has(> h1) > * { margin-top: 0; margin-bottom: 0; }
 .tn-main__inner .tn-card:has(> h1) > :is(div, button):not(.tn-banner) { justify-self: start; }
 .tn-main__inner .tn-card:has(> h1) > p:not([class*="banner"]) { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
-/* Títulos dentro de cartões no tamanho de seção. */
-.tn-main__inner .tn-card h2 { font-size: var(--tn-text-group); }
-.tn-main__inner .tn-card h3 { font-size: var(--tn-text-body); }
+/* Títulos: um tamanho por nível em qualquer contêiner (P54, doc 07 achado 06). O h2 de cartão não encolhe mais. */
 /* Avisos empilhados respiram. */
 .tn-banner + .tn-banner { margin-top: var(--tn-space-2); }
 
@@ -464,7 +543,7 @@
 .tn-chip:has(input:focus-visible) { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 2px; }
 .tn-chip:has(input[aria-invalid="true"]) { border-color: var(--tn-danger-text); }
 .tn-chip__check { display: none; flex: none; }
-.tn-chip[data-selected] { background: var(--tn-selected-bg); border-color: var(--tn-selected-bg); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
+.tn-chip[data-selected] { background: var(--tn-selected-bg); border-color: var(--tn-selected-border); box-shadow: inset 0 0 0 1px var(--tn-selected-border); color: var(--tn-selected-text); font-weight: var(--tn-selected-weight); }
 .tn-chip[data-selected] .tn-chip__check { display: block; }
 .tn-chips__shortcut {
   display: inline-flex;
@@ -485,3 +564,46 @@
 /* Estado "ainda não configurado" (P44): frase + botão para a tela que resolve. */
 .tn-setup-hint { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2) var(--tn-space-3); margin: var(--tn-space-3) 0 0; padding: var(--tn-space-3); border: 1px dashed var(--tn-border); border-radius: var(--tn-radius-md); }
 .tn-setup-hint__text { margin: 0; flex: 1 1 240px; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+
+/* Seção recolhível (doc 07 regra 5.2: seção secundária nasce recolhida em uma linha com contagem). */
+.tn-section--fold > summary { list-style: none; cursor: pointer; min-height: var(--tn-size-touch); margin-bottom: 0; }
+.tn-section--fold > summary::-webkit-details-marker { display: none; }
+.tn-section--fold .tn-section__fold-icon { flex: none; color: var(--tn-text-muted); transform: rotate(90deg); transition: transform var(--tn-motion-fast) var(--tn-motion-ease); }
+.tn-section--fold:not([open]) .tn-section__fold-icon { transform: none; }
+.tn-section--fold[open] > .tn-section__body { margin-top: var(--tn-space-2); }
+@media (prefers-reduced-motion: reduce) { .tn-section--fold .tn-section__fold-icon { transition: none; } }
+
+/* Linha do tempo do dia (D17 b): hora numa coluna tabular de largura fixa e um traço vertical ligando os horários. O
+   traço não é texto nem estado; é a cor da borda. */
+.tn-list[data-timeline] .tn-list__row { position: relative; align-items: flex-start; }
+.tn-list[data-timeline] .tn-list__chevron, .tn-list[data-timeline] .tn-list__trailing { align-self: center; }
+.tn-list[data-timeline] time, .tn-list[data-timeline] .tn-timeline__time {
+  flex: none;
+  width: 3.25em;
+  font-weight: var(--tn-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.tn-list[data-timeline] .tn-list__row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--tn-space-4) + 3.25em + var(--tn-space-3) / 2);
+  border-left: 2px solid var(--tn-border);
+}
+.tn-list[data-timeline] > li:first-child .tn-list__row::before { top: 50%; }
+.tn-list[data-timeline] > li:last-child .tn-list__row::before { bottom: 50%; }
+.tn-list[data-timeline] .tn-list__text { padding-left: var(--tn-space-3); }
+/* Um ponto em cada horário sobre o traço (o próximo e os já passados só mudam o texto, nunca a cor do ponto). */
+.tn-list[data-timeline] .tn-list__text { position: relative; }
+.tn-list[data-timeline] .tn-list__text::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--tn-line-height-normal) * 0.5em - 5px);
+  left: calc(var(--tn-space-3) / -2 - 4px);
+  width: 10px;
+  height: 10px;
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-surface);
+  border: 2px solid var(--tn-text-muted);
+}
