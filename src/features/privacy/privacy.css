@@ -1,0 +1,5 @@
+.tn-privacy { display: grid; gap: var(--tn-space-4); }
+.tn-privacy-picker { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--tn-space-2); align-items: end; margin-top: var(--tn-space-3); }
+@media (max-width: 30rem) { .tn-privacy-picker { grid-template-columns: 1fr; } }
+.tn-privacy-list { list-style: none; margin: var(--tn-space-3) 0 0; padding: 0; display: grid; gap: var(--tn-space-1); font-size: var(--tn-text-support); }
+.tn-privacy-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); min-height: var(--tn-size-touch); border-top: 1px solid var(--tn-border); }

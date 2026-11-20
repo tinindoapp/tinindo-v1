@@ -10,7 +10,7 @@ primeiro passo da trava de módulo no servidor (`P51-claude-p51.md`, Pendências
 
 ### Servidor
 
-Migration `supabase/migrations/20261120124000_agenda_personal_series.sql`. É append-only e não foi aplicada na homologação.
+Migration `supabase/migrations/20261120132413_agenda_personal_series.sql`. É append-only e não foi aplicada na homologação.
 
 - **`series_id` em `Booking`.** Aparece em `booking.get`, `booking.list`, `booking.list_by_customer` e em toda resposta que usa `app.sched_booking_json`. No contrato é opcional, para tolerar servidor antigo. Índice novo: `bookings_series`.
 - **`booking.create_series` com vários dias da semana.**
@@ -77,9 +77,9 @@ Migration `supabase/migrations/20261120124000_agenda_personal_series.sql`. É ap
 | `npm run lint` / `typecheck` | ok |
 | `npm run test:unit` | 1012/1012 |
 | `npm run test:contracts` | 846 ok, 38 pulados (iguais à main) |
-| `npm run db:test:local` | todos; novo `41_agenda_personal_series.test.sql` (34) |
+| `npm run db:test:local` | todos; novo `42_agenda_personal_series.test.sql` (34) |
 | `npm run db:test:concurrency` | todos; novo `32_agenda_series.sh` (mesma chave, disputa de horário, cancelar ao mesmo tempo, cancelar × concluir) |
-| `npm run test:integration` | 155/155; novo `50_agenda_personal.test.ts` |
+| `npm run test:integration` | 161/161; novo `51_agenda_personal.test.ts` |
 | `npm run check:functions` | ok |
 | `npm run build` | ok |
 | `npx playwright test` (desktop e Pixel 7) | 318 ok; `serie.spec.ts` cobre cancelar os próximos, o link da reserva e 375 px |

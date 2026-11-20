@@ -1,6 +1,6 @@
 # Pendências jurídicas e de decisão · documentos legais
 
-Versão 0.1 · 18/10/2026. Os documentos em `docs/legal/` são **rascunhos para revisão jurídica**. Nada aqui foi revisado por advogado. Antes de publicar a política e os termos, ou de importar dados reais de clientes (`COMECE_AQUI.md`; `docs/10_TESTES_E_ACEITE.md` exige "política de privacidade final"), cada item abaixo precisa de resposta.
+Versão 0.2 · 20/11/2026 (P57: retenção, exportar e eliminar, borda pública). Versão 0.1 · 18/10/2026. Os documentos em `docs/legal/` são **rascunhos para revisão jurídica**. Nada aqui foi revisado por advogado. Antes de publicar a política e os termos, ou de importar dados reais de clientes (`COMECE_AQUI.md`; `docs/10_TESTES_E_ACEITE.md` exige "política de privacidade final"), cada item abaixo precisa de resposta.
 
 Legenda de responsável: **F** = fundadores; **ADV** = advogado; **ENG** = integrador/engenharia.
 
@@ -46,30 +46,37 @@ Legenda de responsável: **F** = fundadores; **ADV** = advogado; **ENG** = integ
 | D5 | Arquivar DPAs/termos de tratamento de Supabase, Cloudflare e demais; verificar adequação às cláusulas-padrão da Resolução CD/ANPD nº 19/2024 | ADV + ENG |
 | D6 | Confirmar se o site/app usa cookies ou analytics de terceiros; se sim, aviso de cookies | ENG + ADV |
 
-## E. Retenção (nenhum prazo foi aprovado)
+## E. Retenção
 
-`docs/02_DADOS_E_INVARIANTES.md` proíbe inventar prazo legal universal. Definir, por categoria:
+`docs/02_DADOS_E_INVARIANTES.md` proíbe inventar prazo legal universal. Em 10/11/2026 o Felipe adotou a **D25** (idempotência 30 dias; eventos e webhooks 90 dias; mensagens e execuções do assistente 12 meses; código de verificação apagado ao fim do envio; pedido não confirmado 30 dias). O P57 implementou esses prazos (`public.retention_policies`, `app.retention_tick` em `job_ticks`, relatório sem conteúdo em `retention_runs`). **Continuam dependendo do advogado:** a D25 inteira (ADV confirma ou ajusta; mudar prazo é uma linha numa migration nova) e os itens abaixo sem prazo.
 
-| # | Categoria | Observação |
-|---|---|---|
-| E1 | Janela de exportação após encerramento de conta (`[N dias]`) | Decisão de produto + ADV |
-| E2 | Dados do negócio do profissional após fim do contrato | Tinindo é operadora; prazo deve constar no DPA |
-| E3 | Registros de acesso (mínimo 6 meses pelo Marco Civil art. 15); prazo máximo | ADV |
-| E4 | Documentos fiscais e de cobrança da Tinindo | ADV/contador |
-| E5 | Consentimentos e revogações (prazo de prova) | ADV |
-| E6 | Auditoria, propostas/aprovações, `agent_runs` | ADV + ENG |
-| E7 | Logs técnicos, idempotência, outbox/jobs, contexto do assistente | ENG (curto) |
-| E8 | Indicações pendentes e ofertas de lista de espera expiradas | F + ENG |
-| E9 | Ciclo de backups (banco e Storage separadamente) e como exclusões se propagam | ENG |
+| # | Categoria | Situação (20/11) | Observação |
+|---|---|---|---|
+| E1 | Janela de exportação após encerramento de conta (`[N dias]`) | **Depende de ADV.** Hoje: o dono exporta até a carência de 7 dias da eliminação acabar; depois, o acesso termina | Decisão de produto + ADV |
+| E2 | Dados do negócio do profissional após fim do contrato | **Depende de ADV.** Eliminação a pedido implementada (anonimiza; valores e fiscais ficam) | Tinindo é operadora; prazo deve constar no DPA |
+| E3 | Registros de acesso (mínimo 6 meses pelo Marco Civil art. 15); prazo máximo | **Depende de ADV** e da ferramenta de log (D3) | ADV |
+| E4 | Documentos fiscais e de cobrança da Tinindo | **Depende de ADV/contador.** Eliminação mantém `fiscal_documents` com nome e documento do tomador | ADV/contador |
+| E5 | Consentimentos e revogações (prazo de prova) | **Depende de ADV.** Eliminação do cliente mantém `contact_consents` (prova), ligado ao cadastro anonimizado | ADV |
+| E6 | Auditoria, propostas/aprovações, `agent_runs` | **Assistente: D25 (12 meses), implementado. Auditoria e pedidos de eliminação: depende de ADV** | ADV + ENG |
+| E7 | Logs técnicos, idempotência, outbox/jobs, contexto do assistente | **D25 implementada** (idempotência 30 d; fila e webhooks 90 d). Logs técnicos da plataforma: depende de D3 | ENG (curto) |
+| E8 | Indicações pendentes e ofertas de lista de espera expiradas | **Aberto** (fora da D25) | F + ENG |
+| E9 | Ciclo de backups (banco e Storage separadamente) e como exclusões se propagam | **Aberto.** Arquivos de exportação vencidos e fotos de negócio eliminado precisam da API do Storage para sumir (recado ao integrador) | ENG |
 
 ## F. Direitos do titular e incidentes
 
 | # | Pendência | Resp. |
 |---|---|---|
-| F1 | Prazo de resposta a pedidos de titular (LGPD prevê 15 dias para a declaração completa de acesso; confirmar regulamentação vigente) | ADV |
-| F2 | Procedimento de verificação de identidade do solicitante | ADV + ENG |
+| F1 | Prazo de resposta a pedidos de titular (LGPD prevê 15 dias para a declaração completa de acesso; confirmar regulamentação vigente) | ADV · **depende de ADV**; a exportação sai na hora |
+| F2 | Procedimento de verificação de identidade do solicitante | ADV + ENG · **depende de ADV**: hoje o dono (controlador) atende o cliente e confere quem pede; a Tinindo não verifica |
 | F3 | Procedimento e prazo de comunicação de incidente à ANPD e aos titulares (Resolução CD/ANPD nº 15/2024) e responsável | ADV + F |
-| F4 | Implementar exportação CSV/JSON por negócio e exclusão com trilha (já previsto em doc02) antes de dados reais | ENG |
+| F4 | Implementar exportação CSV/JSON por negócio e exclusão com trilha (já previsto em doc02) antes de dados reais | ENG · **feito no P57** (JSON por negócio e por cliente; eliminação com carência e trilha). **ADV valida** que anonimizar e manter valores/fiscais atende ao art. 16 e ao art. 18, VI |
+
+## Borda pública (P57)
+
+| # | Pendência | Resp. |
+|---|---|---|
+| F5 | Limite de abuso da reserva pública (D30 a) usa o IP só como hash diário com pimenta, apagado em 1 dia; confirmar base (LI, segurança) e citar na política | ADV |
+| F6 | Turnstile (D30 b) fica para depois; se entrar, é suboperador novo (Cloudflare) e muda a seção de cookies/terceiros | F + ENG + ADV |
 
 ## G. Condições comerciais (Termos §8)
 

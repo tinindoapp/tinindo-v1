@@ -18,14 +18,15 @@ test("Home: uma sugestão com evidência e Ver todas; Ver leva à tela do fluxo 
   // O dia primeiro: a sugestão vem depois do Próximo, da lista do dia, das pendências, dos números e da configuração.
   await expect(page.getByRole("heading", { name: "Atendimentos de hoje" })).toBeVisible();
   await expect(page.locator("[aria-labelledby='setup-card-title']")).toBeVisible();
-  const order = await page.locator("main").evaluate((m) => [...m.querySelectorAll("[aria-labelledby], .tn-stats")]
-    .map((e) => (e.classList.contains("tn-stats") ? "tn-stats" : e.getAttribute("aria-labelledby")) as string));
+  // P54: os números são uma seção própria ("Números", home-numbers).
+  const order = await page.locator("main").evaluate((m) => [...m.querySelectorAll("[aria-labelledby]")]
+    .map((e) => e.getAttribute("aria-labelledby") as string));
   const at = (x: string) => order.indexOf(x);
   expect(at("home-next-title")).toBeGreaterThan(-1);
   expect(at("home-next-title")).toBeLessThan(at("home-day"));
   expect(at("home-day")).toBeLessThan(at("home-pending"));
-  expect(at("home-pending")).toBeLessThan(at("tn-stats"));
-  expect(at("tn-stats")).toBeLessThan(at("setup-card-title"));
+  expect(at("home-pending")).toBeLessThan(at("home-numbers"));
+  expect(at("home-numbers")).toBeLessThan(at("setup-card-title"));
   expect(at("setup-card-title")).toBeLessThan(at("home-insights"));
 
   // "Ver" de tela: registra e abre o fluxo dono (Relacionamento, para os lembretes).
