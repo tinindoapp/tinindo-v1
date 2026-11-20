@@ -57,3 +57,11 @@ select app.svc_publish_offering('implantacao_exemplo', 'service', 'Implantação
   'Cadastro inicial de serviços, horários e clientes pela equipe Tinindo.', 50000, 'one_time',
   '["Cadastro de até 20 serviços", "Horários de atendimento", "Importação de uma planilha de clientes"]',
   '["Site personalizado", "Google Meu Negócio", "Emissão fiscal"]', null, 120, 7);
+
+-- Recado #142 · trava de módulo no servidor: os testes (pgTAP, integração, concorrência) usam os negócios A e B com
+-- todos os módulos "por ativação" e "guardados" ligados, como um negócio que já liberou tudo. Quem testa a recusa
+-- desliga a chave no próprio teste. Só local/CI: o seed não roda em homologação nem em produção.
+select app.module_admin_set(t.id, c.module, true)
+from public.tenants t cross join app.module_catalog() c
+where t.id in ('10000000-0000-4000-8000-00000000000a', '10000000-0000-4000-8000-00000000000b')
+  and c.level in ('activation', 'stored');

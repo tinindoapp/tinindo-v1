@@ -141,6 +141,8 @@ select throws_ok(format($$ select public.scheduling_booking_series(%L, %L) $$, (
 -- ------------------------------------------------------------------ trava de módulo
 reset role;
 select lives_ok($$ select app.module_guard((select tenant_a from ids), 'scheduling') $$, 'Agenda (piloto): sempre ligada');
+-- O seed liga tudo para A (recado #142); aqui a chave volta a desligada para provar a recusa.
+select app.module_admin_set((select tenant_a from ids), 'payments', false);
 select throws_ok($$ select app.module_guard((select tenant_a from ids), 'payments') $$, 'PT403', 'FORBIDDEN',
   'módulo guardado sem a chave: recusado');
 select app.module_admin_set((select tenant_a from ids), 'payments', true);

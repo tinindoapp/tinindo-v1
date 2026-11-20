@@ -33,6 +33,8 @@ end $$;
 grant execute on function pg_temp.h(text), pg_temp.got(text), pg_temp.mod(jsonb, text), pg_temp.err(text) to anon, authenticated;
 
 insert into public.tenant_memberships (tenant_id, user_id, role) select tenant_a, staff_a, 'staff' from ids;
+-- O seed liga todos os módulos para A (recado #142); este teste parte de um negócio sem chave nenhuma.
+delete from public.tenant_modules where tenant_id = (select tenant_a from ids);
 
 -- ------------------------------------------------------------------ catálogo, estrutura e grants
 select is((select string_agg(level || '=' || n, ',' order by level) from (select level, count(*) n from app.module_catalog() group by level) x),
@@ -78,10 +80,10 @@ select is(pg_temp.err(format($$ select public.setup_module_set(%L, 'sales', fals
 -- Chave nova pedindo o estado que já vale: não muda nada nem audita de novo.
 insert into r select 'on2', public.setup_module_set((select tenant_a from ids), 'sales', true, 'idem-p51-sales-on-00002', pg_temp.h('on'));
 reset role;
-select is((select count(*)::int from public.audit_events a where a.tenant_id = (select tenant_a from ids) and a.action = 'module.enable'), 1, 'uma linha de auditoria para uma mudança');
+select is((select count(*)::int from public.audit_events a where a.tenant_id = (select tenant_a from ids) and a.occurred_at >= now() and a.action = 'module.enable'), 1, 'uma linha de auditoria para uma mudança');
 select is((select a.before->>'enabled' || '>' || (a.after->>'enabled') || ':' || (a.after->>'module') from public.audit_events a
-  where a.tenant_id = (select tenant_a from ids) and a.action = 'module.enable'), 'false>true:sales', 'auditoria guarda antes, depois e o módulo');
-select is((select a.actor_user_id from public.audit_events a where a.tenant_id = (select tenant_a from ids) and a.action = 'module.enable'), (select owner_a from ids), 'auditoria guarda quem ligou');
+  where a.tenant_id = (select tenant_a from ids) and a.occurred_at >= now() and a.action = 'module.enable'), 'false>true:sales', 'auditoria guarda antes, depois e o módulo');
+select is((select a.actor_user_id from public.audit_events a where a.tenant_id = (select tenant_a from ids) and a.occurred_at >= now() and a.action = 'module.enable'), (select owner_a from ids), 'auditoria guarda quem ligou');
 select is((select count(*)::int from public.tenant_modules m where m.tenant_id = (select tenant_a from ids)), 1, 'uma linha de chave');
 
 -- ------------------------------------------------------------------ dono desliga
@@ -90,7 +92,7 @@ set local role authenticated;
 insert into r select 'off1', public.setup_module_set((select tenant_a from ids), 'sales', false, 'idem-p51-sales-off-0001', pg_temp.h('off'));
 select is(pg_temp.mod(pg_temp.got('off1')->'body'->'scope', 'sales')->>'enabled', 'false', 'desligar devolve o módulo desligado');
 reset role;
-select is((select count(*)::int from public.audit_events a where a.tenant_id = (select tenant_a from ids) and a.action = 'module.disable'), 1, 'desligar também é auditado');
+select is((select count(*)::int from public.audit_events a where a.tenant_id = (select tenant_a from ids) and a.occurred_at >= now() and a.action = 'module.disable'), 1, 'desligar também é auditado');
 select is((select m.version from public.tenant_modules m where m.tenant_id = (select tenant_a from ids) and m.module = 'sales'), 2, 'a mesma linha muda de estado (versão 2)');
 
 -- ------------------------------------------------------------------ o que o dono não pode
@@ -113,7 +115,7 @@ select pg_temp.login_as((select owner_b from ids));
 select is(pg_temp.err(format($$ select public.setup_scope(%L) $$, (select tenant_a from ids))), 'PT403/FORBIDDEN/-', 'dono B não lê o escopo de A');
 select is(pg_temp.err(format($$ select public.setup_module_set(%L, 'sales', true, 'idem-p51-cross-0000001', %L) $$, (select tenant_a from ids), pg_temp.h('cx'))),
   'PT403/FORBIDDEN/-', 'dono B não muda a chave de A');
-select is((select count(*)::int from public.tenant_modules), 0, 'RLS: B não vê as chaves de A');
+select is((select count(*)::int from public.tenant_modules m where m.tenant_id = (select tenant_a from ids)), 0, 'RLS: B não vê as chaves de A');
 select is(public.setup_scope((select tenant_b from ids))->>'profession', 'personal_trainer', 'B lê o próprio escopo (personal)');
 insert into r select 'b1', public.setup_module_set((select tenant_b from ids), 'recurrence', true, 'idem-p51-b-recur-000001', pg_temp.h('b'));
 reset role;
@@ -123,7 +125,7 @@ select is((select string_agg(m.module || '=' || m.enabled, ',' order by m.module
 -- ------------------------------------------------------------------ guardado: só o backend liga, com auditoria
 select is(app.module_enabled((select tenant_a from ids), 'campaigns'), false, 'campanhas desligado por padrão');
 select is(app.module_admin_set((select tenant_a from ids), 'campaigns', true), true, 'backend liga o guardado');
-select is((select count(*)::int from public.audit_events a where a.tenant_id = (select tenant_a from ids) and a.action = 'module.enable' and a.after->>'module' = 'campaigns'), 1,
+select is((select count(*)::int from public.audit_events a where a.tenant_id = (select tenant_a from ids) and a.occurred_at >= now() and a.action = 'module.enable' and a.after->>'module' = 'campaigns'), 1,
   'ligar guardado pelo backend também é auditado');
 
 -- ------------------------------------------------------------------ o backend também desliga; piloto e inexistente recusados
