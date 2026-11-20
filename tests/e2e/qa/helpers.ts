@@ -43,6 +43,17 @@ export async function expectDemoLabel(page: Page) {
   await expect(page.getByRole("note")).toContainText("Demonstração");
 }
 
+/** Caixa (P54): o histórico do mês nasce recolhido; abre e escolhe a lista (Recebimentos, Despesas ou Pacotes). */
+export async function openCaixaHistory(page: Page, tab: "Recebimentos" | "Despesas" | "Pacotes" = "Recebimentos") {
+  const fold = page.locator("details.tn-section--fold").filter({ has: page.getByRole("heading", { name: /^Histórico do mês/ }) });
+  if (!(await fold.evaluate((d) => (d as HTMLDetailsElement).open))) await fold.locator("summary").click();
+  await fold.getByRole("radio", { name: tab, exact: true }).check();
+}
+
+/** Linha do resumo do Caixa (P54): rótulo à esquerda, valor à direita. */
+export const caixaSummaryValue = (page: Page, label: string) =>
+  page.getByRole("region", { name: /Caixa registrado/ }).getByRole("listitem").filter({ hasText: label }).locator(".tn-summary__row-value");
+
 /** Navegação do app sem recarregar, para manter o estado da demonstração na aba. */
 export async function softNavigate(page: Page, href: string) {
   await page.evaluate((to) => {

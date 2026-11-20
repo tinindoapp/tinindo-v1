@@ -1,0 +1,88 @@
+{
+  "hoje": {
+    "url": "/app",
+    "height": 1608,
+    "screens": 1.91,
+    "h1": "Hoje",
+    "textCount": 64,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 24,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 4,
+    "blackNonAction": [
+      "span. ",
+      "svg.[object SVGAnimatedString] "
+    ]
+  },
+  "caixa": {
+    "url": "/app/caixa",
+    "height": 1677,
+    "screens": 1.99,
+    "h1": "Caixa",
+    "textCount": 92,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 33,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 3,
+    "blackNonAction": [
+      "svg.[object SVGAnimatedString] "
+    ]
+  },
+  "clientes": {
+    "url": "/app/clientes",
+    "height": 844,
+    "screens": 1,
+    "h1": "Clientes",
+    "textCount": 27,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 19,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 3,
+    "blackNonAction": [
+      "svg.[object SVGAnimatedString] "
+    ]
+  },
+  "ficha": {
+    "url": "/app/clientes/30000000-0000-4000-8000-0000000000a1",
+    "height": 1618,
+    "screens": 1.92,
+    "h1": "Cliente AB (exemplo)",
+    "textCount": 75,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 25,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 3,
+    "blackNonAction": [
+      "svg.[object SVGAnimatedString] "
+    ]
+  },
+  "retorno": {
+    "url": "/app/relacionamento/retorno",
+    "height": 1097,
+    "screens": 1.3,
+    "h1": "Retorno",
+    "textCount": 29,
+    "minRatio": 6.12,
+    "contrastFails": [],
+    "contrastFailCount": 0,
+    "targetCount": 13,
+    "smallTargets": [],
+    "smallTargetCount": 0,
+    "blackFills": 2,
+    "blackNonAction": [
+      "svg.[object SVGAnimatedString] "
+    ]
+  }
+}

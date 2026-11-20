@@ -17,8 +17,9 @@ async function caixa(page: Page) {
   await page.goto("/app/caixa");
   const summary = page.getByRole("region", { name: /Caixa registrado em outubro/i });
   await expect(summary).toBeVisible();
-  const value = (label: string) => summary.locator("div").filter({ hasText: label }).locator("dd").first().innerText();
-  return { received: money(await value("Recebido")), spent: money(await value("Gasto")), open: money(await value("A receber")) };
+  // P54: o resumo é uma lista de linhas (rótulo à esquerda, valor à direita).
+  const value = (label: string) => summary.getByRole("listitem").filter({ hasText: label }).locator(".tn-summary__row-value").first().innerText();
+  return { received: money(await value("Recebido no mês")), spent: money(await value("Gasto no mês")), open: money(await value("A receber")) };
 }
 
 async function resultado(page: Page) {
