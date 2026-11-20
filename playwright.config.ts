@@ -7,6 +7,8 @@ import { defineConfig, devices } from "@playwright/test";
 const port = Number(process.env.E2E_PORT ?? 4173);
 export default defineConfig({
   testDir: "tests/e2e",
+  // A jornada com gravação real tem config e servidores próprios (tests/e2e/servidor/run.sh); aqui é só a demonstração.
+  testIgnore: "**/servidor/**",
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
