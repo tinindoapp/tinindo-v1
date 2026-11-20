@@ -1,5 +1,5 @@
 // Porta real do Assistente: Edge Function `agent` (o banco decide vínculo, franquia, aprovação e execução).
-import { ActionApproval, ActionReceipt, AgentAnswer, AgentDraftOutput, SetupProgressOutput } from "@contracts";
+import { ActionApproval, ActionReceipt, AgentAnswer, AgentDraftOutput, SetupDismissOutput, SetupProgressOutput } from "@contracts";
 import type { createApiClient } from "../../lib/api/client.ts";
 import type { AgentPort } from "./port.ts";
 
@@ -29,6 +29,9 @@ export function createServerPort(call: Call, tenantId: string): AgentPort {
       } catch {
         return null;
       }
+    },
+    async setupDismiss(step, key) {
+      return (await call("/setup/setup.dismiss", SetupDismissOutput, post({ step, dismissed: true }, key))).data.progress;
     },
   };
 }

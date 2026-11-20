@@ -1,5 +1,6 @@
 // Portas reais da Configuração: Edge Function `setup`.
 import { SetupDismissOutput, SetupDraftApplyOutput, SetupProgressOutput, SetupServicesApplyOutput, SetupTemplatesOutput } from "@contracts";
+import { describeBusiness, SetupDescribeOutput } from "../../../supabase/functions/_shared/domain/setup/describe.ts";
 import type { createApiClient } from "../../lib/api/client.ts";
 import type { SetupPort } from "./port.ts";
 
@@ -18,6 +19,15 @@ export function createServerPort(call: Call, tenantId: string): SetupPort {
     },
     async templates() {
       return (await call(op("setup.templates"), SetupTemplatesOutput, post({}))).data;
+    },
+    async describe(sentence, key) {
+      // Regras primeiro e assistente só para o que faltar, no servidor. Se a rota falhar (função antiga, rede, provedor),
+      // as MESMAS regras rodam na aba: o dono não fica sem rascunho, só sem a ajuda do assistente.
+      try {
+        return (await call(op("setup.describe"), SetupDescribeOutput, post({ sentence }, key))).data;
+      } catch {
+        return { ...describeBusiness(sentence), assistant: false };
+      }
     },
     async applyServices(services, key) {
       return (await call(op("setup.services_apply"), SetupServicesApplyOutput, post({ services }, key))).data;

@@ -1,7 +1,7 @@
 // Porta do Assistente (P08). Servidor: Edge Function `agent`. Demonstração: o MESMO motor sobre dados de exemplo.
 import type { ActionApproval, ActionProposal, ActionReceipt, AgentAnswer, AgentDraftInput, AgentDraftOutput } from "@contracts";
 import type { z } from "zod";
-import type { SetupProgress } from "@contracts";
+import type { SetupProgress, SetupStepCode } from "@contracts";
 
 export type Answer = z.infer<typeof AgentAnswer>;
 export type Proposal = z.infer<typeof ActionProposal>;
@@ -22,6 +22,11 @@ export interface AgentPort {
   draft(req: DraftRequest, key: string): Promise<DraftResult>;
   /** P44/P46: passos da configuração. null = configuração guiada ainda não disponível neste servidor. */
   setupProgress(): Promise<SetupProgress | null>;
+  /**
+   * P50: "Pular" um passo opcional, gravado por `setup.dismiss` (o mesmo "Agora não" da Home e da Configuração).
+   * Devolve o progresso depois de dispensar. Passo obrigatório é recusado pelo servidor.
+   */
+  setupDismiss(step: SetupStepCode, key: string): Promise<SetupProgress>;
 }
 
 export const newKey = () => crypto.randomUUID();
