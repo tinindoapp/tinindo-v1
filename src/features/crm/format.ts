@@ -4,31 +4,8 @@ import type { DeclaredSource, RejectReason } from "@contracts";
 // Telefone: o analisador e o formatador comuns moram em src/lib/phone.ts (Clientes, Agenda e link público usam o mesmo).
 export { formatPhone, normalizePhoneBR, telHref, whatsappHref } from "../../lib/phone.ts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
-/** Centavos inteiros → "R$ 60,00". */
-export function formatCents(cents: number | null): string {
-  return cents === null ? "—" : BRL.format(cents / 100);
-}
-
-/** Centavos → "60,00" para edição. */
-export function centsToInput(cents: number | null): string {
-  if (cents === null) return "";
-  return `${Math.trunc(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
-}
-
-/**
- * "60" | "60,5" | "1.234,56" | "R$ 60,00" → centavos inteiros, sem float. Vazio → null.
- * Retorna undefined quando o texto não é um valor válido.
- */
-export function parseBRL(raw: string): number | null | undefined {
-  const text = raw.replace(/R\$|\s/g, "");
-  if (!text) return null;
-  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
-  const m = /^(\d{1,13})(?:\.(\d{1,2}))?$/.exec(normalized);
-  if (!m) return undefined;
-  return Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0"));
-}
+// Dinheiro: o leitor e o formatador comuns moram em src/lib/money.ts.
+export { formatCents, parseBRL } from "../../lib/money.ts";
 
 /** Percentual "5" | "2,5" → basis points (500 | 250). Vazio → null; inválido → undefined. */
 export function parsePercentToBps(raw: string): number | null | undefined {

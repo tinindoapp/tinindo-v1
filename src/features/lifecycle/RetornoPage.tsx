@@ -10,8 +10,10 @@ import { Help, PageHeader, Section, StatusBanner, toast, whatsappHref } from "..
 import { whatsappHref as chatHref } from "../../lib/phone.ts";
 import { plural } from "../../lib/text/plural.ts";
 import { agoText, daysSince, isLapsed, LAPSED_DAYS } from "../../lib/visits.ts";
-import { explain, formatDate, formatDateTime } from "./labels.ts";
-import { type LifecyclePort, type LifecycleStep, newKey } from "./port.ts";
+import { newIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatDate, formatDateTime } from "../../lib/time.ts";
+import { explain } from "./labels.ts";
+import type { LifecyclePort, LifecycleStep } from "./port.ts";
 import type { ReturnBoard, ReturnContact, ReturnSource } from "./retorno.ts";
 
 /** Quantos itens cada bloco mostra antes do "Ver todos". */
@@ -62,7 +64,7 @@ export function RetornoPage({ port, source }: { port: LifecyclePort; source: Ret
 function Reminders({ load, contacts, board, port, onShared }: { load: Load<LifecycleStep[]>; contacts: Map<string, ReturnContact>; board: ReturnBoard | null; port: LifecyclePort; onShared: () => void }) {
   // Uma chave por passo: dois toques seguidos marcam uma vez só (ADR-0002).
   const keys = useRef(new Map<string, string>());
-  const keyFor = (id: string) => keys.current.get(id) ?? keys.current.set(id, newKey()).get(id)!;
+  const keyFor = (id: string) => keys.current.get(id) ?? keys.current.set(id, newIdempotencyKey()).get(id)!;
   const timezone = board?.timezone ?? "America/Sao_Paulo";
   const items = load.data ?? [];
   function shared(step: LifecycleStep) {

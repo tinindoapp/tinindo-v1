@@ -247,26 +247,3 @@ export function useCrmApi(): CrmApi {
   if (!api) throw new Error("useCrmApi fora do CrmApiContext");
   return api;
 }
-
-/** Mensagem para a pessoa: o servidor já devolve texto neutro em português. */
-export function errorMessage(e: unknown): string {
-  return e instanceof ApiError ? e.message : "Erro inesperado. Tente novamente.";
-}
-
-/**
- * Mesma chave enquanto o pedido for o mesmo (retry seguro); chave nova quando o conteúdo muda.
- */
-export function createKeyRing() {
-  let last: { payload: string; key: string } | null = null;
-  return {
-    keyFor(payload: unknown): string {
-      const text = JSON.stringify(payload);
-      if (last?.payload !== text) last = { payload: text, key: crypto.randomUUID() };
-      return last.key;
-    },
-    /** Depois de sucesso: o próximo pedido, mesmo idêntico, é outra operação. */
-    reset() {
-      last = null;
-    },
-  };
-}

@@ -5,12 +5,15 @@ import { Link, useParams } from "react-router";
 import type { BookingStatus, CrmCustomer } from "@contracts";
 import { Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { type CustomerHistory, errorMessage, type HistoryItem, useCrmApi } from "./api.ts";
+import { type CustomerHistory, type HistoryItem, useCrmApi } from "./api.ts";
 import { ContactButtons } from "./contact.tsx";
 import { capitalize, useProfession } from "./CustomersPage.tsx";
-import { formatCents, formatPhone, SOURCE_LABEL } from "./format.ts";
+import { formatPhone, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
 import { CrmDemoNotice, Tag } from "./shared.tsx";
+import { serverMessage } from "../../lib/errors.ts";
+import { formatCents } from "../../lib/money.ts";
+import { formatWeekdayDateTime } from "../../lib/time.ts";
 
 /** Estado do atendimento sempre por palavra. */
 export const VISIT_STATUS: Record<BookingStatus, string> = {
@@ -23,9 +26,6 @@ export const VISIT_STATUS: Record<BookingStatus, string> = {
 };
 
 type Load<T> = { status: "loading" } | { status: "ok"; value: T } | { status: "error"; message: string };
-
-const dateTime = (iso: string, timeZone: string) =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
 /** "5 concluídos · 1 faltou · 1 cancelado" (só os estados que aparecem). */
 export function historySummary(items: readonly HistoryItem[]): string {
@@ -52,11 +52,11 @@ export function CustomerPage() {
     let alive = true;
     api.getCustomer(customerId).then(
       (c) => alive && setCustomer({ status: "ok", value: c }),
-      (e: unknown) => alive && setCustomer({ status: "error", message: errorMessage(e) }),
+      (e: unknown) => alive && setCustomer({ status: "error", message: serverMessage(e) }),
     );
     api.customerHistory(customerId).then(
       (h) => alive && setHistory({ status: "ok", value: h }),
-      (e: unknown) => alive && setHistory({ status: "error", message: errorMessage(e) }),
+      (e: unknown) => alive && setHistory({ status: "error", message: serverMessage(e) }),
     );
     return () => {
       alive = false;
@@ -161,7 +161,7 @@ function VisitList({ title, id, items, timezone }: { title: string; id: string; 
       <ul className="tn-item-list">
         {items.map((v) => (
           <li key={v.id} className="crm-visit">
-            <span className="crm-visit__when">{dateTime(v.starts_at, timezone)}</span>
+            <span className="crm-visit__when">{formatWeekdayDateTime(v.starts_at, timezone)}</span>
             <span>{v.service}</span>
             <span className="crm-visit__meta">
               {VISIT_STATUS[v.status]}
