@@ -43,3 +43,14 @@
 @media (max-width: 30rem) { .tn-setup-services__row { grid-template-columns: 1fr 1fr; } .tn-setup-services__row > :first-child { grid-column: 1 / -1; } }
 .tn-setup-templates { display: grid; gap: var(--tn-space-2); margin: var(--tn-space-3) 0; }
 .tn-setup-template { display: grid; gap: var(--tn-space-2); }
+
+/* P50 · rascunho com períodos por dia, avisos por campo e selo do assistente. */
+.tn-setup-field, .tn-setup-group { display: grid; gap: var(--tn-space-2); }
+.tn-setup-group + .tn-setup-group { padding-top: var(--tn-space-3); border-top: 1px dashed var(--tn-border); }
+.tn-setup-period { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--tn-space-2); align-items: end; }
+.tn-setup-seal { justify-self: start; padding: 0 var(--tn-space-2); border-radius: var(--tn-radius-pill); background: var(--tn-action-subtle); color: var(--tn-text); font-size: var(--tn-text-label); font-weight: var(--tn-font-weight-medium); }
+.tn-setup-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-1); font-size: var(--tn-text-support); color: var(--tn-text-muted); }
+.tn-setup-notes > li { padding-left: var(--tn-space-2); border-left: 2px solid var(--tn-border); }
+.tn-setup-notes > li[data-level="refused"] { color: var(--tn-text); border-left-color: var(--tn-selected-border); }
+.tn-setup-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
+.tn-setup-services__row[data-exists] { opacity: 0.75; }

@@ -1,5 +1,6 @@
 // Textos do módulo Relacionamento. Estado sempre por palavra: enviado ao canal ≠ entregue; compartilhado ≠ entregue.
 import type { LifecycleRule, LifecycleStepStatus } from "@contracts";
+import { errorExplainer } from "../../lib/errors.ts";
 
 export const RULE_LABEL: Record<LifecycleRule, string> = {
   confirmation: "Confirmação do agendamento",
@@ -40,29 +41,14 @@ export const MESSAGE_STATUS: Record<string, string> = {
   queued: "na fila", sending: "enviando", sent: "enviada", delivered: "entregue", read: "lida", failed: "falhou", delivery_unknown: "entrega desconhecida",
 };
 
-export const formatDateTime = (v: string, timeZone: string) =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(v));
-export const formatDate = (v: string, timeZone: string) =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(v));
-
-export function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  switch (e?.code) {
-    case "STALE_VERSION":
-      if (e.field === "audience_hash") return "O público mudou desde que você viu. Atualizamos a lista: confira antes de aprovar.";
-      return "A configuração mudou em outro lugar. Atualizamos a tela: confira e tente de novo.";
-    case "POLICY_REJECTED":
-      if (e.field === "audience") return "Ninguém elegível agora: só clientes com consentimento de marketing e sem visita no prazo entram.";
-      if (e.field === "status") return "Este passo não está em um estado que permita isso.";
-      return "As regras não permitem esta ação agora. Nada foi alterado.";
-    case "VALIDATION_ERROR":
-      if (e.field === "settings") return "Valores fora do permitido (horas 1–48, dias 1–14, reativação 14–365, teto 0–500).";
-      return "Confira os campos. Nada foi gravado.";
-    case "NOT_FOUND":
-      return "Não encontrado. A tela pode estar desatualizada.";
-    case "FORBIDDEN":
-      return "Só o dono do negócio acessa o relacionamento.";
-    default:
-      return "Não foi possível concluir agora. Tentar de novo é seguro.";
-  }
-}
+export const explain = errorExplainer({
+  "STALE_VERSION.audience_hash": "O público mudou desde que você viu. Atualizamos a lista: confira antes de aprovar.",
+  STALE_VERSION: "A configuração mudou em outro lugar. Atualizamos a tela: confira e tente de novo.",
+  "POLICY_REJECTED.audience": "Ninguém elegível agora: só clientes com consentimento de marketing e sem visita no prazo entram.",
+  "POLICY_REJECTED.status": "Este passo não está em um estado que permita isso.",
+  POLICY_REJECTED: "As regras não permitem esta ação agora. Nada foi alterado.",
+  "VALIDATION_ERROR.settings": "Valores fora do permitido (horas 1–48, dias 1–14, reativação 14–365, teto 0–500).",
+  VALIDATION_ERROR: "Confira os campos. Nada foi gravado.",
+  NOT_FOUND: "Não encontrado. A tela pode estar desatualizada.",
+  FORBIDDEN: "Só o dono do negócio acessa o relacionamento.",
+});

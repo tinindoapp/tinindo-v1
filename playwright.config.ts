@@ -20,13 +20,16 @@ const pilotOnly = process.env.E2E_PILOTO === "1";
 
 const devicesBy = { desktop: devices["Desktop Chrome"], mobile: devices["Pixel 7"] };
 const projects = Object.entries(devicesBy).flatMap(([name, device]) => [
-  { name, use: { ...device }, testIgnore: dirs([...ACTIVATION, ...STORED]) },
+  // O testIgnore do projeto substitui o de cima: repete aqui a pasta da jornada com servidor.
+  { name, use: { ...device }, testIgnore: ["**/servidor/**", ...dirs([...ACTIVATION, ...STORED])] },
   { name: `${name}-recursos`, use: { ...device, storageState: allModules }, testMatch: dirs(ACTIVATION) },
   ...(pilotOnly ? [] : [{ name: `${name}-guardados`, use: { ...device, storageState: allModules }, testMatch: dirs(STORED) }]),
 ]);
 
 export default defineConfig({
   testDir: "tests/e2e",
+  // A jornada com gravação real tem config e servidores próprios (tests/e2e/servidor/run.sh); aqui é só a demonstração.
+  testIgnore: "**/servidor/**",
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",

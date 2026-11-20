@@ -35,7 +35,7 @@ Decisões aplicadas: D1 (a), D3 (b), D4 (sim). Registradas em `docs/qa/revisao-2
 
 ## Testes, comandos e resultados
 
-Rodados nesta máquina, depois do merge da `main` com o P52 (`b752d60`):
+Rodados nesta máquina. Primeira rodada sobre `b752d60`; depois do segundo merge da `main` (`7005a20`, com P50, P56, P59 e P52 até 3/6) foram repetidos lint, typecheck, unit (934), contratos, pgTAP, concorrência, integração (145), a jornada com servidor do P59 (`tests/e2e/servidor/run.sh`: 2 passaram) e o e2e completo (296 passaram; as 6 falhas dos testes novos da `main`, `a11y` e `configuracao-p50`, foram ajustadas e a pasta passou de novo). O pgTAP do P51 virou `39_module_scope` (o 36 da `main` é do P56).
 
 | Comando | Resultado |
 |---|---|
@@ -44,7 +44,7 @@ Rodados nesta máquina, depois do merge da `main` com o P52 (`b752d60`):
 | `npm run test:contracts` | 841 passaram, 2 falhas esperadas (do P52), 38 pulados |
 | `npm run build` · `npm run test:coord` | ok |
 | `deno check --frozen ... supabase/functions/*/index.ts` (Deno 2.9.6 via npm) | ok |
-| `npm run db:test:local` (Postgres 16 + pgTAP, sem Docker) | todos passaram; `36_module_scope` com 53 asserções, `18_campaigns` com 50 |
+| `npm run db:test:local` (Postgres 16 + pgTAP, sem Docker) | todos passaram; `39_module_scope` com 53 asserções, `18_campaigns` com 50 |
 | `npm run db:test:concurrency` | todos passaram |
 | `npm run test:integration` | 142 passaram (24 arquivos) |
 | `npm run db:restore:drill` | ok |

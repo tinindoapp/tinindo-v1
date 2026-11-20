@@ -22,7 +22,7 @@ function setup(execute: AgentPort["execute"]) {
     approve: vi.fn(async () => approval),
     execute: vi.fn(execute),
     draft: vi.fn(async () => ({ available: false, suggestion: null })),
-    setupProgress: vi.fn(async () => null),
+    setupDismiss: vi.fn(), setupProgress: vi.fn(async () => null),
   };
   render(<AgentPortProvider value={port}><AgentPage /></AgentPortProvider>);
   return port;

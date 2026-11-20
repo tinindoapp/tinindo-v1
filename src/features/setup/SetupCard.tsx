@@ -7,7 +7,7 @@ import { Button, LinkButton, toast } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { useScope } from "../../app/scope.tsx";
 import { setupView } from "../../lib/setup/steps.ts";
-import { explain, specOf } from "./labels.ts";
+import { explain, specOf, stepWhy } from "./labels.ts";
 import { newKey, type SetupPort, type SetupProgress } from "./port.ts";
 import "./setup.css";
 
@@ -94,7 +94,7 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
             <p className="tn-setup-card__step">
               <span className="tn-muted">Próximo{next.required ? "" : " (opcional)"}:</span> {next.title}
             </p>
-            {next.why ? <p className="tn-setup-card__why">{next.why}</p> : null}
+            {stepWhy(next) ? <p className="tn-setup-card__why">{stepWhy(next)}</p> : null}
           </div>
         </div>
       ) : null}

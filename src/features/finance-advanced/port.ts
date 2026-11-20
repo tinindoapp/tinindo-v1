@@ -40,5 +40,3 @@ export interface AccountsPort {
   reconcile(day: string, method: Method, source: Source, statementCents: number, key: string): Promise<number>;
   statement(month: string): Promise<AccStatement>;
 }
-
-export const newKey = () => crypto.randomUUID();

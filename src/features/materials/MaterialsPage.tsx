@@ -4,12 +4,13 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { explain, formatCents, formatDate, formatPercent, formatQty, KIND_LABEL, parseNumber, UNIT_LABEL } from "./labels.ts";
+import { explain, formatPercent, formatQty, KIND_LABEL, parseNumber, UNIT_LABEL } from "./labels.ts";
 import {
-  type MarginReport, type MaterialBooking, type MaterialItem, type MaterialPurchase, type MaterialsBase, type MaterialsPort, type MaterialUsage, newKey, type PurchaseLine,
+  type MarginReport, type MaterialBooking, type MaterialItem, type MaterialPurchase, type MaterialsBase, type MaterialsPort, type MaterialUsage, type PurchaseLine,
 } from "./port.ts";
-import { useIdempotencyKey } from "../../lib/idempotency.ts";
-import { parseBRL } from "../../lib/money.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatCents, parseBRL } from "../../lib/money.ts";
+import { formatDayMonth } from "../../lib/time.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string; undo?: () => void } | null;
@@ -23,14 +24,17 @@ function ItemForm({ port, item, onDone }: { port: MaterialsPort; item: MaterialI
   const [min, setMin] = useState(item?.min_qty != null ? String(item.min_qty).replace(".", ",") : "");
   const [active, setActive] = useState(item?.active ?? true);
   const [busy, setBusy] = useState(false);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"name" | "min">();
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!show({ name: name.trim() ? null : "Informe o nome do item.", min: min.trim() && !(parseNumber(min) >= 0) ? "Use um número (ex.: 2 ou 0,5)." : null })) return;
     setBusy(true);
     try {
-      const saved = await port.saveItem({ item_id: item?.id ?? null, expected_version: item?.version ?? null, name: name.trim(), unit, kind, active,
-        min_qty: min.trim() ? parseNumber(min) : null }, newKey());
+      const input = { item_id: item?.id ?? null, expected_version: item?.version ?? null, name: name.trim(), unit, kind, active,
+        min_qty: min.trim() ? parseNumber(min) : null };
+      const saved = await port.saveItem(input, idem.keyFor(input));
+      idem.reset();
       onDone({ tone: "success", text: item ? `“${saved.name}” atualizado.` : `“${saved.name}” cadastrado. O estoque entra pelas compras.` });
     } catch (err) {
       onDone({ tone: "danger", text: explain(err) });
@@ -58,12 +62,15 @@ function ItemForm({ port, item, onDone }: { port: MaterialsPort; item: MaterialI
 function AdjustForm({ port, item, onDone }: { port: MaterialsPort; item: MaterialItem; onDone: (n: Notice) => void }) {
   const [counted, setCounted] = useState("");
   const [reason, setReason] = useState("");
+  const command = useCommand();
   const { formRef, errors, show } = useFormErrors<"counted" | "reason">();
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!show({ counted: parseNumber(counted) >= 0 ? null : "Informe a quantidade contada.", reason: reason.trim() ? null : "Escreva o motivo do ajuste." })) return;
     try {
-      const i = await port.adjust(item, parseNumber(counted), reason.trim(), newKey());
+      const to = parseNumber(counted);
+      const why = reason.trim();
+      const i = await command({ adjust: item.id, version: item.version, to, why }, (key) => port.adjust(item, to, why, key));
       onDone({ tone: "success", text: `Contagem de “${i.name}” ajustada para ${formatQty(i.on_hand, i.unit)}.` });
     } catch (err) {
       onDone({ tone: "danger", text: explain(err) });
@@ -149,9 +156,10 @@ function UsageForm({ port, base, items, usage, onDone }: { port: MaterialsPort; 
   const [qty, setQty] = useState("");
   const item = (iid: string) => items.find((i) => i.id === iid);
   const { formRef, errors, show } = useFormErrors<"qty">();
+  const command = useCommand();
   // Tirar da ficha volta atrás gravando a mesma quantidade de antes (Desfazer no aviso).
   const save = (sid: string, iid: string, q: number | null, before?: number): Promise<void> =>
-    port.saveUsage(sid, iid, q, newKey()).then(() => onDone(q === null
+    command({ usage: sid, item: iid, q }, (key) => port.saveUsage(sid, iid, q, key)).then(() => onDone(q === null
       ? { tone: "success", text: "Item tirado da ficha.", undo: before === undefined ? undefined : () => void save(sid, iid, before) }
       : { tone: "success", text: "Ficha de uso atualizada." }),
     (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
@@ -180,21 +188,23 @@ function UsageForm({ port, base, items, usage, onDone }: { port: MaterialsPort; 
 }
 
 function BookingItem({ b, port, base, onDone }: { b: MaterialBooking; port: MaterialsPort; base: MaterialsBase; onDone: (n: Notice) => void }) {
-  const act = (run: () => Promise<unknown>, ok: string) => run().then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
+  const command = useCommand();
+  const act = (intent: unknown, send: (key: string) => Promise<unknown>, ok: string) =>
+    command(intent, send).then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
   const c = b.consumption;
   return (
     <li className="tn-mt-item">
-      <h3>{formatDate(b.starts_at, base.timezone)} · {b.service_name} · {b.customer_name ?? "sem cliente"}</h3>
+      <h3>{formatDayMonth(b.starts_at, base.timezone)} · {b.service_name} · {b.customer_name ?? "sem cliente"}</h3>
       {c ? (
         <p>Materiais: {c.lines.map((l) => `${l.item_name} ${formatQty(l.quantity, l.unit)}`).join(", ")} · custo {formatCents(c.cost_cents)}
           {b.agreed_price_cents != null ? ` · margem ${formatCents(b.agreed_price_cents - c.cost_cents)}` : ""}</p>
       ) : <p className="tn-muted">Uso de materiais não registrado{b.has_usage ? "" : " (o serviço não tem ficha)"}.</p>}
       <div className="tn-actions">
-        {!c && b.has_usage ? <Button variant="secondary" onClick={() => void act(() => port.consume(b.booking_id, null, newKey()), "Uso registrado pela ficha: saiu do estoque uma vez.")}>Registrar uso pela ficha</Button> : null}
+        {!c && b.has_usage ? <Button variant="secondary" onClick={() => void act({ consume: b.booking_id }, (key) => port.consume(b.booking_id, null, key), "Uso registrado pela ficha: saiu do estoque uma vez.")}>Registrar uso pela ficha</Button> : null}
         {c ? (
           <ConfirmAction trigger="Estornar uso" triggerLabel={`Estornar o uso de materiais de ${b.service_name}`} title="Estornar o uso de materiais?"
             consequence={`Os materiais deste atendimento (custo ${formatCents(c.cost_cents)}) voltam ao estoque e o atendimento sai da margem real.`}
-            confirmLabel="Sim, estornar" onConfirm={() => act(() => port.reverseConsumption(c, newKey()), "Uso estornado: os materiais voltaram ao estoque.")} />
+            confirmLabel="Sim, estornar" onConfirm={() => act({ reverse: c.id, version: c.version }, (key) => port.reverseConsumption(c, key), "Uso estornado: os materiais voltaram ao estoque.")} />
         ) : null}
       </div>
     </li>
@@ -212,6 +222,7 @@ export function MaterialsPage({ port }: { port: MaterialsPort }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -312,11 +323,11 @@ export function MaterialsPage({ port }: { port: MaterialsPort }) {
         <ul className="tn-mt-list" aria-label="Compras">
           {base && purchases.map((p) => (
             <li key={p.id} className="tn-mt-row">
-              {formatDate(p.purchased_at, base.timezone)} · {p.supplier ?? "sem fornecedor"} · {formatCents(p.total_cents)} · {p.lines.map((l) => `${l.item_name} ${formatQty(l.quantity, l.unit)}`).join(", ")}
+              {formatDayMonth(p.purchased_at, base.timezone)} · {p.supplier ?? "sem fornecedor"} · {formatCents(p.total_cents)} · {p.lines.map((l) => `${l.item_name} ${formatQty(l.quantity, l.unit)}`).join(", ")}
               {p.status === "reversed" ? " · estornada" : (
                 <ConfirmAction trigger="Estornar compra" triggerLabel={`Estornar a compra de ${formatCents(p.total_cents)}`} title={`Estornar a compra de ${formatCents(p.total_cents)}?`}
                   consequence="Os itens saem do estoque pelo custo médio. O registro original continua no histórico."
-                  confirmLabel="Sim, estornar" onConfirm={() => port.reversePurchase(p, newKey()).then(() => done({ tone: "success", text: "Compra estornada: saiu do estoque pelo custo médio." }), (e: unknown) => done({ tone: "danger", text: explain(e) }))} />
+                  confirmLabel="Sim, estornar" onConfirm={() => command({ reversePurchase: p.id, version: p.version }, (key) => port.reversePurchase(p, key)).then(() => done({ tone: "success", text: "Compra estornada: saiu do estoque pelo custo médio." }), (e: unknown) => done({ tone: "danger", text: explain(e) }))} />
               )}
             </li>
           ))}

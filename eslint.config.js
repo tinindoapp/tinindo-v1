@@ -58,7 +58,6 @@ const restricted = (...groups) => ["error", SECRET_KEY, ...groups.flat()];
 const LEGACY_MONEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   "src/features/analytics/format.ts",
-  "src/features/crm/format.ts",
   "src/features/growth-advice/demoPort.ts",
   "src/features/pricing/format.ts",
   "src/features/resources/ResourcesPage.tsx",
@@ -72,21 +71,13 @@ const LEGACY_KEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   "src/features/analytics/port.ts",
   "src/features/campaigns/port.ts",
-  "src/features/crm/api.ts",
   "src/features/field-service/port.ts",
-  "src/features/finance-advanced/port.ts",
-  "src/features/finance/port.ts",
   "src/features/fiscal/port.ts",
   "src/features/growth-advice/port.ts",
-  "src/features/lifecycle/port.ts",
-  "src/features/materials/port.ts",
-  "src/features/messaging/port.ts",
   "src/features/pricing/port.ts",
-  "src/features/recurrence/port.ts",
   "src/features/resources/port.ts",
   "src/features/sales/port.ts",
   "src/features/service-ops/port.ts",
-  "src/features/waitlist/port.ts",
   // Parte 2
   "src/features/agent/port.ts",
   "src/features/discovery/port.ts",
@@ -100,7 +91,6 @@ const LEGACY_KEY = [
 ];
 const LEGACY_CLOCK = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
-  "src/features/finance-advanced/AccountsPage.tsx",
   // Parte 2
   "src/features/analytics/module.tsx",
   "src/features/identity/services.tsx",

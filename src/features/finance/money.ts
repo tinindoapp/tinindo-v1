@@ -2,47 +2,16 @@
 // Ler e escrever dinheiro é do app inteiro (src/lib/money.ts); reexportado aqui para as telas do Caixa.
 export { centsToInput, formatCents, parseBRL } from "../../lib/money.ts";
 
-/** Data civil (YYYY-MM-DD) do instante no fuso do negócio. */
-export function localDate(value: Date | string, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date(value),
-  );
-}
+// Datas no fuso do negócio também são do app inteiro (src/lib/time.ts); reexportadas com os nomes que o Caixa usa.
+import { startOfLocalDay, startOfNextLocalDay } from "../../lib/time.ts";
+export { formatDate, formatMonth, localDate, noonOfLocalDay, startOfLocalDay } from "../../lib/time.ts";
 
-export function formatDate(value: string | Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).format(
-    new Date(value),
-  );
-}
-
-/** Deslocamento (min) do fuso no instante dado. */
-function offsetMin(at: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-  }).formatToParts(at);
-  const n = (t: string) => Number(parts.find((p) => p.type === t)?.value);
-  const asUtc = Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"));
-  return Math.round((asUtc - at.getTime()) / 60_000);
-}
-
-/** Meia-noite local de uma data civil, como instante ISO (UTC). */
-export function startOfLocalDay(date: string, timeZone: string): string {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  const guess = new Date(Date.UTC(y, m - 1, d));
-  const first = new Date(guess.getTime() - offsetMin(guess, timeZone) * 60_000);
-  return new Date(guess.getTime() - offsetMin(first, timeZone) * 60_000).toISOString();
-}
-
-/** Meio-dia local de uma data civil (data informada pelo usuário para recebimento/despesa). */
-export function noonOfLocalDay(date: string, timeZone: string): string {
-  return new Date(Date.parse(startOfLocalDay(date, timeZone)) + 12 * 3_600_000).toISOString();
-}
-
-/** Último segundo do dia civil local (validade "até o fim do dia"). */
+/**
+ * Último segundo do dia civil local (validade "até o fim do dia"): um segundo antes da meia-noite seguinte.
+ * Não é o `endOfLocalDay` da lib: em fuso que muda de horário à meia-noite os dois diferem em uma hora.
+ */
 export function endOfLocalDay(date: string, timeZone: string): string {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
-  return new Date(Date.parse(startOfLocalDay(next, timeZone)) - 1000).toISOString();
+  return new Date(Date.parse(startOfNextLocalDay(date, timeZone)) - 1000).toISOString();
 }
 
 /** Mês local [1º dia 00:00, 1º dia do mês seguinte 00:00) no fuso do negócio. */
@@ -72,11 +41,6 @@ export function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split("-").map(Number) as [number, number];
   const idx = y * 12 + (m - 1) + delta;
   return `${Math.floor(idx / 12)}-${String((idx % 12) + 1).padStart(2, "0")}`;
-}
-
-export function formatMonth(month: string): string {
-  const [y, m] = month.split("-").map(Number) as [number, number];
-  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15)));
 }
 
 /** "outubro de 2026" → "Outubro de 2026": só a primeira letra (o "de" continua minúsculo). */

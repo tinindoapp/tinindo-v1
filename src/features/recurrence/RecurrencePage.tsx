@@ -4,11 +4,12 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { cycleLabel, explain, formatCents, formatDate, RECEIVABLE_STATUS } from "./labels.ts";
-import { newKey, type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
-import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { cycleLabel, explain, formatCents, RECEIVABLE_STATUS } from "./labels.ts";
+import { type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { centsToInput, parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
+import { formatDate } from "../../lib/time.ts";
 
 /** Erro de ação de um toque numa linha: aviso curto, sempre à vista. */
 const fail = (err: unknown) => toast({ tone: "danger", message: explain(err) });
@@ -128,12 +129,13 @@ function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubs
   const [history, setHistory] = useState<RecurrenceCycle[] | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<"end" | "resume" | null>(null);
+  const command = useCommand();
   const who = sub.customer_name ?? "cliente";
   const c = sub.current_cycle;
 
   async function resume(s: RecurrenceSubscription, message: string) {
     try {
-      await port.resume(s, newKey());
+      await command({ resume: s.id, version: s.version }, (key) => port.resume(s, key));
       toast(message);
     } catch (err) {
       fail(err);
@@ -145,7 +147,8 @@ function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubs
   async function cancelAtEnd() {
     setBusy("end");
     try {
-      const updated = await port.cancel(sub, true, reason.trim() || null, newKey());
+      const why = reason.trim() || null;
+      const updated = await command({ cancelAtEnd: sub.id, version: sub.version, why }, (key) => port.cancel(sub, true, why, key));
       toast({
         message: "A assinatura segue até o fim do ciclo e não renova. Saldo e termos preservados.",
         action: { label: "Desfazer", onAction: () => resume(updated, "Pronto: a assinatura volta a renovar.") },
@@ -164,7 +167,8 @@ function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubs
   }
   async function cancelNow() {
     try {
-      await port.cancel(sub, false, reason.trim() || null, newKey());
+      const why = reason.trim() || null;
+      await command({ cancelNow: sub.id, version: sub.version, why }, (key) => port.cancel(sub, false, why, key));
       toast("Assinatura encerrada agora. As sessões do ciclo atual continuam válidas até o fim dele.");
       onDone();
     } catch (err) {
