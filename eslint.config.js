@@ -85,6 +85,23 @@ const LEGACY_CLOCK = [
   "src/features/scheduling/attendance.tsx",
 ];
 
+// P53 (R4): um cliente de API por sessão (src/app/session.tsx). Módulo usa useApi/usePort de src/app/api.tsx e só
+// importa o TIPO do cliente. Estes arquivos ainda criam o próprio cliente: são de áreas que não entraram no P53 (recado).
+const LEGACY_CLIENT = [
+  "src/features/agent/module.tsx",
+  "src/features/crm/module.tsx",
+  "src/features/finance/module.tsx",
+  "src/features/lifecycle/module.tsx",
+  "src/features/messaging/unread.ts",
+  "src/features/sales/owner-slug.ts",
+  "src/features/sales/public-kit.tsx",
+  "src/features/scheduling/SchedulingLayout.tsx",
+  // Kit público copiado: sai quando o kit único (src/components/public) substituir as cópias.
+  "src/features/network/public-kit.tsx",
+  "src/features/payments/public-kit.tsx",
+  "src/features/reputation/public-kit.tsx",
+];
+
 const APP_CODE = ["src/features/**/*.{ts,tsx}", "src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"];
 const SCREENS = ["src/features/**/*.tsx", "src/app/**/*.tsx", "src/components/**/*.tsx"];
 const TESTS = ["**/*.test.{ts,tsx}", "src/test/**"];
@@ -129,6 +146,26 @@ export default tseslint.config(
         {
           patterns: [
             { group: ["../*/*", "!../../*", "**/features/**"], message: "Módulo não importa outro módulo; use @contracts." },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // P53: módulo não cria cliente de API (um por sessão). Importar só o tipo continua permitido.
+    files: ["src/features/**/*.{ts,tsx}"],
+    ignores: [...TESTS, ...LEGACY_CLIENT],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/lib/api/client.ts"],
+              importNames: ["createApiClient"],
+              allowTypeImports: true,
+              message: "Módulo não cria cliente de API: use useApi()/usePort() de src/app/api.tsx (um cliente por sessão).",
+            },
           ],
         },
       ],
