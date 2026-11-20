@@ -96,7 +96,7 @@ export const OPERATIONS = {
   },
   "customer.upsert": {
     module: "crm", owner: "P02", kind: "command", idempotent: true,
-    input: catalog.CustomerUpsertInput, output: catalog.CustomerUpsertOutput,
+    input: crm.CrmCustomerUpsertInput, output: crm.CrmCustomerUpsertOutput,
   },
   "service.save": {
     module: "crm", owner: "P02", kind: "command", idempotent: true,
@@ -105,6 +105,10 @@ export const OPERATIONS = {
   "customer.archive": {
     module: "crm", owner: "P02", kind: "command", idempotent: true,
     input: crm.CustomerArchiveInput, output: crm.CustomerArchiveOutput,
+  },
+  "customer.get": {
+    module: "crm", owner: "P02", kind: "query", idempotent: false,
+    input: crm.CustomerGetQuery, output: crm.CustomerGetOutput,
   },
   "customer.list": {
     module: "crm", owner: "P02", kind: "query", idempotent: false,

@@ -21,9 +21,10 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `customer_link.issue` | customer_id, key | Código de uso único (72 h, só o hash no banco); repetição devolve `code: null` |
 | `customer_link.redeem` | código, key | Vínculo cliente ↔ login no tenant; devolve só o nome do negócio |
 | `customer_link.revoke` | link_id, expected_version, key | Vínculo revogado pelo dono ou pelo cliente |
-| `customer.upsert` | dados, versão quando existente | Contato privado; dedupe sugerido, nunca merge cego |
+| `customer.upsert` | dados, `declared_source`, versão quando existente | Contato privado com a origem declarada; dedupe sugerido, nunca merge cego |
 | `service.save` | duração, buffers, preço, piso | Catálogo validado e versionado |
 | `customer.archive` | customer_id, expected_version, archived, key | Arquiva/desarquiva; nunca apaga |
+| `customer.get` | customer_id | Um cliente do tenant, arquivado inclusive (servido em `GET /crm/customer.get`); id de outro negócio ou inexistente → NOT_FOUND, sem distinguir os dois |
 | `customer.list` | busca, include_archived, cursor, limit | Clientes do tenant (servido em `GET /crm/customers`), com `phone` (E.164 ou null). Orçamentos usa o telefone para o destinatário do WhatsApp e para a busca (recado #89) |
 | `service.list` | include_inactive, cursor, limit | Serviços do tenant (servido em `GET /crm/services`) |
 | `customer.import_preview` | linhas já interpretadas | Possíveis duplicados por linha; não grava |
