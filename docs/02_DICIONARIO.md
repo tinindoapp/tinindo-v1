@@ -11,12 +11,12 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 127 |
-| Com RLS ligada | 127 |
+| Tabelas em `public` | 133 |
+| Com RLS ligada | 133 |
 | Políticas (todas de leitura) | 97 |
-| FKs | 268 (132 compostas) |
-| Funções em `public` / `app` | 286 / 285 |
-| Rotinas periódicas (`job_ticks`) | 8 |
+| FKs | 273 (134 compostas) |
+| Funções em `public` / `app` | 296 / 301 |
+| Rotinas periódicas (`job_ticks`) | 10 |
 
 ## Rotinas periódicas
 
@@ -32,8 +32,25 @@ Uma linha por rotina em `public.job_ticks`; `public.jobs_run` roda cada uma isol
 | `advice` | `app.ga_tick` | antes da fila | 60 | 100 | sim |
 | `lifecycle` | `app.lc_tick` | depois da fila | 10 | 100 | sim |
 | `insights` | `app.gi_tick` | depois da fila | 20 | 20 | sim |
+| `retention` | `app.retention_tick` | depois da fila | 30 | 500 | sim |
+| `privacy_erasure` | `app.privacy_erasure_tick` | depois da fila | 40 | 5 | sim |
 
 ## Tabelas
+
+### `abuse_limits`
+
+Limites de abuso da reserva pública (D30 a). Mudar = migration nova.
+
+| Coluna | Tipo |
+|---|---|
+| `key` | text |
+| `value` | integer |
+| `note` | text |
+
+- **Chaves e unicidade:** PK (key)
+- **Referências:** —
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
 
 ### `access_grants`
 
@@ -98,7 +115,7 @@ Aprovação do dono vinculada a hash e versão. Append-only; uso único via reci
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id, proposal_id)
 - **Referências:** (tenant_id, proposal_id) → `agent_proposals`; (tenant_id) → `tenants`
 - **Leitura:** `agent_approvals_select_owner` (authenticated)
-- **Só acrescenta:** sim
+- **Só acrescenta:** não
 
 ### `agent_proposals`
 
@@ -163,7 +180,7 @@ Resultado da execução de uma aprovação. Repetir a execução devolve o mesmo
 - **Chaves e unicidade:** PK (approval_id); única (tenant_id, approval_id)
 - **Referências:** (tenant_id, approval_id) → `agent_approvals`; (tenant_id) → `tenants`
 - **Leitura:** `agent_receipts_select_owner` (authenticated)
-- **Só acrescenta:** sim
+- **Só acrescenta:** não
 
 ### `agent_runs`
 
@@ -180,7 +197,7 @@ Uma pergunta debitada. Sem texto da pergunta nem da resposta.
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id, user_id, idem_key)
 - **Referências:** (tenant_id) → `tenants`
 - **Leitura:** nenhuma política (só as RPCs leem)
-- **Só acrescenta:** sim
+- **Só acrescenta:** não
 
 ### `analytics_baselines`
 
@@ -496,8 +513,8 @@ Backend-only. Sem acesso pela Data API.
 | `id` | uuid |
 | `tenant_id` | uuid |
 | `connection_id` | uuid |
-| `code` | text |
-| `code_hash` | text |
+| `code` | text ? |
+| `code_hash` | text ? |
 | `expires_at` | timestamp with time zone |
 | `attempts` | integer |
 | `dispatch_status` | text |
@@ -1968,6 +1985,53 @@ Regra publicada. Piloto: uma regra ativa por serviço (sem empilhar descontos).
 - **Leitura:** `pricing_rules_select_owner` (authenticated)
 - **Só acrescenta:** não
 
+### `privacy_erasures`
+
+Backend-only. Pedidos de eliminação (D26): negócio com carência de 7 dias, cliente final na hora. Trilha sem conteúdo.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | uuid |
+| `tenant_id` | uuid |
+| `scope` | text |
+| `customer_id` | uuid ? |
+| `status` | text |
+| `requested_by` | uuid |
+| `requested_at` | timestamp with time zone |
+| `execute_after` | timestamp with time zone |
+| `cancelled_at` | timestamp with time zone ? |
+| `cancelled_by` | uuid ? |
+| `done_at` | timestamp with time zone ? |
+| `summary` | jsonb ? |
+
+- **Chaves e unicidade:** PK (id); única (tenant_id, id)
+- **Referências:** (tenant_id, customer_id) → `customers`; (tenant_id) → `tenants`
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `privacy_exports`
+
+Backend-only. Pedidos de exportação (D26): quem pediu, estado e caminho do arquivo. Sem o conteúdo.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | uuid |
+| `tenant_id` | uuid |
+| `scope` | text |
+| `customer_id` | uuid ? |
+| `status` | text |
+| `requested_by` | uuid |
+| `storage_path` | text |
+| `bytes` | bigint ? |
+| `created_at` | timestamp with time zone |
+| `ready_at` | timestamp with time zone ? |
+| `expires_at` | timestamp with time zone ? |
+
+- **Chaves e unicidade:** PK (id); única (storage_path); única (tenant_id, id)
+- **Referências:** (tenant_id, customer_id) → `customers`; (tenant_id) → `tenants`
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
 ### `profile_contents`
 
 Conteúdo aprovado publicado como `bio` do perfil público (P09). Só aparece se o dono escolheu `bio` nos campos públicos.
@@ -2026,8 +2090,8 @@ Backend-only. Pedido do link público: contato informado e código. Sem acesso p
 | `connection_id` | uuid |
 | `contact_name` | text |
 | `contact_phone_e164` | text |
-| `code` | text |
-| `code_hash` | text |
+| `code` | text ? |
+| `code_hash` | text ? |
 | `attempts` | integer |
 | `status` | text |
 | `expires_at` | timestamp with time zone |
@@ -2044,6 +2108,20 @@ Backend-only. Pedido do link público: contato informado e código. Sem acesso p
 
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id, idem_key)
 - **Referências:** (tenant_id, booking_id) → `bookings`; (tenant_id, connection_id) → `channel_connections`; (replaced_request_id) → `public_booking_requests`; (tenant_id, replaced_request_id) → `public_booking_requests`; (tenant_id) → `tenants`
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `public_origin_hits`
+
+Backend-only. Tentativas de reserva por origem (hash), apagadas em 1 dia.
+
+| Coluna | Tipo |
+|---|---|
+| `origin_hash` | text |
+| `created_at` | timestamp with time zone |
+
+- **Chaves e unicidade:** —
+- **Referências:** —
 - **Leitura:** nenhuma política (só as RPCs leem)
 - **Só acrescenta:** não
 
@@ -2271,6 +2349,39 @@ Profissional/recurso que ocupa capacidade. Piloto: um ativo por negócio.
 - **Chaves e unicidade:** PK (id); única (tenant_id, id)
 - **Referências:** (tenant_id) → `tenants`
 - **Leitura:** `resources_select_member` (authenticated)
+- **Só acrescenta:** não
+
+### `retention_policies`
+
+Prazos de retenção (D25, sujeitos ao advogado). Mudar prazo = migration nova. Lida por app.retention_tick.
+
+| Coluna | Tipo |
+|---|---|
+| `category` | text |
+| `days` | integer |
+| `starts_at` | text |
+| `decision` | text |
+| `note` | text |
+
+- **Chaves e unicidade:** PK (category)
+- **Referências:** —
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `retention_runs`
+
+Relatório da retenção: categoria, quando e quantas linhas. Sem conteúdo, sem negócio, sem titular.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | bigint |
+| `ran_at` | timestamp with time zone |
+| `category` | text |
+| `affected` | integer |
+
+- **Chaves e unicidade:** PK (id)
+- **Referências:** (category) → `retention_policies`
+- **Leitura:** nenhuma política (só as RPCs leem)
 - **Só acrescenta:** não
 
 ### `review_reports`
