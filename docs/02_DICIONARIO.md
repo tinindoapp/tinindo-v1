@@ -11,11 +11,11 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 125 |
-| Com RLS ligada | 125 |
-| Políticas (todas de leitura) | 96 |
-| FKs | 264 (130 compostas) |
-| Funções em `public` / `app` | 277 / 268 |
+| Tabelas em `public` | 126 |
+| Com RLS ligada | 126 |
+| Políticas (todas de leitura) | 97 |
+| FKs | 265 (130 compostas) |
+| Funções em `public` / `app` | 279 / 275 |
 | Rotinas periódicas (`job_ticks`) | 8 |
 
 ## Rotinas periódicas
@@ -2722,6 +2722,25 @@ Papel de um login dentro de um negócio. Papel decidido no servidor.
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id, user_id)
 - **Referências:** (tenant_id) → `tenants`; (user_id) → `auth.users` (cascade)
 - **Leitura:** `tenant_memberships_select` (authenticated)
+- **Só acrescenta:** não
+
+### `tenant_modules`
+
+Chave de módulo por negócio (P51). Sem linha = desligado. Escrita só por RPC; módulo guardado só pelo backend.
+
+| Coluna | Tipo |
+|---|---|
+| `tenant_id` | uuid |
+| `module` | text |
+| `enabled` | boolean |
+| `updated_by` | uuid ? |
+| `created_at` | timestamp with time zone |
+| `updated_at` | timestamp with time zone |
+| `version` | integer |
+
+- **Chaves e unicidade:** PK (tenant_id, module)
+- **Referências:** (tenant_id) → `tenants`
+- **Leitura:** `tenant_modules_select_member` (authenticated)
 - **Só acrescenta:** não
 
 ### `tenant_onboarding`
