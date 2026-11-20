@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { createDemoLinkPort, createDemoPort, resetDemoState } from "./demoPort.ts";
 import { PayLinkPage } from "./PayLinkPage.tsx";
-import { type LinkView, newKey, type PaymentLinkPort } from "./port.ts";
+import type { LinkView, PaymentLinkPort } from "./port.ts";
+import { newIdempotencyKey as newKey } from "../../lib/idempotency.ts";
 import { setPublicBusinessReader } from "../../components/public/public-kit.tsx";
 
 const TOKEN = "t".repeat(43);

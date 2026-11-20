@@ -65,7 +65,6 @@ const LEGACY_KEY = [
   // Parte 2
   "src/features/agent/port.ts",
   "src/features/discovery/port.ts",
-  "src/features/payments/port.ts",
   "src/features/scheduling/port.ts",
 ];
 const LEGACY_CLOCK = [
