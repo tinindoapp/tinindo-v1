@@ -2,13 +2,14 @@
 // e na prévia do dono. Mostra só a projeção publicada: nada de CRM, contatos ou agenda alheia.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, toast, useFormErrors, whatsappHref } from "../../components/ui/index.tsx";
+import { Button, Card, ChoiceCard, Field, StatusBanner, toast, useFormErrors, whatsappHref } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
 import { phoneToE164 } from "../../lib/phone.ts";
 import { addDays, dayWindow, formatTime, localParts } from "../../lib/time.ts";
 import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, SlotsData } from "./api.ts";
 import { buildIcs } from "./ics.ts";
-import { CATEGORY_LABEL, errorMessage, formatPhoneBr, newIdempotencyKey } from "./useNetworkApi.ts";
+import { BusinessHeader, businessOf } from "./public-kit.tsx";
+import { errorMessage, formatPhoneBr, newIdempotencyKey } from "./public/labels.ts";
 
 /** Dia da demonstração (fixtures do piloto). Com servidor, o visitante escolhe a partir de hoje. */
 const DEMO_DAY = "2026-10-20";
@@ -82,81 +83,135 @@ function bookingError(e: unknown): string {
   return errorMessage(e);
 }
 
-/** Âncora da reserva no perfil: o "Ver horários livres" do topo e o "Ver horários" do diretório levam até ela. */
+/** Âncora da reserva no perfil: o "Ver horários" do diretório e o link antigo do site (/s) levam até ela. */
 export const BOOKING_ANCHOR = "agendar";
 
-function goToBooking() {
-  document.getElementById(BOOKING_ANCHOR)?.scrollIntoView({ block: "start" });
-  document.getElementById("horarios-titulo")?.focus({ preventScroll: true });
+/** O que o site publicado (P17) acrescenta ao perfil: frase, serviços com preço e horários de atendimento (D19). */
+export interface ProfileSiteExtras {
+  headline: string | null;
+  services: { name: string; duration_min: number; price_cents: number | null }[];
+  hours: { weekday: number; start: string; end: string }[];
+  timezone: string;
 }
 
-export function PublicProfileView({ profile, api }: { profile: PublicProfileData; api: NetworkApi }) {
-  const name = profile.fields.display_name ?? CATEGORY_LABEL[profile.category];
+const WEEKDAY = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+/** "Hoje: 09:00–18:00" ou "Hoje: fechado", no fuso do negócio. */
+export function todayHours(hours: ProfileSiteExtras["hours"], timeZone: string, now = new Date()): string {
+  const name = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone }).format(now);
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(name);
+  const today = hours.filter((h) => h.weekday === weekday);
+  return today.length ? `Hoje: ${today.map((h) => `${h.start}–${h.end}`).join(" e ")}` : "Hoje: fechado";
+}
+
+/**
+ * Perfil público: o negócio no topo (D18), a reserva logo abaixo e, depois, o que o site publicado acrescenta.
+ * `as="main"` na página pública (a moldura é do chamador); `as="div"` na prévia do dono, dentro do shell.
+ */
+export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }: {
+  profile: PublicProfileData;
+  api: NetworkApi;
+  site?: ProfileSiteExtras | null;
+  as?: "main" | "div";
+}) {
+  const business = businessOf(profile);
+  const name = business.name;
   const booking = !!profile.fields.booking_link;
+  // Do passo 2 em diante o cabeçalho recolhe e o resto da página sai da frente (auditoria 14, achado 07).
+  const [reserving, setReserving] = useState(false);
+  const reviews = profile.reputation.reviews_count;
+  const about = [site?.headline, profile.fields.bio, profile.fields.services_summary].filter((t): t is string => !!t);
   return (
-    <div className="tn-stack">
-      <div className="tn-net-head">
-        {profile.photo ? <img className="tn-net-photo" src={profile.photo.url} alt={profile.photo.alt} width={96} height={96} /> : null}
-        <PageHeader id="perfil-nome" eyebrow={CATEGORY_LABEL[profile.category]} title={name} subtitle={profile.area} />
-      </div>
-      {/* A reserva vem primeiro (E12): o botão principal leva aos horários; o WhatsApp é a segunda opção. */}
-      {booking || profile.whatsapp_e164 ? (
-        <div className="tn-actions">
-          {booking ? (
-            <a
-              className="tn-button"
-              data-variant="primary"
-              href={`#${BOOKING_ANCHOR}`}
-              onClick={(e) => {
-                e.preventDefault();
-                goToBooking();
-              }}
-            >
-              Ver horários livres
-            </a>
-          ) : null}
-          {profile.whatsapp_e164 ? (
-            <a className="tn-button" data-variant="secondary" href={whatsappLink(profile.whatsapp_e164)} target="_blank" rel="noopener noreferrer">
-              Conversar no WhatsApp
-            </a>
-          ) : null}
-        </div>
-      ) : null}
-      <Card as="article" aria-labelledby="perfil-nome">
-        {/* Só selos positivos (BRAND.md, Reputação): o que falta não vira selo. Sem "Tinindo garante". */}
-        <ul className="tn-net-badges" aria-label="Reputação">
-          {profile.reputation.identity_verified ? <li>Identidade verificada</li> : null}
-          <li>
-            {profile.reputation.reviews_count === 0 ? (
-              "Perfil novo · ainda sem avaliações"
-            ) : (
-              <Link to={`/avaliacoes/${profile.slug}`}>
-                {profile.reputation.reviews_count === 1 ? "1 avaliação de cliente" : `${profile.reputation.reviews_count} avaliações de clientes`}
-              </Link>
-            )}
-          </li>
-        </ul>
-        {profile.fields.bio ? <p>{profile.fields.bio}</p> : null}
-        {profile.fields.services_summary ? <p>{profile.fields.services_summary}</p> : null}
-      </Card>
-      {booking ? (
-        <div id={BOOKING_ANCHOR} className="tn-net-booking">
-          <BookingSlots slug={profile.slug} api={api} professional={name} whatsapp={profile.whatsapp_e164 ?? null} />
-        </div>
-      ) : null}
-      {/* Links de quem já é cliente e o aviso ficam no rodapé (E12), longe da reserva. */}
-      <footer className="tn-net-foot">
-        {/* Avaliar exige login e só lista atendimentos concluídos do próprio cliente (regra do servidor). */}
-        <p>
-          Já foi atendido aqui? <Link to="/avaliar">Avaliar meu atendimento</Link> ·{" "}
-          <Link to="/app/conta/reservas">Minhas reservas</Link>
-        </p>
-        <p className="tn-muted">
-          Informações publicadas pelo próprio profissional. A Tinindo não garante habilidade nem resultado. Algo
-          errado ou indevido? Fale com a equipe Tinindo para pedir correção ou remoção.
-        </p>
-      </footer>
-    </div>
+    <>
+      <BusinessHeader business={business} nameAs="h1" compact={reserving} />
+      <Tag className="tn-pub-main tn-pub__col" id={Tag === "main" ? "conteudo" : undefined}>
+        {reserving ? null : (
+          <>
+            {/* Só selos positivos (BRAND.md, Reputação): o que falta não vira selo. Sem "Tinindo garante". */}
+            <ul className="tn-net-badges" aria-label="Reputação">
+              {profile.reputation.identity_verified ? <li>Identidade verificada</li> : null}
+              <li>
+                {reviews === 0 ? (
+                  "Perfil novo · ainda sem avaliações"
+                ) : (
+                  <Link to={`/avaliacoes/${profile.slug}`}>{reviews === 1 ? "1 avaliação de cliente" : `${reviews} avaliações de clientes`}</Link>
+                )}
+              </li>
+            </ul>
+            {/* Linha de fatos: só o que existe. */}
+            <ul className="tn-net-badges" aria-label="Informações">
+              {site?.hours.length ? <li>{todayHours(site.hours, site.timezone)}</li> : null}
+              <li>Pagamento direto ao profissional</li>
+            </ul>
+            {about.length ? (
+              <div className="tn-net-about">
+                {about.map((t) => (
+                  <p key={t}>{t}</p>
+                ))}
+              </div>
+            ) : null}
+          </>
+        )}
+        {booking ? (
+          <div id={BOOKING_ANCHOR} className="tn-net-booking">
+            <BookingSlots slug={profile.slug} api={api} professional={name} whatsapp={profile.whatsapp_e164 ?? null} onReserving={setReserving} />
+          </div>
+        ) : null}
+        {reserving ? null : (
+          <>
+            {profile.whatsapp_e164 ? (
+              booking ? (
+                <p className="tn-net-wa">
+                  Prefere combinar por mensagem?{" "}
+                  <a href={whatsappLink(profile.whatsapp_e164)} target="_blank" rel="noopener noreferrer">
+                    Conversar no WhatsApp
+                  </a>
+                </p>
+              ) : (
+                <div className="tn-pub-cta" data-inline>
+                  <a className="tn-button" data-variant="primary" href={whatsappLink(profile.whatsapp_e164)} target="_blank" rel="noopener noreferrer">
+                    Conversar no WhatsApp
+                  </a>
+                </div>
+              )
+            ) : null}
+            {/* Com a reserva ligada, os serviços já estão no passo 1; sem ela, a lista do site aparece aqui. */}
+            {site?.services.length && !booking ? (
+              <section aria-labelledby="perfil-servicos">
+                <h2 id="perfil-servicos">Serviços</h2>
+                <ul className="tn-net-list">
+                  {site.services.map((s) => (
+                    <li key={s.name}>
+                      <span>
+                        {s.name} <small className="tn-muted">{s.duration_min} min</small>
+                      </span>
+                      {s.price_cents != null ? <strong className="tn-num">{formatPrice(s.price_cents)}</strong> : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {site?.hours.length ? (
+              <details className="tn-net-hours">
+                <summary>Horários de atendimento</summary>
+                <ul className="tn-net-list">
+                  {site.hours.map((h) => (
+                    <li key={`${h.weekday}-${h.start}`}>
+                      <span>{WEEKDAY[h.weekday]}</span>
+                      <span className="tn-num">
+                        {h.start}–{h.end}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+            <p className="tn-muted tn-net-legal">
+              Informações publicadas pelo próprio profissional. A Tinindo não garante habilidade nem resultado.
+            </p>
+          </>
+        )}
+      </Tag>
+    </>
   );
 }
 
@@ -212,7 +267,14 @@ function StepIndicator({ phase }: { phase: StepPhase }) {
   );
 }
 
-function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api: NetworkApi; professional: string; whatsapp: string | null }) {
+function BookingSlots({ slug, api, professional, whatsapp, onReserving }: {
+  slug: string;
+  api: NetworkApi;
+  professional: string;
+  whatsapp: string | null;
+  /** true do passo 2 até antes da confirmação: a página recolhe o cabeçalho e esconde o resto. */
+  onReserving?: (on: boolean) => void;
+}) {
   const [services, setServices] = useState<PublicService[] | null>(null);
   const [serviceId, setServiceId] = useState<string>("");
   // Fuso do negócio, informado pelo servidor em cada resposta de horários.
@@ -272,6 +334,11 @@ function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api
       daysRef.current?.querySelector("input:checked")?.closest("label")?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     }
   }, [phase]);
+
+  const inFlow = phase === "slot" || phase === "contact" || phase === "code";
+  useEffect(() => {
+    onReserving?.(inFlow);
+  }, [inFlow, onReserving]);
 
   // Chegou pelo "Ver horários" do diretório (/p/slug#agendar): depois de carregar, mostra a reserva.
   const loaded = services !== null;
@@ -431,12 +498,12 @@ function BookingSlots({ slug, api, professional, whatsapp }: { slug: string; api
               target="_blank"
               rel="noopener noreferrer"
             >
-              Falar com o profissional
+              Falar com {professional} no WhatsApp
             </a>
           ) : null}
         </div>
         <p className="tn-muted">
-          Para remarcar ou cancelar, fale com o profissional. Tem login? Veja em <Link to="/app/conta/reservas">Minhas reservas</Link>.
+          Para remarcar ou cancelar, fale com {professional}{whatsapp ? " pelo WhatsApp" : ""}.
         </p>
       </Card>
     );

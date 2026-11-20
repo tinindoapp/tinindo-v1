@@ -1,16 +1,14 @@
 // Módulo Site e Google · P17 (tasks/P17.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 import { useMemo } from "react";
-import type { RouteObject } from "react-router";
 import type { ModuleDefinition } from "../../app/module-types.ts";
 import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
-import { createDemoPort, createDemoPublicPort } from "./demoPort.ts";
-import type { PresencePort, PublicSitePort } from "./port.ts";
+import { createDemoPort } from "./demoPort.ts";
+import type { PresencePort } from "./port.ts";
 import { PresencePage } from "./PresencePage.tsx";
-import { PublicSitePage } from "./PublicSitePage.tsx";
-import { createServerPort, createServerPublicPort } from "./serverPort.ts";
+import { createServerPort } from "./serverPort.ts";
 import "./presence.css";
 
 function PresenceLayout() {
@@ -31,16 +29,8 @@ function PresenceLayout() {
   return <PresencePage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;
 }
 
-function PublicSite() {
-  const port = useMemo<PublicSitePort>(() => {
-    if (!appEnv.supabase) return createDemoPublicPort();
-    return createServerPublicPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken: async () => null }));
-  }, []);
-  return <PublicSitePage port={port} />;
-}
-
-/** Rotas públicas, fora do shell autenticado (montadas em src/app/router.tsx). */
-export const presencePublicRoutes: RouteObject[] = [{ path: "/s/:slug", element: <PublicSite /> }];
+/** Rota pública (/s/:slug → /p/:slug), definida em public-routes.tsx para o pacote das páginas do cliente. */
+export { presencePublicRoutes } from "./public-routes.tsx";
 
 export const presenceModule: ModuleDefinition = {
   id: "presence",

@@ -25,6 +25,16 @@ export function formatSlot(slot: { starts_at: string; ends_at: string }, timeZon
   const t = (v: string) => new Intl.DateTimeFormat("pt-BR", { timeZone, hour: "2-digit", minute: "2-digit" }).format(new Date(v));
   return `${day}, ${t(slot.starts_at)}–${t(slot.ends_at)}`;
 }
+/** "27/10": o dia da validade, no fuso do negócio. */
+export function formatDay(v: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(new Date(v));
+}
+/** Para o cliente: "quarta-feira, 21/10, das 10:00 às 10:30". */
+export function formatSlotLong(slot: { starts_at: string; ends_at: string }, timeZone: string): string {
+  const day = new Intl.DateTimeFormat("pt-BR", { timeZone, weekday: "long", day: "2-digit", month: "2-digit" }).format(new Date(slot.starts_at));
+  const t = (v: string) => new Intl.DateTimeFormat("pt-BR", { timeZone, hour: "2-digit", minute: "2-digit" }).format(new Date(v));
+  return `${day}, das ${t(slot.starts_at)} às ${t(slot.ends_at)}`;
+}
 export function localDate(value: Date | string, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value));
 }

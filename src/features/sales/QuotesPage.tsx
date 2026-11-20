@@ -4,6 +4,7 @@ import { createContext, type FormEvent, useContext, useEffect, useState } from "
 import type { SalesQuote } from "@contracts";
 import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, PageHeader, ShareActions, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
+import { withBusinessSlug } from "./public-kit.tsx";
 import { newKey, type QuoteDetail, type QuoteDraft, type QuoteMaterialCost, type SalesBase, type SalesPort } from "./port.ts";
 import {
   centsToInput,
@@ -27,13 +28,14 @@ function usePort(): SalesPort {
   return p;
 }
 
-export function quoteLink(token: string): string {
-  return `${window.location.origin}/orcamento#t=${token}`;
+/** Com perfil publicado, o endereço do negócio entra no caminho: /orcamento/<endereço>#t=… */
+export function quoteLink(token: string, slug?: string | null): string {
+  return withBusinessSlug(`${window.location.origin}/orcamento#t=${token}`, slug);
 }
 
-/** Mensagem curta e pronta para o cliente; o dono pode mudar antes de mandar. */
-export function quoteMessage(title: string | null, link: string): string {
-  return `Olá! Segue o orçamento${title ? ` "${title}"` : ""}. Para ver e aceitar, abra: ${link}`;
+/** Mensagem curta e pronta para o cliente, dizendo quem manda; o dono pode mudar antes de mandar. */
+export function quoteMessage(title: string | null, link: string, business?: string | null): string {
+  return `Olá!${business ? ` Aqui é ${business}.` : ""} Segue o orçamento${title ? ` "${title}"` : ""}. Para ver e aceitar, abra: ${link}`;
 }
 
 /** O telefone vem quando a base de clientes trouxer (hoje só id e nome). */
@@ -124,7 +126,10 @@ function toDraft(f: FormState, base: SalesBase, now: Date): { draft: QuoteDraft 
     notes: f.notes.trim() || null } };
 }
 
-export function QuotesPage() {
+export function QuotesPage({ business }: {
+  /** Nome do negócio (entra na mensagem pronta) e endereço do perfil publicado (entra no caminho do link). */
+  business?: { name?: string | null; slug?: string | null };
+} = {}) {
   const port = usePort();
   const [base, setBase] = useState<SalesBase | null>(null);
   const [quotes, setQuotes] = useState<SalesQuote[] | null>(null);
@@ -260,10 +265,10 @@ export function QuotesPage() {
           <div className="tn-stack">
             <h2 id="qt-link-title">Link do orçamento</h2>
             <p className="tn-muted">A Tinindo não envia mensagens. Mande o link ao cliente pelo WhatsApp ou copie. Gerar outro link invalida este.</p>
-            <code className="tn-qt-code">{quoteLink(fresh.token)}</code>
+            <code className="tn-qt-code">{quoteLink(fresh.token, business?.slug)}</code>
             <ShareActions
-              message={quoteMessage(freshQuote?.current.title ?? null, quoteLink(fresh.token))}
-              copyText={quoteLink(fresh.token)}
+              message={quoteMessage(freshQuote?.current.title ?? null, quoteLink(fresh.token, business?.slug), business?.name)}
+              copyText={quoteLink(fresh.token, business?.slug)}
               copyLabel="Copiar link"
               phone={freshCustomer ? phoneOf(freshCustomer) : null}
             />

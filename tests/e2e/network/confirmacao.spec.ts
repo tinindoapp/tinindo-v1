@@ -22,19 +22,19 @@ async function publishWithWhatsapp(page: Page, slug: string) {
 }
 
 for (const scheme of ["light", "dark"] as const) {
-  test(`reserva primeiro, telefone formatado, Corrigir, Adicionar à agenda e Falar com o profissional (${scheme})`, async ({ page }) => {
+  test(`reserva primeiro, telefone formatado, Corrigir, Adicionar à agenda e falar com o negócio (${scheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme });
     await publishWithWhatsapp(page, `barbearia-confirma-${scheme}`);
 
-    // E12: a primeira ação é ver os horários; avaliar e minhas reservas ficam no rodapé.
-    const cta = page.getByRole("link", { name: "Ver horários livres" });
-    await expect(cta).toBeVisible();
-    expect((await cta.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-    const footer = page.locator("footer.tn-net-foot");
-    await expect(footer.getByRole("link", { name: "Avaliar meu atendimento" })).toBeVisible();
-    await expect(footer.getByRole("link", { name: "Minhas reservas" })).toBeVisible();
-    await cta.click();
-    await expect(page.getByRole("heading", { name: "Escolha o serviço" })).toBeFocused();
+    // D18 e D20: o negócio no topo, a Tinindo só no rodapé, a reserva na primeira tela e nenhum link de conta.
+    await expect(page.getByRole("heading", { name: "Barbearia Exemplo A", level: 1 })).toBeVisible();
+    await expect(page.locator("footer.tn-pub-foot")).toContainText("Página feita com a Tinindo");
+    await expect(page.locator("header img[alt='Tinindo']")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Minhas reservas" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Avaliar meu atendimento" })).toHaveCount(0);
+    const first = page.getByRole("heading", { name: "Escolha o serviço" });
+    await expect(first).toBeVisible();
+    expect((await first.boundingBox())!.y).toBeLessThan(page.viewportSize()!.height);
 
     await page.getByRole("button", { name: "Escolher dia e hora" }).click();
     const slot = page.getByRole("list", { name: "Horários livres" }).getByRole("button").first();
@@ -66,7 +66,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.getByRole("button", { name: "Confirmar horário" }).click();
     await expect(page.getByRole("heading", { name: "Horário confirmado" })).toBeVisible();
 
-    const talk = page.getByRole("link", { name: "Falar com o profissional" });
+    const talk = page.getByRole("link", { name: "Falar com Barbearia Exemplo A no WhatsApp" });
     const href = new URL((await talk.getAttribute("href"))!);
     expect(`${href.origin}${href.pathname}`).toBe("https://wa.me/5511999990001");
     expect(href.searchParams.get("text")).toContain("Marquei Corte");
