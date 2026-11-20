@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  addDays, dayWindow, deviceZoneDiffers, endOfLocalDay, formatCivilDate, formatDate, formatDateTime, formatDayMonth, formatMonth, formatSlot,
-  formatStart, formatTime, formatWeekdayDate, formatWeekdayDateTime, formatWeekdayDay, formatWeekdayLongDate, friendlyZone, isCivilDate,
+  addDays, dayWindow, deviceZoneDiffers, endOfLocalDay, formatCivilDate, formatDate, formatDateTime, formatDayMonth, formatFullDateTime, formatMonth, formatSlot,
+  formatStart, formatTime, formatWeekdayDate, formatWeekdayDateTime, formatWeekdayDay, formatWeekdayDayMonth, formatWeekdayLongDate, friendlyZone, isCivilDate,
   localDate, localParts, localToIso, noonOfLocalDay, now, receivedPeriods, setClockForTest, startOfLocalDay, startOfNextLocalDay, today,
   toZonedIso, weekStart, zonedInstant,
 } from "./time.ts";
@@ -122,5 +122,19 @@ describe("relógio e formatos comuns das telas", () => {
     expect(formatCivilDate("2026-10-20")).toBe("20/10/2026");
     expect(formatMonth("2026-10")).toBe("outubro de 2026");
     expect(formatMonth("2026-10-31")).toBe("outubro de 2026");
+  });
+
+  it("data com ano e hora, e chip de dia (P53: Perfil, Site, Pagamentos)", () => {
+    const d = new Date(instant);
+    expect(formatFullDateTime(instant, SP)).toBe(new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: SP }).format(d));
+    expect(formatFullDateTime(instant, SP)).toBe("21/10/2026, 00:30");
+    expect(formatFullDateTime(instant, MANAUS)).toBe("20/10/2026, 23:30");
+    expect(formatWeekdayDayMonth("2026-10-20")).toBe("ter 20/10");
+    expect(formatWeekdayDayMonth("2026-10-25")).toBe("dom 25/10");
+    // Igual ao que o Perfil montava à mão, em todos os dias de um ano (meio-dia UTC, sem fuso do aparelho).
+    for (let day = "2026-01-01"; day < "2027-01-01"; day = addDays(day, 1)) {
+      const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`)).replace(".", "");
+      expect(formatWeekdayDayMonth(day)).toBe(`${weekday} ${day.slice(8, 10)}/${day.slice(5, 7)}`);
+    }
   });
 });
