@@ -1,7 +1,7 @@
 # Handoff · Publicação em um comando e homologação testável
 
 Sessão: `claude-p51` (Felipe) · 2026-11-20 · parte do P58 do replanejamento ("Ambientes e publicação": publicação por script único). Pedido do Felipe para destravar o recado #109 do Gabriel.
-Branch: `claude/kind-allen-m9zju9`. PR 1: scripts, documentação e CI. PR 2: e2e-staging atualizado.
+Branch: `claude/kind-allen-m9zju9`. PR 1 (#136, mergeado): scripts, documentação e CI. PR 2: e2e-staging atualizado.
 Reserva: o P58 não está no quadro do `coord.py`; sem reserva, como P48 a P51.
 
 **Nada foi publicado nem aplicado na homologação.** Esta sessão não tem as contas do Gabriel. Os scripts foram testados com `--conferir` e contra um Postgres local.
@@ -48,3 +48,17 @@ Não testado (exige as contas): `supabase secrets`, `functions deploy`, `db quer
 - `docs/qa/UAT-PILOTO.md` (fora da área) ainda manda rodar `app.module_admin_set` à mão; o `npm run preparar:uat` faz o mesmo com conferência. Atualizar o roteiro na próxima passada.
 - Regra da `main` no GitHub (exigir os cinco checks): configuração do repositório, documentada em `docs/09`; não alterada por esta sessão.
 - Produção: falta `release/ambientes/producao.env` quando o projeto existir (D36).
+
+## Entregue (PR 2 · e2e-staging)
+
+Feito por um subagente desta sessão e revisado aqui.
+
+- `tests/e2e-staging/ambiente.ts`: variáveis e a regra pular/falhar num lugar só; login comum. `STAGING_WRITE=1` entra na lista do modo obrigatório.
+- `smoke.spec.ts` (só leitura, três telas): mais configuração guiada (linha da Hoje e `/app/configurar`, sem dispensar passo) e Retorno (os três blocos).
+- `jornada.spec.ts` (grava só no negócio técnico; desktop, uma vez): (1) cliente fictício agendado hoje no primeiro horário livre; (2) Repetir toda semana com prévia e confirmação; (3) reserva pelo link com o código lido em Mensagens › Simulador, conectando o número simulado pela tela se faltar, e falhando com o comando `app.module_admin_set` se Mensagens estiver desligado; (4) "Atendido" › "Recebi R$ X no Pix" e o valor em "Hoje" no Caixa. Nomes "Cliente Teste UAT <carimbo>" e telefones `(11) 9000x-NNNN`; 5xx e erro de página reprovam.
+- `local.sh` + `local-preparo.sql`: a suíte inteira contra o gateway do P59 num banco descartável (`bash tests/e2e-staging/local.sh`).
+- `tests/e2e/servidor` (só acréscimos, opcionais): laço de despacho do canal no gateway (`E2E_GATEWAY_DESPACHO_MS`) e ganchos `E2E_SERVIDOR_PREPARO`/`E2E_SERVIDOR_EXEC` no `run.sh`. Sem as variáveis, a jornada do P59 é a de antes.
+
+Resultados no ambiente local (subagente): desktop 41/41 (4 da jornada + 37 do smoke); Android, todos os que rodam nele; iPhone não validado (WebKit não instalado nesta máquina). Jornada do P59: 2/2. Revalidado na sessão principal depois do merge da `main`: ver o PR.
+
+Não validável localmente: WebKit; CORS real das funções (o gateway responde por elas); login, PostgREST e Deno reais; cron de 1 min (o gateway despacha a cada 5 s); os dados da conta técnica da homologação. A jornada supõe expediente cobrindo a hora da execução e falha dizendo isso se não houver.

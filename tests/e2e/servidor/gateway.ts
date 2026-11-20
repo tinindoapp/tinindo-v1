@@ -6,7 +6,7 @@
 // Não é o Supabase: GoTrue, PostgREST, runtime Deno e CORS de produção ficam de fora (ver README.md desta pasta).
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { handlers, pool, rpc } from "../../integration/harness.ts";
+import { handlers, pool, rpc, runDispatch } from "../../integration/harness.ts";
 
 // Segredo montado em tempo de execução (baixa entropia no fonte: a varredura de segredos não o confunde com vazamento).
 const JWT_SECRET = "segredo-jwt-da-jornada-".repeat(2);
@@ -174,7 +174,35 @@ async function functions(req: Request, url: URL): Promise<Response> {
   return handler(new Request(url, { method: req.method, headers, body }));
 }
 
-export interface GatewayOptions { port: number; allowedOrigins: string[] }
+export interface GatewayOptions {
+  port: number;
+  allowedOrigins: string[];
+  /**
+   * Imita o cron do `messaging/channel.dispatch` (1 min na homologação): sem ele, nada sai do canal simulado (código de
+   * verificação do número, código da reserva pelo link). Omitido ou 0 = desligado, como na jornada do P59.
+   */
+  dispatchEveryMs?: number;
+}
+
+/** Rodadas do despacho em série (nunca duas ao mesmo tempo), como o cron chamaria a função. */
+function startDispatchLoop(everyMs: number): () => void {
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const tick = async () => {
+    try {
+      const r = await runDispatch();
+      if (r.sent || r.failed || r.unknown) console.log(`[gateway] despacho: ${r.sent} enviada(s), ${r.failed} falha(s), ${r.unknown} desconhecida(s)`);
+    } catch (e) {
+      console.error("[gateway] erro no despacho do canal:", e);
+    }
+    if (!stopped) timer = setTimeout(() => void tick(), everyMs);
+  };
+  timer = setTimeout(() => void tick(), everyMs);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+  };
+}
 
 function cors(req: IncomingMessage, allowed: string[]): Record<string, string> {
   const origin = req.headers.origin;
@@ -235,6 +263,9 @@ export function startGateway(opts: GatewayOptions): Promise<Server> {
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(opts.port, "127.0.0.1", () => resolve(server));
+    server.listen(opts.port, "127.0.0.1", () => {
+      if (opts.dispatchEveryMs && opts.dispatchEveryMs > 0) server.once("close", startDispatchLoop(opts.dispatchEveryMs));
+      resolve(server);
+    });
   });
 }
