@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
-import { readDemoSetup } from "../../../supabase/functions/_shared/domain/setup/demo.ts";
+import { readDemoSetup } from "../../lib/demo/setup.ts";
 import { describeBusiness } from "../../../supabase/functions/_shared/domain/setup/describe.ts";
 import { resetDemoJourney } from "../../lib/demo/journey.ts";
 import { createDemoPort, resetDemoState } from "./demoPort.ts";

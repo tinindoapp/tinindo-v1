@@ -6,7 +6,7 @@ import { SetupProgressOutput } from "@contracts";
 import { FX } from "@contracts/fixtures.ts";
 import { createApiClient } from "../../lib/api/client.ts";
 import { SETUP_STEPS } from "../../lib/setup/steps.ts";
-import { resetDemoSetup } from "../../../supabase/functions/_shared/domain/setup/demo.ts";
+import { resetDemoSetup } from "../../lib/demo/setup.ts";
 import { resetDemoJourney, setPublishedSlug } from "../../lib/demo/journey.ts";
 import { createDemoPort } from "./demoPort.ts";
 import { createServerPort } from "./serverPort.ts";

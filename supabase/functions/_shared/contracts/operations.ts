@@ -770,6 +770,8 @@ export const OPERATIONS = {
   "setup.templates": { module: "setup", owner: "P44", kind: "query", idempotent: false, input: setup.SetupTemplatesInput, output: setup.SetupTemplatesOutput },
   "setup.services_apply": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupServicesApplyInput, output: setup.SetupServicesApplyOutput },
   "setup.draft_apply": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupDraftApplyInput, output: setup.SetupDraftApplyOutput },
+  // Rota própria no handler (não é "uma RPC"): regras primeiro e o modelo de linguagem do P46 só para o que faltar.
+  "setup.describe": { module: "setup", owner: "P50", kind: "query", idempotent: false, input: setup.SetupDescribeInput, output: setup.SetupDescribeOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;
