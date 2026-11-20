@@ -1,10 +1,7 @@
 // Módulo Pagamentos · P14 (tasks/P14.md). Só esta pasta pertence ao módulo; src/app/modules.ts e router.tsx são do integrador.
-// Manifesto (P53): a tela fica em routes.tsx. Exceção: por enquanto ela entra no pacote inicial, porque
-// tests/e2e/qa/totais.spec.ts lê a lista "Quem está devendo" logo depois de abrir a página, sem esperar a tela carregar
-// sob demanda (recado para-felipe do P53). Quando o teste esperar a lista, troque `element` por
-// `lazy: screen(() => import("./routes.tsx"), (m) => m.PaymentsLayout)`.
+// Manifesto (P53): a tela fica em routes.tsx e é carregada sob demanda (recado #147: o e2e de totais espera a lista).
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { PaymentsLayout } from "./routes.tsx";
+import { screen } from "../../app/lazy-route.ts";
 import "./payments.css";
 
 // Importa e reexporta (em vez de `export … from`): tests/e2e/foundation/rotas.ts segue imports para ler as rotas.
@@ -18,5 +15,5 @@ export const paymentsModule: ModuleDefinition = {
   level: "stored",
   path: "pagamentos",
   navLabel: "Pagamentos",
-  routes: [{ index: true, element: <PaymentsLayout /> }],
+  routes: [{ index: true, lazy: screen(() => import("./routes.tsx"), (m) => m.PaymentsLayout) }],
 };
