@@ -58,7 +58,6 @@ const restricted = (...groups) => ["error", SECRET_KEY, ...groups.flat()];
 const LEGACY_MONEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
-  "src/features/identity/MyBookingsPage.tsx",
   "src/features/scheduling/agenda.ts",
 ];
 const LEGACY_KEY = [
