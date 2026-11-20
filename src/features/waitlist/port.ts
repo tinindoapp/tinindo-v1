@@ -30,5 +30,3 @@ export interface OfferLinkPort {
   accept(token: string, key: string): Promise<Booking>;
   decline(token: string, key: string): Promise<void>;
 }
-
-export const newKey = () => crypto.randomUUID();

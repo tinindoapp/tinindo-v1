@@ -5,36 +5,23 @@ import type { WaitlistOfferView } from "@contracts";
 import type { z } from "zod";
 import { Button, Card, ConfirmAction, StatusBanner, Wordmark } from "../../components/ui/index.tsx";
 import { formatCents, formatDateTime, formatSlot } from "./format.ts";
-import { newKey, type OfferLinkPort } from "./port.ts";
+import type { OfferLinkPort } from "./port.ts";
+import { errorExplainer } from "../../lib/errors.ts";
+import { newIdempotencyKey } from "../../lib/idempotency.ts";
+import { takeLinkToken } from "../../lib/public-link.ts";
 
 const KEY = "tinindo.offer";
 
-function takeToken(): string | null {
-  const m = /(?:^#|&)t=([A-Za-z0-9_-]{43})(?:&|$)/.exec(window.location.hash);
-  if (m?.[1]) {
-    try {
-      sessionStorage.setItem(KEY, m[1]);
-    } catch {
-      /* sem armazenamento: vale enquanto a página estiver aberta */
-    }
-    window.history.replaceState(window.history.state, "", window.location.pathname);
-    return m[1];
-  }
-  try {
-    return sessionStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
+const explain = errorExplainer({ POLICY_REJECTED: "Esta oferta venceu ou não está mais disponível. Nenhuma reserva foi feita." });
 
 type View = z.infer<typeof WaitlistOfferView>;
 
 export function OfferPage({ port }: { port: OfferLinkPort }) {
-  const [token] = useState(takeToken);
+  const [token] = useState(() => takeLinkToken(KEY));
   const [view, setView] = useState<View | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing" | "accepted" | "declined" | "error">(token ? "loading" : "missing");
   const [message, setMessage] = useState<string | null>(null);
-  const [keys] = useState(() => ({ accept: newKey(), decline: newKey() }));
+  const [keys] = useState(() => ({ accept: newIdempotencyKey(), decline: newIdempotencyKey() }));
   const [pending, setPending] = useState<"accept" | "decline" | null>(null);
 
   useEffect(() => {
@@ -60,8 +47,7 @@ export function OfferPage({ port }: { port: OfferLinkPort }) {
         setState("declined");
       }
     } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      setMessage(code === "POLICY_REJECTED" ? "Esta oferta venceu ou não está mais disponível. Nenhuma reserva foi feita." : "Não foi possível concluir agora. Tentar de novo é seguro.");
+      setMessage(explain(err));
     } finally {
       setPending(null);
     }

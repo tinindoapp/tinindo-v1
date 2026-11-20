@@ -5,9 +5,10 @@ import { type FormEvent, type ReactNode, useEffect, useId, useState } from "reac
 import { Link } from "react-router";
 import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, formatTime, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, templateInfo, unreadLabel } from "./labels.ts";
-import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort, newKey } from "./port.ts";
-import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, templateInfo, unreadLabel } from "./labels.ts";
+import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatDateTime } from "../../lib/time.ts";
 import { plural, pluralWord } from "../../lib/text/plural.ts";
 
 /** Depois de uma ação: o aviso de sucesso sai no toast e a tela recarrega. Erro de formulário fica no formulário. */
@@ -51,6 +52,7 @@ function ConnectForm({ port, onDone }: { port: MessagingPort; onDone: Done }) {
 
 function VerifyForm({ port, onDone }: { port: MessagingPort; onDone: Done }) {
   const [code, setCode] = useState("");
+  const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const { formRef, errors, show } = useFormErrors<"code">();
@@ -60,7 +62,9 @@ function VerifyForm({ port, onDone }: { port: MessagingPort; onDone: Done }) {
     setBusy(true);
     setFailure(null);
     try {
-      await port.verify(code.trim(), newKey());
+      const value = code.trim();
+      await port.verify(value, idem.keyFor({ verify: value }));
+      idem.reset();
       setCode("");
       onDone("Número verificado. O canal está conectado.");
     } catch (err) {
@@ -210,8 +214,11 @@ function TemplateForm({ port, convo, templates, onDone, onCancel }: { port: Mess
   );
 }
 
+type Send = (key: string) => Promise<unknown>;
+
 /** Depois de uma ação: toast e recarga. */
 function useActions(refresh: () => void) {
+  const command = useCommand();
   const done: Done = (message) => {
     toast(message);
     refresh();
@@ -221,12 +228,12 @@ function useActions(refresh: () => void) {
     refresh();
   };
   /** Ação de um toque: sucesso no toast (com "Desfazer" quando houver volta); erro também no toast. */
-  const act = (run: () => Promise<unknown>, ok: string, undo?: { run: () => Promise<unknown>; ok: string }) =>
-    run().then(() => {
+  const act = (intent: unknown, send: Send, ok: string, undo?: { intent: unknown; send: Send; ok: string }) =>
+    command(intent, send).then(() => {
       refresh();
       toast({
         message: ok,
-        action: undo ? { label: "Desfazer", onAction: () => undo.run().then(() => done(undo.ok), fail) } : undefined,
+        action: undo ? { label: "Desfazer", onAction: () => command(undo.intent, undo.send).then(() => done(undo.ok), fail) } : undefined,
       });
     }, fail);
   return { done, fail, act };
@@ -266,7 +273,7 @@ function ConnectionActions({ port, status, conn, actions }: {
           </p>
         }
         confirmLabel="Sim, desconectar"
-        onConfirm={() => actions.act(() => port.disconnect(newKey()), "Canal desconectado. O que estava na fila não sai.")}
+        onConfirm={() => actions.act({ disconnect: conn.id, version: conn.version }, (key) => port.disconnect(key), "Canal desconectado. O que estava na fila não sai.")}
       />
       <DispatchButton port={port} done={actions.done} fail={actions.fail} />
     </div>
@@ -448,15 +455,15 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
       <section className="tn-stack" data-gap="sm" aria-label={`Conversa com ${name}`}>
         <p className="tn-muted">
           {contact.handling === "human" ? "Você está atendendo. " : "O assistente atende. "}
-          {contact.window_open && contact.window_until ? `Texto livre até ${formatTime(contact.window_until, timezone)}.` : "Fora da janela de 24 h: só modelo aprovado."}
+          {contact.window_open && contact.window_until ? `Texto livre até ${formatDateTime(contact.window_until, timezone)}.` : "Fora da janela de 24 h: só modelo aprovado."}
           {contact.opted_out ? " A cliente pediu para não receber mensagens." : ""}
         </p>
         <div className="tn-actions">
-          <Button variant="secondary" onClick={() => void act(() => port.handoff(contact.id, contact.handling === "human" ? "assistant" : "human", newKey()), contact.handling === "human" ? "O assistente volta a atender." : "Você assumiu a conversa.")}>
+          <Button variant="secondary" onClick={() => void act({ handoff: contact.id, to: contact.handling === "human" ? "assistant" : "human" }, (key) => port.handoff(contact.id, contact.handling === "human" ? "assistant" : "human", key), contact.handling === "human" ? "O assistente volta a atender." : "Você assumiu a conversa.")}>
             {contact.handling === "human" ? "Devolver ao assistente" : "Assumir a conversa"}
           </Button>
           {contact.opted_out ? (
-            <Button variant="ghost" onClick={() => void act(() => port.consent(contact.id, true, newKey()), "Permissão registrada como declarada por você. Só use se a cliente pediu pessoalmente.")}>Cliente pediu para voltar a receber</Button>
+            <Button variant="ghost" onClick={() => void act({ consent: contact.id, optedIn: true }, (key) => port.consent(contact.id, true, key), "Permissão registrada como declarada por você. Só use se a cliente pediu pessoalmente.")}>Cliente pediu para voltar a receber</Button>
           ) : null}
           {contact.customer_id ? (
             <Button
@@ -464,8 +471,9 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
               onClick={() => {
                 // Desvincular volta atrás com o mesmo cadastro: executa na hora e o aviso oferece "Desfazer".
                 const { id: cid, customer_id: customerId } = contact;
-                void act(() => port.link(cid, null, newKey()), "Contato desvinculado do cadastro.", {
-                  run: () => port.link(cid, customerId, newKey()),
+                void act({ link: cid, customer: null }, (key) => port.link(cid, null, key), "Contato desvinculado do cadastro.", {
+                  intent: { link: cid, customer: customerId },
+                  send: (key) => port.link(cid, customerId, key),
                   ok: "Contato vinculado de novo ao cadastro.",
                 });
               }}
@@ -484,7 +492,7 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
             <li key={m.id} className="tn-msg-bubble" data-direction={m.direction}>
               <p>{m.body}</p>
               <p className="tn-muted">
-                {m.direction === "inbound" ? "Cliente" : "Você"} · {formatTime(m.created_at, timezone)} · <strong>{MESSAGE_STATUS[m.status]}</strong>
+                {m.direction === "inbound" ? "Cliente" : "Você"} · {formatDateTime(m.created_at, timezone)} · <strong>{MESSAGE_STATUS[m.status]}</strong>
                 {m.status === "failed" && m.failure_reason ? ` (${FAILURE_REASON[m.failure_reason] ?? m.failure_reason})` : ""}
                 {m.status === "delivery_unknown" ? " · o provedor não confirmou; consultamos o status, sem reenviar" : ""}
               </p>

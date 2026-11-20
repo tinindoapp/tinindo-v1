@@ -45,5 +45,3 @@ export interface MessagingPort {
   /** Só na demonstração: uma rodada do despacho (no servidor, o cron faz isso). */
   dispatch?(): Promise<{ sent: number; failed: number; unknown: number; reconciled: number }>;
 }
-
-export const newKey = () => crypto.randomUUID();

@@ -4,7 +4,9 @@ import { createContext, type FormEvent, useContext, useEffect, useRef, useState 
 import type { TimeRange, WaitlistEntry, WaitlistOffer } from "@contracts";
 import { Button, Card, ChipGroup, ConfirmAction, Field, PageHeader, ShareActions, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { endOfLocalDay, entriesForStart, formatDateTime, formatSlot, formatStart, localDate, windowsText } from "./format.ts";
-import { newKey, type WaitlistBase, type WaitlistPort } from "./port.ts";
+import type { WaitlistBase, WaitlistPort } from "./port.ts";
+import { errorExplainer } from "../../lib/errors.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 
 const PortContext = createContext<WaitlistPort | null>(null);
 export const WaitlistPortProvider = PortContext.Provider;
@@ -19,15 +21,13 @@ const DELIVERY: Record<string, string> = {
   share_opened: "Compartilhamento aberto (a entrega não é confirmada)",
 };
 
-function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  if (e?.code === "SLOT_CONFLICT") return "Esse horário já está reservado ou em oferta para outra pessoa. Uma pessoa de cada vez.";
-  if (e?.code === "POLICY_REJECTED" && e.field === "customer_id") return "Este cliente já está na lista para este serviço.";
-  if (e?.code === "POLICY_REJECTED") return "As regras não permitem esta ação agora (entrada, consentimento ou cotação mudou). Nada foi alterado.";
-  if (e?.code === "VALIDATION_ERROR") return "Confira os campos. Nada foi gravado.";
-  if (e?.code === "STALE_VERSION") return "Isto mudou em outro lugar. Atualizamos a lista.";
-  return "Não foi possível concluir agora. Tentar de novo é seguro.";
-}
+const explain = errorExplainer({
+  SLOT_CONFLICT: "Esse horário já está reservado ou em oferta para outra pessoa. Uma pessoa de cada vez.",
+  "POLICY_REJECTED.customer_id": "Este cliente já está na lista para este serviço.",
+  POLICY_REJECTED: "As regras não permitem esta ação agora (entrada, consentimento ou cotação mudou). Nada foi alterado.",
+  VALIDATION_ERROR: "Confira os campos. Nada foi gravado.",
+  STALE_VERSION: "Isto mudou em outro lugar. Atualizamos a lista.",
+});
 
 export function offerLink(token: string): string {
   return `${window.location.origin}/oferta#t=${token}`;
@@ -45,6 +45,7 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
   const [nonce, setNonce] = useState(0);
   const [fresh, setFresh] = useState<{ offerId: string; token: string } | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -65,7 +66,7 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
 
   async function prepare(entry: WaitlistEntry, slot: TimeRange) {
     try {
-      const o = await port.prepareOffer(entry, slot, newKey());
+      const o = await command({ prepare: entry.id, version: entry.version, slot }, (key) => port.prepareOffer(entry, slot, key));
       if (o.token) setFresh({ offerId: o.id, token: o.token });
       if (target !== null && Date.parse(slot.starts_at) === target) setTargetDone(customer(entry.customer_id));
       toast(`Oferta preparada para ${customer(entry.customer_id)}. O horário fica guardado para ela até ${formatDateTime(o.expires_at, tz)}.`);
@@ -76,9 +77,9 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
     }
   }
   /** Ação de um toque numa linha: o retorno (sucesso ou erro) sai no aviso curto. */
-  async function run(action: () => Promise<void>, ok: string) {
+  async function run(intent: unknown, send: (key: string) => Promise<void>, ok: string) {
     try {
-      await action();
+      await command(intent, send);
       toast(ok);
     } catch (err) {
       toast({ tone: "danger", message: explain(err) });
@@ -131,7 +132,7 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
         </StatusBanner>
       ) : null}
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-      {fresh ? <ShareCard token={fresh.token} onShared={() => run(() => port.markShared(fresh.offerId, newKey()), "Compartilhamento registrado. A entrega não é confirmada pela Tinindo.")} onClose={() => setFresh(null)} /> : null}
+      {fresh ? <ShareCard token={fresh.token} onShared={() => run({ shared: fresh.offerId }, (key) => port.markShared(fresh.offerId, key), "Compartilhamento registrado. A entrega não é confirmada pela Tinindo.")} onClose={() => setFresh(null)} /> : null}
       {!base || !data ? (
         <p role="status">Carregando a lista…</p>
       ) : (
@@ -219,7 +220,7 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
                           title="Retirar oferta?"
                           consequence={`O link${e ? ` de ${customer(e.customer_id)}` : ""} para de funcionar e o horário volta a ficar livre.`}
                           confirmLabel="Sim, retirar"
-                          onConfirm={() => run(() => port.cancelOffer(o.id, newKey()), "Oferta retirada. O horário voltou a ficar livre.")}
+                          onConfirm={() => run({ cancelOffer: o.id, version: o.version }, (key) => port.cancelOffer(o.id, key), "Oferta retirada. O horário voltou a ficar livre.")}
                         />
                       ) : null}
                     </li>
@@ -248,7 +249,7 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
                       title={`Tirar ${customer(e.customer_id)} da lista?`}
                       consequence={`${customer(e.customer_id)} deixa de receber vagas de ${service(e.service_id)} e perde a vez na fila. Para voltar, é preciso adicionar de novo.`}
                       confirmLabel="Sim, tirar"
-                      onConfirm={() => run(() => port.withdraw(e, newKey()), "Cliente saiu da lista.")}
+                      onConfirm={() => run({ withdraw: e.id, version: e.version }, (key) => port.withdraw(e, key), "Cliente saiu da lista.")}
                     />
                   </li>
                 ))}
@@ -296,6 +297,7 @@ function JoinForm({ base, onDone }: { base: WaitlistBase; onDone: (t: string) =>
   const { formRef, errors, show } = useFormErrors<"customer" | "days" | "to" | "until" | "consent">();
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const idem = useIdempotencyKey();
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -310,8 +312,10 @@ function JoinForm({ base, onDone }: { base: WaitlistBase; onDone: (t: string) =>
     if (!ok) return;
     setPending(true);
     try {
-      await port.join({ customer_id: customer, service_id: service, valid_until: endOfLocalDay(until, base.timezone),
-        windows: [...days].sort().map((weekday) => ({ weekday, local_start: from, local_end: to })) }, newKey());
+      const body = { customer_id: customer, service_id: service, valid_until: endOfLocalDay(until, base.timezone),
+        windows: [...days].sort().map((weekday) => ({ weekday, local_start: from, local_end: to })) };
+      await port.join(body, idem.keyFor(body));
+      idem.reset();
       onDone("Cliente entrou na lista de espera. Quando abrir uma vaga compatível, ela aparece em \"Vagas para oferecer\".");
       setDays([]);
       setConsent(false);

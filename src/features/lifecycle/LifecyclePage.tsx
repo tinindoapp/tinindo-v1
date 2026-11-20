@@ -4,8 +4,10 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Button, Card, ChipGroup, ConfirmAction, Field, Help, PageHeader, ShareActions, type ShareHow, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { explain, formatDate, formatDateTime, MESSAGE_STATUS, RULE_LABEL, SKIP_REASON, STEP_STATUS } from "./labels.ts";
-import { type Audience, type LifecycleCampaign, type LifecyclePort, type LifecycleSettings, type LifecycleStep, type LifecycleStepStatus, newKey, type StepsList } from "./port.ts";
+import { explain, MESSAGE_STATUS, RULE_LABEL, SKIP_REASON, STEP_STATUS } from "./labels.ts";
+import { type Audience, type LifecycleCampaign, type LifecyclePort, type LifecycleSettings, type LifecycleStep, type LifecycleStepStatus, type StepsList } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatDate, formatDateTime } from "../../lib/time.ts";
 import { plural } from "../../lib/text/plural.ts";
 import { NumberField, parseWhole, rangeError } from "./NumberField.tsx";
 
@@ -34,6 +36,7 @@ function SettingsForm({ port, data, onDone }: { port: LifecyclePort; data: { set
   const { formRef, errors, show, clear } = useFormErrors<NumKey>();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const idem = useIdempotencyKey();
   const setNum = (k: NumKey) => (text: string) => {
     setNums((n) => ({ ...n, [k]: text }));
     clear(k);
@@ -47,7 +50,8 @@ function SettingsForm({ port, data, onDone }: { port: LifecyclePort; data: { set
     try {
       const { version: _v, ...rest } = s;
       const patch = { ...rest, quote_followup_days: parseWhole(nums.quote_followup_days)!, reactivation_days: parseWhole(nums.reactivation_days)!, daily_budget: parseWhole(nums.daily_budget)! };
-      await port.saveSettings(patch, data.settings.version, newKey());
+      await port.saveSettings(patch, data.settings.version, idem.keyFor({ patch, version: data.settings.version }));
+      idem.reset();
       onDone("Réguas salvas. Valem para os próximos agendamentos e passos; o que já saiu não muda.");
     } catch (err) {
       setFailure(explain(err));
@@ -75,6 +79,7 @@ function SettingsForm({ port, data, onDone }: { port: LifecyclePort; data: { set
 const SHARED_OK: Record<ShareHow, string> = { copy: "Texto copiado.", share: "Texto compartilhado.", whatsapp: "WhatsApp aberto com o texto." };
 
 function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timezone: string; port: LifecyclePort; onDone: Done }) {
+  const command = useCommand();
   const fail = (e: unknown) => toast({ tone: "danger", message: explain(e) });
   const who = step.customer_name ?? "a cliente";
   return (
@@ -93,7 +98,7 @@ function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timez
           message={step.body}
           copyText={step.body}
           copyLabel="Copiar e marcar como compartilhado"
-          onShared={(how) => void port.markShared(step.id, newKey()).then(() => onDone(`${SHARED_OK[how]} Passo marcado como compartilhado. Compartilhar não confirma entrega.`), fail)}
+          onShared={(how) => void command({ shared: step.id }, (key) => port.markShared(step.id, key)).then(() => onDone(`${SHARED_OK[how]} Passo marcado como compartilhado. Compartilhar não confirma entrega.`), fail)}
         />
       ) : null}
       {step.status === "manual" ? (
@@ -109,7 +114,7 @@ function StepItem({ step, timezone, port, onDone }: { step: LifecycleStep; timez
             title="Cancelar este passo?"
             consequence={<p>{RULE_LABEL[step.rule]} para {who} não sai, e o passo não volta para a fila.</p>}
             confirmLabel="Sim, cancelar passo"
-            onConfirm={() => port.cancelStep(step.id, newKey()).then(() => onDone("Passo cancelado."), fail)}
+            onConfirm={() => command({ cancel: step.id }, (key) => port.cancelStep(step.id, key)).then(() => onDone("Passo cancelado."), fail)}
           />
         </div>
       ) : null}
@@ -129,6 +134,8 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
   const { formRef, errors, show } = useFormErrors<"maxSends">();
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
+  const idem = useIdempotencyKey();
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -155,7 +162,8 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
     setApproveBusy(true);
     setApproveFailure(null);
     try {
-      const c = await port.approveCampaign(audience.audience_hash, n!, newKey());
+      const c = await port.approveCampaign(audience.audience_hash, n!, idem.keyFor({ approve: audience.audience_hash, maxSends: n }));
+      idem.reset();
       done(`Campanha aprovada para ${plural(c.audience_count, "cliente")}, até ${plural(c.max_sends, "envio")}. Os passos saem dentro do teto diário.`);
     } catch (err) {
       // Público mudou ou regra recusou: o motivo fica no formulário e a tela recarrega o público.
@@ -223,7 +231,7 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
                       }
                       confirmLabel="Sim, revogar"
                       onConfirm={() =>
-                        port.setConsent(c.customer_id, "marketing", false, newKey()).then(
+                        command({ consent: c.customer_id, purpose: "marketing", granted: false }, (key) => port.setConsent(c.customer_id, "marketing", false, key)).then(
                           () => done(`${c.name} fora da reativação (consentimento revogado).`),
                           (e: unknown) => toast({ tone: "danger", message: explain(e) }),
                         )
@@ -253,9 +261,10 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
 
 /** Consentimento rápido para a demonstração e para o CRM futuro: registrado pelo dono, por finalidade. */
 export function ConsentButtons({ port, customerId, name, onDone }: { port: LifecyclePort; customerId: string; name: string; onDone: Done }) {
+  const command = useCommand();
   return (
     <div className="tn-actions">
-      <Button variant="secondary" onClick={() => void port.setConsent(customerId, "marketing", true, newKey()).then(() => onDone(`Consentimento de marketing de ${name} registrado (declarado por você).`), (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Registrar consentimento de marketing</Button>
+      <Button variant="secondary" onClick={() => void command({ consent: customerId, purpose: "marketing", granted: true }, (key) => port.setConsent(customerId, "marketing", true, key)).then(() => onDone(`Consentimento de marketing de ${name} registrado (declarado por você).`), (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Registrar consentimento de marketing</Button>
     </div>
   );
 }
