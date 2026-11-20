@@ -69,10 +69,6 @@ const LEGACY_KEY = [
 const LEGACY_CLOCK = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
-  "src/features/analytics/module.tsx",
-  // identity/services.tsx: o "agora" de Minhas reservas (new Date() junto da leitura direta pelo Supabase). O arquivo é
-  // da sessão que troca os clientes (P53, casca); sai quando essa leitura passar pelo cliente da sessão.
-  "src/features/identity/services.tsx",
   "src/features/scheduling/attendance.tsx",
 ];
 
@@ -87,10 +83,6 @@ const LEGACY_CLIENT = [
   "src/features/sales/owner-slug.ts",
   "src/features/sales/public-kit.tsx",
   "src/features/scheduling/SchedulingLayout.tsx",
-  // Kit público copiado: sai quando o kit único (src/components/public) substituir as cópias.
-  "src/features/network/public-kit.tsx",
-  "src/features/payments/public-kit.tsx",
-  "src/features/reputation/public-kit.tsx",
 ];
 
 const APP_CODE = ["src/features/**/*.{ts,tsx}", "src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"];
