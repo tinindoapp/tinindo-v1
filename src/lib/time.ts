@@ -229,3 +229,121 @@ export function receivedPeriods(today: CivilDate, timeZone: string) {
     month: { starts_at: dayWindow(first, timeZone).starts_at, ends_at: dayWindow(nextMonth, timeZone).starts_at },
   };
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Relógio e formatos comuns das telas. Tela não chama `new Date()` solto (regra de lint): "agora" vem de `now()`,
+// e a data de hoje, de `today(fuso)`. Com um relógio só, o teste consegue fazer o tempo andar.
+
+let clock: () => Date = () => new Date();
+
+/** Instante atual. Único `new Date()` sem argumento que as telas usam. */
+export function now(): Date {
+  return clock();
+}
+
+/** Só para teste: troca o relógio e devolve a função que restaura o real. */
+export function setClockForTest(fake: () => Date): () => void {
+  const previous = clock;
+  clock = fake;
+  return () => {
+    clock = previous;
+  };
+}
+
+/** Data civil (YYYY-MM-DD) de um instante, no fuso do negócio. */
+export function localDate(value: Date | string | number, timeZone: string): CivilDate {
+  const p = rawParts(toDate(value), timeZone);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/** Hoje (YYYY-MM-DD) no fuso do negócio. */
+export function today(timeZone: string): CivilDate {
+  return localDate(now(), timeZone);
+}
+
+/** Meia-noite local de uma data civil, como instante ISO em UTC ("…Z"). */
+export function startOfLocalDay(date: CivilDate, timeZone: string): string {
+  return zonedInstant(date, "00:00", timeZone).toISOString();
+}
+
+/** Meia-noite local do dia seguinte: fim exclusivo de "até este dia", como instante ISO em UTC. */
+export function startOfNextLocalDay(date: CivilDate, timeZone: string): string {
+  return startOfLocalDay(addDays(date, 1), timeZone);
+}
+
+/** Meio-dia local de uma data civil (data informada pela pessoa, sem hora), como instante ISO em UTC. */
+export function noonOfLocalDay(date: CivilDate, timeZone: string): string {
+  return new Date(Date.parse(startOfLocalDay(date, timeZone)) + 12 * 3_600_000).toISOString();
+}
+
+/** 23:59:59 local de uma data civil (validade "até este dia", inclusive), como instante ISO em UTC. */
+export function endOfLocalDay(date: CivilDate, timeZone: string): string {
+  return new Date(zonedInstant(date, "23:59", timeZone).getTime() + 59_000).toISOString();
+}
+
+/** Data e hora civis no fuso do negócio → instante ISO em UTC. */
+export function localToIso(date: CivilDate, time: string, timeZone: string): string {
+  return zonedInstant(date, time, timeZone).toISOString();
+}
+
+const formatCache = new Map<string, Intl.DateTimeFormat>();
+function fmt(timeZone: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${timeZone}|${JSON.stringify(options)}`;
+  let f = formatCache.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat("pt-BR", { timeZone, ...options });
+    formatCache.set(key, f);
+  }
+  return f;
+}
+
+/** "20/10/2026" */
+export function formatDate(value: Date | string, timeZone: string): string {
+  return fmt(timeZone, { day: "2-digit", month: "2-digit", year: "numeric" }).format(toDate(value));
+}
+
+/** "20/10" */
+export function formatDayMonth(value: Date | string, timeZone: string): string {
+  return fmt(timeZone, { day: "2-digit", month: "2-digit" }).format(toDate(value));
+}
+
+/** "20/10, 09:30" */
+export function formatDateTime(value: Date | string, timeZone: string): string {
+  return fmt(timeZone, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(toDate(value));
+}
+
+/** "ter., 20/10" a partir de um instante (para data civil, use `formatDayShort`). */
+export function formatWeekdayDate(value: Date | string, timeZone: string): string {
+  return fmt(timeZone, { weekday: "short", day: "2-digit", month: "2-digit" }).format(toDate(value));
+}
+
+/** "ter., 20/10, 09:30" */
+export function formatWeekdayDateTime(value: Date | string, timeZone: string): string {
+  return fmt(timeZone, { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(toDate(value));
+}
+
+/** "terça-feira, 20/10" */
+export function formatWeekdayLongDate(value: Date | string, timeZone: string): string {
+  return fmt(timeZone, { weekday: "long", day: "2-digit", month: "2-digit" }).format(toDate(value));
+}
+
+/** "terça-feira, 20/10, 09:00–09:30" */
+export function formatSlot(slot: { starts_at: string; ends_at: string }, timeZone: string): string {
+  return `${formatWeekdayLongDate(slot.starts_at, timeZone)}, ${formatTime(slot.starts_at, timeZone)}–${formatTime(slot.ends_at, timeZone)}`;
+}
+
+/** "terça-feira, 20/10, às 09:00" */
+export function formatStart(value: Date | string, timeZone: string): string {
+  return `${formatWeekdayLongDate(value, timeZone)}, às ${formatTime(value, timeZone)}`;
+}
+
+/** Data civil "2026-10-20" → "20/10/2026", sem passar por fuso. */
+export function formatCivilDate(date: CivilDate): string {
+  return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
+}
+
+/** Mês "2026-10" (ou data "2026-10-20") → "outubro de 2026". */
+export function formatMonth(month: string): string {
+  const [y, m] = nums(month, "-");
+  return fmt("UTC", { month: "long", year: "numeric" }).format(new Date(Date.UTC(y, m - 1, 15)));
+}
