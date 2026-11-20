@@ -1,6 +1,7 @@
 // Novo agendamento: cliente → serviço → dia/horário → revisão, com a barra "Confirmar" presa ao pé. Reagendamento: dia/horário.
 // A cotação não segura o horário; só a confirmação reserva. Conflitos (409) são explicados e
 // os horários livres são recarregados sem perder o que já foi escolhido.
+// "Repetir toda semana" (D8 a) troca a escolha de um horário pela repetição: ver BookingSeries.tsx.
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import type { Booking, ProviderService, Quote, TimeRange } from "@contracts";
@@ -8,6 +9,7 @@ import { Button, ChoiceCard, Field, focusFirstInvalid, IconButton, PageHeader, S
 import { plural } from "../../lib/text/plural.ts";
 import { type CustomerRef, newIdempotencyKey } from "./port.ts";
 import { canReschedule, confirmNoticeText, formatCents, formatMinutes, formatPhoneBR, formatRange, phoneToE164, serviceName, whatsAppDigits } from "./agenda.ts";
+import { SeriesDone, type SeriesResult, SeriesSection } from "./BookingSeries.tsx";
 import { isErrorLike } from "./errors.ts";
 import { addDays, dayWindow, formatDayLong, isCivilDate, localParts } from "./time.ts";
 import { ErrorPanel, PolicyNote, ScreenNotes } from "./parts.tsx";
@@ -85,6 +87,9 @@ function BookingFlow(props: FlowProps) {
   const [attempt, setAttempt] = useState<{ sig: string; key: string } | null>(null);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<unknown>(null);
+  // Repetição semanal: só no novo agendamento. Depois de confirmada, a tela mostra o que foi criado e o que ficou de fora.
+  const [repeat, setRepeat] = useState(false);
+  const [seriesDone, setSeriesDone] = useState<SeriesResult | null>(null);
   // Validação no envio: o foco vai para o primeiro campo com erro (item 15 da auditoria).
   const flowRef = useRef<HTMLDivElement>(null);
   const [focusTick, setFocusTick] = useState(0);
@@ -175,6 +180,9 @@ function BookingFlow(props: FlowProps) {
     }
   }
 
+  const customerLabel = customerId === NO_CUSTOMER ? "Sem cadastro" : (customers.find((c) => c.id === customerId)?.name ?? "Escolha o cliente acima");
+  if (seriesDone && service) return <SeriesDone result={seriesDone} customerLabel={customerLabel} serviceLabel={service.name} />;
+
   const op = props.mode === "create" ? "create" : "reschedule";
   const slotErrorId = "flow-slot-error";
   const price =
@@ -246,7 +254,11 @@ function BookingFlow(props: FlowProps) {
           <IconButton icon="seta" variant="secondary" label="Próximo dia" onClick={() => changeDate(addDays(date, 1))} />
         </div>
         <p className="tn-muted">{formatDayLong(date)}</p>
-        {slots.error ? (
+        {props.mode === "create" ? (
+          <ChoiceCard type="checkbox" name="flow-repeat" value="semanal" checked={repeat} onChange={setRepeat}
+            title="Repetir toda semana" description="Mesmo horário nos dias da semana que você escolher, a partir deste dia." />
+        ) : null}
+        {repeat ? null : slots.error ? (
           <ErrorPanel error={slots.error} operation="load" onRetry={slots.reload} />
         ) : !slots.data ? (
           <p role="status" className="tn-sched-loading">
@@ -279,7 +291,24 @@ function BookingFlow(props: FlowProps) {
         )}
       </fieldset>
 
-      {slot && service ? (
+      {repeat && service && resourceId ? (
+        <SeriesSection
+          service={service}
+          resourceId={resourceId}
+          date={date}
+          initialTime={slot ? timeOf(slot) : (preferred ?? "")}
+          customerLabel={customerLabel}
+          resolveCustomer={() => {
+            if (customerId) return { id: customerId === NO_CUSTOMER ? null : customerId };
+            setCustomerError("Escolha o cliente, cadastre um novo ou marque Sem cadastro.");
+            setFocusTick((t) => t + 1);
+            return null;
+          }}
+          onDone={setSeriesDone}
+        />
+      ) : null}
+
+      {!repeat && slot && service ? (
         <section className="tn-sched-review" aria-labelledby="review-title">
           <h2 id="review-title">Revise e confirme</h2>
           {quote.error ? (
@@ -294,11 +323,7 @@ function BookingFlow(props: FlowProps) {
                 {props.mode === "create" ? (
                   <>
                     <dt>Cliente</dt>
-                    <dd>
-                      {customerId === NO_CUSTOMER
-                        ? "Sem cadastro"
-                        : (customers.find((c) => c.id === customerId)?.name ?? "Escolha o cliente acima")}
-                    </dd>
+                    <dd>{customerLabel}</dd>
                   </>
                 ) : null}
                 <dt>Serviço</dt>
@@ -333,15 +358,17 @@ function BookingFlow(props: FlowProps) {
         não fixa: no fim da página volta ao lugar e não cobre o conteúdo; no celular para acima da barra de abas. O aviso
         de sucesso (Toast) só sai na tela seguinte, então não disputa este espaço.
       */}
-      <div className="tn-sched-confirmbar" role="region" aria-label="Resumo do agendamento">
-        <Button onClick={() => void confirm(quote.data ?? null)} loading={pending || (!!slot && quote.data === undefined && !quote.error)}
-          loadingText={pending ? "Confirmando…" : "Calculando…"} disabled={!!slot && !!quote.error}>
-          Confirmar{" "}<span className="tn-visually-hidden">{props.mode === "create" ? "agendamento" : "reagendamento"}</span>
-        </Button>
-        <p className="tn-sched-confirmbar__summary tn-num" aria-live="polite">
-          {summary}
-        </p>
-      </div>
+      {repeat ? null : (
+        <div className="tn-sched-confirmbar" role="region" aria-label="Resumo do agendamento">
+          <Button onClick={() => void confirm(quote.data ?? null)} loading={pending || (!!slot && quote.data === undefined && !quote.error)}
+            loadingText={pending ? "Confirmando…" : "Calculando…"} disabled={!!slot && !!quote.error}>
+            Confirmar{" "}<span className="tn-visually-hidden">{props.mode === "create" ? "agendamento" : "reagendamento"}</span>
+          </Button>
+          <p className="tn-sched-confirmbar__summary tn-num" aria-live="polite">
+            {summary}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

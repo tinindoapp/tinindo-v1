@@ -3,6 +3,7 @@
 // Cotação: `pricing` (P05). A cotação não segura horário; a reserva valida e consome a cotação no banco.
 import {
   AvailabilityListOutput,
+  BookingCreateSeriesOutput,
   BookingListOutput,
   BookingOutput,
   ContextResponse,
@@ -20,11 +21,42 @@ import {
 import type { z } from "zod";
 import { ApiError, type createApiClient } from "../../lib/api/client.ts";
 import type { CustomerRef, SchedulingPort } from "./port.ts";
+import type { SeriesGroup } from "./series.ts";
 
 type Call = ReturnType<typeof createApiClient>;
 
 /** Teto de páginas por leitura de lista (100 itens cada): protege a tela de laço infinito. */
 const MAX_PAGES = 10;
+
+/** Quantas repetições o aparelho lembra por negócio (as mais novas ficam). */
+const MAX_REMEMBERED_SERIES = 60;
+
+/**
+ * Vínculo da repetição guardado no aparelho: o contrato v1 não devolve `series_id` em `booking.get`/`booking.list`.
+ * Vale só para o indicador "Repete toda semana"; sem armazenamento (modo privado), o indicador some e nada mais muda.
+ */
+function seriesMemory(tenantId: string) {
+  const storageKey = `tinindo.agenda.series.${tenantId}`;
+  const read = (): SeriesGroup[] => {
+    try {
+      const raw: unknown = JSON.parse(globalThis.localStorage?.getItem(storageKey) ?? "[]");
+      if (!Array.isArray(raw)) return [];
+      return raw.filter((g): g is SeriesGroup => Array.isArray(g) && g.every((id) => typeof id === "string"));
+    } catch {
+      return [];
+    }
+  };
+  return {
+    read,
+    add(group: SeriesGroup) {
+      try {
+        globalThis.localStorage?.setItem(storageKey, JSON.stringify([...read(), group].slice(-MAX_REMEMBERED_SERIES)));
+      } catch {
+        // Sem espaço ou sem permissão: fica sem o indicador.
+      }
+    },
+  };
+}
 
 export function createServerPort(call: Call, tenantId: string): SchedulingPort {
   const post = (body: unknown, idempotencyKey?: string) => ({
@@ -34,6 +66,8 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
     idempotencyKey,
   });
   const scheduling = (op: string) => `/scheduling/${op}`;
+
+  const memory = seriesMemory(tenantId);
 
   async function settings() {
     const { data } = await call(scheduling("schedule.settings"), ScheduleSettings, post({}));
@@ -105,6 +139,14 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
     async create(input, key) {
       const { data } = await call(scheduling("booking.create"), BookingOutput, post(input, key));
       return data.booking;
+    },
+    async createSeries(input, key) {
+      const { data } = await call(scheduling("booking.create_series"), BookingCreateSeriesOutput, post(input, key));
+      return data;
+    },
+    seriesGroups: async () => memory.read(),
+    async rememberSeries(group) {
+      if (group.length > 1) memory.add(group);
     },
     async reschedule(input, key) {
       const { data } = await call(scheduling("booking.reschedule"), BookingOutput, post(input, key));
