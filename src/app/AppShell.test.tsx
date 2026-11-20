@@ -173,9 +173,9 @@ describe("escopo visível do piloto (P51, decisão D1 a)", () => {
   const labels = (level: string) => MODULES.filter((m) => m.level === level).map((m) => m.navLabel);
   const navLinks = () => within(screen.getByRole("navigation", { name: "Principal" })).getAllByRole("link").map((a) => a.textContent);
 
-  it("cada módulo declara o nível do contrato: 10 do piloto, 6 por ativação, 11 guardados", () => {
+  it("cada módulo declara o nível do contrato: 11 do piloto (10 + Seus dados), 6 por ativação, 11 guardados", () => {
     for (const m of MODULES) expect(m.level, m.id).toBe(MODULE_LEVELS[m.id]);
-    expect([labels("pilot").length, labels("activation").length, labels("stored").length]).toEqual([10, 6, 11]);
+    expect([labels("pilot").length, labels("activation").length, labels("stored").length]).toEqual([11, 6, 11]);
     expect(labels("activation").sort()).toEqual(["Assinaturas", "Indicações", "Metas e sugestões", "Orçamentos", "Plano e serviços", "Resultado"]);
   });
 
@@ -184,7 +184,7 @@ describe("escopo visível do piloto (P51, decisão D1 a)", () => {
     await screen.findByRole("heading", { name: "Hoje", level: 1 });
     expect(navLinks()).toEqual([
       "Hoje", "Agenda", "Horários", "Lista de espera", "Preços", "Clientes", "Serviços", "Relacionamento", "Retorno", "Caixa", "Assistente",
-      "Configuração", "Perfil", "Conta",
+      "Configuração", "Perfil", "Conta", "Seus dados",
     ]);
     const nav = screen.getByRole("navigation", { name: "Principal" });
     for (const label of [...labels("activation"), ...labels("stored")]) expect(nav).not.toHaveTextContent(label);

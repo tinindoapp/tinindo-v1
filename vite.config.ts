@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import { BaseSequencer, type TestSpecification } from "vitest/node";
+import { headersFile } from "./worker/security-headers.ts";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -49,6 +50,21 @@ function ogConfigFile(mode: string): Plugin {
   };
 }
 
+/**
+ * P57 (recado #137): `_headers` dos arquivos estáticos (Cloudflare), com os mesmos cabeçalhos de segurança que o Worker
+ * aplica nas rotas dele (worker/security-headers.ts): CSP com o Supabase do ambiente e frame-ancestors 'none'.
+ */
+function securityHeadersFile(mode: string): Plugin {
+  return {
+    name: "tinindo-security-headers",
+    apply: "build",
+    generateBundle() {
+      const env = loadEnv(mode, process.cwd(), "VITE_");
+      this.emitFile({ type: "asset", fileName: "_headers", source: headersFile({ supabase_url: env.VITE_SUPABASE_URL || null }) });
+    },
+  };
+}
+
 /** Integração: arquivos em ordem alfabética (00 segurança → 1x UATs → 20 fase 2), sempre a mesma, num banco só. */
 class AlphabeticalSequencer extends BaseSequencer {
   override async sort(files: TestSpecification[]): Promise<TestSpecification[]> {
@@ -57,7 +73,7 @@ class AlphabeticalSequencer extends BaseSequencer {
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), versionFile(), ogConfigFile(mode)],
+  plugins: [react(), versionFile(), ogConfigFile(mode), securityHeadersFile(mode)],
   define: { __TININDO_BUILD__: JSON.stringify(BUILD) },
   resolve: {
     alias: {

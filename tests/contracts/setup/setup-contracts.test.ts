@@ -78,18 +78,22 @@ describe("setup · registro ↔ função ↔ SQL", () => {
 
 // P51 · Escopo visível do piloto: o mesmo mapa de níveis no contrato e no banco, e a chave escrita só por RPC.
 describe("setup · escopo do piloto (P51)", () => {
-  const catalog = [...sql.matchAll(/\('([a-z-]+)', '(pilot|activation|stored)', \d+\)/g)].map((m) => [m[1]!, m[2]!] as const);
+  // O catálogo em vigor é a última definição de app.module_catalog nas migrations (P51 e, depois, P57 com `privacy`).
+  const catalogSql = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort().map((f) => readFileSync(new URL(f, dir), "utf8"))
+    .filter((t) => /function app\.module_catalog\(\)/.test(t)).at(-1)!;
+  const lastDef = catalogSql.slice(catalogSql.lastIndexOf("function app.module_catalog()")).split("$$;")[0]!;
+  const catalog = [...lastDef.matchAll(/\('([a-z-]+)', '(pilot|activation|stored)', \d+\)/g)].map((m) => [m[1]!, m[2]!] as const);
 
   it("ModuleCode cobre exatamente os módulos do registro de operações", () => {
     expectTypeOf<ModuleCode>().toEqualTypeOf<ModuleId>();
     const used = new Set((Object.keys(OPERATIONS) as OperationName[]).map((n) => OPERATIONS[n].module));
     for (const m of used) expect(ModuleCode.options).toContain(m);
   });
-  it("níveis: 10 do piloto, 6 por ativação e 11 guardados, iguais no contrato e em app.module_catalog", () => {
-    expect(catalog.length).toBe(27);
+  it("níveis: 11 do piloto (10 + privacy), 6 por ativação e 11 guardados, iguais no contrato e em app.module_catalog", () => {
+    expect(catalog.length).toBe(28);
     expect(Object.fromEntries(catalog)).toEqual(MODULE_LEVELS);
     const count = (level: string) => Object.values(MODULE_LEVELS).filter((l) => l === level).length;
-    expect([count("pilot"), count("activation"), count("stored")]).toEqual([10, 6, 11]);
+    expect([count("pilot"), count("activation"), count("stored")]).toEqual([11, 6, 11]);
     expect(Object.keys(MODULE_LEVELS).sort()).toEqual([...ModuleCode.options].sort());
   });
   it("chave: RLS, sem escrita para authenticated, guardado só pelo backend, mudança auditada", () => {
@@ -105,7 +109,7 @@ describe("setup · escopo do piloto (P51)", () => {
   it("D4: a rotina de campanhas (módulo guardado) só roda para o negócio com o módulo ligado", () => {
     expect(sql).toMatch(/create or replace function app\.cp_tick[\s\S]*?and app\.module_enabled\(x\.tenant_id, 'campaigns'\)/);
   });
-  it("contrato: escopo com os 27 módulos; a chave recusa módulo desconhecido no schema", () => {
+  it("contrato: escopo com os 28 módulos; a chave recusa módulo desconhecido no schema", () => {
     const modules = ModuleCode.options.map((module) => ({ module, level: MODULE_LEVELS[module], enabled: MODULE_LEVELS[module] === "pilot" }));
     expect(BusinessScope.safeParse({ profession: "barber", plan: { code: "free", name: "Grátis" }, modules }).success).toBe(true);
     expect(BusinessScope.safeParse({ profession: "barber", plan: { code: "free", name: "Grátis" }, modules: modules.slice(1) }).success).toBe(false);

@@ -274,9 +274,15 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `setup.templates` | — | Modelos de serviço da profissão (só por migration), com faixa de preço e se já existe no catálogo |
 | `setup.services_apply` | serviços confirmados (modelo opcional, nome, duração, preço), key | Cria pela RPC do P02, tudo ou nada; devolve criados e o progresso |
 | `setup.draft_apply` | profissão (opcional), expediente (opcional, substitui), serviços, key | Aplica o rascunho "descreva seu negócio" revisado: profissão, regras da agenda principal (P03) e serviços (P02), tudo ou nada |
-| `setup.scope` | — | Escopo do negócio para a sessão (P51): profissão, plano (só o nome; no piloto o plano não libera nada, D3 b) e os 27 módulos com nível (`pilot`, `activation`, `stored`) e se valem para o negócio |
+| `setup.scope` | — | Escopo do negócio para a sessão (P51): profissão, plano (só o nome; no piloto o plano não libera nada, D3 b) e os 28 módulos com nível (`pilot`, `activation`, `stored`) e se valem para o negócio |
 | `setup.module_set` | módulo, ligado (sim ou não), key | O dono liga ou desliga um módulo "por ativação" (P51). Módulo do piloto → 400; guardado → 403 (só o backend liga). Idempotente e auditado; devolve o escopo atualizado |
 | `setup.describe` | frase (8 a 500 caracteres), key opcional | Lê a frase do negócio pelas regras e devolve o rascunho por campo, com a origem (regras ou assistente) e as ressalvas; só o que as regras não leram vai ao modelo de linguagem (P46), com franquia e chave; sem provedor, devolve o rascunho das regras. Não grava nada |
+| `privacy.exports` | — | Exportações do negócio (até 20, mais recentes primeiro), com escopo, situação e prazo do link (P57, D26) |
+| `privacy.export` | escopo (`business` ou `customer`), customer_id quando o escopo é cliente, key | Gera o arquivo JSON dos dados do negócio ou de um cliente, grava no bucket privado e devolve um link com prazo; repetir com a mesma chave devolve a mesma exportação |
+| `privacy.export_link` | export_id | Novo link com prazo para uma exportação pronta; outra situação → POLICY_REJECTED |
+| `privacy.erasures` | — | Pedidos de eliminação do negócio (até 20), com escopo, situação e data de execução |
+| `privacy.erase` | escopo, customer_id quando o escopo é cliente, confirmação `ELIMINAR`, key | Elimina por anonimização: cliente final na hora; negócio com carência de 7 dias (cancelável). Valores e documentos fiscais ficam |
+| `privacy.erase_cancel` | erasure_id, key | Cancela a eliminação do negócio ainda na carência |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 

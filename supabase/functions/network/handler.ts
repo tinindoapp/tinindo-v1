@@ -25,6 +25,7 @@ import {
   TENANT_HEADER,
 } from "../_shared/contracts/index.ts";
 import { type DbErrorLike, mapDbError } from "../_shared/http/errors.ts";
+import { originKey } from "../privacy/origin.ts";
 import { type Clock, corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
 import {
   BookingLinkInput,
@@ -73,6 +74,11 @@ export interface NetworkDeps {
   allowedOrigins: readonly string[];
   /** Base pública do bucket profile-photos (…/storage/v1/object/public/profile-photos). Ausente = sem foto na resposta. */
   photoBaseUrl?: string;
+  /**
+   * P57 (D30 a): pimenta do hash da origem no limite da reserva pública (segredo ORIGIN_PEPPER). O banco recebe só
+   * sha256(ip + dia + pimenta). Sem pimenta o limite continua valendo, mas o hash fica adivinhável por força bruta.
+   */
+  originPepper?: string;
   clock?: Clock;
   log?: (entry: Record<string, unknown>) => void;
 }
@@ -391,6 +397,13 @@ export function createNetworkHandler(deps: NetworkDeps) {
       case "public.book": {
         const input = PublicBookInput.safeParse(body);
         if (!input.success) return failWith("VALIDATION_ERROR", { field: fieldOf(input.error) });
+        // P57 (D30 a): limite por origem antes de segurar horário (429, field origin). Sem IP conhecido (chamada
+        // interna, teste) não se aplica; os limites por contato e o teto de provisórias continuam no banco.
+        const origin = await originKey(req, deps.originPepper ?? "");
+        if (origin) {
+          const gate = await call("public_origin_check", { p_origin_hash: origin }, false);
+          if (gate instanceof Response) return gate;
+        }
         // Com login, o JWT vai junto: o banco usa o vínculo do cliente. Sem login, anon.
         const r = await call("public_booking_request", {
           p_slug: input.data.slug,
