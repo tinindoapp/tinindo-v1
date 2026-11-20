@@ -13,7 +13,8 @@ Duas listas: o que é **obrigatório agora**, para o UAT com o cabeleireiro e o 
 
 - [ ] `npm run publicar -- homolog` terminou com "Smoke ok". SHA: ________
 - [ ] Linha nova em `RELEASES.md` (o script imprime).
-- [ ] `npm run test:staging` com `STAGING_REQUIRED=1` e `STAGING_WRITE=1` passando (`tests/e2e-staging/README.md`). Pulados: nenhum.
+- [ ] Negócio da conta técnica pronto para a jornada: expediente cobrindo a hora do teste, perfil publicado e `npm run preparar:uat -- homolog --tecnico <id>` (liga Mensagens).
+- [ ] `npm run test:staging` com `STAGING_REQUIRED=1` e `STAGING_WRITE=1` passando (`tests/e2e-staging/README.md`; de 5 a 18 minutos). Pulados: só os previstos (jornada e funções fora do desktop).
 - [ ] E-mail do Auth pelo Resend, "Confirm email" religado e modelos em português colados; cadastro, confirmação e "Esqueci minha senha" testados com um e-mail novo, fora do spam (`EMAIL-RESEND.md`).
 - [ ] Se alguém do UAT usa iPhone: uma abertura no Safari conforme `docs/qa/IPHONE-SAFARI.md`.
 

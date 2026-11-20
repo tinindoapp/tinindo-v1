@@ -68,7 +68,7 @@ Voltar ao commit anterior: `git checkout <sha anterior> && EXIGE_MAIN=0 npm run 
 
 ## Depois de publicar
 
-1. `npm run test:staging` com as variáveis de `tests/e2e-staging/README.md` (cerca de 5 minutos). Ele grava só no negócio da conta técnica sintética.
+1. `npm run test:staging` com as variáveis de `tests/e2e-staging/README.md` (de 5 a 18 minutos: a jornada espera o horário de um atendimento de hoje começar). Grava só no negócio da conta técnica sintética, que precisa de Mensagens ligado: `npm run preparar:uat -- homolog --tecnico <id>` (uma vez).
 2. Para o UAT: quando o cabeleireiro e o personal tiverem criado as contas, `npm run preparar:uat -- homolog --cabeleireiro <id> --personal <id>` (ids em Table Editor › `tenants`). Liga Mensagens só nesses dois negócios, para o código da reserva pelo link ser lido no Simulador. Ao fim, o mesmo comando com `--desligar`.
 3. Comentar no recado #109 o SHA publicado e o resultado.
 

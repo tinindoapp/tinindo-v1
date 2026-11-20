@@ -2,56 +2,11 @@ import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { noHorizontalScroll, openFromNav } from "../e2e/qa/helpers.ts";
+import { ALL_VARS, env, groupNeeds, missing, REQUIRED, signIn, stepNeeds } from "./ambiente.ts";
 
 // P42 · smoke da homologação hospedada (release/CHECKLIST.md, seção 2). Só lê e entra com a conta técnica sintética:
-// não grava nada além do login.
-// Variável ausente: sem STAGING_REQUIRED, o passo que depende dela pula e diz o motivo (uso do dia a dia, ambiente
-// pela metade). Com STAGING_REQUIRED=1 (antes de liberar para o piloto), o passo FALHA dizendo qual variável falta:
-// o smoke não pode ficar verde sem ter conferido nada (revisão de 10/11, testes-09).
-const REQUIRED = process.env.STAGING_REQUIRED === "1";
-const env = {
-  sha: process.env.STAGING_EXPECTED_SHA,
-  supabaseUrl: process.env.STAGING_SUPABASE_URL,
-  publishableKey: process.env.STAGING_SUPABASE_PUBLISHABLE_KEY,
-  email: process.env.STAGING_TECH_EMAIL,
-  password: process.env.STAGING_TECH_PASSWORD,
-  slug: process.env.STAGING_PUBLIC_SLUG,
-};
-
-const ALL_VARS = [
-  "STAGING_EXPECTED_SHA",
-  "STAGING_SUPABASE_URL",
-  "STAGING_SUPABASE_PUBLISHABLE_KEY",
-  "STAGING_TECH_EMAIL",
-  "STAGING_TECH_PASSWORD",
-  "STAGING_PUBLIC_SLUG",
-] as const;
-type Var = (typeof ALL_VARS)[number];
-const missing = (names: readonly Var[]) => names.filter((n) => !process.env[n]);
-const failure = (absent: readonly Var[], what: string) =>
-  `STAGING_REQUIRED=1 e falta ${absent.join(", ")}: ${what}. Defina a variável ou rode sem STAGING_REQUIRED.`;
-
-/** No corpo do `describe`: sem as variáveis, o grupo inteiro pula com o motivo; com STAGING_REQUIRED=1, cada teste falha. */
-function groupNeeds(names: readonly Var[], what: string) {
-  const absent = missing(names);
-  if (absent.length === 0) return;
-  if (!REQUIRED) {
-    test.skip(true, `Defina ${absent.join(" e ")}: ${what}.`);
-    return;
-  }
-  test.beforeEach(() => {
-    throw new Error(failure(absent, what));
-  });
-}
-
-/** Dentro de um teste: diz se o passo pode rodar. Sem a variável, anota o passo pulado; com STAGING_REQUIRED=1, falha. */
-function stepNeeds(names: readonly Var[], what: string): boolean {
-  const absent = missing(names);
-  if (absent.length === 0) return true;
-  if (REQUIRED) throw new Error(failure(absent, what));
-  test.info().annotations.push({ type: "passo pulado", description: `Defina ${absent.join(" e ")}: ${what}.` });
-  return false;
-}
+// não grava nada além do login. O que grava fica em jornada.spec.ts, atrás de STAGING_WRITE=1.
+// Regra das variáveis (pula com motivo; com STAGING_REQUIRED=1, falha dizendo qual falta): ver ambiente.ts.
 
 test("STAGING_REQUIRED=1 · todas as variáveis da homologação estão definidas", () => {
   test.skip(!REQUIRED, "Só com STAGING_REQUIRED=1. Sem ela, os passos que dependem de variável ausente pulam com o motivo.");
@@ -143,11 +98,7 @@ test.describe("homologação · conta técnica", () => {
   groupNeeds(["STAGING_TECH_EMAIL", "STAGING_TECH_PASSWORD"], "entrar com a conta técnica sintética");
 
   test("entra e abre Agenda e Clientes sem rolagem lateral", async ({ page }) => {
-    await page.goto("/entrar");
-    await page.getByLabel("E-mail").fill(env.email!);
-    await page.getByLabel("Senha").fill(env.password!);
-    await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page).toHaveURL(/\/app/);
+    await signIn(page);
     for (const name of ["Agenda", "Clientes"]) {
       await openFromNav(page, name);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -155,6 +106,44 @@ test.describe("homologação · conta técnica", () => {
       await expect(page.getByRole("alert")).toHaveCount(0);
       await noHorizontalScroll(page);
     }
+  });
+
+  // Só leitura: não dispensa passo nenhum. Com tudo feito ou dispensado, a linha some da Hoje e isso também vale.
+  test("configuração guiada: a linha da Hoje e /app/configurar abrem sem erro", async ({ page }) => {
+    await signIn(page);
+    const line = page.getByRole("heading", { name: /^Deixe seu negócio pronto · \d+ de \d+$/, level: 2 });
+    // A linha (ou o cartão, com o dia vazio) entra depois que o progresso chega do servidor.
+    await expect(line.or(page.getByRole("heading", { name: "Atendimentos de hoje" })).first()).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    const onHome = await line.isVisible();
+    if (onHome) {
+      const [, done, total] = /(\d+) de (\d+)/.exec((await line.textContent()) ?? "") ?? [];
+      expect(Number(done), "passos feitos não passam do total").toBeLessThanOrEqual(Number(total));
+      test.info().annotations.push({ type: "configuração", description: `Hoje mostra ${done} de ${total}` });
+      await line.getByRole("link", { name: "Deixe seu negócio pronto" }).click();
+    } else {
+      test.info().annotations.push({ type: "configuração", description: "linha fora da Hoje: todos os passos feitos ou dispensados" });
+      await page.goto("/app/configurar");
+    }
+    await expect(page).toHaveURL(/\/app\/configurar/);
+    await expect(page.getByRole("heading", { name: "Deixe seu negócio pronto", level: 1 })).toBeVisible();
+    // O subtítulo traz a conta do servidor ("<negócio>: N de M passos feitos."), a mesma da Hoje.
+    await expect(page.getByText(/: \d+ de \d+ passos feitos\.$/)).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await noHorizontalScroll(page);
+  });
+
+  test("aba Retorno abre com lembretes, quem não volta e lista de espera", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/app/relacionamento/retorno");
+    await expect(page.getByRole("heading", { name: "Retorno", level: 1 })).toBeVisible();
+    for (const name of ["Lembretes a mandar", "Quem não volta", "Lista de espera"]) {
+      await expect(page.getByRole("heading", { name, exact: true, level: 2 })).toBeVisible();
+    }
+    // Cada bloco termina de carregar (lista, vazio ou erro honesto); erro aqui reprova.
+    await expect(page.getByRole("status").filter({ hasText: /^Carregando/ })).toHaveCount(0);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await noHorizontalScroll(page);
   });
 });
 
