@@ -9,6 +9,7 @@ import {
   BookingCompleteInput,
   BookingConfirmInput,
   BookingCreateInput,
+  BookingCancelSeriesFromInput,
   BookingCreateSeriesInput,
   type BookingCreateSeriesOutput,
   BookingNoShowInput,
@@ -32,7 +33,7 @@ import { FIXED_NOW, FX, services as fixtureServices, tenantA } from "@contracts/
 import type { z } from "zod";
 import { ApiError } from "../../lib/api/client.ts";
 import { ACTIVE_STATUSES, type DayPlan } from "./agenda.ts";
-import { addDays, localParts, toZonedIso, zonedInstant } from "./time.ts";
+import { addDays, localParts, toZonedIso, weekdayOf, zonedInstant } from "./time.ts";
 import {
   DEMO_BLOCKS,
   DEMO_CUSTOMERS,
@@ -42,7 +43,6 @@ import {
   demoBookings,
 } from "./demoData.ts";
 import type { SchedulingPort } from "./port.ts";
-import type { SeriesGroup } from "./series.ts";
 
 /** Simulação de concorrência para demonstrar e testar os 409 (`?simular=conflito|versao`). */
 export type Simulation = "conflito" | "versao" | null;
@@ -116,8 +116,8 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
   const quotes = new Map<string, Quote>();
   const idem = new Map<string, { hash: string; result: Booking }>();
   const seriesIdem = new Map<string, { hash: string; result: z.infer<typeof BookingCreateSeriesOutput> }>();
+  const cancelFromIdem = new Map<string, { hash: string; result: { cancelled: Booking[]; kept: number } }>();
   // Repetições criadas nesta aba (o contrato não devolve o vínculo na leitura; a emulação guarda como a tela guardaria).
-  const seriesGroups: SeriesGroup[] = [];
   let simulate = options.simulate ?? null;
   let seq = 0;
   // Expediente e bloqueios editáveis na aba (emulação de schedule.* do P03).
@@ -473,10 +473,15 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
       const duration = Date.parse(input.slot.ends_at) - Date.parse(input.slot.starts_at);
       if (duration !== svc.duration_min * MIN) fail("VALIDATION_ERROR", "slot");
       const first = localParts(input.slot.starts_at, tz);
+      const firstDow = weekdayOf(first.date);
+      // Mesma ordem do banco: semana a semana, cada dia a partir do dia do primeiro horário.
+      const offsets = Array.from({ length: input.weeks }, (_, i) => i)
+        .flatMap((i) => [...new Set(input.weekdays ?? [firstDow])].map((d) => i * 7 + ((d - firstDow + 7) % 7)))
+        .sort((x, y) => x - y);
       const free: TimeRange[] = [];
       const conflicts: TimeRange[] = [];
-      for (let i = 0; i < input.weeks; i++) {
-        const start = zonedInstant(addDays(first.date, 7 * i), first.time, tz).getTime();
+      for (const offset of offsets) {
+        const start = zonedInstant(addDays(first.date, offset), first.time, tz).getTime();
         const slot = { starts_at: toZonedIso(start, tz), ends_at: toZonedIso(start + duration, tz) };
         if (start < now.getTime()) fail("VALIDATION_ERROR", "slot");
         if (fits(svc.id, slot) === "ok") free.push(slot);
@@ -484,6 +489,7 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         else conflicts.push(slot);
       }
       if (free.length === 0) fail("SLOT_CONFLICT", "series");
+      const seriesId = crypto.randomUUID();
       const created = free.map((slot): Booking => ({
         id: `60000000-0000-4000-8000-${String(500 + ++seq).padStart(12, "0")}`,
         tenant_id: FX.tenants.A,
@@ -498,16 +504,49 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
         price_quote_id: null,
         agreed_price_cents: svc.base_price_cents,
         source: "owner",
+        series_id: seriesId,
         version: 1,
       }));
       bookings.push(...created);
-      const result = { series_id: crypto.randomUUID(), created, conflicts };
+      const result = { series_id: seriesId, created, conflicts };
       seriesIdem.set(id, { hash, result: structuredClone(result) });
       return delay(result);
     },
-    seriesGroups: () => delay(seriesGroups),
-    async rememberSeries(group) {
-      if (group.length > 1) seriesGroups.push([...group]);
+    async series(seriesId) {
+      const list = bookings.filter((b) => b.series_id === seriesId).sort((x, y) => Date.parse(x.starts_at) - Date.parse(y.starts_at));
+      if (list.length === 0) fail("NOT_FOUND");
+      return delay(structuredClone(list));
+    },
+    /** Mesma regra de scheduling_booking_cancel_series_from: este e os próximos ainda marcados; passados e concluídos ficam. */
+    async cancelSeriesFrom(raw, key) {
+      const input = parse(BookingCancelSeriesFromInput, raw);
+      const id = `booking.cancel_series_from:${key}`;
+      const hash = stableHash(input);
+      const prior = cancelFromIdem.get(id);
+      if (prior) {
+        if (prior.hash !== hash) fail("IDEMPOTENCY_MISMATCH");
+        return delay(structuredClone(prior.result));
+      }
+      const current = booking(input.booking_id);
+      takeSimulatedStale(current.id);
+      checkVersion(current, input.expected_version);
+      if (!current.series_id) fail("POLICY_REJECTED", "series");
+      if (current.status !== "held" && current.status !== "confirmed") fail("POLICY_REJECTED", "status");
+      const from = Date.parse(current.starts_at);
+      const later = bookings.filter((b) => b.series_id === current.series_id && Date.parse(b.starts_at) >= from)
+        .sort((x, y) => Date.parse(x.starts_at) - Date.parse(y.starts_at));
+      const cancelled = later.filter((b) => b.status === "held" || b.status === "confirmed")
+        .map((b) => update(b.id, { status: "cancelled", status_reason: input.reason, hold_expires_at: null }));
+      const kept = later.filter((b) => b.status !== "held" && b.status !== "confirmed" && b.status !== "cancelled").length;
+      const result = { cancelled, kept };
+      cancelFromIdem.set(id, { hash, result: structuredClone(result) });
+      return delay(result);
+    },
+    async bookingLink(bookingId) {
+      booking(bookingId);
+      // Demonstração: o link da reserva é do módulo Perfil, que não existe nesta aba como servidor. Link de exemplo.
+      const token = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      return delay({ url: `${globalThis.location?.origin ?? "https://app.tinindo.example"}/reserva#t=${token}`, demo: true });
     },
 
     async publicHold(input) {

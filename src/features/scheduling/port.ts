@@ -5,6 +5,7 @@ import type {
   AvailabilityListInput,
   Booking,
   BookingCancelInput,
+  BookingCancelSeriesFromInput,
   BookingCompleteInput,
   BookingConfirmInput,
   BookingCreateInput,
@@ -24,7 +25,6 @@ import type {
 } from "@contracts";
 import type { z } from "zod";
 import type { DayPlan } from "./agenda.ts";
-import type { SeriesGroup } from "./series.ts";
 
 export interface PublicBookingContact {
   name: string;
@@ -76,13 +76,18 @@ export interface SchedulingPort {
    * Com `all_or_nothing: false` o servidor cria as datas livres e devolve as que ficaram de fora; se nenhuma couber, 409.
    */
   createSeries(input: z.input<typeof BookingCreateSeriesInput>, idempotencyKey: string): Promise<z.infer<typeof BookingCreateSeriesOutput>>;
+  /** Atendimentos de uma repetição (`booking.series`), em ordem de data. O vínculo vem de `Booking.series_id`. */
+  series(seriesId: string): Promise<Booking[]>;
   /**
-   * Repetições conhecidas. PENDÊNCIA de contrato: `booking.get` e `booking.list` não devolvem o vínculo da série, então
-   * com servidor a tela só conhece as repetições criadas neste aparelho (guardadas por `rememberSeries`).
+   * "Cancelar os próximos" (`booking.cancel_series_from`): este atendimento e os seguintes da repetição que ainda estão
+   * marcados, numa transação, com o mesmo motivo. Passados e concluídos ficam (`kept`).
    */
-  seriesGroups(): Promise<SeriesGroup[]>;
-  /** Guarda os atendimentos criados juntos numa repetição, em ordem de data. Não fala com o servidor. */
-  rememberSeries(bookingIds: SeriesGroup): Promise<void>;
+  cancelSeriesFrom(input: z.input<typeof BookingCancelSeriesFromInput>, idempotencyKey: string): Promise<{ cancelled: Booking[]; kept: number }>;
+  /**
+   * Link da reserva para o cliente (`network/booking_link.issue`, P55): ver o horário e avaliar sem conta. Cada chamada
+   * gera um link novo (até 5 por atendimento). `demo` = link de exemplo, que não abre a reserva fora desta aba.
+   */
+  bookingLink(bookingId: string): Promise<{ url: string; demo: boolean }>;
   reschedule(input: z.input<typeof BookingRescheduleInput>, idempotencyKey: string): Promise<Booking>;
   cancel(input: z.input<typeof BookingCancelInput>, idempotencyKey: string): Promise<Booking>;
   complete(input: z.input<typeof BookingCompleteInput>, idempotencyKey: string): Promise<Booking>;
@@ -119,6 +124,5 @@ export class NotConnectedError extends Error {
   }
 }
 
-export function newIdempotencyKey(): string {
-  return crypto.randomUUID();
-}
+// Chave de idempotência: uma só fonte no app (src/lib/idempotency.ts).
+export { newIdempotencyKey } from "../../lib/idempotency.ts";

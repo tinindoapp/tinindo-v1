@@ -60,7 +60,6 @@ const LEGACY_MONEY = [
   // Parte 2
   "src/features/identity/MyBookingsPage.tsx",
   "src/features/network/PublicProfileView.tsx",
-  "src/features/scheduling/agenda.ts",
   "src/features/setup/labels.ts",
 ];
 const LEGACY_KEY = [
@@ -73,7 +72,6 @@ const LEGACY_KEY = [
   "src/features/payments/port.ts",
   "src/features/presence/port.ts",
   "src/features/reputation/port.ts",
-  "src/features/scheduling/port.ts",
   "src/features/setup/port.ts",
 ];
 const LEGACY_CLOCK = [
@@ -82,7 +80,6 @@ const LEGACY_CLOCK = [
   "src/features/analytics/module.tsx",
   "src/features/identity/services.tsx",
   "src/features/network/PublicProfileView.tsx",
-  "src/features/scheduling/attendance.tsx",
 ];
 
 const APP_CODE = ["src/features/**/*.{ts,tsx}", "src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"];

@@ -5,6 +5,7 @@
 //   separadas: concluir (`booking.complete`) e depois cobrar + receber (`finance`), cada uma com a sua chave. Sem acesso
 //   ao Caixa (ou sem preço nem pacote), volta à confirmação "Sim, foi atendido", que só conclui.
 // - Faltou volta atrás (`booking.no_show` com `revert`): executa na hora e o aviso oferece Desfazer.
+import { now } from "../../lib/time.ts";
 import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { Booking, PackageDetail } from "@contracts";
@@ -27,7 +28,7 @@ export function toastFailure(err: unknown, op: Operation, reload: () => void) {
 
 /** Porta vazia para quando não há Caixa: o hook de cobrança é chamado sempre, mas nada o usa. */
 const NO_COLLECT: BookingCollectPort = {
-  now: () => new Date(),
+  now,
   uncharged: () => Promise.reject(new Error("sem caixa")),
   packages: () => Promise.reject(new Error("sem caixa")),
   chargeBooking: () => Promise.reject(new Error("sem caixa")),

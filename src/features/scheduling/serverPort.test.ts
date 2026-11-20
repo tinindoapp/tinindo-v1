@@ -69,19 +69,25 @@ describe("porta do servidor (contrato v1)", () => {
     expect(JSON.parse(init.body as string)).toEqual(series);
   });
 
-  it("vínculo da repetição fica no aparelho, por negócio, sem chamada ao servidor", async () => {
-    localStorage.clear();
-    const { port: p, fetchMock } = port(json(200, {}));
-    expect(await p.seriesGroups()).toEqual([]);
-    await p.rememberSeries(["a", "b", "c"]);
-    await p.rememberSeries(["sozinho"]); // um atendimento só não é repetição
-    expect(await p.seriesGroups()).toEqual([["a", "b", "c"]]);
-    // Outra instância da porta (página recarregada) lê o mesmo; outro negócio não vê.
-    expect(await port(json(200, {})).port.seriesGroups()).toEqual([["a", "b", "c"]]);
-    localStorage.setItem(`tinindo.agenda.series.${FX.tenants.A}`, "{quebrado");
-    expect(await p.seriesGroups()).toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
-    localStorage.clear();
+  it("série lida do servidor; cancelar os próximos com chave; link da reserva pelo módulo Perfil", async () => {
+    const series = json(200, { data: { series_id: RID, bookings: [{ ...bookingsA[0], series_id: RID }] }, meta });
+    const cancelled = json(200, { data: { series_id: RID, cancelled: [{ ...bookingsA[0], status: "cancelled", status_reason: "x", series_id: RID }], kept: 1 }, meta });
+    const link = json(200, { data: { token: "A".repeat(43), url: `https://app.exemplo.test/reserva/x#t=${"A".repeat(43)}` }, meta });
+    const fetchMock = vi.fn().mockResolvedValueOnce(series).mockResolvedValueOnce(cancelled).mockResolvedValueOnce(link);
+    const call = createApiClient({ baseUrl: "https://exemplo.supabase.co", publishableKey: "sb_publishable_exemplo", getAccessToken: async () => "jwt", fetch: fetchMock as unknown as typeof fetch });
+    const p = createServerPort(call, FX.tenants.A);
+    expect(await p.series(RID)).toHaveLength(1);
+    const out = await p.cancelSeriesFrom({ booking_id: bookingsA[0]!.id, expected_version: 1, reason: "x" }, "7a1f8a52-2b0c-4b4e-9f1e-3c0f6b5d2a10");
+    expect(out.kept).toBe(1);
+    expect((await p.bookingLink(bookingsA[0]!.id)).url).toContain("/reserva/");
+    const urls = fetchMock.mock.calls.map((c) => c[0]);
+    expect(urls).toEqual([
+      "https://exemplo.supabase.co/functions/v1/scheduling/booking.series",
+      "https://exemplo.supabase.co/functions/v1/scheduling/booking.cancel_series_from",
+      "https://exemplo.supabase.co/functions/v1/network/booking_link.issue",
+    ]);
+    const init = fetchMock.mock.calls[1]![1] as RequestInit;
+    expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe("7a1f8a52-2b0c-4b4e-9f1e-3c0f6b5d2a10");
   });
 
   it("lista atendimentos seguindo o cursor do servidor até o fim", async () => {

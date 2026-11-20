@@ -100,8 +100,11 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
   const { ctx, services, customers } = useBase();
   const ext = useSchedulingExtensions();
   const range = useRange(date, 1);
-  // Repetições conhecidas (ver port.seriesGroups): só para o indicador no cartão; sem elas a lista aparece igual.
-  const series = useAsync("series", () => port.seriesGroups());
+  // Repetições dos atendimentos do dia (series_id vem do servidor): lê cada série uma vez, só para "3 de 16" no cartão.
+  // Se a leitura falhar, o cartão diz só "Repete toda semana".
+  const seriesIds = [...new Set((range.data?.bookings ?? []).map((b) => b.series_id).filter((x): x is string => !!x))].sort();
+  const series = useAsync(`series:${seriesIds.join(",")}`, () =>
+    Promise.all(seriesIds.map((id) => port.series(id).catch(() => [] as Booking[]))).then((lists) => lists.flat()));
   const tz = ctx.timezone;
   const title = `${isToday ? "Hoje · " : ""}${formatDayLong(date)}`;
 
@@ -125,8 +128,10 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
             customerOf={(id) => customers.find((c) => c.id === id)?.name ?? (id ? "Cliente" : "Sem cliente cadastrado")}
             freeActions={ext.freeSlotActions}
             seriesOf={(id) => {
-              const mark = seriesMark(series.data ?? [], id);
-              return mark ? seriesLabel(mark) : null;
+              const own = range.data?.bookings.find((b) => b.id === id);
+              if (!own?.series_id) return null;
+              const mark = seriesMark((series.data ?? []).filter((b) => b.series_id === own.series_id), id);
+              return mark ? seriesLabel(mark) : "Repete toda semana";
             }}
             now={port.now()}
             reload={range.reload}
