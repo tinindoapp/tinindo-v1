@@ -3,7 +3,8 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { explain, formatCents, minutesText, ORDER_STATUS, SCOPE_LABEL } from "./labels.ts";
-import { newKey, type OpsPort, type OpsQueue, type QueueOrder, type Snapshot } from "./port.ts";
+import { type OpsPort, type OpsQueue, type QueueOrder, type Snapshot } from "./port.ts";
+import { newIdempotencyKey, useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 
 /** Resultado de uma ação: vira toast (sucesso ou perigo) e a fila recarrega. */
 type Notice = { tone: "success" | "danger"; text: string };
@@ -12,7 +13,7 @@ function WorkForm({ port, order, onDone }: { port: OpsPort; order: QueueOrder; o
   const [minutes, setMinutes] = useState("30");
   const [kind, setKind] = useState<"human" | "automation">("human");
   const [reprocess, setReprocess] = useState(false);
-  const [key, setKey] = useState(newKey);
+  const idem = useIdempotencyKey();
   const [pending, setPending] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"minutes">();
   async function submit(e: FormEvent) {
@@ -20,8 +21,9 @@ function WorkForm({ port, order, onDone }: { port: OpsPort; order: QueueOrder; o
     if (!show({ minutes: /^\d+$/.test(minutes.trim()) && Number(minutes) > 0 ? null : "Informe os minutos (número inteiro maior que zero)." })) return;
     setPending(true);
     try {
-      await port.logWork(order, Number(minutes), kind, reprocess, null, key);
-      setKey(newKey());
+      const n = Number(minutes);
+      await port.logWork(order, n, kind, reprocess, null, idem.keyFor({ logWork: order.id, minutes: n, kind, reprocess }));
+      idem.reset();
       onDone({ tone: "success", text: `${minutes} min registrados.` });
     } catch (err) {
       onDone({ tone: "danger", text: explain(err) });
@@ -55,7 +57,7 @@ function WorkForm({ port, order, onDone }: { port: OpsPort; order: QueueOrder; o
 function DeliverForm({ port, order, onDone }: { port: OpsPort; order: QueueOrder; onDone: (n: Notice) => void }) {
   const [title, setTitle] = useState("");
   const [evidence, setEvidence] = useState("");
-  const [key] = useState(newKey);
+  const [key] = useState(newIdempotencyKey);
   const [pending, setPending] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"title" | "evidence">();
   async function submit(e: FormEvent) {
@@ -106,6 +108,7 @@ function DeliverForm({ port, order, onDone }: { port: OpsPort; order: QueueOrder
 
 function BlockForm({ port, order, onDone }: { port: OpsPort; order: QueueOrder; onDone: (n: Notice) => void }) {
   const [reason, setReason] = useState("");
+  const idem = useIdempotencyKey();
   const [pending, setPending] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"reason">();
   async function submit(e: FormEvent) {
@@ -113,7 +116,9 @@ function BlockForm({ port, order, onDone }: { port: OpsPort; order: QueueOrder; 
     if (!show({ reason: reason.trim() ? null : "Informe o motivo do bloqueio." })) return;
     setPending(true);
     try {
-      await port.block(order, reason.trim(), newKey());
+      const why = reason.trim();
+      await port.block(order, why, idem.keyFor({ block: order.id, reason: why }));
+      idem.reset();
       setReason("");
       onDone({ tone: "success", text: "Pedido bloqueado com o motivo registrado." });
     } catch (err) {
@@ -155,7 +160,8 @@ export function OpsPage({ port }: { port: OpsPort }) {
     toast({ tone: n.tone, message: n.text });
     setNonce((x) => x + 1);
   };
-  const act = (run: () => Promise<unknown>, ok: string) => run().then(() => done({ tone: "success", text: ok }), (e: unknown) => done({ tone: "danger", text: explain(e) }));
+  const command = useCommand();
+  const act = (intent: unknown, send: (key: string) => Promise<unknown>, ok: string) => command(intent, send).then(() => done({ tone: "success", text: ok }), (e: unknown) => done({ tone: "danger", text: explain(e) }));
 
   const forbidden = (error as { code?: string } | null)?.code === "FORBIDDEN";
   return (
@@ -184,10 +190,10 @@ export function OpsPage({ port }: { port: OpsPort }) {
                   </p>
                   <div className="tn-actions">
                     {!mine && o.status !== "delivered" && o.status !== "cancelled" ? (
-                      <Button variant="secondary" onClick={() => void act(() => port.assign(o, queue.operator.user_id, newKey()), "Pedido assumido.")}>Assumir</Button>
+                      <Button variant="secondary" onClick={() => void act({ assign: o.id, version: o.version, to: queue.operator.user_id }, (key) => port.assign(o, queue.operator.user_id, key), "Pedido assumido.")}>Assumir</Button>
                     ) : null}
                     {mine && ["scope_accepted", "awaiting_access", "blocked"].includes(o.status) ? (
-                      <Button onClick={() => void act(() => port.start(o, newKey()), "Execução iniciada.")}>Começar</Button>
+                      <Button onClick={() => void act({ start: o.id, version: o.version }, (key) => port.start(o, key), "Execução iniciada.")}>Começar</Button>
                     ) : null}
                     {o.has_access ? (
                       <Button variant="ghost" onClick={() => void port.snapshot(o).then((d) => setSnap({ orderId: o.id, data: d }), (e: unknown) => done({ tone: "danger", text: explain(e) }))}>

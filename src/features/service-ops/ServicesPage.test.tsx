@@ -62,4 +62,24 @@ describe("Plano e serviços (dono)", () => {
     expect(await screen.findByText("Pedido cancelado. Acessos encerrados.")).toBeInTheDocument();
     expect(cancel).toHaveBeenCalledTimes(1);
   });
+
+  it("revogar falhou: confirmar de novo manda a mesma chave (o servidor não duplica)", async () => {
+    const port = createDemoPort();
+    const ops = createDemoOpsPort();
+    const svc = (await port.plan()).catalog.find((c) => c.kind === "service")!;
+    await port.request(svc, null, "r1");
+    await ops.assign((await ops.queue()).orders[0]!, DEMO_OPERATOR.user_id, "a1");
+    const order = (await port.orders())[0]!;
+    await port.grant(order, ["catalog"], new Date(port.now().getTime() + 86_400_000).toISOString(), "Cadastrar serviços", "g1");
+    const revoke = vi.spyOn(port, "revoke").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    renderPage(port);
+
+    fireEvent.click(await screen.findByRole("button", { name: `Revogar acesso de ${DEMO_OPERATOR.display_name}` }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, revogar" }));
+    expect(await screen.findByText("Não foi possível concluir agora. Tentar de novo é seguro.")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Sim, revogar" }));
+    expect(await screen.findByText("Acesso revogado.")).toBeInTheDocument();
+    expect(revoke).toHaveBeenCalledTimes(2);
+    expect(revoke.mock.calls[1]![1]).toBe(revoke.mock.calls[0]![1]);
+  });
 });

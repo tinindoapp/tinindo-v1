@@ -32,5 +32,3 @@ export interface GrowthAdvicePort {
   /** Só na demonstração: 30 dias passam e o worker acompanha as decisões. */
   followUp?(): Promise<{ followed_up: number }>;
 }
-
-export const newKey = () => crypto.randomUUID();

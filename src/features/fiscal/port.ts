@@ -19,5 +19,3 @@ export interface FiscalPort {
   cancel(draft: CancelDraft, key: string): Promise<FiscalDocument>;
   folder(month: string): Promise<FiscalFolder>;
 }
-
-export const newKey = () => crypto.randomUUID();

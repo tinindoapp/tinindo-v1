@@ -6,6 +6,7 @@ import { type AdviceListOutput, type ContentListOutput, DEFAULT_MESSAGES, ERROR_
 import { FIXED_NOW, tenantA } from "@contracts/fixtures.ts";
 import type { z } from "zod";
 import { ApiError } from "../../lib/api/client.ts";
+import { formatCents } from "../../lib/money.ts";
 import { demoCounts, demoMetrics, demoMonthToDate } from "../../lib/demo/dataset.ts";
 import { RULES, runDemoEngine } from "./demoInsights.ts";
 import { METRIC_LABEL } from "./labels.ts";
@@ -117,7 +118,7 @@ function findOpen(input: Insight): Insight {
   if (i.state !== "open") fail("POLICY_REJECTED", "state");
   return i;
 }
-const brl = (c: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(c / 100).replace(/\u00a0/g, " ");
+const brl = (c: number) => formatCents(c).replace(/\u00a0/g, " ");
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 /** Resumo da semana encerrada (segunda a domingo antes de hoje), pelo mesmo modelo fixo do banco. */
 function weeklyDigest(): Digests["digests"][number] {

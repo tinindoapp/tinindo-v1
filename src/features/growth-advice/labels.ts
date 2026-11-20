@@ -1,10 +1,12 @@
 // Textos do módulo Metas e conteúdo. Progresso com denominador; acompanhamento é variação observada, nunca efeito.
 import type { Goal, GoalMetricKey, Insight, InsightRuleCode } from "@contracts";
 
+import { errorExplainer, type ErrorPhrases } from "../../lib/errors.ts";
 import { formatCents } from "../../lib/money.ts";
+import { formatDayMonth } from "../../lib/time.ts";
 export { formatCents };
-export const formatDate = (v: string, timeZone = "America/Sao_Paulo") =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(new Date(v));
+/** "20/10". O fuso padrão fica aqui até a parte 2 trazer o fuso do negócio. */
+export const formatDate = (v: string, timeZone = "America/Sao_Paulo") => formatDayMonth(v, timeZone);
 export const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
 export const formatTarget = (unit: Goal["unit"], target: number) => (unit === "cents" ? formatCents(target) : pct(target));
 export const METRIC_LABEL: Record<GoalMetricKey, string> = {
@@ -22,30 +24,21 @@ export const OUTCOME: Record<string, string> = {
   insufficient: "sem dado suficiente para comparar 30 dias depois",
 };
 export const DECISION: Record<"accepted" | "dismissed", string> = { accepted: "Aceita", dismissed: "Dispensada" };
-export function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  switch (e?.code) {
-    case "STALE_VERSION":
-      return "Isto mudou em outro lugar. Atualizamos a tela: confira e tente de novo.";
-    case "POLICY_REJECTED":
-      if (e.field === "goal") return "Já existe uma meta ativa para este indicador neste mês. Ajuste a existente ou arquive-a.";
-      if (e.field === "scope") return "Para publicar, o perfil público precisa estar publicado com o campo “apresentação” escolhido (tela Perfil).";
-      if (e.field === "profession") return "Este texto é de outra profissão.";
-      if (e.field === "kind") return "Só textos de apresentação vão para o perfil; posts são para você copiar.";
-      if (e.field === "rule_code") return "Esta sugestão não está mais em vigor: os dados mudaram.";
-      if (e.field === "decided") return "Você já decidiu sobre esta sugestão neste mês.";
-      if (e.field === "status") return "Esta meta não está ativa.";
-      return "As regras não permitem esta ação agora. Nada foi alterado.";
-    case "VALIDATION_ERROR":
-      return "Confira os campos: taxas entre 0% e 100%, valores em reais inteiros, mês válido.";
-    case "NOT_FOUND":
-      return "Não encontrado. A tela pode estar desatualizada.";
-    case "FORBIDDEN":
-      return "Só o dono do negócio acessa metas e conteúdo.";
-    default:
-      return "Não foi possível concluir agora. Tentar de novo é seguro.";
-  }
-}
+const PHRASES: ErrorPhrases = {
+  STALE_VERSION: "Isto mudou em outro lugar. Atualizamos a tela: confira e tente de novo.",
+  "POLICY_REJECTED.goal": "Já existe uma meta ativa para este indicador neste mês. Ajuste a existente ou arquive-a.",
+  "POLICY_REJECTED.scope": "Para publicar, o perfil público precisa estar publicado com o campo “apresentação” escolhido (tela Perfil).",
+  "POLICY_REJECTED.profession": "Este texto é de outra profissão.",
+  "POLICY_REJECTED.kind": "Só textos de apresentação vão para o perfil; posts são para você copiar.",
+  "POLICY_REJECTED.rule_code": "Esta sugestão não está mais em vigor: os dados mudaram.",
+  "POLICY_REJECTED.decided": "Você já decidiu sobre esta sugestão neste mês.",
+  "POLICY_REJECTED.status": "Esta meta não está ativa.",
+  POLICY_REJECTED: "As regras não permitem esta ação agora. Nada foi alterado.",
+  VALIDATION_ERROR: "Confira os campos: taxas entre 0% e 100%, valores em reais inteiros, mês válido.",
+  NOT_FOUND: "Não encontrado. A tela pode estar desatualizada.",
+  FORBIDDEN: "Só o dono do negócio acessa metas e conteúdo.",
+};
+export const explain = errorExplainer(PHRASES);
 
 // Evidência das sugestões em frases simples. Nunca mostra o nome cru do campo (ex.: no_show_n): chave sem rótulo vira
 // "Outro dado". Cada frase é uma lista de pedaços; os números vão marcados para a tela usar a classe tn-num.
@@ -198,9 +191,8 @@ export const INSIGHT_RULE_LABEL: Record<InsightRuleCode, string> = {
   package_expiring: "Pacote perto de vencer", lapsed_customers: "Clientes sem retorno", idle_slot: "Horário ocioso",
   low_margin_service: "Serviço abaixo da margem", profile_incomplete: "Perfil incompleto", month_closing: "Mês fechando",
 };
-export function explainInsight(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  if (e?.code === "POLICY_REJECTED" && e.field === "stale") return "Os números mudaram desde a última conta: esta sugestão não vale mais. Nada foi criado.";
-  if (e?.code === "POLICY_REJECTED" && e.field === "state") return "Esta sugestão já foi resolvida.";
-  return explain(err);
-}
+export const explainInsight = errorExplainer({
+  ...PHRASES,
+  "POLICY_REJECTED.stale": "Os números mudaram desde a última conta: esta sugestão não vale mais. Nada foi criado.",
+  "POLICY_REJECTED.state": "Esta sugestão já foi resolvida.",
+});

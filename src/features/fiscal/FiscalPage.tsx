@@ -3,9 +3,11 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, formatMonthName, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
-import { type FiscalDocument, type FiscalFolder, type FiscalOverview, type FiscalPort, newKey } from "./port.ts";
+import { ENV_LABEL, explain, folderCsv, formatCents, formatCnpj, formatDate, REASON_LABEL, REGIME_LABEL, SERVICE_LABEL, STATUS_LABEL, todayLocal } from "./labels.ts";
+import { type FiscalDocument, type FiscalFolder, type FiscalOverview, type FiscalPort } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { centsToInput, parseBRL } from "../../lib/money.ts";
+import { formatMonth } from "../../lib/time.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 /**
@@ -27,6 +29,7 @@ function ProfileForm({ o, port, run, onClose }: { o: FiscalOverview; port: Fisca
   const [service, setService] = useState(p?.service_code ?? "06.01");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"legal" | "cnpj" | "ibge">();
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -39,7 +42,9 @@ function ProfileForm({ o, port, run, onClose }: { o: FiscalOverview; port: Fisca
     setBusy(true);
     setError(null);
     await run(async () => {
-      await port.saveProfile({ expected_version: p?.version ?? 0, legal_name: legal, cnpj, regime, municipality_ibge: ibge, service_code: service }, newKey());
+      const input = { expected_version: p?.version ?? 0, legal_name: legal, cnpj, regime, municipality_ibge: ibge, service_code: service };
+      await port.saveProfile(input, idem.keyFor(input));
+      idem.reset();
       onClose();
     }, "Dados fiscais salvos.", (err) => {
       const field = (err as { field?: string } | null)?.field;
@@ -73,6 +78,7 @@ function ProfileForm({ o, port, run, onClose }: { o: FiscalOverview; port: Fisca
 
 function Setup({ o, port, run }: { o: FiscalOverview; port: FiscalPort; run: Run }) {
   const [editing, setEditing] = useState(!o.profile);
+  const command = useCommand();
   const reasons = o.eligibility.reasons;
   return (
     <Card aria-labelledby="fsc-setup-title">
@@ -104,10 +110,10 @@ function Setup({ o, port, run }: { o: FiscalOverview; port: FiscalPort; run: Run
               title="Revogar a autorização?"
               consequence="A Tinindo deixa de emitir notas em seu nome até você autorizar de novo. Notas já emitidas continuam valendo."
               confirmLabel="Sim, revogar"
-              onConfirm={() => run(() => port.revoke(newKey()), "Autorização revogada. Notas já emitidas continuam valendo.")}
+              onConfirm={() => run(() => command({ revoke: o.representation?.id }, (key) => port.revoke(key)), "Autorização revogada. Notas já emitidas continuam valendo.")}
             />
           </div>
-        ) : <ActionButton variant="secondary" onAct={() => run(() => port.grant(o.terms.hash, newKey()), "Autorização registrada por um ano.")}>Autorizo nestes termos</ActionButton>}
+        ) : <ActionButton variant="secondary" onAct={() => run(() => command({ grant: o.terms.hash }, (key) => port.grant(o.terms.hash, key)), "Autorização registrada por um ano.")}>Autorizo nestes termos</ActionButton>}
       </section>
       <section className="tn-fsc-step" aria-labelledby="fsc-step-cred">
         <h3 id="fsc-step-cred">3 · Credencial no provedor fiscal</h3>
@@ -146,7 +152,7 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
   // Emitir não se desfaz com um toque (cancelar exige motivo): antes, a tela mostra tudo para conferir.
   const [reviewing, setReviewing] = useState(false);
   // Mesma chave ao repetir o mesmo pedido; ao corrigir, pedido novo.
-  const [key, setKey] = useState(newKey);
+  const idem = useIdempotencyKey();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const env = o.eligibility.environment;
@@ -168,12 +174,13 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
             setSending(true);
             setError(null);
             void run(async () => {
-              const d = await port.emit({ receivable_id: rec || null, taker_name: taker, taker_document: doc.trim() || null, description: desc, amount_cents: cents, competence_date: date }, key);
+              const draft = { receivable_id: rec || null, taker_name: taker, taker_document: doc.trim() || null, description: desc, amount_cents: cents, competence_date: date };
+              const d = await port.emit(draft, idem.keyFor(draft));
               onClose();
               return d;
             }, "Pedido enviado ao provedor. Emitir não registra recebimento: o Caixa continua igual.", (err) => setError(explain(err))).finally(() => setSending(false));
           }}>Emitir nota</Button>
-          <Button variant="ghost" disabled={sending} onClick={() => { setKey(newKey()); setError(null); setReviewing(false); }}>Corrigir</Button>
+          <Button variant="ghost" disabled={sending} onClick={() => { idem.reset(); setError(null); setReviewing(false); }}>Corrigir</Button>
         </div>
       </Card>
     );
@@ -211,6 +218,7 @@ function EmitForm({ o, port, run, onClose }: { o: FiscalOverview; port: FiscalPo
 
 function DocItem({ d, port, run }: { d: FiscalDocument; port: FiscalPort; run: Run }) {
   const [reason, setReason] = useState("");
+  const command = useCommand();
   const label = d.number ? `Nota ${d.number}` : "Nota em emissão";
   return (
     <li className="tn-fsc-doc">
@@ -237,7 +245,7 @@ function DocItem({ d, port, run }: { d: FiscalDocument; port: FiscalPort; run: R
             missingHint="Escreva o motivo do cancelamento com pelo menos 15 letras."
             onConfirm={async () => {
               let failed: unknown = null;
-              await run(() => port.cancel({ document_id: d.id, expected_version: d.version, reason }, newKey()), "Cancelamento pedido ao provedor.", (err) => {
+              await run(() => command({ cancel: d.id, version: d.version, reason }, (key) => port.cancel({ document_id: d.id, expected_version: d.version, reason }, key)), "Cancelamento pedido ao provedor.", (err) => {
                 failed = err;
                 toast({ tone: "danger", message: explain(err) });
               });
@@ -274,7 +282,7 @@ function Folder({ port }: { port: FiscalPort }) {
       </div>
       {err ? <StatusBanner tone="danger">{err}</StatusBanner> : null}
       {f ? (
-        <div className="tn-fsc-folder" aria-label={`Pasta de ${formatMonthName(f.month)}`} role="region">
+        <div className="tn-fsc-folder" aria-label={`Pasta de ${formatMonth(f.month)}`} role="region">
           <p><strong>{plural(f.totals.authorized_count, "nota válida", "notas válidas")}</strong> · <span className="tn-num">{formatCents(f.totals.authorized_cents)}</span> · {plural(f.totals.cancelled_count, "cancelada")}{f.totals.homologacao_count ? ` · ${f.totals.homologacao_count} de homologação (sem valor fiscal)` : ""}</p>
           <Button variant="ghost" disabled={f.documents.length === 0} onClick={() => download(f)}>Baixar planilha (CSV)</Button>
         </div>

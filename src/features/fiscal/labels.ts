@@ -1,5 +1,7 @@
 // Rótulos da tela Notas fiscais (P16).
 import type { FiscalDocument, FiscalFolder } from "./port.ts";
+import { errorExplainer } from "../../lib/errors.ts";
+import { today } from "../../lib/time.ts";
 
 export const STATUS_LABEL: Record<FiscalDocument["status"], string> = {
   submitting: "Enviando ao provedor",
@@ -22,11 +24,9 @@ export const REGIME_LABEL = { mei: "MEI", simples_nacional: "Simples Nacional", 
 export const ENV_LABEL = { homologacao: "Homologação (teste, sem valor fiscal)", producao: "Produção" } as const;
 export { formatCents } from "../../lib/money.ts";
 export const formatCnpj = (v: string) => v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-/** Mês por extenso, só a primeira letra da frase em maiúscula onde precisar: "2026-10" → "outubro de 2026". */
-export const formatMonthName = (ym: string) =>
-  new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${ym.slice(0, 7)}-15T12:00:00Z`));
 export const formatDate = (iso: string, tz = "America/Sao_Paulo") => new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: tz }).format(new Date(iso));
-export const todayLocal = (tz = "America/Sao_Paulo") => new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(new Date());
+/** Hoje (YYYY-MM-DD). O fuso padrão fica aqui até a parte 2 trazer o fuso do negócio. */
+export const todayLocal = (tz = "America/Sao_Paulo") => today(tz);
 
 /** CSV da pasta do mês para o contador (separador ";", valores em reais com vírgula). */
 export function folderCsv(f: FiscalFolder): string {
@@ -39,29 +39,21 @@ export function folderCsv(f: FiscalFolder): string {
   return rows.map((r) => r.map(esc).join(";")).join("\n");
 }
 
-export function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  switch (e?.code) {
-    case "POLICY_REJECTED":
-      if (e.field === "eligibility") return "Ainda falta algo para emitir. Veja a lista “Antes de emitir”.";
-      if (e.field === "receivable_has_document") return "Este atendimento já tem nota. Cancele a anterior para emitir outra.";
-      if (e.field === "amount_cents") return "O valor da nota não pode passar o valor cobrado.";
-      if (e.field === "status") return "Esta nota não pode ser cancelada no estado atual.";
-      if (e.field === "profile") return "Preencha os dados fiscais primeiro.";
-      return "As regras não permitem esta ação agora. Nada foi alterado.";
-    case "VALIDATION_ERROR":
-      if (e.field === "cnpj") return "CNPJ inválido. Confira os números.";
-      if (e.field === "taker_document") return "CPF ou CNPJ do cliente inválido.";
-      if (e.field === "competence_date") return "A data do serviço precisa ser de hoje ou dos últimos 60 dias.";
-      if (e.field === "reason") return "Explique o motivo do cancelamento (pelo menos 15 letras).";
-      return "Confira os campos e tente de novo.";
-    case "STALE_VERSION":
-      return e.field === "terms_hash" ? "Os termos mudaram. Leia de novo e autorize." : "Isto mudou em outro lugar. Atualizamos a tela: confira e tente de novo.";
-    case "PROVIDER_UNAVAILABLE":
-      return "O provedor fiscal não respondeu. Nada foi alterado; tente de novo em instantes.";
-    case "FORBIDDEN":
-      return "Só o dono do negócio emite notas.";
-    default:
-      return "Não deu certo agora. Nada foi alterado; tente de novo.";
-  }
-}
+export const explain = errorExplainer({
+  "POLICY_REJECTED.eligibility": "Ainda falta algo para emitir. Veja a lista “Antes de emitir”.",
+  "POLICY_REJECTED.receivable_has_document": "Este atendimento já tem nota. Cancele a anterior para emitir outra.",
+  "POLICY_REJECTED.amount_cents": "O valor da nota não pode passar o valor cobrado.",
+  "POLICY_REJECTED.status": "Esta nota não pode ser cancelada no estado atual.",
+  "POLICY_REJECTED.profile": "Preencha os dados fiscais primeiro.",
+  POLICY_REJECTED: "As regras não permitem esta ação agora. Nada foi alterado.",
+  "VALIDATION_ERROR.cnpj": "CNPJ inválido. Confira os números.",
+  "VALIDATION_ERROR.taker_document": "CPF ou CNPJ do cliente inválido.",
+  "VALIDATION_ERROR.competence_date": "A data do serviço precisa ser de hoje ou dos últimos 60 dias.",
+  "VALIDATION_ERROR.reason": "Explique o motivo do cancelamento (pelo menos 15 letras).",
+  VALIDATION_ERROR: "Confira os campos e tente de novo.",
+  "STALE_VERSION.terms_hash": "Os termos mudaram. Leia de novo e autorize.",
+  STALE_VERSION: "Isto mudou em outro lugar. Atualizamos a tela: confira e tente de novo.",
+  PROVIDER_UNAVAILABLE: "O provedor fiscal não respondeu. Nada foi alterado; tente de novo em instantes.",
+  FORBIDDEN: "Só o dono do negócio emite notas.",
+  default: "Não deu certo agora. Nada foi alterado; tente de novo.",
+});

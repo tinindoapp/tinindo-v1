@@ -45,5 +45,3 @@ export interface OpsPort {
   block(order: QueueOrder, reason: string, key: string): Promise<ServiceOrder>;
   snapshot(order: QueueOrder): Promise<Snapshot>;
 }
-
-export const newKey = () => crypto.randomUUID();

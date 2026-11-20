@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { createDemoPort, resetDemoState } from "./demoPort.ts";
 import { GoalsPage } from "./GoalsPage.tsx";
-import { newKey } from "./port.ts";
+import { newIdempotencyKey } from "../../lib/idempotency.ts";
 
 beforeEach(() => resetDemoState());
 afterEach(() => act(() => dismissToast()));
@@ -16,7 +16,7 @@ describe("Metas e conteúdo: desfazer e confirmar", () => {
   it("Remover a apresentação executa na hora e o Desfazer publica o mesmo texto de novo", async () => {
     const port = createDemoPort();
     const bio = (await port.content()).templates.find((t) => t.kind === "bio")!;
-    await port.publish(bio.code, newKey());
+    await port.publish(bio.code, newIdempotencyKey());
     const publish = vi.spyOn(port, "publish");
     const unpublish = vi.spyOn(port, "unpublish");
     renderPage(port);
@@ -31,7 +31,7 @@ describe("Metas e conteúdo: desfazer e confirmar", () => {
 
   it("Arquivar meta pede confirmação: sem confirmar, nada é arquivado", async () => {
     const port = createDemoPort();
-    await port.saveGoal({ metric_key: "no_show", target: 0.1, note: null }, newKey());
+    await port.saveGoal({ metric_key: "no_show", target: 0.1, note: null }, newIdempotencyKey());
     const archive = vi.spyOn(port, "archiveGoal");
     renderPage(port);
     const goals = within(await screen.findByRole("list", { name: "Metas" }));
@@ -42,6 +42,21 @@ describe("Metas e conteúdo: desfazer e confirmar", () => {
     await act(async () => { fireEvent.click(within(confirm).getByRole("button", { name: "Sim, arquivar" })); });
     expect(archive).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Meta arquivada.")).toBeInTheDocument();
+  });
+
+  it("Remover falhou: tocar de novo manda a mesma chave (o servidor não duplica)", async () => {
+    const port = createDemoPort();
+    const bio = (await port.content()).templates.find((t) => t.kind === "bio")!;
+    await port.publish(bio.code, newIdempotencyKey());
+    const unpublish = vi.spyOn(port, "unpublish").mockRejectedValueOnce({ code: "PROVIDER_UNAVAILABLE" });
+    renderPage(port);
+    await screen.findByText(/Publicado no perfil:/, {}, { timeout: 3000 });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Remover a apresentação/ })); });
+    expect(await screen.findByText("Não foi possível concluir agora. Tentar de novo é seguro.")).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Remover a apresentação/ })); });
+    expect(unpublish).toHaveBeenCalledTimes(2);
+    expect(unpublish.mock.calls[1]![1]).toBe(unpublish.mock.calls[0]![1]);
+    expect(await screen.findByText("Apresentação removida do perfil.")).toBeInTheDocument();
   });
 
   it("meta sem valor: erro embaixo do campo e foco nele", async () => {

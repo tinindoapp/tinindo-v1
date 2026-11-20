@@ -3,8 +3,10 @@
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { AccessScope, OfferingVersion, ServiceOrderDetail } from "@contracts";
 import { Button, Card, ConfirmAction, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { ACTION_LABEL, explain, formatDateTime, minutesText, ORDER_STATUS, priceLabel, SCOPE_LABEL } from "./labels.ts";
-import { type AccessLog, newKey, type PlanCurrent, type ServiceOpsPort } from "./port.ts";
+import { ACTION_LABEL, explain, minutesText, ORDER_STATUS, priceLabel, SCOPE_LABEL } from "./labels.ts";
+import { type AccessLog, type PlanCurrent, type ServiceOpsPort } from "./port.ts";
+import { newIdempotencyKey, useAttemptValue, useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatDateTime } from "../../lib/time.ts";
 
 const PortContext = createContext<ServiceOpsPort | null>(null);
 export const ServiceOpsPortProvider = PortContext.Provider;
@@ -30,7 +32,7 @@ function RequestService({ v, onDone }: { v: OfferingVersion; onDone: (n: Notice)
   const port = usePort();
   const [ok, setOk] = useState(false);
   const [notes, setNotes] = useState("");
-  const [key] = useState(newKey);
+  const [key] = useState(newIdempotencyKey);
   const [pending, setPending] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"accept">();
   const errorId = `svc-accept-${v.id}`;
@@ -76,7 +78,9 @@ function GrantForm({ order, onDone }: { order: ServiceOrderDetail; onDone: (n: N
   const [scopes, setScopes] = useState<AccessScope[]>(["catalog"]);
   const [days, setDays] = useState("7");
   const [why, setWhy] = useState("");
-  const [key, setKey] = useState(newKey);
+  const idem = useIdempotencyKey();
+  // O vencimento sai de "agora": fica o mesmo na nova tentativa do mesmo pedido.
+  const instant = useAttemptValue<string>();
   const [pending, setPending] = useState(false);
   const { formRef, errors, show, clear } = useFormErrors<"scopes" | "why">();
   const scopesError = `svc-scopes-${order.id}`;
@@ -89,8 +93,11 @@ function GrantForm({ order, onDone }: { order: ServiceOrderDetail; onDone: (n: N
     if (!ok) return;
     setPending(true);
     try {
-      await port.grant(order, scopes, new Date(port.now().getTime() + Number(days) * 86_400_000).toISOString(), why.trim(), key);
-      setKey(newKey());
+      const justification = why.trim();
+      const expiresAt = instant.valueFor({ grant: order.id, scopes, days, justification }, () => new Date(port.now().getTime() + Number(days) * 86_400_000).toISOString());
+      await port.grant(order, scopes, expiresAt, justification, idem.keyFor({ grant: order.id, scopes, expiresAt, justification }));
+      idem.reset();
+      instant.reset();
       onDone({ tone: "success", text: `Acesso concedido a ${order.assignee_name ?? "o responsável"} por ${days} dias. Você pode revogar quando quiser.` });
     } catch (err) {
       onDone({ tone: "danger", text: explain(err) });
@@ -146,8 +153,9 @@ function OrderCard({ order, tz, onDone }: { order: ServiceOrderDetail; tz: strin
   const last = order.deliverables[0];
   const open = order.status !== "delivered" && order.status !== "cancelled";
   // Rejeita de novo depois de avisar: a confirmação continua aberta para tentar outra vez.
-  const act = (run: () => Promise<unknown>, ok: string) =>
-    run().then(
+  const command = useCommand();
+  const act = (intent: unknown, send: (key: string) => Promise<unknown>, ok: string) =>
+    command(intent, send).then(
       () => onDone({ tone: "success", text: ok }),
       (e: unknown) => {
         onDone({ tone: "danger", text: explain(e) });
@@ -157,7 +165,8 @@ function OrderCard({ order, tz, onDone }: { order: ServiceOrderDetail; tz: strin
   const review = (decision: "approved" | "changes_requested", ok: string) => {
     if (!last) return;
     setBusy(decision);
-    act(() => port.review(order, last.id, decision, note.trim() || null, newKey()), ok)
+    const text = note.trim() || null;
+    act({ review: order.id, version: order.version, deliverable: last.id, decision, note: text }, (key) => port.review(order, last.id, decision, text, key), ok)
       .catch(() => undefined)
       .finally(() => setBusy(null));
   };
@@ -210,7 +219,7 @@ function OrderCard({ order, tz, onDone }: { order: ServiceOrderDetail; tz: strin
                     title={`Revogar o acesso de ${who}?`}
                     consequence={`${who} deixa de ver ${what} agora. Para liberar de novo, conceda outro acesso.`}
                     confirmLabel="Sim, revogar"
-                    onConfirm={() => act(() => port.revoke(g.id, newKey()), "Acesso revogado.")}
+                    onConfirm={() => act({ revoke: g.id }, (key) => port.revoke(g.id, key), "Acesso revogado.")}
                   />
                 ) : null}
               </li>
@@ -233,7 +242,7 @@ function OrderCard({ order, tz, onDone }: { order: ServiceOrderDetail; tz: strin
           consequence="O pedido é encerrado e os acessos da equipe também. Para retomar, será preciso fazer um pedido novo."
           confirmLabel="Sim, cancelar pedido"
           cancelLabel="Manter pedido"
-          onConfirm={() => act(() => port.cancel(order, newKey()), "Pedido cancelado. Acessos encerrados.")}
+          onConfirm={() => act({ cancel: order.id, version: order.version }, (key) => port.cancel(order, key), "Pedido cancelado. Acessos encerrados.")}
         />
       ) : null}
     </li>
@@ -249,6 +258,7 @@ export function ServicesPage() {
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
   const [choosing, setChoosing] = useState<string | null>(null);
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -310,7 +320,7 @@ export function ServicesPage() {
                     disabled={choosing !== null}
                     onClick={() => {
                       setChoosing(v.id);
-                      void port.subscribe(v, newKey()).then(
+                      void command({ subscribe: v.id }, (key) => port.subscribe(v, key)).then(
                         () => done({ tone: "success", text: `Plano alterado para ${v.name}. A franquia já vale; a cobrança é combinada à parte.` }),
                         (e: unknown) => done({ tone: "danger", text: explain(e) }),
                       ).finally(() => setChoosing(null));
