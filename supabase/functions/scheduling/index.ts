@@ -2,6 +2,7 @@
 // as RPCs do P03 (security definer + app.is_member) decidem o acesso. Nenhuma chave secreta aqui.
 import { createClient } from "@supabase/supabase-js";
 import { createSchedulingHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -25,4 +26,4 @@ const handler = createSchedulingHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));

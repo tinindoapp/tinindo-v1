@@ -5,6 +5,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { llmFromEnv } from "../_shared/llm/index.ts";
 import { createAgentHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -35,4 +36,4 @@ const handler = createAgentHandler({
   log,
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));

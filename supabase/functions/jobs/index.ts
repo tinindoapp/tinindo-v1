@@ -2,6 +2,7 @@
 // vêm do ambiente da função (nunca do frontend). Agendar com Supabase Cron a cada minuto (ver ADR-0011).
 import { createClient } from "@supabase/supabase-js";
 import { createJobsHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -10,11 +11,11 @@ if (!url || !serviceKey || !secret) throw new Error("SUPABASE_URL, SUPABASE_SERV
 
 const client = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
-Deno.serve(createJobsHandler({
+Deno.serve(withBuild(createJobsHandler({
   secret,
   runJobs: async (batch) => {
     const { data, error } = await client.rpc("jobs_run", { p_batch: batch });
     return { data, error };
   },
   log: (entry) => (entry.level === "error" ? console.error : console.log)(JSON.stringify(entry)),
-}));
+})));

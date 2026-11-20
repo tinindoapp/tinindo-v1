@@ -4,6 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createSimulatedProvider, createWhatsAppProvider } from "../_shared/domain/messaging/providers.ts";
 import { createMessagingHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -51,4 +52,4 @@ const handler = createMessagingHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));
