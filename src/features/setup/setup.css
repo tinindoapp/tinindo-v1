@@ -31,7 +31,8 @@
 .tn-setup-step[data-done] .tn-setup-step__mark { background: var(--tn-action); color: var(--tn-text-on-action); }
 .tn-setup-step__body { display: grid; gap: var(--tn-space-1); min-width: 0; }
 .tn-setup-step__title { margin: 0; font-weight: var(--tn-font-weight-semibold); }
-.tn-setup-step__tag { margin-left: var(--tn-space-2); padding: 0 var(--tn-space-2); border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); color: var(--tn-text-muted); font-size: var(--tn-text-label); font-weight: var(--tn-font-weight-medium); }
+/* Etiqueta "opcional": texto principal sobre o fundo rebaixado. Com --tn-text-muted dava 4,49:1 no tema claro (recado #118). */
+.tn-setup-step__tag { margin-left: var(--tn-space-2); padding: 0 var(--tn-space-2); border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); color: var(--tn-text); font-size: var(--tn-text-label); font-weight: var(--tn-font-weight-medium); }
 .tn-setup-step__why { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-setup-step__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
 .tn-setup-step__go { display: inline-flex; align-items: center; gap: var(--tn-space-1); min-height: var(--tn-size-touch); color: var(--tn-link); font-weight: var(--tn-font-weight-medium); }
