@@ -1,12 +1,15 @@
 // Catálogo do prestador: duração, intervalos, preço base, piso e custos. Arquivar = inativo.
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { type ProviderService, ServiceSaveInput } from "@contracts";
 import { Button, Card, Field, FormPanel, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
-import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
+import { useCrmApi } from "./api.ts";
 import { useProfession } from "./CustomersPage.tsx";
-import { centsToInput, formatCents, parseBRL, parsePercentToBps } from "./format.ts";
+import { parsePercentToBps } from "./format.ts";
 import { PROFESSION_CONFIG, type ServiceTemplate } from "./profession.ts";
 import { CrmDemoNotice, EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { serverMessage } from "../../lib/errors.ts";
+import { centsToInput, formatCents, parseBRL } from "../../lib/money.ts";
 
 type Draft = {
   id?: string;
@@ -34,6 +37,9 @@ const MESSAGES: Record<string, string> = {
   fee_bps: "Taxa entre 0% e 100%, ex.: 4,99, ou deixe em branco.",
 };
 
+/** Centavos → texto do campo; sem valor, campo vazio. */
+const moneyInput = (cents: number | null) => (cents === null ? "" : centsToInput(cents));
+
 function fromService(s: ProviderService): Draft {
   return {
     id: s.id,
@@ -43,9 +49,9 @@ function fromService(s: ProviderService): Draft {
     duration: String(s.duration_min),
     before: String(s.buffer_before_min),
     after: String(s.buffer_after_min),
-    base: centsToInput(s.base_price_cents),
-    floor: centsToInput(s.min_price_cents),
-    cost: centsToInput(s.estimated_cost_cents),
+    base: moneyInput(s.base_price_cents),
+    floor: moneyInput(s.min_price_cents),
+    cost: moneyInput(s.estimated_cost_cents),
     fee: s.fee_bps === null ? "" : String(s.fee_bps / 100).replace(".", ","),
   };
 }
@@ -89,7 +95,7 @@ export function ServicesPage() {
       setItems(page.items);
       setLoadError(null);
     } catch (e) {
-      setLoadError(errorMessage(e));
+      setLoadError(serverMessage(e));
     }
   }, [api, showInactive]);
   useEffect(() => {
@@ -97,7 +103,7 @@ export function ServicesPage() {
     return () => clearTimeout(t);
   }, [load]);
 
-  const archiveKeys = useMemo(() => createKeyRing(), []);
+  const archiveKeys = useIdempotencyKey();
   async function setActive(s: ProviderService, active: boolean): Promise<ProviderService> {
     const input = ServiceSaveInput.parse({ ...s, service_id: s.id, expected_version: s.version, active });
     const out = await api.saveService(input, archiveKeys.keyFor(input));
@@ -121,13 +127,13 @@ export function ServicesPage() {
               await setActive(saved, archiving);
               toast(done(s.name, archiving));
             } catch (e) {
-              toast({ tone: "danger", message: errorMessage(e) });
+              toast({ tone: "danger", message: serverMessage(e) });
             }
           },
         },
       });
     } catch (e) {
-      toast({ tone: "danger", message: errorMessage(e) });
+      toast({ tone: "danger", message: serverMessage(e) });
     }
   }
 
@@ -252,7 +258,7 @@ function ServiceForm({
   const { formRef, errors, show } = useFormErrors();
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const keys = useMemo(() => createKeyRing(), []);
+  const keys = useIdempotencyKey();
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
 
   async function submit(e: FormEvent) {
@@ -283,7 +289,7 @@ function ServiceForm({
       keys.reset();
       await onSaved(`${out.service.name} foi salvo.`);
     } catch (err) {
-      setServerError(errorMessage(err));
+      setServerError(serverMessage(err));
     } finally {
       setBusy(false);
     }

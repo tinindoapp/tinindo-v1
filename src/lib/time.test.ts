@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { addDays, dayWindow, deviceZoneDiffers, formatTime, formatWeekdayDay, friendlyZone, isCivilDate, localParts, receivedPeriods, toZonedIso, weekStart, zonedInstant } from "./time.ts";
+import {
+  addDays, dayWindow, deviceZoneDiffers, endOfLocalDay, formatCivilDate, formatDate, formatDateTime, formatDayMonth, formatMonth, formatSlot,
+  formatStart, formatTime, formatWeekdayDate, formatWeekdayDateTime, formatWeekdayDay, formatWeekdayLongDate, friendlyZone, isCivilDate,
+  localDate, localParts, localToIso, noonOfLocalDay, now, receivedPeriods, setClockForTest, startOfLocalDay, startOfNextLocalDay, today,
+  toZonedIso, weekStart, zonedInstant,
+} from "./time.ts";
 
 const SP = "America/Sao_Paulo";
 
@@ -71,5 +76,51 @@ describe("receivedPeriods (P48: Hoje · Semana · Mês)", () => {
     expect(p.week.starts_at).toBe("2026-12-28T00:00:00-03:00");
     expect(p.month.ends_at).toBe("2027-01-01T00:00:00-03:00");
     expect(receivedPeriods("2026-11-01", SP).week.starts_at).toBe("2026-10-26T00:00:00-03:00");
+  });
+});
+
+describe("relógio e formatos comuns das telas", () => {
+  const MANAUS = "America/Manaus";
+  // 03:30Z = 00:30 em São Paulo (dia 21) e 23:30 em Manaus (dia 20).
+  const instant = "2026-10-21T03:30:00.000Z";
+
+  it("now() usa o relógio trocado no teste e volta ao real", () => {
+    const restore = setClockForTest(() => new Date(instant));
+    expect(now().toISOString()).toBe(instant);
+    expect(today(SP)).toBe("2026-10-21");
+    expect(today(MANAUS)).toBe("2026-10-20");
+    restore();
+    expect(Math.abs(now().getTime() - Date.now())).toBeLessThan(5_000);
+  });
+
+  it("limites do dia civil no fuso do negócio, em UTC", () => {
+    expect(localDate(instant, SP)).toBe("2026-10-21");
+    expect(startOfLocalDay("2026-10-20", SP)).toBe("2026-10-20T03:00:00.000Z");
+    expect(startOfNextLocalDay("2026-10-20", SP)).toBe("2026-10-21T03:00:00.000Z");
+    expect(noonOfLocalDay("2026-10-20", SP)).toBe("2026-10-20T15:00:00.000Z");
+    expect(endOfLocalDay("2026-10-20", SP)).toBe("2026-10-21T02:59:59.000Z");
+    expect(endOfLocalDay("2026-10-20", MANAUS)).toBe("2026-10-21T03:59:59.000Z");
+    expect(localToIso("2026-10-20", "09:30", SP)).toBe("2026-10-20T12:30:00.000Z");
+  });
+
+  it("formatos saem iguais aos que os módulos montavam à mão com Intl", () => {
+    const d = new Date(instant);
+    const raw = (o: Intl.DateTimeFormatOptions, tz = SP) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, ...o }).format(d);
+    expect(formatDate(instant, SP)).toBe(raw({ day: "2-digit", month: "2-digit", year: "numeric" }));
+    expect(formatDate(instant, SP)).toBe("21/10/2026");
+    expect(formatDate(instant, MANAUS)).toBe("20/10/2026");
+    expect(formatDayMonth(instant, SP)).toBe("21/10");
+    expect(formatDateTime(instant, SP)).toBe(raw({ day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
+    expect(formatWeekdayDate(instant, SP)).toBe(raw({ weekday: "short", day: "2-digit", month: "2-digit" }));
+    expect(formatWeekdayDateTime(instant, SP)).toBe(raw({ weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
+    expect(formatWeekdayLongDate(instant, SP)).toBe("quarta-feira, 21/10");
+    // Meia-noite e meia: a hora sai "00:30" com ou sem hourCycle explícito.
+    expect(formatTime(instant, SP)).toBe(raw({ hour: "2-digit", minute: "2-digit" }));
+    expect(formatTime(instant, SP)).toBe("00:30");
+    expect(formatSlot({ starts_at: instant, ends_at: "2026-10-21T04:00:00.000Z" }, SP)).toBe("quarta-feira, 21/10, 00:30–01:00");
+    expect(formatStart(instant, SP)).toBe("quarta-feira, 21/10, às 00:30");
+    expect(formatCivilDate("2026-10-20")).toBe("20/10/2026");
+    expect(formatMonth("2026-10")).toBe("outubro de 2026");
+    expect(formatMonth("2026-10-31")).toBe("outubro de 2026");
   });
 });

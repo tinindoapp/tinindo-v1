@@ -13,11 +13,13 @@ import {
 import { ActionsMenu, Button, Card, Field, FormPanel, LinkButton, PageHeader, Segmented, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { formatDayShort, localParts } from "../../lib/time.ts";
 import { agoText, daysSince, isLapsed, LAPSED_DAYS, type VisitInfo } from "../../lib/visits.ts";
-import { createKeyRing, type CustomerVisits, errorMessage, useCrmApi } from "./api.ts";
+import { type CustomerVisits, useCrmApi } from "./api.ts";
 import { ContactButtons } from "./contact.tsx";
 import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
 import { CrmDemoNotice, EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { serverMessage } from "../../lib/errors.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 /** A busca que produziu uma página: o texto já aparado e se inclui arquivados. */
@@ -112,7 +114,7 @@ export function CustomersPage() {
         setNext(page.next_cursor);
         setLoadError(null);
       } catch (e) {
-        if (mine === ticket.current) setLoadError(errorMessage(e));
+        if (mine === ticket.current) setLoadError(serverMessage(e));
       }
     },
     [api],
@@ -136,7 +138,7 @@ export function CustomersPage() {
     return items.filter((c) => isLapsed(visits.byCustomer[c.id], now, visits.timezone));
   }, [items, show, visits]);
 
-  const archiveKeys = useMemo(() => createKeyRing(), []);
+  const archiveKeys = useIdempotencyKey();
   async function setArchived(c: CrmCustomer, archived: boolean): Promise<CrmCustomer> {
     const input = { customer_id: c.id, expected_version: c.version, archived };
     const out = await api.archiveCustomer(input, archiveKeys.keyFor(input));
@@ -163,13 +165,13 @@ export function CustomersPage() {
               await setArchived(saved, false);
               toast(`${c.name} voltou para a lista.`);
             } catch (e) {
-              toast({ tone: "danger", message: errorMessage(e) });
+              toast({ tone: "danger", message: serverMessage(e) });
             }
           },
         },
       });
     } catch (e) {
-      toast({ tone: "danger", message: errorMessage(e) });
+      toast({ tone: "danger", message: serverMessage(e) });
     }
   }
 
@@ -337,7 +339,7 @@ function CustomerForm({
   const { formRef, errors, show } = useFormErrors<"name" | "phone" | "email">();
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const keys = useMemo(() => createKeyRing(), []);
+  const keys = useIdempotencyKey();
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
 
   async function submit(e: FormEvent) {
@@ -370,7 +372,7 @@ function CustomerForm({
         );
       } else await onSaved(`${out.customer.name} foi salvo.`, "success");
     } catch (err) {
-      setServerError(errorMessage(err));
+      setServerError(serverMessage(err));
     } finally {
       setBusy(false);
     }

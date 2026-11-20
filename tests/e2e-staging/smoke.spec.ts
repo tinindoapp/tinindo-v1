@@ -4,7 +4,11 @@ import { expect, test } from "@playwright/test";
 import { noHorizontalScroll, openFromNav } from "../e2e/qa/helpers.ts";
 
 // P42 · smoke da homologação hospedada (release/CHECKLIST.md, seção 2). Só lê e entra com a conta técnica sintética:
-// não grava nada além do login. Os passos que precisam de variável opcional pulam com o motivo quando ela falta.
+// não grava nada além do login.
+// Variável ausente: sem STAGING_REQUIRED, o passo que depende dela pula e diz o motivo (uso do dia a dia, ambiente
+// pela metade). Com STAGING_REQUIRED=1 (antes de liberar para o piloto), o passo FALHA dizendo qual variável falta:
+// o smoke não pode ficar verde sem ter conferido nada (revisão de 10/11, testes-09).
+const REQUIRED = process.env.STAGING_REQUIRED === "1";
 const env = {
   sha: process.env.STAGING_EXPECTED_SHA,
   supabaseUrl: process.env.STAGING_SUPABASE_URL,
@@ -13,6 +17,47 @@ const env = {
   password: process.env.STAGING_TECH_PASSWORD,
   slug: process.env.STAGING_PUBLIC_SLUG,
 };
+
+const ALL_VARS = [
+  "STAGING_EXPECTED_SHA",
+  "STAGING_SUPABASE_URL",
+  "STAGING_SUPABASE_PUBLISHABLE_KEY",
+  "STAGING_TECH_EMAIL",
+  "STAGING_TECH_PASSWORD",
+  "STAGING_PUBLIC_SLUG",
+] as const;
+type Var = (typeof ALL_VARS)[number];
+const missing = (names: readonly Var[]) => names.filter((n) => !process.env[n]);
+const failure = (absent: readonly Var[], what: string) =>
+  `STAGING_REQUIRED=1 e falta ${absent.join(", ")}: ${what}. Defina a variável ou rode sem STAGING_REQUIRED.`;
+
+/** No corpo do `describe`: sem as variáveis, o grupo inteiro pula com o motivo; com STAGING_REQUIRED=1, cada teste falha. */
+function groupNeeds(names: readonly Var[], what: string) {
+  const absent = missing(names);
+  if (absent.length === 0) return;
+  if (!REQUIRED) {
+    test.skip(true, `Defina ${absent.join(" e ")}: ${what}.`);
+    return;
+  }
+  test.beforeEach(() => {
+    throw new Error(failure(absent, what));
+  });
+}
+
+/** Dentro de um teste: diz se o passo pode rodar. Sem a variável, anota o passo pulado; com STAGING_REQUIRED=1, falha. */
+function stepNeeds(names: readonly Var[], what: string): boolean {
+  const absent = missing(names);
+  if (absent.length === 0) return true;
+  if (REQUIRED) throw new Error(failure(absent, what));
+  test.info().annotations.push({ type: "passo pulado", description: `Defina ${absent.join(" e ")}: ${what}.` });
+  return false;
+}
+
+test("STAGING_REQUIRED=1 · todas as variáveis da homologação estão definidas", () => {
+  test.skip(!REQUIRED, "Só com STAGING_REQUIRED=1. Sem ela, os passos que dependem de variável ausente pulam com o motivo.");
+  // Uma falha só com a lista inteira do que falta, além da falha de cada passo.
+  expect(missing(ALL_VARS), "variáveis ausentes (tests/e2e-staging/README.md)").toEqual([]);
+});
 
 // Funções chamadas pelo navegador. `jobs` é só servidor a servidor (cron com segredo) e fica de fora do CORS.
 const FUNCTIONS_DIR = fileURLToPath(new URL("../../supabase/functions/", import.meta.url));
@@ -27,7 +72,7 @@ test.describe("homologação · build publicado", () => {
     await page.goto("/entrar");
     // A faixa "Demonstração · homologação" fica dentro do app (AppShell), não na tela de entrada; a prova de que é a
     // homologação e não a demo sem servidor é o bundle apontar para o Supabase de homologação.
-    if (env.supabaseUrl) {
+    if (stepNeeds(["STAGING_SUPABASE_URL"], "conferir que o bundle aponta para o Supabase de homologação")) {
       const bodies = await Promise.all(scripts.map(async (u) => (await request.get(u)).text()));
       expect(bodies.some((b) => b.includes(new URL(env.supabaseUrl!).host)), "bundle aponta para o Supabase de homologação").toBe(true);
     }
@@ -40,7 +85,9 @@ test.describe("homologação · build publicado", () => {
     expect(res.ok()).toBe(true);
     const build = (await res.json()) as { commit: string; branch: string };
     test.info().annotations.push({ type: "build", description: `${build.commit} · ${build.branch}` });
-    if (env.sha) expect(build.commit.startsWith(env.sha)).toBe(true);
+    if (stepNeeds(["STAGING_EXPECTED_SHA"], "conferir o SHA aprovado em /version.json")) {
+      expect(build.commit.startsWith(env.sha!), `build ${build.commit}, aprovado ${env.sha}`).toBe(true);
+    }
   });
 
   test("nenhuma chave secreta no bundle", async ({ page, request }) => {
@@ -68,9 +115,11 @@ test.describe("homologação · build publicado", () => {
 });
 
 test.describe("homologação · funções", () => {
-  test.skip(!env.supabaseUrl, "Defina STAGING_SUPABASE_URL para conferir as funções.");
   // Sem tela envolvida: uma vez só, no projeto desktop.
   test.skip(({ isMobile }) => isMobile, "Funções conferidas uma vez, no desktop.");
+  groupNeeds(["STAGING_SUPABASE_URL"], "conferir as funções");
+  // A chave pública só é exigida no modo obrigatório: sem ela o pedido vai sem `apikey`, como antes.
+  if (REQUIRED) groupNeeds(["STAGING_SUPABASE_PUBLISHABLE_KEY"], "chamar as funções com a chave pública do projeto");
 
   for (const fn of BROWSER_FUNCTIONS) {
     test(`${fn} sobe e aceita a origem do app (CORS)`, async ({ request, baseURL }) => {
@@ -91,7 +140,7 @@ test.describe("homologação · funções", () => {
 });
 
 test.describe("homologação · conta técnica", () => {
-  test.skip(!env.email || !env.password, "Defina STAGING_TECH_EMAIL e STAGING_TECH_PASSWORD (conta técnica sintética).");
+  groupNeeds(["STAGING_TECH_EMAIL", "STAGING_TECH_PASSWORD"], "entrar com a conta técnica sintética");
 
   test("entra e abre Agenda e Clientes sem rolagem lateral", async ({ page }) => {
     await page.goto("/entrar");
@@ -110,7 +159,7 @@ test.describe("homologação · conta técnica", () => {
 });
 
 test.describe("homologação · link público", () => {
-  test.skip(!env.slug, "Defina STAGING_PUBLIC_SLUG com o perfil publicado da conta técnica.");
+  groupNeeds(["STAGING_PUBLIC_SLUG"], "abrir o perfil publicado da conta técnica");
 
   test("perfil público mostra os serviços para reservar", async ({ page }) => {
     await page.goto(`/p/${env.slug}`);

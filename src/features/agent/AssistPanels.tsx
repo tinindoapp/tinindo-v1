@@ -1,6 +1,7 @@
 // P46 · dois painéis do Assistente:
 // - "Me ajuda a configurar": um passo da configuração por vez (setup.progress do P44), com o porquê e o botão para a
-//   tela que resolve. A confirmação acontece lá, pelas operações normais; aqui só se confere de novo.
+//   tela que resolve. A confirmação acontece lá, pelas operações normais; aqui só se confere de novo. "Pular" grava a
+//   dispensa do passo opcional por `setup.dismiss` (P50): a Home e a Configuração passam a mostrar o mesmo.
 // - "Redigir um texto": o dono escreve o rascunho (mensagem, apresentação, campanha), pede uma versão no tom escolhido
 //   e edita antes de copiar. Nada é salvo nem enviado por aqui.
 import { useEffect, useState } from "react";
@@ -11,8 +12,11 @@ import { nextStep, type SetupProgress, stepSpec } from "./setupGuide.ts";
 
 export function SetupGuidePanel({ port }: { port: AgentPort }) {
   const [progress, setProgress] = useState<SetupProgress | null | undefined>(undefined);
+  // Pulados nesta conversa: só para a frase final. A dispensa em si fica gravada (setup.dismiss).
   const [skipped, setSkipped] = useState<Set<SetupStepCode>>(new Set());
   const [checking, setChecking] = useState(false);
+  const [skipping, setSkipping] = useState(false);
+  const [skipError, setSkipError] = useState<string | null>(null);
 
   async function load() {
     setChecking(true);
@@ -20,6 +24,18 @@ export function SetupGuidePanel({ port }: { port: AgentPort }) {
       setProgress(await port.setupProgress());
     } finally {
       setChecking(false);
+    }
+  }
+  async function skip(step: SetupStepCode) {
+    setSkipping(true);
+    setSkipError(null);
+    try {
+      setProgress(await port.setupDismiss(step, newKey()));
+      setSkipped((s) => new Set(s).add(step));
+    } catch {
+      setSkipError("Não foi possível guardar o “pular” agora. O passo continua aqui; tente de novo.");
+    } finally {
+      setSkipping(false);
     }
   }
   useEffect(() => {
@@ -38,7 +54,8 @@ export function SetupGuidePanel({ port }: { port: AgentPort }) {
       </StatusBanner>
     );
   }
-  const step = nextStep(progress, skipped);
+  // O passo dispensado sai da fila pelo próprio progresso (`dismissed`), nesta tela, na Home e na Configuração.
+  const step = nextStep(progress, new Set());
   const spec = step ? stepSpec(step.step) : null;
   return (
     <div className="tn-ag-panel-body">
@@ -51,12 +68,13 @@ export function SetupGuidePanel({ port }: { port: AgentPort }) {
             <LinkButton to={spec.link}>{spec.cta}</LinkButton>
             <Button variant="secondary" loading={checking} loadingText="Conferindo…" onClick={() => void load()}>Já fiz, conferir</Button>
             {step.required ? null : (
-              <Button variant="ghost" onClick={() => setSkipped((s) => new Set(s).add(step.step))}>Pular por agora</Button>
+              <Button variant="ghost" loading={skipping} loadingText="Guardando…" onClick={() => void skip(step.step)}>Pular por agora</Button>
             )}
           </div>
+          {skipError ? <StatusBanner tone="danger">{skipError}</StatusBanner> : null}
         </div>
       ) : (
-        <StatusBanner tone="success">Tudo pronto{skipped.size ? " (os passos opcionais que você pulou continuam no menu)" : ""}. Seu negócio já pode receber agendamentos.</StatusBanner>
+        <StatusBanner tone="success">Tudo pronto{skipped.size || progress.steps.some((s) => s.dismissed) ? " (os passos opcionais que você pulou continuam em Configuração)" : ""}. Seu negócio já pode receber agendamentos.</StatusBanner>
       )}
     </div>
   );

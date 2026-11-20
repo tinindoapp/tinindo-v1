@@ -1,12 +1,14 @@
 // Importação CSV mínima: arquivo → preview com problemas e possíveis duplicados → decisão por
 // linha → relatório do servidor (criadas, puladas, rejeitadas). Nada é mesclado.
-import { type ChangeEvent, useMemo, useState } from "react";
+import { type ChangeEvent, useState } from "react";
 import type { ImportOutput, ImportPreviewOutput } from "@contracts";
 import { Button, Card, Field, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
-import { createKeyRing, errorMessage, useCrmApi } from "./api.ts";
+import { useCrmApi } from "./api.ts";
 import { CSV_MAX_BYTES, type PreviewRow, readCustomerCsv } from "./csv.ts";
 import { formatPhone, REJECT_LABEL } from "./format.ts";
 import { CrmDemoNotice } from "./shared.tsx";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { serverMessage } from "../../lib/errors.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 type Matches = ImportPreviewOutput["rows"][number]["matches"];
@@ -23,7 +25,7 @@ export function ImportPage() {
   const [error, setError] = useState<string | null>(null);
   const [textError, setTextError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"preview" | "import" | null>(null);
-  const keys = useMemo(() => createKeyRing(), []);
+  const keys = useIdempotencyKey();
 
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -58,7 +60,7 @@ export function ImportPage() {
       const out = await api.importPreview(clean.map(({ line, name, phone, email }) => ({ line, name, phone, email })));
       setMatches(new Map(out.rows.filter((r) => r.matches.length > 0).map((r) => [r.line, r.matches])));
     } catch (err) {
-      setError(`Não foi possível procurar duplicados: ${errorMessage(err)}`);
+      setError(`Não foi possível procurar duplicados: ${serverMessage(err)}`);
     } finally {
       setBusy(null);
     }
@@ -96,7 +98,7 @@ export function ImportPage() {
       setReport(await api.importCustomers(payload, keys.keyFor(payload)));
       keys.reset();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(serverMessage(err));
     } finally {
       setBusy(null);
     }
