@@ -39,7 +39,9 @@ function SalesLayout() {
   );
 }
 
-export { salesPublicRoutes } from "./public-routes.tsx";
+// Importa e reexporta (em vez de `export … from`): tests/e2e/foundation/rotas.ts segue imports para ler as rotas.
+import { salesPublicRoutes } from "./public-routes.tsx";
+export { salesPublicRoutes };
 
 export const salesModule: ModuleDefinition = {
   id: "sales",

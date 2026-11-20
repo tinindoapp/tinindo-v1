@@ -46,7 +46,9 @@ function PaymentsLayout() {
   return <PaymentsPage key={`${port.kind}:${tenantId ?? ""}`} port={port} timezone={timezone} business={{ name, slug }} />;
 }
 
-export { paymentsPublicRoutes } from "./public-routes.tsx";
+// Importa e reexporta (em vez de `export … from`): tests/e2e/foundation/rotas.ts segue imports para ler as rotas.
+import { paymentsPublicRoutes } from "./public-routes.tsx";
+export { paymentsPublicRoutes };
 
 export const paymentsModule: ModuleDefinition = {
   id: "payments",

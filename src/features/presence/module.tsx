@@ -30,7 +30,9 @@ function PresenceLayout() {
 }
 
 /** Rota pública (/s/:slug → /p/:slug), definida em public-routes.tsx para o pacote das páginas do cliente. */
-export { presencePublicRoutes } from "./public-routes.tsx";
+// Importa e reexporta (em vez de `export … from`): tests/e2e/foundation/rotas.ts segue imports para ler as rotas.
+import { presencePublicRoutes } from "./public-routes.tsx";
+export { presencePublicRoutes };
 
 export const presenceModule: ModuleDefinition = {
   id: "presence",
