@@ -58,7 +58,6 @@ const restricted = (...groups) => ["error", SECRET_KEY, ...groups.flat()];
 const LEGACY_MONEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   "src/features/growth-advice/demoPort.ts",
-  "src/features/resources/ResourcesPage.tsx",
   // Parte 2
   "src/features/identity/MyBookingsPage.tsx",
   "src/features/network/PublicProfileView.tsx",
@@ -67,11 +66,9 @@ const LEGACY_MONEY = [
 ];
 const LEGACY_KEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
-  "src/features/campaigns/port.ts",
   "src/features/field-service/port.ts",
   "src/features/fiscal/port.ts",
   "src/features/growth-advice/port.ts",
-  "src/features/resources/port.ts",
   "src/features/service-ops/port.ts",
   // Parte 2
   "src/features/agent/port.ts",

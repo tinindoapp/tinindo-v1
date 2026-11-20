@@ -18,5 +18,3 @@ export interface CampaignsPort {
   /** Só na demonstração: parte das tratadas agenda (medido) e a janela fecha pelo worker. */
   simulate?(campaignId: string): Promise<Campaign>;
 }
-
-export const newKey = () => crypto.randomUUID();
