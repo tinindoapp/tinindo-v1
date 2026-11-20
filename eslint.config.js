@@ -64,7 +64,6 @@ const LEGACY_KEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
   "src/features/agent/port.ts",
-  "src/features/discovery/port.ts",
   "src/features/scheduling/port.ts",
 ];
 const LEGACY_CLOCK = [
