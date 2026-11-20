@@ -1,7 +1,7 @@
 // Recebíveis, pagamentos manuais e pacotes de sessões (P07).
 // Agendar não significa receber; pagamento manual é identificado como manual.
 import { z } from "zod";
-import { Cents, IsoDateTime, TimeRange, TimeZone, Uuid } from "./common.ts";
+import { Cents, IsoDateTime, TimeRange, TimeZone, Uuid, truncatedFlags } from "./common.ts";
 
 export const PaymentMethod = z.enum(["pix", "cash", "card", "transfer", "other"]);
 /** Origem do registro: `manual` (dono) ou `provider` (P14: evidência do PSP pelo webhook ou consulta). */
@@ -127,6 +127,7 @@ export const FinanceLedgerOutput = z.object({
   receivables: z.array(Receivable).max(200),
   payments: z.array(PaymentRecord).max(200),
   expenses: z.array(ExpenseEntry).max(200),
+  truncated: truncatedFlags("receivables", "payments", "expenses"),
 });
 
 export const UnchargedBooking = z.object({
@@ -175,4 +176,4 @@ export const PackageDetail = PackageBalance.extend({
 });
 export type PackageDetail = z.infer<typeof PackageDetail>;
 export const PackageListInput = z.object({});
-export const PackageListOutput = z.object({ packages: z.array(PackageDetail).max(200) });
+export const PackageListOutput = z.object({ packages: z.array(PackageDetail).max(200), truncated: truncatedFlags("packages") });

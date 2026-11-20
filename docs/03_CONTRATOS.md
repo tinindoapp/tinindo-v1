@@ -10,6 +10,8 @@ Envelope de sucesso: `{data, meta:{request_id, as_of, schema_version}}`. Erro: `
 
 Datas ISO 8601 com offset; moeda ISO; preços inteiros em centavos dentro do intervalo seguro do contrato; UUIDs; paginação por cursor; limites de 50–100 itens definidos por endpoint. Proibir listagens ilimitadas. Esquema Zod ou equivalente deve validar no backend; tipagem TypeScript sozinha não valida JSON externo.
 
+Listas com teto (P56, D31 a): as 14 saídas que cortam no servidor declaram `truncated: { <lista>: boolean }` opcional (`truncatedFlags` em `common.ts`); `true` quando há mais linhas que as devolvidas. A tela mostra "Mostrando os 200 mais recentes" embaixo da lista cortada. O campo é opcional para a demonstração e respostas antigas continuarem válidas.
+
 ## Operações v1
 
 Nomes abaixo são contratos lógicos. P00 define se o transporte será uma função por módulo com rotas ou RPC invocada pelo backend. Evitar endpoints duplicados para chat e tela.

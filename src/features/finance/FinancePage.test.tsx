@@ -274,3 +274,31 @@ describe("Caixa: Hoje · Semana · Mês e Recebi (P48)", () => {
     await waitFor(() => expect(within(target!).getByRole("button", { name: /^Recebi R\$/ })).toHaveFocus());
   });
 });
+
+describe("Caixa: aviso de corte nas listas de 200 (P56, recado #117)", () => {
+  it("truncated.expenses = true: 'Mostrando os 200 mais recentes' só embaixo das despesas", async () => {
+    const port = createDemoPort();
+    const ledger = port.ledger.bind(port);
+    vi.spyOn(port, "ledger").mockImplementation(async (period) => ({
+      ...(await ledger(period)),
+      truncated: { receivables: false, payments: false, expenses: true },
+    }));
+    render(
+      <MemoryRouter initialEntries={["/app/caixa"]}>
+        <FinancePortProvider value={port}>
+          <FinancePage />
+        </FinancePortProvider>
+      </MemoryRouter>,
+    );
+    const expenses = within(await screen.findByRole("region", { name: "Despesas" }));
+    expect(expenses.getByText("Mostrando os 200 mais recentes.")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "A receber" })).queryByText(/200 mais recentes/)).toBeNull();
+    expect(within(screen.getByRole("region", { name: "Recebimentos no mês" })).queryByText(/200 mais recentes/)).toBeNull();
+  });
+
+  it("sem truncated (demonstração e respostas antigas): nenhum aviso", async () => {
+    renderPage();
+    await screen.findByRole("region", { name: "Despesas" });
+    expect(screen.queryByText(/200 mais recentes/)).toBeNull();
+  });
+});

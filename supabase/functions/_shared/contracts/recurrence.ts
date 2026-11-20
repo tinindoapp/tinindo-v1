@@ -2,7 +2,7 @@
 // Termos aceitos congelados na adesão; cada ciclo = pacote de sessões (P07) + recebível; renovação pelo worker.
 // Cancelar preserva o aceito e o saldo do ciclo corrente. Cobrança do ciclo: pelo P14 ou manual, nunca automática.
 import { z } from "zod";
-import { Cents, IsoDateTime, Uuid } from "./common.ts";
+import { Cents, IsoDateTime, Uuid, truncatedFlags } from "./common.ts";
 import { PackageBalance, Receivable } from "./finance.ts";
 
 export const CycleDays = z.union([z.literal(7), z.literal(14), z.literal(30)]);
@@ -88,6 +88,6 @@ export const RecurrenceCancelInput = z.object({
 });
 export const RecurrenceResumeInput = z.object({ subscription_id: Uuid, expected_version: z.int().min(1) });
 export const RecurrenceListInput = z.object({});
-export const RecurrenceListOutput = z.object({ subscriptions: z.array(RecurrenceSubscription).max(200) });
+export const RecurrenceListOutput = z.object({ subscriptions: z.array(RecurrenceSubscription).max(200), truncated: truncatedFlags("subscriptions") });
 export const RecurrenceCyclesInput = z.object({ subscription_id: Uuid });
 export const RecurrenceCyclesOutput = z.object({ cycles: z.array(RecurrenceCycle).max(200) });

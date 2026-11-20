@@ -2,7 +2,7 @@
 // Réguas determinísticas sobre o outbox; cada passo é um registro com estado. Enviado ao canal ≠ entregue (P12).
 // Reativação só como campanha aprovada pelo dono (público visto + teto). Consentimento por finalidade.
 import { z } from "zod";
-import { IsoDateTime, Uuid } from "./common.ts";
+import { IsoDateTime, Uuid, truncatedFlags } from "./common.ts";
 
 // `package_expiry` (P45, aditivo): aviso de pacote perto de vencer, sempre rascunho manual criado a pedido do dono.
 export const LifecycleRule = z.enum(["confirmation", "reminder", "quote_followup", "receivable_reminder", "reactivation", "package_expiry"]);
@@ -56,7 +56,11 @@ export const LifecycleStep = z.object({
 });
 export type LifecycleStep = z.infer<typeof LifecycleStep>;
 export const LifecycleStepsListInput = z.object({ status: LifecycleStepStatus.nullable().default(null) });
-export const LifecycleStepsListOutput = z.object({ steps: z.array(LifecycleStep).max(200), counts: z.record(z.string(), z.int().min(0)) });
+export const LifecycleStepsListOutput = z.object({
+  steps: z.array(LifecycleStep).max(200),
+  counts: z.record(z.string(), z.int().min(0)),
+  truncated: truncatedFlags("steps"),
+});
 export const LifecycleStepRefInput = z.object({ step_id: Uuid });
 export const LifecycleStepOutput = z.object({ step: LifecycleStep });
 

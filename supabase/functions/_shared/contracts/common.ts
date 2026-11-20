@@ -5,6 +5,13 @@ import { z } from "zod";
 
 export const SCHEMA_VERSION = 1 as const;
 
+/**
+ * P56 (D31 a): marca, por lista, se o servidor cortou no teto (true = há mais linhas que as devolvidas).
+ * Opcional para respostas antigas e a demonstração continuarem válidas.
+ */
+export const truncatedFlags = <K extends string>(...lists: K[]) =>
+  z.object(Object.fromEntries(lists.map((k) => [k, z.boolean()])) as Record<K, z.ZodBoolean>).optional();
+
 export const Uuid = z.uuid();
 export type Uuid = z.infer<typeof Uuid>;
 

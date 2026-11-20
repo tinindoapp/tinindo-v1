@@ -1,6 +1,6 @@
 // Lista de espera (P06). Abrir link não reserva; aceite é POST idempotente.
 import { z } from "zod";
-import { Cents, IsoDateTime, TimeRange, Uuid, Version, WeeklyWindow } from "./common.ts";
+import { Cents, IsoDateTime, TimeRange, Uuid, Version, WeeklyWindow, truncatedFlags } from "./common.ts";
 import { DeliveryState } from "./events.ts";
 
 export const WaitlistEntryStatus = z.enum(["active", "offered", "fulfilled", "withdrawn", "expired"]);
@@ -96,6 +96,7 @@ export const WaitlistListOutput = z.object({
   /** Vagas liberadas que servem a uma entrada, na ordem da fila (uma pessoa de cada vez). */
   candidates: z.array(WaitlistCandidate),
   offers: z.array(WaitlistOffer).max(50),
+  truncated: truncatedFlags("entries", "offers"),
 });
 
 /** O que o link mostra a quem recebeu: sem tenant, sem outros clientes. */

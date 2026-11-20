@@ -233,6 +233,7 @@ export function PaymentsPage({ port, timezone, business }: {
             );
           })}
         </ul>
+        {list?.truncated?.charges ? <p className="tn-muted">Mostrando as 200 cobranças mais recentes.</p> : null}
       </Card>
 
       <Card aria-labelledby="pay-rec-title">

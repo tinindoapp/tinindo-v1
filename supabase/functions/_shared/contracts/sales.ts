@@ -2,7 +2,7 @@
 // Cada versão é um snapshot imutável com hash; o aceite cita versão + hash e vale dentro da validade.
 // Aceito ≠ pago: a cobrança segue pelo caixa (P07). Propor horário não reserva; o aceite revalida pela agenda.
 import { z } from "zod";
-import { Cents, IsoDateTime, Uuid, Version } from "./common.ts";
+import { Cents, IsoDateTime, Uuid, Version, truncatedFlags } from "./common.ts";
 import { Booking } from "./scheduling.ts";
 
 export const SalesQuoteStatus = z.enum(["draft", "sent", "accepted", "declined", "expired", "cancelled"]);
@@ -83,7 +83,7 @@ export const SalesQuoteSendOutput = z.object({
   /** Token do link: só na resposta que o gera; repetição devolve null. Gerar de novo invalida o anterior. */
   token: z.string().regex(/^[A-Za-z0-9_-]{43}$/).nullable(),
 });
-export const SalesQuoteListOutput = z.object({ quotes: z.array(SalesQuote).max(200) });
+export const SalesQuoteListOutput = z.object({ quotes: z.array(SalesQuote).max(200), truncated: truncatedFlags("quotes") });
 export const SalesQuoteDecision = z.object({
   decision: z.enum(["accepted", "declined"]),
   version_no: z.int().min(1),

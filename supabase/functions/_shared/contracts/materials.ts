@@ -3,7 +3,7 @@
 // consumo por atendimento concluído, um ativo por atendimento, tudo ou nada; estorno uma vez; margem real com cobertura;
 // custo estimado do orçamento (P11). Quantidades com até 3 casas; dinheiro em centavos inteiros.
 import { z } from "zod";
-import { Cents, IsoDateTime, SignedCents, TimeRange, TimeZone, Uuid } from "./common.ts";
+import { Cents, IsoDateTime, SignedCents, TimeRange, TimeZone, Uuid, truncatedFlags } from "./common.ts";
 
 /** Quantidade positiva com até 3 casas decimais. */
 export const MaterialQty = z.number().positive().max(999_999).refine((n) => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-6, {
@@ -118,7 +118,11 @@ export const MaterialMovement = z.object({
 });
 export type MaterialMovement = z.infer<typeof MaterialMovement>;
 export const MaterialMovementsInput = z.object({ item_id: Uuid.nullable().default(null), period: TimeRange });
-export const MaterialMovementsOutput = z.object({ movements: z.array(MaterialMovement).max(200), purchases: z.array(MaterialPurchase).max(100) });
+export const MaterialMovementsOutput = z.object({
+  movements: z.array(MaterialMovement).max(200),
+  purchases: z.array(MaterialPurchase).max(100),
+  truncated: truncatedFlags("movements", "purchases"),
+});
 
 export const MaterialBooking = z.object({
   booking_id: Uuid,
@@ -132,7 +136,7 @@ export const MaterialBooking = z.object({
 });
 export type MaterialBooking = z.infer<typeof MaterialBooking>;
 export const MaterialBookingsInput = z.object({ period: TimeRange });
-export const MaterialBookingsOutput = z.object({ bookings: z.array(MaterialBooking).max(200) });
+export const MaterialBookingsOutput = z.object({ bookings: z.array(MaterialBooking).max(200), truncated: truncatedFlags("bookings") });
 
 const MarginFigures = {
   completed: z.int().min(0),
