@@ -59,7 +59,6 @@ const LEGACY_MONEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
   // Parte 2
   "src/features/identity/MyBookingsPage.tsx",
-  "src/features/network/PublicProfileView.tsx",
   "src/features/scheduling/agenda.ts",
   "src/features/setup/labels.ts",
 ];
@@ -68,8 +67,6 @@ const LEGACY_KEY = [
   // Parte 2
   "src/features/agent/port.ts",
   "src/features/discovery/port.ts",
-  "src/features/network/api.ts",
-  "src/features/network/useNetworkApi.ts",
   "src/features/payments/port.ts",
   "src/features/presence/port.ts",
   "src/features/reputation/port.ts",
@@ -81,7 +78,6 @@ const LEGACY_CLOCK = [
   // Parte 2
   "src/features/analytics/module.tsx",
   "src/features/identity/services.tsx",
-  "src/features/network/PublicProfileView.tsx",
   "src/features/scheduling/attendance.tsx",
 ];
 

@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Button, Card, ChoiceCard, Field, StatusBanner, toast, useFormErrors, whatsappHref } from "../../components/ui/index.tsx";
 import { ApiError } from "../../lib/api/client.ts";
+import { newIdempotencyKey, useCommand } from "../../lib/idempotency.ts";
+import { formatCents } from "../../lib/money.ts";
 import { phoneToE164 } from "../../lib/phone.ts";
-import { addDays, dayWindow, formatTime, localParts } from "../../lib/time.ts";
+import { addDays, dayWindow, formatTime, formatWeekdayDayMonth, formatWeekdayLongDate, localParts, now, today } from "../../lib/time.ts";
 import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, RequestState, SlotsData } from "./api.ts";
 import { buildIcs } from "./ics.ts";
 import { BusinessHeader, businessOf } from "../../components/public/public-kit.tsx";
-import { errorMessage, formatPhoneBr, newIdempotencyKey } from "./public/labels.ts";
+import { errorMessage, formatPhoneBr } from "./public/labels.ts";
 
 /** Dia da demonstração (fixtures do piloto). Com servidor, o visitante escolhe a partir de hoje. */
 const DEMO_DAY = "2026-10-20";
@@ -27,10 +29,6 @@ const isTimeZone = (tz: string) => {
     return false;
   }
 };
-const todayIn = (timeZone: string) => localParts(new Date(), timeZone).date;
-/** "terça-feira, 20/10" no fuso do negócio. */
-const formatDay = (iso: string, timeZone: string) =>
-  new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", timeZone }).format(new Date(iso));
 
 /** Pedido que aguarda código (error.details de PENDING_REQUEST_EXISTS). Só id e prazo: o servidor não diz qual é. */
 interface PendingSummary {
@@ -44,29 +42,12 @@ function pendingSummary(e: unknown): PendingSummary | null {
     ? { request_id: d.request_id, expires_at: d.expires_at }
     : null;
 }
-/** "R$ 60,00": preço "a partir de" dos serviços, quando o dono liga "Mostrar preços". */
-export const formatPrice = (cents: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 /** Botão do WhatsApp do perfil: abre a conversa com o número do negócio e uma mensagem pronta (a pessoa envia). */
 export const WHATSAPP_GREETING = "Olá! Vi seu perfil na Tinindo.";
 export const whatsappLink = (e164: string) => `https://wa.me/${e164.replace(/\D/g, "")}?text=${encodeURIComponent(WHATSAPP_GREETING)}`;
 
 /** Quantos dias a fileira de chips mostra a partir de hoje. */
 export const DAYS_AHEAD = 14;
-/** "ter 20/10": rótulo curto de um dia de calendário. */
-export function shortDay(day: string): string {
-  const date = new Date(`${day}T12:00:00Z`);
-  const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" }).format(date).replace(".", "");
-  return `${weekday} ${day.slice(8, 10)}/${day.slice(5, 7)}`;
-}
-
-/**
- * Aceita "(11) 97777-4343", "011 97777-4343", "11977774343" ou "+55 11 97777-4343"; devolve E.164 ou null.
- * Mesmo analisador de Clientes e da Agenda (src/lib/phone.ts).
- */
-export function toE164(raw: string): string | null {
-  return phoneToE164(raw) ?? null;
-}
 
 /** Mensagens do pedido e da confirmação, sem detalhes técnicos. */
 function bookingError(e: unknown): string {
@@ -104,9 +85,8 @@ export interface ProfileSiteExtras {
 
 const WEEKDAY = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 /** "Hoje: 09:00–18:00" ou "Hoje: fechado", no fuso do negócio. */
-export function todayHours(hours: ProfileSiteExtras["hours"], timeZone: string, now = new Date()): string {
-  const name = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone }).format(now);
-  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(name);
+export function todayHours(hours: ProfileSiteExtras["hours"], timeZone: string, at: Date = now()): string {
+  const weekday = localParts(at, timeZone).weekday;
   const today = hours.filter((h) => h.weekday === weekday);
   return today.length ? `Hoje: ${today.map((h) => `${h.start}–${h.end}`).join(" e ")}` : "Hoje: fechado";
 }
@@ -201,7 +181,7 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
                       <span>
                         {s.name} <small className="tn-muted">{s.duration_min} min</small>
                       </span>
-                      {s.price_cents != null ? <strong className="tn-num">{formatPrice(s.price_cents)}</strong> : null}
+                      {s.price_cents != null ? <strong className="tn-num">{formatCents(s.price_cents)}</strong> : null}
                     </li>
                   ))}
                 </ul>
@@ -235,7 +215,7 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
 
 /** Mensagem pronta para falar com o profissional depois de reservar. Só o que a própria pessoa marcou. */
 export function bookedMessage(service: string, startsAt: string, timeZone: string): string {
-  return `Olá! Marquei ${service} para ${formatDay(startsAt, timeZone)} às ${formatTime(startsAt, timeZone)} pelo seu perfil na Tinindo.`;
+  return `Olá! Marquei ${service} para ${formatWeekdayLongDate(startsAt, timeZone)} às ${formatTime(startsAt, timeZone)} pelo seu perfil na Tinindo.`;
 }
 
 const placeOf = (d: PublicProfileData["details"] | null | undefined): PlaceData =>
@@ -257,7 +237,7 @@ export function BookingFacts({ price, priceFrom = false, place, policy, duration
         <div><dt>Duração</dt><dd className="tn-num">{duration} min</dd></div>
       ) : null}
       {price != null ? (
-        <div><dt>Preço</dt><dd className="tn-num">{priceFrom ? "a partir de " : ""}{formatPrice(price)} · pago direto ao profissional</dd></div>
+        <div><dt>Preço</dt><dd className="tn-num">{priceFrom ? "a partir de " : ""}{formatCents(price)} · pago direto ao profissional</dd></div>
       ) : null}
       {place ? (
         <div><dt>Onde</dt><dd>{place.kind === "address" ? place.text : "Em domicílio (o profissional vai até você)"}</dd></div>
@@ -348,7 +328,7 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
   const [serviceId, setServiceId] = useState<string>("");
   // Fuso do negócio, informado pelo servidor em cada resposta de horários.
   const [zone, setZone] = useState<string>(FIRST_GUESS_TZ);
-  const [firstDay, setFirstDay] = useState<string>(() => (api.demo ? DEMO_DAY : todayIn(FIRST_GUESS_TZ)));
+  const [firstDay, setFirstDay] = useState<string>(() => (api.demo ? DEMO_DAY : today(FIRST_GUESS_TZ)));
   const [day, setDay] = useState<string>(firstDay);
   const [result, setResult] = useState<SlotsState | null>(null);
   const [reload, setReload] = useState(0);
@@ -370,7 +350,9 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
   const [sendState, setSendState] = useState<RequestState | null>(null);
   const [resending, setResending] = useState(false);
   // Relógio da tela (para o "Reenviar código em N s"): atualizado por timer, não lido durante a renderização.
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => now().getTime());
+  // Confirmar o código e reenviar: falhou, tocar de novo manda a mesma chave; deu certo, a próxima é outra.
+  const command = useCommand();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const { formRef: requestRef, errors: requestErrors, show: showRequest, clear: clearRequest } = useFormErrors<"name" | "phone" | "hood">();
@@ -432,9 +414,9 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
         if (data.timezone !== zone && isTimeZone(data.timezone)) {
           // O negócio está em outro fuso: pede de novo a janela do dia local dele (e "hoje" passa a ser o dia de lá).
           if (!api.demo) {
-            const today = todayIn(data.timezone);
-            setFirstDay(today);
-            setDay((d) => (d === firstDay ? today : d));
+            const there = today(data.timezone);
+            setFirstDay(there);
+            setDay((d) => (d === firstDay ? there : d));
           }
           setZone(data.timezone);
           return;
@@ -449,7 +431,8 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
 
   // Resultado de outra escolha ainda na tela = carregando a atual.
   const slots = result && result.key === slotsKey ? result : { kind: "loading" as const };
-  const e164 = toE164(phone);
+  // Analisador comum (src/lib/phone.ts): aceita "(11) 97777-4343", "011 97777-4343" ou "+55 11 97777-4343".
+  const e164 = phoneToE164(phone) ?? null;
   const service = services?.find((s) => s.id === serviceId);
   const resetRequest = () => {
     setBookKey(null);
@@ -482,6 +465,8 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
     // "Corrigir o número" (05 #2): o pedido anterior desta tela é liberado no mesmo pedido, sem concorrer consigo mesmo.
     // Só quando o número mudou: com o mesmo número, o aviso "Já existe um pedido…" pergunta se troca (decisão do P43).
     const supersedes = !bookKey && request && !kept && request.phone !== e164 ? request.data.request_id : undefined;
+    // Chave do pedido mantida enquanto a escolha é a mesma (inclusive depois de falhar); `resetRequest` e `backToSlots`
+    // a descartam quando a pessoa muda algo.
     const key = bookKey ?? newIdempotencyKey();
     setBookKey(key);
     setBusy(true);
@@ -496,7 +481,7 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
         key,
       );
       setRequest({ data, phone: e164 });
-      setNowMs(Date.now());
+      setNowMs(now().getTime());
       setSendState(data.attempts_left != null && data.resend_available_at ? {
         request_id: data.request_id, status: "pending", delivery: data.delivery, expires_at: data.expires_at,
         attempts_left: data.attempts_left, resends_left: data.resends_left ?? 0, resend_available_at: data.resend_available_at,
@@ -540,7 +525,8 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
     setBusy(true);
     setProblem(null);
     try {
-      setBooking(await api.confirmBooking({ request_id: request.data.request_id, code }, newIdempotencyKey()));
+      const input = { request_id: request.data.request_id, code };
+      setBooking(await command({ confirm: input }, (key) => api.confirmBooking(input, key)));
       setPhase("done");
     } catch (e) {
       if (e instanceof ApiError && e.code === "POLICY_REJECTED" && (e.field === "expires_at" || e.field === "attempts")) {
@@ -565,7 +551,7 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
   const waitMs = sendState ? Date.parse(sendState.resend_available_at) - nowMs : 0;
   useEffect(() => {
     if (phase !== "code" || waitMs <= 0) return;
-    const t = setTimeout(() => setNowMs(Date.now()), Math.min(waitMs, 1000));
+    const t = setTimeout(() => setNowMs(now().getTime()), Math.min(waitMs, 1000));
     return () => clearTimeout(t);
   }, [phase, waitMs]);
 
@@ -574,8 +560,9 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
     setResending(true);
     setProblem(null);
     try {
-      setSendState(await api.resendCode(request.data.request_id, newIdempotencyKey()));
-      setNowMs(Date.now());
+      const requestId = request.data.request_id;
+      setSendState(await command({ resend: requestId }, (key) => api.resendCode(requestId, key)));
+      setNowMs(now().getTime());
       toast("Pedimos um novo envio do mesmo código.");
     } catch (e) {
       setProblem(bookingError(e));
@@ -591,7 +578,7 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
           Horário confirmado
         </h2>
         <StatusBanner tone="success">
-          {booking.service_name} · {formatDay(booking.slot.starts_at, booking.timezone)} às <span className="tn-num">{formatTime(booking.slot.starts_at, booking.timezone)}</span>.
+          {booking.service_name} · {formatWeekdayLongDate(booking.slot.starts_at, booking.timezone)} às <span className="tn-num">{formatTime(booking.slot.starts_at, booking.timezone)}</span>.
           {api.demo ? " Demonstração: a reserva entrou só na Agenda desta aba." : null}
         </StatusBanner>
         <BookingFacts price={booking.price_cents ?? null} place={booking.place ?? null} policy={booking.policy ?? null} duration={booking.duration_min ?? null} />
@@ -662,7 +649,7 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
   // Resumo da escolha, à vista do passo 2 em diante: "Corte · ter 20/10 · 10:00".
   const summary = kept && step === "code"
     ? "Seu pedido anterior: o serviço e o horário estão na mensagem com o código"
-    : [service?.name, shortDay(day), chosen ? formatTime(chosen, zone) : null].filter(Boolean).join(" · ");
+    : [service?.name, formatWeekdayDayMonth(day), chosen ? formatTime(chosen, zone) : null].filter(Boolean).join(" · ");
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(firstDay, i));
 
   return (
@@ -703,7 +690,7 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
                 }}
                 title={s.name}
                 description={
-                  s.price_from_cents != null ? `${s.duration_min} min · a partir de ${formatPrice(s.price_from_cents)}` : `${s.duration_min} min`
+                  s.price_from_cents != null ? `${s.duration_min} min · a partir de ${formatCents(s.price_from_cents)}` : `${s.duration_min} min`
                 }
               />
             ))}
@@ -720,7 +707,7 @@ function BookingSlots({ slug, api, professional, whatsapp, details, onReserving 
             <legend>Dia</legend>
             <div className="tn-net-days" ref={daysRef}>
               {days.map((d) => {
-                const [weekday, date] = shortDay(d).split(" ");
+                const [weekday, date] = formatWeekdayDayMonth(d).split(" ");
                 return (
                   <label key={d} className="tn-net-day" data-selected={d === day || undefined}>
                     <input
