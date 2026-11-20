@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMonthName } from "./labels.ts";
+import { formatMonth as formatMonthName } from "../../lib/time.ts";
 
 describe("notas · datas no padrão pt-BR (item 58)", () => {
   it("mês por extenso, sem data crua nem maiúscula no meio", () => {

@@ -1,10 +1,9 @@
 // Textos e regras de apresentação do módulo Plano e serviços. Dinheiro em centavos; datas no fuso do negócio.
 import type { AccessScope, ServiceOrderStatus } from "@contracts";
 
+import { errorExplainer } from "../../lib/errors.ts";
 import { formatCents } from "../../lib/money.ts";
 export { formatCents };
-export const formatDateTime = (v: string, timeZone: string) =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(v));
 export const priceLabel = (cents: number, billing: "monthly" | "one_time") =>
   cents === 0 ? "Grátis" : `${formatCents(cents)}${billing === "monthly" ? "/mês" : " (uma vez)"}`;
 
@@ -35,23 +34,13 @@ export const ACTION_LABEL: Record<string, string> = {
 /** Minutos usados em relação à franquia, em texto (nunca só barra/cor). */
 export const minutesText = (used: number, quota: number) => `${used} de ${quota} min medidos`;
 
-export function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  switch (e?.code) {
-    case "STALE_VERSION":
-      return "O catálogo ou o pedido mudou. Atualizamos a tela: confira a versão atual antes de confirmar.";
-    case "QUOTA_EXCEEDED":
-      return "Isso passa da franquia de minutos do pedido. Nada foi registrado.";
-    case "POLICY_REJECTED":
-      if (e.field === "access") return "Sem acesso concedido pelo cliente: não dá para começar.";
-      if (e.field === "offering_version_id") return "Você já está neste plano.";
-      return "As regras não permitem esta ação agora. Nada foi alterado.";
-    case "VALIDATION_ERROR":
-      if (e.field === "expires_at") return "O acesso precisa vencer em até 30 dias.";
-      return "Confira os campos. Nada foi gravado.";
-    case "FORBIDDEN":
-      return "Você não tem permissão para isso.";
-    default:
-      return "Não foi possível concluir agora. Tentar de novo é seguro.";
-  }
-}
+export const explain = errorExplainer({
+  STALE_VERSION: "O catálogo ou o pedido mudou. Atualizamos a tela: confira a versão atual antes de confirmar.",
+  QUOTA_EXCEEDED: "Isso passa da franquia de minutos do pedido. Nada foi registrado.",
+  "POLICY_REJECTED.access": "Sem acesso concedido pelo cliente: não dá para começar.",
+  "POLICY_REJECTED.offering_version_id": "Você já está neste plano.",
+  POLICY_REJECTED: "As regras não permitem esta ação agora. Nada foi alterado.",
+  "VALIDATION_ERROR.expires_at": "O acesso precisa vencer em até 30 dias.",
+  VALIDATION_ERROR: "Confira os campos. Nada foi gravado.",
+  FORBIDDEN: "Você não tem permissão para isso.",
+});

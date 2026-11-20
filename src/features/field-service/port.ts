@@ -21,5 +21,3 @@ export interface FieldPort {
   detach(bookingId: string, key: string): Promise<void>;
   rebuild(day: string, key: string): Promise<number>;
 }
-
-export const newKey = () => crypto.randomUUID();

@@ -8,8 +8,10 @@ import { Link, useSearchParams } from "react-router";
 import { InsightsSection, WeeklyDigestCard } from "./Insights.tsx";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { actionLabel, DECISION, DIRECTION, explain, formatDate, formatEvidence, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS, RULE_LABEL } from "./labels.ts";
-import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort, newKey } from "./port.ts";
+import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { parseBRL } from "../../lib/money.ts";
+import { formatMonth } from "../../lib/time.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 /** Retorno de uma ação: aviso curto (Toast), sempre à vista; `null` só atualiza a tela. */
@@ -24,15 +26,11 @@ const isCents = (k: GoalMetricKey) => k === "received" || k === "expenses";
 const monthSoFar = (iso: string) =>
   `Em ${new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" }).format(new Date(Date.parse(iso) + 12 * 3_600_000))} até agora`;
 
-/** "2026-10-01" → "outubro de 2026" (Intl pt-BR, sem data crua). */
-const monthName = (iso: string) =>
-  new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.parse(iso.slice(0, 10)) + 12 * 3_600_000));
-
 function GoalForm({ port, metrics, monthStart, onDone }: { port: GrowthAdvicePort; metrics: GoalList["metrics"]; monthStart: string; onDone: (n: Notice) => void }) {
   const [key, setKey] = useState<GoalMetricKey>("no_show");
   const [target, setTarget] = useState("10");
   const [note, setNote] = useState("");
-  const [idem, setIdem] = useState(newKey);
+  const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { formRef, errors, show } = useFormErrors<"target">();
@@ -49,12 +47,14 @@ function GoalForm({ port, metrics, monthStart, onDone }: { port: GrowthAdvicePor
     setBusy(true);
     setError(null);
     try {
-      const g = await port.saveGoal({ metric_key: key, target: value, note: note.trim() || null }, idem);
-      setIdem(newKey());
+      const input = { metric_key: key, target: value, note: note.trim() || null };
+      const g = await port.saveGoal(input, idem.keyFor(input));
+      idem.reset();
       setNote("");
       onDone(`Meta de ${g.label ?? METRIC_LABEL[g.metric_key]} criada: ${formatTarget(g.unit, g.target)} (${DIRECTION[g.direction]}). O progresso é o número do mês, com a conta (quantos de quantos).`);
     } catch (err) {
-      setIdem(newKey());
+      // Aqui a chave já era trocada também no erro: mantido como estava.
+      idem.reset();
       setError(explain(err));
     } finally {
       setBusy(false);
@@ -77,12 +77,13 @@ function GoalForm({ port, metrics, monthStart, onDone }: { port: GrowthAdvicePor
 }
 
 function GoalItem({ g, port, onDone }: { g: Goal; port: GrowthAdvicePort; onDone: (n: Notice) => void }) {
+  const command = useCommand();
   const p = g.progress;
   const current = p.status === "ok" ? (g.unit === "cents" ? formatTarget("cents", p.value ?? 0) : pct(p.value)) : PROGRESS_STATUS[p.status];
   return (
     <li className="tn-ga-item">
       <h3>{g.label ?? METRIC_LABEL[g.metric_key]} · meta {formatTarget(g.unit, g.target)}</h3>
-      <p><strong>{g.status === "active" ? (p.achieved ? "Atingida" : "Em andamento") : "Arquivada"}</strong> · {DIRECTION[g.direction]} · {monthName(g.period_start)}{g.note ? ` · ${g.note}` : ""}</p>
+      <p><strong>{g.status === "active" ? (p.achieved ? "Atingida" : "Em andamento") : "Arquivada"}</strong> · {DIRECTION[g.direction]} · {formatMonth(g.period_start)}{g.note ? ` · ${g.note}` : ""}</p>
       <p className="tn-muted">{monthSoFar(g.period_start)}: {current}{p.denominator !== null && p.status === "ok" ? ` (${p.numerator} de ${p.denominator})` : ""}{p.attainment !== null ? ` · ${Math.round(p.attainment * 100)}% do caminho` : ""}</p>
       {p.attainment !== null ? <progress className="tn-ga-progress" max={1} value={p.attainment} aria-label={`Progresso de ${g.label ?? g.metric_key}`} /> : null}
       {g.status === "active" ? (
@@ -94,7 +95,7 @@ function GoalItem({ g, port, onDone }: { g: Goal; port: GrowthAdvicePort; onDone
             title={`Arquivar a meta de ${g.label ?? METRIC_LABEL[g.metric_key]}?`}
             consequence="Ela sai do acompanhamento do mês e não volta. Para acompanhar de novo, crie outra meta."
             confirmLabel="Sim, arquivar"
-            onConfirm={() => port.archiveGoal(g, newKey()).then(() => onDone("Meta arquivada."), (e: unknown) => onDone(failed(e)))}
+            onConfirm={() => command({ archive: g.id, version: g.version }, (key) => port.archiveGoal(g, key)).then(() => onDone("Meta arquivada."), (e: unknown) => onDone(failed(e)))}
           />
         </div>
       ) : null}
@@ -103,8 +104,9 @@ function GoalItem({ g, port, onDone }: { g: Goal; port: GrowthAdvicePort; onDone
 }
 
 function Suggestions({ advice, port, onDone }: { advice: Advice; port: GrowthAdvicePort; onDone: (n: Notice) => void }) {
+  const command = useCommand();
   const act = (rule: string, decision: "accepted" | "dismissed") =>
-    port.decide(rule, decision, newKey()).then(() => onDone(decision === "accepted" ? "Sugestão aceita. Em 30 dias medimos o indicador de novo e mostramos a variação observada (não é prova de efeito)." : "Sugestão dispensada neste mês."), (e: unknown) => onDone(failed(e)));
+    command({ decide: rule, decision }, (key) => port.decide(rule, decision, key)).then(() => onDone(decision === "accepted" ? "Sugestão aceita. Em 30 dias medimos o indicador de novo e mostramos a variação observada (não é prova de efeito)." : "Sugestão dispensada neste mês."), (e: unknown) => onDone(failed(e)));
   // P51: sugestão cuja ação fica numa tela que o negócio não vê (ex.: Campanhas, guardado) não aparece.
   const scope = useScope();
   const suggestions = advice.suggestions.filter((s) => scope.canOpen(s.route));
@@ -141,12 +143,13 @@ function Suggestions({ advice, port, onDone }: { advice: Advice; port: GrowthAdv
 
 function ContentSection({ content, port, onDone }: { content: Content; port: GrowthAdvicePort; onDone: (n: Notice) => void }) {
   const canPublish = content.scope.profile_published && content.scope.bio_field;
+  const command = useCommand();
   const publish = (code: string, title: string) =>
-    port.publish(code, newKey()).then(() => onDone(`“${title}” publicada como apresentação do perfil.`), (e: unknown) => onDone(failed(e)));
+    command({ publish: code }, (key) => port.publish(code, key)).then(() => onDone(`“${title}” publicada como apresentação do perfil.`), (e: unknown) => onDone(failed(e)));
   // Remover volta atrás publicando o mesmo texto de novo: executa na hora e oferece Desfazer.
   const unpublish = (p: NonNullable<Content["published"]>) => {
     const title = content.templates.find((t) => t.code === p.template_code)?.title ?? "Apresentação";
-    return port.unpublish(p.version, newKey()).then(
+    return command({ unpublish: p.version }, (key) => port.unpublish(p.version, key)).then(
       () => onDone({ message: "Apresentação removida do perfil.", action: { label: "Desfazer", onAction: () => publish(p.template_code, title) } }),
       (e: unknown) => onDone(failed(e)),
     );

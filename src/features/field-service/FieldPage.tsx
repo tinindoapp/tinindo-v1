@@ -5,8 +5,10 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, Segmented, ShareActions, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { plural } from "../../lib/text/plural.ts";
-import { addDays, arrivalMessage, cep5Of, dayLabel, explain, hhmm, minutes, parseNumber, parsePrefixes } from "./labels.ts";
-import { type FieldConfig, type FieldPort, type FieldRoute, type FieldStop, type FieldZone, newKey } from "./port.ts";
+import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatTime } from "../../lib/time.ts";
+import { addDays, arrivalMessage, cep5Of, dayLabel, explain, minutes, parseNumber, parsePrefixes } from "./labels.ts";
+import { type FieldConfig, type FieldPort, type FieldRoute, type FieldStop, type FieldZone } from "./port.ts";
 
 type Tab = "route" | "zones" | "rules";
 const fail = (err: unknown) => toast({ tone: "danger", message: explain(err) });
@@ -14,13 +16,14 @@ const fail = (err: unknown) => toast({ tone: "danger", message: explain(err) });
 function StopItem({ stop, route, port, onChange }: { stop: FieldStop; route: FieldRoute; port: FieldPort; onChange: () => void }) {
   const tz = route.timezone;
   const [share, setShare] = useState(false);
+  const command = useCommand();
   async function detach() {
     try {
-      await port.detach(stop.booking_id, newKey());
+      await command({ detach: stop.booking_id }, (key) => port.detach(stop.booking_id, key));
       onChange();
       toast({ message: `${stop.customer_name ?? "Atendimento"} saiu do roteiro; o deslocamento foi solto na agenda.`, action: { label: "Desfazer", onAction: async () => {
         try {
-          await port.attach(stop.booking_id, stop.zone_id, stop.cep5, newKey());
+          await command({ attach: stop.booking_id, zone: stop.zone_id, cep5: stop.cep5 }, (key) => port.attach(stop.booking_id, stop.zone_id, stop.cep5, key));
           toast("Visita de volta ao roteiro.");
         } catch (err) {
           fail(err);
@@ -33,13 +36,13 @@ function StopItem({ stop, route, port, onChange }: { stop: FieldStop; route: Fie
   }
   return (
     <li className="tn-fs-stop">
-      <h3>{hhmm(stop.starts_at, tz)} · {stop.customer_name ?? "Cliente"} · {stop.zone_name}</h3>
+      <h3>{formatTime(stop.starts_at, tz)} · {stop.customer_name ?? "Cliente"} · {stop.zone_name}</h3>
       <p className="tn-fs-travel">
-        {stop.travel_min === null ? "Deslocamento: recalcular" : stop.travel_min === 0 ? "Sem deslocamento" : `Sair ${stop.depart_at ? `às ${hhmm(stop.depart_at, tz)}` : ""} · ${minutes(stop.travel_min)} de deslocamento`}
+        {stop.travel_min === null ? "Deslocamento: recalcular" : stop.travel_min === 0 ? "Sem deslocamento" : `Sair ${stop.depart_at ? `às ${formatTime(stop.depart_at, tz)}` : ""} · ${minutes(stop.travel_min)} de deslocamento`}
         {stop.cep5 ? ` · CEP ${stop.cep5}-…` : ""}
       </p>
-      <p className="tn-fs-window">Chegada entre {hhmm(stop.arrival_from, tz)} e {hhmm(stop.arrival_to, tz)}</p>
-      <p className="tn-muted">{stop.service_name ?? "Serviço"} das {hhmm(stop.starts_at, tz)} às {hhmm(stop.ends_at, tz)}{stop.status === "completed" ? " · concluído" : ""}</p>
+      <p className="tn-fs-window">Chegada entre {formatTime(stop.arrival_from, tz)} e {formatTime(stop.arrival_to, tz)}</p>
+      <p className="tn-muted">{stop.service_name ?? "Serviço"} das {formatTime(stop.starts_at, tz)} às {formatTime(stop.ends_at, tz)}{stop.status === "completed" ? " · concluído" : ""}</p>
       <div className="tn-actions">
         <Button variant="secondary" onClick={() => setShare((v) => !v)} aria-expanded={share}>Avisar a janela</Button>
         <ConfirmAction trigger="Tirar do domicílio" triggerLabel={`Tirar ${stop.customer_name ?? "atendimento"} do domicílio`} title="Tirar do domicílio?"
@@ -56,6 +59,7 @@ function AttachForm({ port, config, booking, onDone }: { port: FieldPort; config
   const [zone, setZone] = useState(zones[0]?.id ?? "");
   const [hint, setHint] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"cep" | "zone">();
   async function lookup(v: string) {
     setCep(v);
@@ -77,8 +81,10 @@ function AttachForm({ port, config, booking, onDone }: { port: FieldPort; config
     if (!ok) return;
     setBusy(true);
     try {
-      const s = await port.attach(booking.booking_id, zone, cep5Of(cep), newKey());
-      toast(`${booking.customer_name ?? "Atendimento"} a domicílio: chegada entre ${hhmm(s.arrival_from, config.timezone)} e ${hhmm(s.arrival_to, config.timezone)}.`);
+      const cep5 = cep5Of(cep);
+      const s = await port.attach(booking.booking_id, zone, cep5, idem.keyFor({ attach: booking.booking_id, zone, cep5 }));
+      idem.reset();
+      toast(`${booking.customer_name ?? "Atendimento"} a domicílio: chegada entre ${formatTime(s.arrival_from, config.timezone)} e ${formatTime(s.arrival_to, config.timezone)}.`);
       onDone();
     } catch (err) {
       fail(err);
@@ -103,13 +109,14 @@ function RouteTab({ port, config }: { port: FieldPort; config: FieldConfig }) {
   const [day, setDay] = useState(port.today());
   const [route, setRoute] = useState<FieldRoute | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const command = useCommand();
   const load = useCallback(() => {
     port.route(day).then((r) => { setRoute(r); setError(null); }, (err) => setError(explain(err)));
   }, [port, day]);
   useEffect(load, [load]);
   async function rebuild() {
     try {
-      const n = await port.rebuild(day, newKey());
+      const n = await command({ rebuild: day }, (key) => port.rebuild(day, key));
       toast(`Deslocamentos recalculados: ${plural(n, "visita", "visitas")}.`);
     } catch (err) {
       fail(err);
@@ -145,7 +152,7 @@ function RouteTab({ port, config }: { port: FieldPort; config: FieldConfig }) {
           <ul className="tn-fs-list">
             {others.map((b) => (
               <li key={b.booking_id} className="tn-fs-item">
-                <h3>{hhmm(b.starts_at, config.timezone)} · {b.customer_name ?? "Cliente"} · {b.service_name ?? "Serviço"}</h3>
+                <h3>{formatTime(b.starts_at, config.timezone)} · {b.customer_name ?? "Cliente"} · {b.service_name ?? "Serviço"}</h3>
                 <AttachForm port={port} config={config} booking={b} onDone={load} />
               </li>
             ))}
@@ -163,6 +170,7 @@ function ZoneForm({ port, zone, onDone }: { port: FieldPort; zone: FieldZone | n
   const [base, setBase] = useState(zone ? String(zone.travel_from_base_min) : "");
   const [active, setActive] = useState(zone?.active ?? true);
   const [busy, setBusy] = useState(false);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"name" | "ceps" | "km" | "base">();
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -178,8 +186,10 @@ function ZoneForm({ port, zone, onDone }: { port: FieldPort; zone: FieldZone | n
     if (!ok) return;
     setBusy(true);
     try {
-      const z = await port.saveZone({ zone_id: zone?.id ?? null, expected_version: zone?.version ?? null, name: name.trim(), cep_prefixes: prefixes!, distance_km: distance,
-        travel_from_base_min: minutesFromBase, active }, newKey());
+      const input = { zone_id: zone?.id ?? null, expected_version: zone?.version ?? null, name: name.trim(), cep_prefixes: prefixes!, distance_km: distance,
+        travel_from_base_min: minutesFromBase, active };
+      const z = await port.saveZone(input, idem.keyFor(input));
+      idem.reset();
       toast(z.in_area ? `Zona “${z.name}” salva, dentro da área.` : `Zona “${z.name}” salva, fora da área: visitas nela são recusadas.`);
       onDone();
     } catch (err) {
@@ -204,13 +214,15 @@ function TravelForm({ port, config, onDone }: { port: FieldPort; config: FieldCo
   const [a, setA] = useState(config.zones[0]?.id ?? "");
   const [b, setB] = useState(config.zones[1]?.id ?? "");
   const [min, setMin] = useState("");
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"b" | "min">();
   async function submit(e: FormEvent) {
     e.preventDefault();
     const m = min.trim() === "" ? null : parseNumber(min);
     if (!show({ b: a === b && "Escolha duas zonas diferentes.", min: m !== null && !(Number.isInteger(m) && m >= 0 && m <= 240) && "Minutos de 0 a 240 (vazio volta ao padrão)." })) return;
     try {
-      await port.saveTravel(a, b, m, newKey());
+      await port.saveTravel(a, b, m, idem.keyFor({ a, b, m }));
+      idem.reset();
       toast(m === null ? "Tempo entre as zonas voltou ao padrão." : `Tempo entre as zonas: ${minutes(m)}.`);
       onDone();
     } catch (err) {
@@ -267,6 +279,7 @@ function RulesTab({ port, config, reload }: { port: FieldPort; config: FieldConf
   const [same, setSame] = useState(String(s.same_zone_travel_min));
   const [win, setWin] = useState(String(s.arrival_window_min));
   const [max, setMax] = useState(s.max_km === null ? "" : String(s.max_km).replace(".", ","));
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"def" | "same" | "win" | "max">();
   const int = (v: string, hi: number) => Number.isInteger(parseNumber(v)) && parseNumber(v) >= 0 && parseNumber(v) <= hi;
   async function submit(e: FormEvent) {
@@ -280,8 +293,10 @@ function RulesTab({ port, config, reload }: { port: FieldPort; config: FieldConf
     });
     if (!ok) return;
     try {
-      await port.saveSettings({ expected_version: s.version, enabled, default_travel_min: parseNumber(def), same_zone_travel_min: parseNumber(same),
-        arrival_window_min: parseNumber(win), max_km: maxKm }, newKey());
+      const input = { expected_version: s.version, enabled, default_travel_min: parseNumber(def), same_zone_travel_min: parseNumber(same),
+        arrival_window_min: parseNumber(win), max_km: maxKm };
+      await port.saveSettings(input, idem.keyFor(input));
+      idem.reset();
       toast("Regras do domicílio salvas. Valem para os próximos recálculos.");
       reload();
     } catch (err) {

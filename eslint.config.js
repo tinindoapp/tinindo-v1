@@ -57,7 +57,6 @@ const restricted = (...groups) => ["error", SECRET_KEY, ...groups.flat()];
 // Parte 1 (P52) esvazia os módulos da área dela; o resto é da parte 2 (P53). Não acrescente arquivo aqui.
 const LEGACY_MONEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
-  "src/features/growth-advice/demoPort.ts",
   // Parte 2
   "src/features/identity/MyBookingsPage.tsx",
   "src/features/network/PublicProfileView.tsx",
@@ -66,10 +65,6 @@ const LEGACY_MONEY = [
 ];
 const LEGACY_KEY = [
   // Parte 1 (sai nos PRs de troca por grupo de módulos)
-  "src/features/field-service/port.ts",
-  "src/features/fiscal/port.ts",
-  "src/features/growth-advice/port.ts",
-  "src/features/service-ops/port.ts",
   // Parte 2
   "src/features/agent/port.ts",
   "src/features/discovery/port.ts",

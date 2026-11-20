@@ -6,7 +6,8 @@ import { Link, useNavigate } from "react-router";
 import { useScope } from "../../app/scope.tsx";
 import { ActionButton, Card, Section, StatusBanner, toast } from "../../components/ui/index.tsx";
 import { actResultText, ddmm, explainInsight, INSIGHT_RULE_LABEL, INSIGHT_STATE, insightEvidence, OUTCOME, RULE_REASON, RULE_STATUS } from "./labels.ts";
-import { type Digests, type GrowthAdvicePort, type Insight, type InsightList, newKey } from "./port.ts";
+import { type Digests, type GrowthAdvicePort, type Insight, type InsightList } from "./port.ts";
+import { useCommand } from "../../lib/idempotency.ts";
 
 /** Onde a ação acontece (nome da tela, nunca o código do pacote). */
 const FLOW_SCREEN: Record<Insight["action"]["flow"], string> = {
@@ -15,14 +16,15 @@ const FLOW_SCREEN: Record<Insight["action"]["flow"], string> = {
 
 function useInsightActions(port: GrowthAdvicePort, reload: () => void) {
   const navigate = useNavigate();
+  const command = useCommand();
   const snooze = (i: Insight) =>
-    port.snoozeInsight(i, newKey()).then(
+    command({ snooze: i.id, version: i.version }, (key) => port.snoozeInsight(i, key)).then(
       () => { toast({ tone: "info", message: `“${INSIGHT_RULE_LABEL[i.rule_code]}” silenciada por 30 dias.` }); reload(); },
       (e: unknown) => { toast({ tone: "danger", message: explainInsight(e) }); reload(); },
     );
   /** Abre a tela do fluxo (registra a decisão para o acompanhamento) ou prepara a proposta e oferece o caminho. */
   const act = (i: Insight) =>
-    port.actInsight(i, newKey()).then(
+    command({ act: i.id, version: i.version }, (key) => port.actInsight(i, key)).then(
       ({ result }) => {
         if (i.action.kind === "proposal" && result) {
           toast({ message: actResultText(result), action: { label: `Abrir ${FLOW_SCREEN[i.action.flow]}`, onAction: () => void navigate(result.route) } });
