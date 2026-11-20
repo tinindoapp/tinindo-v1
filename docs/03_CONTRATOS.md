@@ -264,6 +264,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `setup.draft_apply` | profissão (opcional), expediente (opcional, substitui), serviços, key | Aplica o rascunho "descreva seu negócio" revisado: profissão, regras da agenda principal (P03) e serviços (P02), tudo ou nada |
 | `setup.scope` | — | Escopo do negócio para a sessão (P51): profissão, plano (só o nome; no piloto o plano não libera nada, D3 b) e os 27 módulos com nível (`pilot`, `activation`, `stored`) e se valem para o negócio |
 | `setup.module_set` | módulo, ligado (sim ou não), key | O dono liga ou desliga um módulo "por ativação" (P51). Módulo do piloto → 400; guardado → 403 (só o backend liga). Idempotente e auditado; devolve o escopo atualizado |
+| `setup.describe` | frase (8 a 500 caracteres), key opcional | Lê a frase do negócio pelas regras e devolve o rascunho por campo, com a origem (regras ou assistente) e as ressalvas; só o que as regras não leram vai ao modelo de linguagem (P46), com franquia e chave; sem provedor, devolve o rascunho das regras. Não grava nada |
 
 Leituras do próprio cliente, sem rota de função (RPC `security definer` só para `authenticated`, chamada pelo supabase-js): `my_customer_links()` (negócios com vínculo ativo, P01) e `my_bookings()` (minhas reservas: negócio, serviço, horário, fuso, situação e preço combinado, sem campos do CRM; ADR-0029).
 

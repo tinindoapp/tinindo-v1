@@ -122,3 +122,57 @@ export const SetupDescribeDraft = z.object({
   unknown: z.array(z.enum(["profession", "weekdays", "hours"])),
 });
 export type SetupDescribeDraft = z.infer<typeof SetupDescribeDraft>;
+
+// ---- setup.describe (P50; registrado no recado #115). A leitura da frase mora em _shared/domain/setup/describe.ts.
+
+/** Campos do rascunho que podem ser recusados, lidos com ressalva ou preenchidos pelo assistente. */
+export const DescribeField = z.enum(["profession", "team_size", "weekdays", "hours", "services"]);
+export type DescribeField = z.infer<typeof DescribeField>;
+/** `rules` = lido pelas regras; `assistant` = preenchido pelo modelo de linguagem; null = não lido. */
+export const DescribeSource = z.enum(["rules", "assistant"]);
+export type DescribeSource = z.infer<typeof DescribeSource>;
+
+export const DescribeServiceDraft = z.object({
+  name: z.string().min(1).max(120),
+  /** Modelo da profissão com o mesmo nome (de onde vêm a duração e a faixa); null = serviço sem modelo. */
+  template_code: z.string().regex(/^[a-z0-9_]{3,40}$/).nullable(),
+  /** Duração dita na frase ou a do modelo; null = o dono informa. */
+  duration_min: z.int().min(5).max(1440).nullable(),
+  /** Só quando a frase diz o preço. A faixa do modelo é dica, nunca preço. */
+  price_cents: Cents.nullable(),
+  price_from_cents: Cents.nullable(),
+  price_to_cents: Cents.nullable(),
+  /** true = citado na frase; false = sugestão do modelo da profissão (a tela mostra desmarcado). */
+  cited: z.boolean(),
+});
+export type DescribeServiceDraft = z.infer<typeof DescribeServiceDraft>;
+
+export const DescribeNote = z.object({
+  field: DescribeField,
+  /** `refused` = o campo ficou sem valor e o texto diz por quê; `check` = lido com uma suposição que o dono confere. */
+  level: z.enum(["refused", "check"]),
+  text: z.string().min(1).max(300),
+});
+export type DescribeNote = z.infer<typeof DescribeNote>;
+
+/** Rascunho completo da frase: o contrato v1 (`SetupDescribeDraft`) mais o expediente por dia, os serviços com modelo e as ressalvas. */
+export const BusinessDescription = SetupDescribeDraft.extend({
+  /** Expediente inteiro, um bloco por período de cada dia (dois turnos e dias com horários diferentes cabem aqui). */
+  windows: z.array(WeeklyWindow).max(50),
+  service_drafts: z.array(DescribeServiceDraft).max(20),
+  /** "pacote com N sessões": informação para o Caixa; não vira serviço nem equipe. */
+  packages: z.array(z.object({ sessions: z.int().min(2).max(100), service: z.string().max(120).nullable() })).max(5),
+  /** A frase diz que o atendimento é na casa do cliente. */
+  at_home: z.boolean(),
+  notes: z.array(DescribeNote).max(20),
+  sources: z.object({
+    profession: DescribeSource.nullable(), team_size: DescribeSource.nullable(), weekdays: DescribeSource.nullable(),
+    hours: DescribeSource.nullable(), services: DescribeSource.nullable(),
+  }),
+});
+export type BusinessDescription = z.infer<typeof BusinessDescription>;
+
+export const SetupDescribeInput = z.object({ sentence: z.string().trim().min(8).max(500) });
+/** `assistant`: o modelo de linguagem foi consultado para esta frase (false com LLM_PROVIDER=none ou quando as regras bastaram). */
+export const SetupDescribeOutput = BusinessDescription.extend({ assistant: z.boolean() });
+export type SetupDescribeOutput = z.infer<typeof SetupDescribeOutput>;

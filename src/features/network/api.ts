@@ -28,6 +28,7 @@ import {
 } from "@contracts";
 import { ApiError, type CallOptions } from "../../lib/api/client.ts";
 import { currentReviewSummary, providePublicContact, publicBooking, setPublishedSlug } from "../../lib/demo/journey.ts";
+import { readDemoSetup } from "../../lib/demo/setup.ts";
 import { demoSlots } from "./demo-slots.ts";
 import type { ProcessedPhoto } from "./photo.ts";
 
@@ -211,8 +212,16 @@ providePublicContact((bookingId) => {
   return r ? { name: r.contactName, phone_e164: r.contactPhone } : null;
 });
 
+// Ponte da demonstração (recado #115): a profissão que o dono confirma na Configuração vale para o perfil de exemplo
+// (é a categoria sugerida na publicação). O leitor fica ligado desde o carregamento do módulo.
+let setupProfession: Profession | null = null;
+readDemoSetup("profession", (p) => {
+  setupProfession = p;
+});
+
 /** Só para testes: volta a demonstração ao estado inicial. */
 export function resetDemoNetwork() {
+  setupProfession = null;
   demoState.profile = null;
   for (const url of demoState.photos.values()) URL.revokeObjectURL?.(url);
   demoState.photos.clear();
@@ -262,7 +271,7 @@ export function createDemoNetworkApi(origin: string): NetworkApi {
   return {
     demo: true,
     async getBusiness() {
-      return { name: tenantA.name, profession: tenantA.profession };
+      return { name: tenantA.name, profession: setupProfession ?? tenantA.profession };
     },
     async getOwnProfile() {
       return demoState.profile;

@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { BusinessScope, CostToServeOutput, EventType, MODULE_LEVELS, ModuleCode, type ModuleId, OPERATIONS, type OperationName, SetupDraftApplyInput, SetupModuleSetInput, SetupProgress, SetupServicesApplyInput } from "@contracts";
-import { SETUP_ROUTES } from "../../../supabase/functions/setup/handler.ts";
+import { SETUP_DESCRIBE, SETUP_ROUTES } from "../../../supabase/functions/setup/handler.ts";
 
 const dir = new URL("../../../supabase/migrations/", import.meta.url);
 const sql = readdirSync(dir).filter((f) => /^\d{14}_p(44|51)_.*\.sql$/.test(f)).map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
@@ -12,12 +12,21 @@ function sqlParams(fn: string): string[] {
   return (m[1] ?? "").split(",").map((p) => p.trim().split(/\s+/)[0] ?? "").filter(Boolean);
 }
 const defOf = (fn: string) => sql.slice(sql.indexOf(`create function public.${fn}(`)).split(/\nend \$\$;/)[0]!;
-const ops = (Object.keys(OPERATIONS) as OperationName[]).filter((n) => OPERATIONS[n].module === "setup");
+// `setup.describe` (P50) tem rota própria no handler, fora de SETUP_ROUTES: não é uma RPC (teste à parte abaixo).
+const ops = (Object.keys(OPERATIONS) as OperationName[]).filter((n) => OPERATIONS[n].module === "setup" && n !== "setup.describe");
 
 describe("setup · registro ↔ função ↔ SQL", () => {
   it("toda operação do módulo tem rota", () => {
     expect(ops.length).toBe(7);
     expect(Object.keys(SETUP_ROUTES).sort()).toEqual([...ops].sort());
+  });
+  it("setup.describe: registrado com os mesmos schemas da rota própria do handler, como consulta", () => {
+    const op = OPERATIONS["setup.describe"];
+    expect(op.module).toBe("setup");
+    expect(op.kind).toBe("query");
+    expect(SETUP_DESCRIBE.name).toBe("setup.describe");
+    expect(SETUP_DESCRIBE.input).toBe(op.input);
+    expect(SETUP_DESCRIBE.output).toBe(op.output);
   });
   it.each(ops)("%s usa os mesmos schemas e o mesmo tipo do registro", (name) => {
     const r = SETUP_ROUTES[name]!;

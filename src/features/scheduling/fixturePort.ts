@@ -25,6 +25,7 @@ import {
   type TimeRange,
 } from "@contracts";
 import { publicContact } from "../../lib/demo/journey.ts";
+import { readDemoSetup } from "../../lib/demo/setup.ts";
 import { FIXED_NOW, FX, services as fixtureServices, tenantA } from "@contracts/fixtures.ts";
 import type { z } from "zod";
 import { ApiError } from "../../lib/api/client.ts";
@@ -84,6 +85,26 @@ export interface FixturePublicLink {
 /** Prazo da reserva provisória do link (app.sched_hold_minutes no servidor). */
 const PUBLIC_HOLD_MIN = 15;
 
+type WeeklyHours = Record<number, [string, string][]>;
+
+/** Expediente semanal a partir das janelas do contrato (mesmo formato de schedule.rules_save), em ordem por dia. */
+function hoursFromWindows(rules: readonly { weekday: number; local_start: string; local_end: string }[]): WeeklyHours {
+  const next: WeeklyHours = {};
+  for (const r of rules) (next[r.weekday] ??= []).push([r.local_start, r.local_end]);
+  for (const list of Object.values(next)) list.sort((a, b) => a[0].localeCompare(b[0]));
+  return next;
+}
+
+// Ponte da demonstração (recado #115): o expediente que o dono confirma na Configuração substitui o da agenda
+// principal. O leitor fica ligado desde o carregamento do módulo, para valer também quando a Agenda ainda não foi aberta:
+// a agenda criada depois começa com o último expediente confirmado.
+let setupHours: WeeklyHours | null = null;
+const hoursListeners = new Set<(hours: WeeklyHours) => void>();
+readDemoSetup("hours", (rules) => {
+  setupHours = hoursFromWindows(rules);
+  for (const apply of hoursListeners) apply(setupHours);
+});
+
 export function createFixturePort(options: FixturePortOptions = {}): SchedulingPort & FixturePublicLink {
   const tz = tenantA.timezone;
   const now = new Date(FIXED_NOW);
@@ -94,10 +115,15 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
   let simulate = options.simulate ?? null;
   let seq = 0;
   // Expediente e bloqueios editáveis na aba (emulação de schedule.* do P03).
-  let hours: Record<number, [string, string][]> = Object.fromEntries(
+  let hours: WeeklyHours = setupHours ? structuredClone(setupHours) : Object.fromEntries(
     Object.entries(DEMO_WEEKLY_HOURS).map(([d, h]) => [Number(d), h.open.map(([a, b]) => [a, b] as [string, string])]),
   );
   let resourceVersion = 1;
+  // Nova gravação da Configuração: o expediente inteiro é trocado e a versão sobe, como num schedule.rules_save.
+  hoursListeners.add((next) => {
+    hours = structuredClone(next);
+    resourceVersion += 1;
+  });
   let blocks = DEMO_BLOCKS.map((b, i) => ({
     id: `70000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
     version: 1,
@@ -338,10 +364,8 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
       const input = parse(ScheduleRulesSaveInput, raw);
       if (once("schedule.rules_save", key, input)) {
         if (input.expected_version !== resourceVersion) fail("STALE_VERSION", "expected_version");
-        const next: Record<number, [string, string][]> = {};
-        for (const r of input.rules) (next[r.weekday] ??= []).push([r.local_start, r.local_end]);
+        const next = hoursFromWindows(input.rules);
         for (const list of Object.values(next)) {
-          list.sort((a, b) => a[0].localeCompare(b[0]));
           if (list.some(([, end], i) => i + 1 < list.length && end > list[i + 1]![0])) fail("VALIDATION_ERROR", "rules");
         }
         hours = next;

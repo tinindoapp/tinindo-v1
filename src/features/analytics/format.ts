@@ -1,10 +1,10 @@
 // Apresentação dos indicadores: nunca mostrar "0%" quando o dado é insuficiente ou não existe.
 import type { Metric } from "@contracts";
+import { formatCents } from "../../lib/money.ts";
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+export { formatCents };
 const INT = new Intl.NumberFormat("pt-BR");
 const PCT = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 });
-export const formatCents = (c: number) => BRL.format(c / 100);
 
 export function metricValue(m: Pick<Metric, "unit" | "value" | "status">): string {
   if (m.status === "unavailable") return "Ainda não medido";
