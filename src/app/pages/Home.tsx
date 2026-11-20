@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { Booking } from "@contracts";
-import { List, ListItem, PageHeader, Section, Stat, Stats, StatusBanner } from "../../components/ui/index.tsx";
+import { type BadgeTone, List, ListItem, PageHeader, Section, StatusBadge, StatusBanner, Summary, SummaryRows } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
 import { getDemoPort as getFinanceDemoPort } from "../../features/finance/module.tsx";
@@ -26,8 +26,7 @@ import { AttendanceActions } from "../../features/scheduling/attendance.tsx";
 import type { SchedulingPort } from "../../features/scheduling/port.ts";
 import { createServerPort as createSchedulingServerPort } from "../../features/scheduling/serverPort.ts";
 import { SetupCard, useSetupPort } from "../../features/setup/module.tsx";
-import { canComplete, formatCents as formatSchedulingCents, formatMinutes, whatsAppDigits } from "../../features/scheduling/agenda.ts";
-import { ListStatusBadge } from "../../features/scheduling/parts.tsx";
+import { canComplete, formatCents as formatSchedulingCents, formatMinutes, listStatus, whatsAppDigits } from "../../features/scheduling/agenda.ts";
 import { dayWindow, formatDayLong, formatTime, localParts } from "../../features/scheduling/time.ts";
 import { appEnv } from "../env.ts";
 import { useScope } from "../scope.tsx";
@@ -205,20 +204,22 @@ export function Home() {
               <>
                 {!next ? <p className="tn-today__empty">Nenhum atendimento até o fim do dia.</p> : null}
                 {shown.length ? (
-                  <List label="Outros atendimentos de hoje">
+                  <List label="Outros atendimentos de hoje" timeline>
                     {shown.map((b) => (
                       <li key={b.id} className="tn-today__row" data-past={b.past ? "true" : undefined}>
                         <Link to={`/app/agenda/atendimento/${b.id}`} className="tn-list__row">
+                          {/* Linha do tempo do dia (D17 b): a hora numa coluna própria, tabular, com o traço do dia. */}
+                          <time className="tn-today__time" dateTime={b.starts_at}>{formatTime(b.starts_at, t.timezone)}</time>
                           <span className="tn-list__text">
                             <span className="tn-list__title">
-                              <span className="tn-num">{formatTime(b.starts_at, t.timezone)}</span> · {b.serviceName}
+                              <span className="tn-visually-hidden">{formatTime(b.starts_at, t.timezone)} · </span>{b.serviceName}
                             </span>
                             <span className="tn-list__meta">
                               {b.customerName ?? "Sem cliente vinculado"}
                               {b.past ? <span className="tn-visually-hidden"> · já passou</span> : null}
                             </span>
                           </span>
-                          <span className="tn-list__trailing"><ListStatusBadge status={b.status} /></span>
+                          <span className="tn-list__trailing"><DayStatus status={b.status} /></span>
                           <Icon name="seta" size={18} className="tn-list__chevron" />
                         </Link>
                       </li>
@@ -238,12 +239,18 @@ export function Home() {
           </Section>
 
           {/* 4. Números: o dia e o dinheiro da semana (o mês vai na nota). */}
-          <Stats label="Resumo">
-            <Stat label="Atendimentos hoje" value={t.agenda ? t.agenda.confirmed : "—"}
-              hint={t.agenda ? (held.length ? `+${held.length} provisória` : "confirmados") : "indisponível"} to="/app/agenda" />
-            <Stat label="Recebido na semana" value={t.money ? formatCents(t.money.weekCents) : "—"}
-              hint={t.money ? <>no mês: <span className="tn-num">{formatCents(t.money.monthCents)}</span></> : "indisponível"} to="/app/caixa" />
-          </Stats>
+          {/* Resumo de número (regra do kit): uma linha por número, rótulo à esquerda e valor tabular à direita; cabe
+              R$ 999.999,99 em 320 px. */}
+          <Section title="Números" id="home-numbers">
+            <Summary label="Resumo">
+              <SummaryRows label="Números do dia e da semana" rows={[
+                { key: "day", label: "Atendimentos hoje", value: t.agenda ? t.agenda.confirmed : "—",
+                  hint: t.agenda ? (held.length ? `+${held.length} provisória` : "confirmados") : "indisponível", to: "/app/agenda" },
+                { key: "week", label: "Recebido na semana", value: t.money ? formatCents(t.money.weekCents) : "—",
+                  hint: t.money ? <>no mês: <span className="tn-num">{formatCents(t.money.monthCents)}</span></> : "indisponível", to: "/app/caixa" },
+              ]} />
+            </Summary>
+          </Section>
 
           {/* 5. Configuração: uma linha quando há atendimento no dia; o cartão inteiro quando o dia está vazio. */}
           {setupPort ? <SetupCard port={setupPort} compact={day.length > 0} /> : null}
@@ -261,6 +268,24 @@ export function Home() {
   );
 }
 
+/**
+ * Selo de estado da Hoje com o mapa de cores da D15 (revisão de 10/11): "Concluído" verde e "Confirmado" neutro. Nas
+ * listas o confirmado não leva selo (só o que foge do normal aparece). A Agenda ainda usa o mapa antigo do próprio módulo
+ * (concluído em azul): migrar para este selo está no handoff do P54.
+ */
+const STATUS_TONE: Record<Booking["status"], BadgeTone> = {
+  held: "warning",
+  confirmed: "neutral",
+  completed: "success",
+  expired: "neutral",
+  cancelled: "neutral",
+  no_show: "danger",
+};
+function DayStatus({ status }: { status: Booking["status"] }) {
+  const label = listStatus(status);
+  return label ? <StatusBadge tone={STATUS_TONE[status]}>{label}</StatusBadge> : null;
+}
+
 /** Destaque do próximo atendimento: hora, cliente e quanto falta, com "Abrir" e "WhatsApp" (auditoria de UX, item 31). */
 function NextCard({ item, timezone, now, onChanged }: { item: DayItem; timezone: string; now: number; onChanged: () => void }) {
   const digits = whatsAppDigits(item.phone);
@@ -275,7 +300,7 @@ function NextCard({ item, timezone, now, onChanged }: { item: DayItem; timezone:
       <p className="tn-today__next-meta">
         {item.serviceName}
         {item.agreed_price_cents !== null ? <> · <span className="tn-num">{formatSchedulingCents(item.agreed_price_cents)}</span></> : null}
-        {" "}<ListStatusBadge status={item.status} />
+        {" "}<DayStatus status={item.status} />
       </p>
       {started ? <AttendanceActions booking={item} when={`às ${formatTime(item.starts_at, timezone)}`} onChanged={onChanged} /> : null}
       <div className="tn-actions">

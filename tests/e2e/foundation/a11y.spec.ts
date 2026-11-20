@@ -170,7 +170,8 @@ test("A11Y-01 · na Hoje, o valor em reais fica dentro do cartão em 320 e 375 p
     await expect(stat).toBeVisible();
     const fits = await stat.evaluate((el) => {
       const card = el.getBoundingClientRect();
-      const value = el.querySelector(".tn-stat__value")!.getBoundingClientRect();
+      // P54: o número é uma linha de resumo (rótulo à esquerda, valor à direita), não mais ladrilho.
+      const value = el.querySelector(".tn-summary__row-value")!.getBoundingClientRect();
       return value.right <= card.right && value.left >= card.left;
     });
     expect(fits, `largura ${width}`).toBe(true);

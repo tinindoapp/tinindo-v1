@@ -19,6 +19,7 @@ export { ChipGroup, ChipNav, ChoiceCard, Segmented, WEEKDAY_CHIPS, WEEKDAY_SHORT
 export { COPY_FAILED, CopyButton, copyText, ShareActions, type ShareHow, whatsappHref } from "./share.tsx";
 export { ToneIcon, type Tone } from "./tone.tsx";
 export { SetupHint } from "./SetupHint.tsx";
+export { ActionBar, ActionRow, type BadgeTone, CappedList, ListCutNote, StatusBadge, Summary, SummaryHero, SummaryRows, type SummaryRowData } from "./layout.tsx";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -28,6 +29,7 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
  */
 export function Button({
   variant = "primary",
+  size,
   type = "button",
   block,
   loading,
@@ -35,12 +37,13 @@ export function Button({
   disabled,
   children,
   ...props
-}: ComponentProps<"button"> & { variant?: Variant; block?: boolean; loading?: boolean; loadingText?: ReactNode }) {
+}: ComponentProps<"button"> & { variant?: Variant; size?: "compact"; block?: boolean; loading?: boolean; loadingText?: ReactNode }) {
   return (
     <button
       type={type}
       className="tn-button"
       data-variant={variant}
+      data-size={size}
       data-block={block || undefined}
       data-loading={loading || undefined}
       aria-busy={loading || undefined}
@@ -100,8 +103,20 @@ export function Card({ children, as: Tag = "section", ...rest }: { children: Rea
   );
 }
 
-/** Cabeçalho de tela: título (h1 único da rota), apoio curto e ações. Sem cartão em volta. */
-export function PageHeader({ title, id, eyebrow, subtitle, actions }: { title: ReactNode; id?: string; eyebrow?: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+/**
+ * Abertura de tela (P54; revisão de 10/11, doc 07 regra 5.1), sempre na mesma ordem: rótulo em caixa-alta, título (h1
+ * único da rota), uma linha de apoio, a ação principal (`actions`), o filtro da tela (`filter`: período, segmentado) e a
+ * ajuda recolhida (`help`). Sem cartão em volta e sem aviso de ambiente (D11 b: a faixa do topo já diz "Demonstração").
+ */
+export function PageHeader({ title, id, eyebrow, subtitle, actions, filter, help }: {
+  title: ReactNode;
+  id?: string;
+  eyebrow?: ReactNode;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+  filter?: ReactNode;
+  help?: ReactNode;
+}) {
   return (
     <header className="tn-page-header">
       <div className="tn-page-header__text">
@@ -110,6 +125,8 @@ export function PageHeader({ title, id, eyebrow, subtitle, actions }: { title: R
         {subtitle ? <p className="tn-page-header__sub">{subtitle}</p> : null}
       </div>
       {actions ? <div className="tn-page-header__actions">{actions}</div> : null}
+      {filter ? <div className="tn-page-header__filter">{filter}</div> : null}
+      {help ? <Help>{help}</Help> : null}
     </header>
   );
 }
@@ -127,12 +144,39 @@ export function Help({ children, label = "Como funciona" }: { children: ReactNod
   );
 }
 
-/** Seção com título (h2) e ação opcional à direita. */
-export function Section({ title, id, action, children }: { title: ReactNode; id: string; action?: ReactNode; children: ReactNode }) {
+/**
+ * Seção com título (h2), contagem opcional e ação à direita (doc 07 regra 5.2): 32 px entre seções e 16 entre blocos.
+ * Seção de lista não leva cartão em volta. `collapsed`: seção secundária que nasce recolhida em uma linha.
+ */
+export function Section({ title, id, action, count, collapsed, children }: {
+  title: ReactNode;
+  id: string;
+  action?: ReactNode;
+  count?: number;
+  collapsed?: boolean;
+  children: ReactNode;
+}) {
+  const heading = (
+    <>
+      {title}
+      {count !== undefined ? <span className="tn-section__count"> · <span className="tn-num">{count}</span></span> : null}
+    </>
+  );
+  if (collapsed !== undefined) {
+    return (
+      <details className="tn-section tn-section--fold" open={!collapsed} aria-labelledby={id}>
+        <summary className="tn-section__head">
+          <h2 id={id}>{heading}</h2>
+          <Icon name="seta" size={18} className="tn-section__fold-icon" />
+        </summary>
+        <div className="tn-section__body">{children}</div>
+      </details>
+    );
+  }
   return (
     <section className="tn-section" aria-labelledby={id}>
       <div className="tn-section__head">
-        <h2 id={id}>{title}</h2>
+        <h2 id={id}>{heading}</h2>
         {action}
       </div>
       {children}
@@ -140,10 +184,10 @@ export function Section({ title, id, action, children }: { title: ReactNode; id:
   );
 }
 
-/** Lista agrupada (linhas tocáveis num bloco único). */
-export function List({ label, children }: { label?: string; children: ReactNode }) {
+/** Lista agrupada (linhas tocáveis num bloco único). `timeline`: linha do tempo do dia (hora numa coluna, D17 b). */
+export function List({ label, timeline, children }: { label?: string; timeline?: boolean; children: ReactNode }) {
   return (
-    <ul className="tn-list" aria-label={label}>
+    <ul className="tn-list" data-timeline={timeline || undefined} aria-label={label}>
       {children}
     </ul>
   );
