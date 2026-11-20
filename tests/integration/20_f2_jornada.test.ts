@@ -15,7 +15,7 @@ afterAll(() => pool.end());
 describe("registro v1 ↔ handlers", () => {
   it("toda operação registrada tem rota viva no handler do seu módulo (método errado dá 'Use X.', não 404 de rota)", async () => {
     const crmPath: Record<string, string> = { "customer.list": "customers", "service.list": "services" };
-    const getOps = new Set(["customer.list", "service.list", "profile.get", "public.profile", "referral.list"]);
+    const getOps = new Set(["customer.list", "customer.get", "service.list", "profile.get", "public.profile", "referral.list"]);
     for (const name of OPERATION_NAMES) {
       const spec = OPERATIONS[name];
       const isGet = getOps.has(name);
