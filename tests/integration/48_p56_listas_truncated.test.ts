@@ -1,7 +1,6 @@
 // P56 · Aviso de corte nas listas com teto (D31 (a)) e rotinas isoladas, pelos handlers com o banco real.
-// 1. A RPC do caixa devolve `truncated` por lista; o handler continua respondendo dentro do contrato (as telas não
-//    mudam). Enquanto o contrato não declarar `truncated`, o handler o descarta: o teste 2 trava esse estado, para o
-//    recado da tela (contrato + aviso) saber exatamente o que mudar e este teste ser atualizado junto.
+// 1. A RPC do caixa devolve `truncated` por lista; o contrato declara o campo (recado #117) e o handler o repassa,
+//    para a tela mostrar "Mostrando os 200 mais recentes".
 // 2. O worker (jobs) segue respondendo com tick_errors vazio numa rodada sem falha.
 // Os lançamentos ficam num período de 400 dias atrás, no negócio B, para não mexer nos outros arquivos do banco comum.
 import { afterAll, describe, expect, it } from "vitest";
@@ -36,12 +35,12 @@ describe("P56 · listas com teto avisam o corte", () => {
     expect(data.truncated.payments).toBe(false);
   });
 
-  it("2 · pelo handler: resposta dentro do contrato de sempre, 200 itens (truncated ainda fora do contrato)", async () => {
+  it("2 · pelo handler: 200 itens e truncated por lista na resposta", async () => {
     const ledger = await ok(FinanceLedgerOutput, "finance", "finance.ledger", { ...owner, body: { period } });
     expect(ledger.expenses).toHaveLength(200);
     const raw = await call("finance", "finance.ledger", { ...owner, body: { period } });
-    // Quando o contrato ganhar `truncated` (recado para-felipe do P56), troque por: toEqual({ ..., expenses: true }).
-    expect(raw.data).not.toHaveProperty("truncated");
+    expect(ledger.truncated).toEqual({ receivables: false, payments: false, expenses: true });
+    expect((raw.data as { truncated: unknown }).truncated).toEqual({ receivables: false, payments: false, expenses: true });
   });
 
   it("3 · worker: rodada sem falha devolve tick_errors vazio", async () => {

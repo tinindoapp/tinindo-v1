@@ -179,10 +179,11 @@ export function FinancePage() {
           <>
             {/* Ordem (item 56): o que pede ação (pendências), depois o resumo do mês e por fim o histórico. */}
             <Uncharged list={current.value.uncharged} packages={current.value.packages} />
-            <Receivables list={current.value.ledger.receivables.filter((r) => r.status === "open" || r.status === "partially_paid")} />
+            <Receivables list={current.value.ledger.receivables.filter((r) => r.status === "open" || r.status === "partially_paid")}
+              truncated={current.value.ledger.truncated?.receivables} />
             <Summary s={current.value.summary} month={month} uncharged={current.value.uncharged} />
-            <Payments list={current.value.ledger.payments} />
-            <Expenses list={current.value.ledger.expenses} />
+            <Payments list={current.value.ledger.payments} truncated={current.value.ledger.truncated?.payments} />
+            <Expenses list={current.value.ledger.expenses} truncated={current.value.ledger.truncated?.expenses} />
             <Packages list={current.value.packages} />
             <FocusBooking id={focusBooking} value={current.value} />
           </>
@@ -438,7 +439,12 @@ function UnchargedItem({ b, packages, ctx }: { b: UnchargedBooking; packages: Pa
   );
 }
 
-function Receivables({ list }: { list: Receivable[] }) {
+/** P56 (D31 a): o servidor devolve no máximo 200 por lista; quando cortou, a tela avisa em vez de parecer completa. */
+function TruncatedNote({ truncated }: { truncated?: boolean }) {
+  return truncated ? <p className="tn-muted tn-fin-truncated">Mostrando os 200 mais recentes.</p> : null;
+}
+
+function Receivables({ list, truncated }: { list: Receivable[]; truncated?: boolean }) {
   const ctx = usePage();
   return (
     <section aria-labelledby="fin-rec-title" className="tn-fin-section">
@@ -452,6 +458,7 @@ function Receivables({ list }: { list: Receivable[] }) {
           ))}
         </ul>
       )}
+      <TruncatedNote truncated={truncated} />
     </section>
   );
 }
@@ -583,7 +590,7 @@ function MoreButton({ total, all, onAll, one, many }: { total: number; all: bool
   return <Button variant="ghost" onClick={onAll}>Ver mais {plural(rest, one, many)}</Button>;
 }
 
-function Payments({ list }: { list: PaymentRecord[] }) {
+function Payments({ list, truncated }: { list: PaymentRecord[]; truncated?: boolean }) {
   const ctx = usePage();
   const port = usePort();
   const [all, setAll] = useState(false);
@@ -630,6 +637,7 @@ function Payments({ list }: { list: PaymentRecord[] }) {
         </ul>
       )}
       <MoreButton total={list.length} all={all} onAll={() => setAll(true)} one="recebimento" many="recebimentos" />
+      <TruncatedNote truncated={truncated} />
     </section>
   );
 }
@@ -751,7 +759,7 @@ function ExpenseForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["expenses"] }) {
+function Expenses({ list, truncated }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["expenses"]; truncated?: boolean }) {
   const ctx = usePage();
   const port = usePort();
   const [all, setAll] = useState(false);
@@ -796,6 +804,7 @@ function Expenses({ list }: { list: Awaited<ReturnType<FinancePort["ledger"]>>["
         </ul>
       )}
       <MoreButton total={list.length} all={all} onAll={() => setAll(true)} one="despesa" many="despesas" />
+      <TruncatedNote truncated={truncated} />
     </section>
   );
 }

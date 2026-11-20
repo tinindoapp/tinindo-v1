@@ -3,7 +3,7 @@
 // recurso ocupado: professional, room, chair, equipment, agenda ou hours); turmas com vagas; comissão congelada na
 // reserva, lançada uma vez na conclusão e estornada uma vez. Concluir cria o recebível no Caixa (P07); não é receber.
 import { z } from "zod";
-import { BasisPoints, Cents, IsoDateTime, SignedCents, TimeRange, TimeZone, Uuid } from "./common.ts";
+import { BasisPoints, Cents, IsoDateTime, SignedCents, TimeRange, TimeZone, Uuid, truncatedFlags } from "./common.ts";
 
 export const TeamResourceKind = z.enum(["professional", "room", "chair", "equipment"]);
 export type TeamResourceKind = z.infer<typeof TeamResourceKind>;
@@ -187,4 +187,5 @@ export type TeamCommissionTotals = z.infer<typeof TeamCommissionTotals>;
 export const TeamCommissionsOutput = z.object({
   professionals: z.array(TeamCommissionTotals).max(500),
   entries: z.array(TeamCommissionEntry).max(200),
+  truncated: truncatedFlags("entries"),
 });

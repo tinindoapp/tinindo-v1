@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { BookingListOutput, ContextResponse } from "@contracts";
 import { createServerCrmApi } from "../../../src/features/crm/api.ts";
-import { contractCall, exercisePort, sampleOf, TENANT, testKey, unusedOperations } from "./harness.ts";
+import { exercisePort, sampleOf, TENANT, unusedOperations } from "./harness.ts";
 
 const ID = "00000000-0000-4000-8000-0000000000a1";
 const build = (call: never) => createServerCrmApi({ call, tenantId: TENANT, readProfession: async () => "barber" });
@@ -17,12 +17,10 @@ const bookingPages = (body: unknown) => ({
 
 describe("crm · porta do servidor", () => {
   it("toda chamada bate com o registro de contratos", async () => {
-    const calls = await exercisePort("crm", (call) => {
-      // getCustomer e upsertCustomer divergem do registro: têm caso próprio abaixo.
-      const { getCustomer: _get, upsertCustomer: _upsert, ...port } = build(call);
-      return port;
-    }, {
+    const calls = await exercisePort("crm", (call) => build(call), {
       profession: (p) => p.profession(),
+      getCustomer: (p) => p.getCustomer(ID),
+      upsertCustomer: (p, key) => p.upsertCustomer({ name: "Ana", phone: "+5511988887777", email: null, declared_source: "referral" }, key),
       listCustomers: (p) => p.listCustomers({ q: "ana", include_archived: true, cursor: "pagina-2", limit: 20 }),
       visitSummary: (p) => p.visitSummary(),
       customerHistory: (p) => p.customerHistory(ID),
@@ -45,17 +43,9 @@ describe("crm · porta do servidor", () => {
     expect(history).toEqual([{ customer_id: ID, cursor: undefined, limit: 100 }, { customer_id: ID, cursor: "pagina-2", limit: 100 }]);
     // Importação: a porta embrulha as linhas em `rows`.
     expect(calls.importCustomers![0]!.body).toEqual({ rows: [{ line: 2, name: "Ana", phone: "+5511988887777", email: null, on_duplicate: "create" }] });
-    // customer.upsert fica de fora por causa da divergência abaixo.
-    expect(unusedOperations("crm", calls)).toEqual(["customer.upsert"]);
-  });
-
-  it.fails("getCustomer: a rota /crm/customer.get não está no registro de contratos", async () => {
-    const { call } = contractCall("crm");
-    await build(call).getCustomer(ID);
-  });
-
-  it.fails("upsertCustomer: o schema de saída passado não é o do registro de customer.upsert", async () => {
-    const { call } = contractCall("crm");
-    await build(call).upsertCustomer({ name: "Ana", phone: "+5511988887777", email: null, declared_source: "referral" }, testKey(1));
+    expect(calls.getCustomer![0]!.path).toBe(`/crm/customer.get?customer_id=${ID}`);
+    // declared_source chega ao corpo: o registro usa o schema do CRM, que não descarta a chave (recado #111).
+    expect(calls.upsertCustomer![0]!.body).toMatchObject({ declared_source: "referral" });
+    expect(unusedOperations("crm", calls)).toEqual([]);
   });
 });
