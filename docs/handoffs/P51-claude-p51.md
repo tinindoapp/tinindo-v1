@@ -35,7 +35,26 @@ Decisões aplicadas: D1 (a), D3 (b), D4 (sim). Registradas em `docs/qa/revisao-2
 
 ## Testes, comandos e resultados
 
-(preenchido ao final)
+Rodados nesta máquina, depois do merge da `main` com o P52 (`b752d60`):
+
+| Comando | Resultado |
+|---|---|
+| `npm run lint` · `npm run typecheck` | ok |
+| `npm run test:unit` | 891 passaram (123 arquivos) |
+| `npm run test:contracts` | 841 passaram, 2 falhas esperadas (do P52), 38 pulados |
+| `npm run build` · `npm run test:coord` | ok |
+| `deno check --frozen ... supabase/functions/*/index.ts` (Deno 2.9.6 via npm) | ok |
+| `npm run db:test:local` (Postgres 16 + pgTAP, sem Docker) | todos passaram; `36_module_scope` com 53 asserções, `18_campaigns` com 50 |
+| `npm run db:test:concurrency` | todos passaram |
+| `npm run test:integration` | 142 passaram (24 arquivos) |
+| `npm run db:restore:drill` | ok |
+| `npx playwright test` (todos os projetos, como na `main`) | 293 passaram, 0 falharam, 33 pulados (`fixme` que já existiam) |
+| `E2E_PILOTO=1 npx playwright test --list` (como no PR) | 286 testes; os 40 dos módulos guardados ficam de fora |
+
+O `supabase test db` e o `supabase db lint` do CI precisam de Docker, que esta máquina não tem; ficam com o job `database` do CI.
+O navegador fixado (Playwright 1.56.1) não está nesta máquina; os e2e rodaram com o Chromium pré-instalado, apontado por `PLAYWRIGHT_BROWSERS_PATH`.
+
+Testes ajustados ao recorte (cada um com comentário): `padroes` (14 telas no menu do piloto), `navegacao` (Clientes sem Orçamentos e Avaliações; Assistente sem Mensagens), `smoke` (menu abre Preços no lugar de Campanhas), `avisos` (sem as telas guardadas, com as por ativação ligadas), `totais` (a comparação com Pagamentos virou teste à parte, só na `main`), `configuracao` (7 passos), e os testes de campanhas na integração e na concorrência ligam o módulo pelo backend antes da rotina.
 
 ## Pendências e próximos passos
 
