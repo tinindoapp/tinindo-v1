@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Profession } from "@contracts";
+import { useApi } from "../../app/api.tsx";
 import { appEnv } from "../../app/env.ts";
-import { useSession } from "../../app/session.tsx";
-import { ApiError, createApiClient } from "../../lib/api/client.ts";
+import { ApiError } from "../../lib/api/client.ts";
 import { supabase } from "../../lib/supabase.ts";
 import { type BusinessBasics, createDemoNetworkApi, createHttpNetworkApi, type NetworkApi, type PhotoStorage } from "./api.ts";
 
@@ -34,16 +34,13 @@ async function readBusiness(tenantId: string): Promise<BusinessBasics | null> {
 
 /** Servidor real quando o Supabase está configurado; senão, demonstração offline rotulada. */
 export function useNetworkApi(): NetworkApi {
-  const { tenantId, getAccessToken } = useSession();
+  // O cliente da sessão (P53). Sem Supabase configurado, demonstração; com Supabase, mesmo antes do login (as páginas
+  // públicas de convite e indicação chamam sem sessão), como era.
+  const { call, tenantId } = useApi();
   return useMemo(() => {
-    if (!appEnv.supabase) return createDemoNetworkApi(window.location.origin);
-    const call = createApiClient({
-      baseUrl: appEnv.supabase.url,
-      publishableKey: appEnv.supabase.publishableKey,
-      getAccessToken,
-    });
+    if (!appEnv.supabase || !call) return createDemoNetworkApi(window.location.origin);
     return createHttpNetworkApi(call, tenantId, photoStorage(), readBusiness);
-  }, [tenantId, getAccessToken]);
+  }, [call, tenantId]);
 }
 
 // Rótulos e mensagens ficam em public/labels.ts (sem sessão), para o pacote das páginas públicas não carregar o Supabase.

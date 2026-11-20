@@ -461,8 +461,9 @@ describe("páginas públicas (demonstração)", () => {
     window.history.replaceState(null, "", `/convite#t=${token}`);
 
     renderAt("/convite");
-    expect(window.location.hash).toBe("");
+    // A tela é carregada sob demanda (P53): o token sai da URL assim que ela monta, antes de qualquer ação.
     expect(await screen.findByRole("heading", { name: "Você recebeu um convite de um colega" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("");
     expect((await api.listReferrals())[0]?.state).toBe("pending");
 
     fireEvent.click(screen.getByRole("button", { name: "Aceitar convite" }));
@@ -479,8 +480,9 @@ describe("páginas públicas (demonstração)", () => {
 
   it("cliente indica profissional com link pessoal, sem pedir telefone", async () => {
     renderAt("/indicar");
+    const name = await screen.findByLabelText("Nome do profissional (só você vê)");
     expect(screen.queryByLabelText(/telefone/i)).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Nome do profissional (só você vê)"), { target: { value: "Profissional Exemplo" } });
+    fireEvent.change(name, { target: { value: "Profissional Exemplo" } });
     fireEvent.click(screen.getByRole("button", { name: "Gerar link de indicação" }));
     const input = (await screen.findByLabelText("Link para compartilhar")) as HTMLInputElement;
     expect(input.value).toMatch(/\/convite#t=/);
