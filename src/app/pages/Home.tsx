@@ -12,7 +12,6 @@ import { Link } from "react-router";
 import type { Booking } from "@contracts";
 import { type BadgeTone, List, ListItem, PageHeader, Section, StatusBadge, StatusBanner, Summary, SummaryRows } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
 import { getDemoPort as getFinanceDemoPort } from "../../features/finance/module.tsx";
 import { formatCents, pendingPeriod } from "../../features/finance/money.ts";
 import type { FinancePort } from "../../features/finance/port.ts";
@@ -28,9 +27,8 @@ import { createServerPort as createSchedulingServerPort } from "../../features/s
 import { SetupCard, useSetupPort } from "../../features/setup/module.tsx";
 import { canComplete, formatCents as formatSchedulingCents, formatMinutes, listStatus, whatsAppDigits } from "../../features/scheduling/agenda.ts";
 import { dayWindow, formatDayLong, formatTime, localParts } from "../../features/scheduling/time.ts";
-import { appEnv } from "../env.ts";
+import { useApi } from "../api.tsx";
 import { useScope } from "../scope.tsx";
-import { useSession } from "../session.tsx";
 import { plural } from "../../lib/text/plural.ts";
 import { receivedPeriods } from "../../lib/time.ts";
 
@@ -123,19 +121,16 @@ async function loadToday(p: Ports): Promise<Today> {
 }
 
 export function Home() {
-  const session = useSession();
   const scope = useScope();
-  const { state, tenantId, getAccessToken } = session;
+  // P53 (recado #148): o cliente da sessão, não um cliente próprio.
+  const { demo, call, tenantId } = useApi();
   // P44: "Deixe seu negócio pronto · N de 8", a mesma porta da tela Configuração. Some quando tudo está resolvido.
   const setupPort = useSetupPort();
   const ports = useMemo<Ports | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) {
-      return { scheduling: getSchedulingDemoPort(), finance: getFinanceDemoPort(), advice: createAdviceDemoPort() };
-    }
-    if (!tenantId) return null;
-    const call = createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken });
+    if (demo) return { scheduling: getSchedulingDemoPort(), finance: getFinanceDemoPort(), advice: createAdviceDemoPort() };
+    if (!tenantId || !call) return null;
     return { scheduling: createSchedulingServerPort(call, tenantId), finance: createFinanceServerPort(call, tenantId), advice: createAdviceServerPort(call, tenantId) };
-  }, [state.status, tenantId, getAccessToken]);
+  }, [demo, call, tenantId]);
   const [data, setData] = useState<{ ports: Ports; value?: Today; error?: unknown } | null>(null);
   // Depois de "Atendido" ou "Faltou" no cartão "Próximo", o dia é relido com o dado anterior na tela (nada pisca).
   const [nonce, setNonce] = useState(0);

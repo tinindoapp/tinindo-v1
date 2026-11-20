@@ -8,7 +8,7 @@ import { Button, ConfirmAction, StatusBanner, whatsappHref } from "../../compone
 import { newIdempotencyKey } from "../../lib/idempotency.ts";
 import { takeLinkToken } from "../../lib/public-link.ts";
 import { type QuoteDecision, type QuoteLinkPort, type QuoteView } from "./port.ts";
-import { type PublicBusiness, PublicDone, PublicFrame, PublicMissing, PublicSkeleton, usePublicBusiness } from "./public-kit.tsx";
+import { type PublicBusiness, PublicDone, PublicFrame, PublicMissing, PublicSkeleton, usePublicBusiness } from "../../components/public/public-kit.tsx";
 import { formatCents, formatDay, formatSlotLong } from "./rules.ts";
 
 const KEY = "tinindo.quote";
