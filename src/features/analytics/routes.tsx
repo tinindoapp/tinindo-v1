@@ -1,0 +1,42 @@
+// Telas de Resultado e do custo por cliente, carregadas sob demanda pelo manifesto (module.tsx).
+// O custo por cliente fica em /app/resultado/custo, fora do menu: o banco decide quem é operador; quem não é da equipe
+// (sinal `isOperator` da sessão, recado #88) vê só o aviso, sem chamar o servidor.
+import { usePort, useSessionPort } from "../../app/api.tsx";
+import { OperatorGate } from "../../app/OperatorGate.tsx";
+import { useSession } from "../../app/session.tsx";
+import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { now } from "../../lib/time.ts";
+import { CostPage } from "./CostPage.tsx";
+import { createDemoCostPort, createDemoPort } from "./demoPort.ts";
+import type { AnalyticsPort, CostPort } from "./port.ts";
+import { ResultPage } from "./ResultPage.tsx";
+import { createServerCostPort, createServerPort } from "./serverPort.ts";
+
+export function ResultLayout() {
+  const { tenantId } = useSession();
+  const port = usePort<AnalyticsPort>({ demo: createDemoPort, server: createServerPort });
+  if (!port) {
+    return (
+      <div className="tn-page-intro">
+        <PageHeader id="an-no-tenant" title="Resultado" />
+        <StatusBanner tone="info">Selecione um negócio para ver os indicadores.</StatusBanner>
+      </div>
+    );
+  }
+  return <ResultPage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;
+}
+
+const demoNow = () => new Date(Date.parse("2026-10-20T12:00:00Z"));
+
+export function CostLayout() {
+  return (
+    <OperatorGate title="Custo por cliente" headingId="cost-title">
+      <CostScreen />
+    </OperatorGate>
+  );
+}
+
+function CostScreen() {
+  const port = useSessionPort<CostPort>({ demo: createDemoCostPort, server: createServerCostPort });
+  return <CostPage port={port} now={port.kind === "demo" ? demoNow : now} />;
+}

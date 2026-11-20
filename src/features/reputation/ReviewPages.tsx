@@ -5,12 +5,14 @@ import { Link, useSearchParams } from "react-router";
 import { ActionsMenu, Button, Card, ChoiceCard, ConfirmAction, Field, Help, PageHeader, Segmented, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { useSession } from "../../app/session.tsx";
-import { type CustomerReviewsPort, type IdentityMethod, newKey, type OwnerReviewsPort, type ReportReason, type ReviewOwnerList, type ReviewPending } from "./port.ts";
+import { type CustomerReviewsPort, type IdentityMethod, type OwnerReviewsPort, type ReportReason, type ReviewOwnerList, type ReviewPending } from "./port.ts";
 import { Badges, ReviewSummary, ReviewView } from "./ReviewViews.tsx";
+import { useCommand } from "../../lib/idempotency.ts";
 import { plural } from "../../lib/text/plural.ts";
+import { formatDayMonth } from "../../lib/time.ts";
 
 // Data do atendimento no fuso do piloto (o pendente não traz o fuso do negócio).
-const DAY = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+const PILOT_TZ = "America/Sao_Paulo";
 
 function explain(err: unknown): string {
   const e = err as { code?: string; field?: string } | null;
@@ -42,6 +44,7 @@ function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number];
   const [text, setText] = useState(r.reply?.body ?? "");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const command = useCommand();
   const [failure, setFailure] = useState<string | null>(null);
   const { formRef, errors, show, clear } = useFormErrors<"text">();
   const replyButton = useRef<HTMLButtonElement>(null);
@@ -80,7 +83,7 @@ function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number];
     setBusy(true);
     setFailure(null);
     try {
-      await port.reply(r.id, r.version, text, newKey());
+      await command({ reply: r.id, version: r.version, text }, (key) => port.reply(r.id, r.version, text, key));
       onDone("Resposta publicada.");
     } catch (err) {
       setFailure(explain(err));
@@ -96,7 +99,7 @@ function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number];
     }
     setReportBusy(true);
     try {
-      await port.report(r.id, reason, newKey());
+      await command({ report: r.id, reason }, (key) => port.report(r.id, reason, key));
       onDone("Denúncia enviada. A avaliação continua visível até a moderação decidir.");
     } catch (e) {
       toast({ tone: "danger", message: explain(e) });
@@ -179,17 +182,17 @@ function OwnerItem({ r, port, onDone }: { r: ReviewOwnerList["reviews"][number];
 
 const METHOD_LABEL: Record<IdentityMethod, string> = { document_video_call: "Videochamada com documento", gov_br: "gov.br" };
 const METHOD_PHRASE: Record<IdentityMethod, string> = { document_video_call: "por videochamada com documento", gov_br: "pelo gov.br" };
-const REQUESTED_AT = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
 
 /** Recado #89: pedir a verificação pelo app. Um pedido aberto por negócio; o app não recebe documento. */
 function IdentityRequestForm({ port, request, onDone }: { port: OwnerReviewsPort; request: ReviewOwnerList["identity_request"]; onDone: (message: string) => void }) {
   const [method, setMethod] = useState<IdentityMethod>("document_video_call");
   const [busy, setBusy] = useState(false);
+  const command = useCommand();
   const [failure, setFailure] = useState<string | null>(null);
   if (request) {
     return (
       <p className="tn-muted" role="status">
-        Pedido enviado em <span className="tn-num">{REQUESTED_AT.format(new Date(request.requested_at))}</span>, {METHOD_PHRASE[request.preferred_method]}.
+        Pedido enviado em <span className="tn-num">{formatDayMonth(request.requested_at, PILOT_TZ)}</span>, {METHOD_PHRASE[request.preferred_method]}.
         A equipe da Tinindo entra em contato para marcar a conferência.
       </p>
     );
@@ -198,7 +201,7 @@ function IdentityRequestForm({ port, request, onDone }: { port: OwnerReviewsPort
     setBusy(true);
     setFailure(null);
     try {
-      await port.requestIdentity(method, newKey());
+      await command({ identity: method }, (key) => port.requestIdentity(method, key));
       onDone("Pedido de verificação enviado à equipe da Tinindo.");
     } catch (err) {
       setFailure(explain(err));
@@ -292,10 +295,11 @@ function PendingItem({ p, port, target, lock, onDone }: {
   const [rating, setRating] = useState(0);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const command = useCommand();
   const [failure, setFailure] = useState<string | null>(null);
   const [ratingError, setRatingError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const label = `Avaliar ${p.service_name} em ${p.tenant_name}, ${DAY.format(new Date(p.ended_at))}`;
+  const label = `Avaliar ${p.service_name} em ${p.tenant_name}, ${formatDayMonth(p.ended_at, PILOT_TZ)}`;
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!rating) {
@@ -308,7 +312,8 @@ function PendingItem({ p, port, target, lock, onDone }: {
     setBusy(true);
     setFailure(null);
     try {
-      await port.submit(p.booking_id, rating, text.trim() || null, newKey());
+      const body = text.trim() || null;
+      await command({ submit: p.booking_id, rating, body }, (key) => port.submit(p.booking_id, rating, body, key));
       toast("Obrigado! Sua avaliação foi publicada sem o seu nome.");
       onDone();
     } catch (err) {
@@ -321,7 +326,7 @@ function PendingItem({ p, port, target, lock, onDone }: {
   return (
     <li id={`avaliar-${p.booking_id}`} className="tn-rev-item" data-target={p.booking_id === target ? "true" : undefined}>
       <form ref={formRef} aria-label={label} className="tn-stack" data-gap="sm" onSubmit={(e) => void submit(e)} noValidate>
-        <p><strong>{p.service_name}</strong> · {p.tenant_name} · <span className="tn-num">{DAY.format(new Date(p.ended_at))}</span></p>
+        <p><strong>{p.service_name}</strong> · {p.tenant_name} · <span className="tn-num">{formatDayMonth(p.ended_at, PILOT_TZ)}</span></p>
         <div className="tn-field tn-rev-rating" data-invalid={ratingError ? true : undefined}>
           <Segmented
             label="Nota"
@@ -355,6 +360,7 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
   const [data, setData] = useState<ReviewPending | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const command = useCommand();
   const sending = useRef(false);
   const lock = useMemo(() => ({
     take: () => (sending.current ? false : (sending.current = true)),
@@ -411,7 +417,7 @@ export function CustomerReviewPage({ port }: { port: CustomerReviewsPort }) {
                         consequence={<p>Ela sai do perfil de {r.tenant_name} e este atendimento não pode ser avaliado de novo.</p>}
                         confirmLabel="Sim, retirar"
                         onConfirm={() =>
-                          port.withdraw(r.id, newKey()).then(
+                          command({ withdraw: r.id }, (key) => port.withdraw(r.id, key)).then(
                             () => { toast("Avaliação retirada."); reload(); },
                             (e: unknown) => toast({ tone: "danger", message: explain(e) }),
                           )

@@ -40,4 +40,3 @@ export interface SetupPort {
   applyDraft(input: DraftInput, key: string): Promise<SetupDraftApplyOutput>;
 }
 
-export const newKey = () => crypto.randomUUID();

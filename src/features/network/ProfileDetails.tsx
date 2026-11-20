@@ -3,7 +3,8 @@
 import { type FormEvent, useState } from "react";
 import { Button, Card, ChoiceCard, Field, StatusBanner, toast } from "../../components/ui/index.tsx";
 import type { NetworkApi, OwnerProfile } from "./api.ts";
-import { errorMessage, newIdempotencyKey } from "./useNetworkApi.ts";
+import { useIdempotencyKey } from "../../lib/idempotency.ts";
+import { errorMessage } from "./useNetworkApi.ts";
 
 export function ProfileDetailsEditor({ api, profile, onSaved }: { api: NetworkApi; profile: OwnerProfile; onSaved: () => Promise<void> }) {
   const d = profile.details;
@@ -13,7 +14,8 @@ export function ProfileDetailsEditor({ api, profile, onSaved }: { api: NetworkAp
   const [policy, setPolicy] = useState(d?.cancellation_policy ?? "");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const [key, setKey] = useState(newIdempotencyKey);
+  // Mesmo formulário depois de uma falha: mesma chave; mudou algo ou deu certo: outra.
+  const idem = useIdempotencyKey();
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -24,13 +26,14 @@ export function ProfileDetailsEditor({ api, profile, onSaved }: { api: NetworkAp
     setBusy(true);
     setProblem(null);
     try {
-      await api.setProfileDetails({
+      const input = {
         address: where === "address" ? address.trim() : null,
         home_service: where === "home",
         opening_hours: hours.trim() || null,
         cancellation_policy: policy.trim() || null,
-      }, key);
-      setKey(newIdempotencyKey());
+      };
+      await api.setProfileDetails(input, idem.keyFor(input));
+      idem.reset();
       toast("Endereço, horário e política salvos.");
       await onSaved();
     } catch (err) {

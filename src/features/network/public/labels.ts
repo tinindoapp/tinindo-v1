@@ -2,6 +2,7 @@
 // (pacote separado) e reexportados por useNetworkApi.ts para as telas do dono.
 import type { Profession } from "@contracts";
 import { ApiError } from "../../../lib/api/client.ts";
+import { formatFullDateTime } from "../../../lib/time.ts";
 
 export const CATEGORY_LABEL: Record<Profession, string> = {
   barber: "Barbearia",
@@ -10,6 +11,7 @@ export const CATEGORY_LABEL: Record<Profession, string> = {
   other: "Outro serviço",
 };
 
+// Reexportado só por useNetworkApi.ts; as telas usam useCommand/useIdempotencyKey de src/lib/idempotency.ts.
 export { newIdempotencyKey } from "../../../lib/idempotency.ts";
 
 /** Mensagem para a pessoa, sem detalhes técnicos; campos conhecidos ganham texto específico. */
@@ -22,8 +24,8 @@ export function errorMessage(e: unknown): string {
   return e.message;
 }
 
-export const formatDateTime = (iso: string) =>
-  new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+/** "20/10/2026, 09:30". O fuso padrão fica aqui até o fuso do negócio vir da sessão. */
+export const formatDateTime = (iso: string) => formatFullDateTime(iso, "America/Sao_Paulo");
 
 /** "+5511977774343" → "(11) 97777-4343"; outro formato volta como veio. Formatador comum (src/lib/phone.ts). */
 export { formatPhone as formatPhoneBr } from "../../../lib/phone.ts";

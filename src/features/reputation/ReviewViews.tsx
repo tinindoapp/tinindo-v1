@@ -1,10 +1,11 @@
 // Pedaços de leitura das avaliações, sem sessão nem porta: usados pelo painel do dono, pela página do cliente e pela
 // lista pública (pacote público).
 import { plural } from "../../lib/text/plural.ts";
+import { formatMonth } from "../../lib/time.ts";
 import type { ReviewPublicList } from "./port.ts";
 
-const MONTH = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
-const monthLabel = (ym: string) => MONTH.format(new Date(`${ym}-15T12:00:00Z`));
+/** "2026-10" → "outubro de 2026". */
+const monthLabel = formatMonth;
 const stars = (n: number) => `${"★".repeat(n)}${"☆".repeat(5 - n)}`;
 
 type Summary = ReviewPublicList["summary"];
