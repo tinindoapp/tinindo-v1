@@ -9,10 +9,10 @@ Base: linha P52 de `docs/qa/revisao-2026-11-10/00-REPLANEJAMENTO.md`, docs 15 e 
 |---|---|
 | #110 (1/6) | `src/lib` com um só de cada, regra de lint, teste das portas de servidor contra o registro |
 | #114 (2/6) | Materiais, Caixa, Contas a pagar, Recorrência |
-| 3/6 | Clientes (crm), Mensagens, Retorno (lifecycle), Lista de espera |
-| 4/6 | Preços, Orçamentos (sales, telas do dono e link público), Resultados (analytics) |
-| 5/6 | Campanhas, Indicações, Equipe (resources) |
-| 6/6 | Domicílio (field-service), Fiscal, Serviços operados, Metas (growth-advice), este handoff |
+| #121 (3/6) | Clientes (crm), Mensagens, Retorno (lifecycle), Lista de espera |
+| #122 (4/6) | Preços, Orçamentos (sales, telas do dono e link público), Resultados (analytics) |
+| #124 (5/6) | Campanhas, Indicações, Equipe (resources) |
+| este PR (6/6) | Domicílio (field-service), Fiscal, Serviços operados, Metas (growth-advice), este handoff |
 
 ### 1. `src/lib`, um só de cada (`src/lib/README.md`)
 
