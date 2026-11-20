@@ -1,23 +1,24 @@
-// Clientes: listar, buscar, criar, editar e arquivar. Duplicado é só sugerido, nunca mesclado. No cartão, ligar e
-// WhatsApp à mão; editar e arquivar no menu "⋯"; o nome abre a ficha (CustomerPage).
+// Clientes: listar, buscar, criar, editar e arquivar. Duplicado é só sugerido, nunca mesclado. Cada cliente é uma linha
+// (P54, doc 11 §3.6): o nome abre a ficha (CustomerPage), o WhatsApp fica à vista e ligar, editar e arquivar no "⋯".
 // P49: cada linha diz a última visita ou o próximo horário, e o filtro "Sem voltar há 30+ dias" mostra quem sumiu.
 // A data vem da agenda (lib/visits.ts), porque customer.list não traz a última visita.
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { ActionRow } from "../../components/ui/layout.tsx";
 import { type Profession } from "@contracts";
 import {
   type CrmCustomer,
   CrmCustomerUpsertInput,
   DeclaredSource,
 } from "@contracts";
-import { ActionsMenu, Button, Card, Field, FormPanel, LinkButton, PageHeader, Segmented, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { ActionsMenu, Button, Field, FormPanel, LinkButton, PageHeader, Segmented, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { formatDayShort, localParts } from "../../lib/time.ts";
 import { agoText, daysSince, isLapsed, LAPSED_DAYS, type VisitInfo } from "../../lib/visits.ts";
 import { type CustomerVisits, useCrmApi } from "./api.ts";
-import { ContactButtons } from "./contact.tsx";
-import { formatPhone, normalizePhoneBR, SOURCE_LABEL } from "./format.ts";
+import { WhatsAppButton } from "./contact.tsx";
+import { formatPhone, normalizePhoneBR, SOURCE_LABEL, telHref } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
-import { CrmDemoNotice, EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
+import { EmptyState, fieldErrors, ListSkeleton, Tag } from "./shared.tsx";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { serverMessage } from "../../lib/errors.ts";
 import { plural } from "../../lib/text/plural.ts";
@@ -185,13 +186,13 @@ export function CustomersPage() {
             <Button onClick={() => setDraft(EMPTY)} disabled={api.readOnly}>
               Novo {noun.one}
             </Button>
-            <LinkButton to="importar" variant="secondary">
+            <LinkButton to="importar" variant="ghost">
               Importar planilha
             </LinkButton>
           </>
         }
+        filter={<Segmented label="Mostrar" hideLabel value={show} options={SHOW_OPTIONS} onChange={setShow} />}
       />
-      <CrmDemoNotice />
       <div className="tn-stack" data-gap="sm">
         <div className="crm-toolbar">
           <Field
@@ -206,7 +207,6 @@ export function CustomersPage() {
             Mostrar arquivados
           </label>
         </div>
-        <Segmented label="Mostrar" hideLabel value={show} options={SHOW_OPTIONS} onChange={setShow} />
         {visitsFailed ? <StatusBanner tone="warning">Não deu para ler a agenda agora: a última visita não aparece e o filtro de quem não volta fica vazio.</StatusBanner> : null}
       </div>
 
@@ -224,7 +224,7 @@ export function CustomersPage() {
         </FormPanel>
       ) : null}
 
-      <Card aria-labelledby="crm-customers-list">
+      <section className="tn-stack" data-gap="sm" aria-labelledby="crm-customers-list">
         <h2 id="crm-customers-list" className="tn-visually-hidden">
           Lista de {noun.many}
         </h2>
@@ -269,58 +269,72 @@ export function CustomersPage() {
             {visits ? "Quem veio nos últimos 6 meses voltou há menos tempo ou já tem horário marcado." : "Carregando as visitas da agenda…"}
           </EmptyState>
         ) : null}
-        <ul className="tn-item-list" aria-label={show === "sumidos" ? `Sem voltar há ${LAPSED_DAYS}+ dias` : undefined}>
-          {listed.map((c) => (
-            <li key={c.id} className="crm-item">
-              <div className="crm-item__main">
-                <Link to={c.id} className="crm-item__name">
-                  {c.name}
-                </Link>
-                {c.archived_at ? <Tag>Arquivado</Tag> : null}
-                <div className="crm-item__meta">
-                  {[formatPhone(c.phone), c.email, c.declared_source ? `Origem: ${SOURCE_LABEL[c.declared_source]}` : null]
-                    .filter(Boolean)
-                    .join(" · ") || "Sem contato cadastrado"}
-                </div>
-                {visits ? <div className="crm-item__visit tn-num">{visitLine(visits.byCustomer[c.id], visits)}</div> : null}
-              </div>
-              <div className="tn-actions crm-item__actions">
-                <ContactButtons name={c.name} phone={c.phone} />
-                {/* Editar e arquivar são menos usados que ligar: ficam no menu "⋯". */}
-                <ActionsMenu
-                  label={`Mais ações para ${c.name}`}
-                  hint={api.readOnly ? "Demonstração: editar e arquivar ficam bloqueados." : undefined}
-                  actions={[
-                    {
-                      label: "Editar",
-                      disabled: api.readOnly,
-                      onSelect: () =>
-                        setDraft({
-                          id: c.id,
-                          version: c.version,
-                          name: c.name,
-                          phone: formatPhone(c.phone),
-                          email: c.email ?? "",
-                          source: c.declared_source ?? "",
-                        }),
-                    },
-                    {
-                      label: c.archived_at ? "Desarquivar" : "Arquivar",
-                      disabled: api.readOnly,
-                      onSelect: () => void toggleArchive(c),
-                    },
-                  ]}
+        {listed.length > 0 ? (
+          <ul className="tn-list crm-list" aria-label={show === "sumidos" ? `Sem voltar há ${LAPSED_DAYS}+ dias` : undefined}>
+            {listed.map((c) => {
+              const tel = telHref(c.phone);
+              return (
+                <ActionRow
+                  key={c.id}
+                  title={
+                    <>
+                      <Link to={c.id} className="crm-item__name">
+                        {c.name}
+                      </Link>
+                      {c.archived_at ? <Tag>Arquivado</Tag> : null}
+                    </>
+                  }
+                  // Linha compacta: a última visita ou o próximo horário; o contato completo fica na ficha.
+                  meta={
+                    visits ? (
+                      <span className="tn-num">{visitLine(visits.byCustomer[c.id], visits)}</span>
+                    ) : (
+                      <span className="tn-num">{formatPhone(c.phone) || c.email || "Sem contato cadastrado"}</span>
+                    )
+                  }
+                  action={
+                    <>
+                      <WhatsAppButton name={c.name} phone={c.phone} compact />
+                      {/* Ligar, editar e arquivar são menos usados que o WhatsApp: ficam no menu "⋯". O menu do kit
+                          (ActionRow `more`) não leva o motivo do bloqueio, então o menu entra aqui com `hint`. */}
+                      <ActionsMenu
+                        label={`Mais ações para ${c.name}`}
+                        hint={api.readOnly ? "Demonstração: editar e arquivar ficam bloqueados." : undefined}
+                        actions={[
+                          ...(tel ? [{ label: "Ligar", onSelect: () => window.location.assign(tel) }] : []),
+                          {
+                            label: "Editar",
+                            disabled: api.readOnly,
+                            onSelect: () =>
+                              setDraft({
+                                id: c.id,
+                                version: c.version,
+                                name: c.name,
+                                phone: formatPhone(c.phone),
+                                email: c.email ?? "",
+                                source: c.declared_source ?? "",
+                              }),
+                          },
+                          {
+                            label: c.archived_at ? "Desarquivar" : "Arquivar",
+                            disabled: api.readOnly,
+                            onSelect: () => void toggleArchive(c),
+                          },
+                        ]}
+                      />
+                    </>
+                  }
                 />
-              </div>
-            </li>
-          ))}
-        </ul>
+              );
+            })}
+          </ul>
+        ) : null}
         {next ? (
           <Button variant="secondary" onClick={() => void fetchPage(shown, next)}>
             Carregar mais
           </Button>
         ) : null}
-      </Card>
+      </section>
     </div>
   );
 }

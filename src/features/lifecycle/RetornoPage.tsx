@@ -4,9 +4,11 @@
 // 2. Quem não volta: sem visita há 30 dias ou mais e sem horário marcado, com a última visita e "Chamar no WhatsApp".
 // 3. Lista de espera: resumo e o caminho para a tela que já existe.
 // A Tinindo não envia nada daqui: os links abrem o WhatsApp do dono.
+// P54: cada registro é uma linha de lista (.tn-list) com uma ação visível; o aviso de demonstração fica só na faixa do topo.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Help, PageHeader, Section, StatusBanner, toast, whatsappHref } from "../../components/ui/index.tsx";
+import { PageHeader, Section, StatusBanner, toast, whatsappHref } from "../../components/ui/index.tsx";
+import { ActionRow, ListCutNote } from "../../components/ui/layout.tsx";
 import { whatsappHref as chatHref } from "../../lib/phone.ts";
 import { plural } from "../../lib/text/plural.ts";
 import { agoText, daysSince, isLapsed, LAPSED_DAYS } from "../../lib/visits.ts";
@@ -14,6 +16,9 @@ import { newIdempotencyKey } from "../../lib/idempotency.ts";
 import { formatDate, formatDateTime } from "../../lib/time.ts";
 import { explain } from "./labels.ts";
 import type { LifecyclePort, LifecycleStep } from "./port.ts";
+
+/** Lembretes a mandar e se a porta cortou a lista (P56: `truncated.steps`, teto de 200). */
+type Reminders = { steps: LifecycleStep[]; truncated: boolean };
 import type { ReturnBoard, ReturnContact, ReturnSource } from "./retorno.ts";
 
 /** Quantos itens cada bloco mostra antes do "Ver todos". */
@@ -38,22 +43,28 @@ function useLoad<T>(run: () => Promise<T>): Load<T> & { reload: () => void } {
 }
 
 export function RetornoPage({ port, source }: { port: LifecyclePort; source: ReturnSource }) {
-  const steps = useLoad(useCallback(async () => (await port.steps("manual")).steps.filter((s) => REMINDER_RULES.has(s.rule)), [port]));
+  const steps = useLoad(
+    useCallback(async (): Promise<Reminders> => {
+      const out = await port.steps("manual");
+      return { steps: out.steps.filter((s) => REMINDER_RULES.has(s.rule)), truncated: out.truncated?.steps === true };
+    }, [port]),
+  );
   const board = useLoad(useCallback(() => source.board(), [source]));
   const contacts = new Map((board.data?.customers ?? []).map((c) => [c.id, c]));
 
   return (
     <div className="tn-stack">
-      <div className="tn-page-intro">
-        <PageHeader id="rt-title" title="Retorno" subtitle="Quem avisar, quem chamar de volta e quem espera vaga." />
-        <Help>
+      <PageHeader
+        id="rt-title"
+        title="Retorno"
+        subtitle="Quem avisar, quem chamar de volta e quem espera vaga."
+        help={
           <p>
             Os textos abrem no seu WhatsApp para você revisar e mandar. A Tinindo não envia nada daqui, e abrir o WhatsApp não confirma que a
             mensagem chegou. As réguas de confirmação e lembrete ficam em <Link to="/app/relacionamento">Relacionamento</Link>.
           </p>
-        </Help>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Clientes e textos de exemplo; nada é enviado.</StatusBanner> : null}
-      </div>
+        }
+      />
       <Reminders load={steps} contacts={contacts} board={board.data} port={port} onShared={steps.reload} />
       <Lapsed load={board} />
       <Waitlist load={board} />
@@ -61,12 +72,12 @@ export function RetornoPage({ port, source }: { port: LifecyclePort; source: Ret
   );
 }
 
-function Reminders({ load, contacts, board, port, onShared }: { load: Load<LifecycleStep[]>; contacts: Map<string, ReturnContact>; board: ReturnBoard | null; port: LifecyclePort; onShared: () => void }) {
+function Reminders({ load, contacts, board, port, onShared }: { load: Load<Reminders>; contacts: Map<string, ReturnContact>; board: ReturnBoard | null; port: LifecyclePort; onShared: () => void }) {
   // Uma chave por passo: dois toques seguidos marcam uma vez só (ADR-0002).
   const keys = useRef(new Map<string, string>());
   const keyFor = (id: string) => keys.current.get(id) ?? keys.current.set(id, newIdempotencyKey()).get(id)!;
   const timezone = board?.timezone ?? "America/Sao_Paulo";
-  const items = load.data ?? [];
+  const items = load.data?.steps ?? [];
   function shared(step: LifecycleStep) {
     port.markShared(step.id, keyFor(step.id)).then(
       () => {
@@ -82,26 +93,33 @@ function Reminders({ load, contacts, board, port, onShared }: { load: Load<Lifec
       {!load.data && !load.error ? <p role="status" className="tn-muted">Carregando lembretes…</p> : null}
       {load.data && items.length === 0 ? <p className="tn-muted">Nenhum lembrete esperando você: as confirmações e os lembretes sem canal aparecem aqui com o texto pronto.</p> : null}
       {items.length > 0 ? (
-        <ul className="tn-rt-list" aria-label="Lembretes a mandar">
+        <ul className="tn-list tn-rt-list" aria-label="Lembretes a mandar">
           {items.slice(0, SHOW).map((s) => {
             const who = s.customer_name ?? "Cliente";
             const phone = s.customer_id ? (contacts.get(s.customer_id)?.phone ?? null) : null;
             return (
-              <li key={s.id} className="tn-rt-item">
-                <h3>{RULE_SHORT[s.rule]} · {who}</h3>
-                <p className="tn-muted">Para você compartilhar · previsto {formatDateTime(s.due_at, timezone)}</p>
-                <span className="tn-lc-body">{s.body}</span>
-                <div className="tn-actions">
-                  <a className="tn-button" data-variant="primary" href={whatsappHref(phone, s.body)} target="_blank" rel="noopener noreferrer" aria-label={`Mandar no WhatsApp para ${who}`} onClick={() => shared(s)}>
+              <ActionRow
+                key={s.id}
+                title={`${RULE_SHORT[s.rule]} · ${who}`}
+                meta={
+                  <>
+                    <span className="tn-num">Para você compartilhar · previsto {formatDateTime(s.due_at, timezone)}</span>
+                    {/* O texto pronto, em duas linhas: o WhatsApp abre com ele inteiro para você revisar. */}
+                    <span className="tn-rt-body">{s.body}</span>
+                    {phone ? null : <span>Sem WhatsApp no cadastro: o WhatsApp abre e pede o contato.</span>}
+                  </>
+                }
+                action={
+                  <a className="tn-button" data-variant="secondary" data-size="compact" href={whatsappHref(phone, s.body)} target="_blank" rel="noopener noreferrer" aria-label={`Mandar no WhatsApp para ${who}`} onClick={() => shared(s)}>
                     Mandar no WhatsApp
                   </a>
-                </div>
-                {phone ? null : <p className="tn-muted">Sem WhatsApp no cadastro: o WhatsApp abre e pede o contato.</p>}
-              </li>
+                }
+              />
             );
           })}
         </ul>
       ) : null}
+      {load.data?.truncated ? <ListCutNote /> : null}
     </Section>
   );
 }
@@ -127,30 +145,35 @@ function Lapsed({ load }: { load: Load<ReturnBoard> }) {
       {load.error && !b ? <StatusBanner tone="danger">Não deu para ler a agenda agora. Tentar de novo é seguro.</StatusBanner> : null}
       {!b && !load.error ? <p role="status" className="tn-muted">Carregando clientes…</p> : null}
       {b && lapsed.length === 0 ? <p className="tn-muted">Ninguém sumido: quem veio nos últimos 6 meses voltou há menos de {LAPSED_DAYS} dias ou já tem horário marcado.</p> : null}
-      {b && !b.visits.complete ? <StatusBanner tone="warning">A agenda tem mais atendimentos do que esta leitura alcança; a lista pode estar incompleta.</StatusBanner> : null}
       {lapsed.length > 0 ? (
-        <ul className="tn-rt-list" aria-label="Quem não volta">
+        <ul className="tn-list tn-rt-list" aria-label="Quem não volta">
           {lapsed.slice(0, SHOW).map((c) => {
             // Abre a conversa sem texto pronto: chamar de volta é conversa sua, não campanha (essa pede consentimento).
             const wa = chatHref(c.phone);
             return (
-              <li key={c.id} className="tn-rt-item tn-rt-row">
-                <div className="tn-rt-row__main">
-                  <Link to={`/app/clientes/${c.id}`} className="tn-rt-row__name">{c.name}</Link>
-                  <span className="tn-muted tn-num">Última visita {agoText(c.days)} · {formatDate(c.last, b!.timezone)}</span>
-                </div>
-                {wa ? (
-                  <a className="tn-button" data-variant="secondary" href={wa} target="_blank" rel="noopener noreferrer" aria-label={`Chamar ${c.name} no WhatsApp`}>
-                    Chamar no WhatsApp
-                  </a>
-                ) : (
-                  <span className="tn-muted">Sem WhatsApp no cadastro</span>
-                )}
-              </li>
+              <ActionRow
+                key={c.id}
+                // O nome abre a ficha; alvo de 44 px de altura (o link não ocupa a linha porque a ação é irmã dele).
+                title={<Link to={`/app/clientes/${c.id}`} className="tn-rt-row__name">{c.name}</Link>}
+                meta={
+                  <span className="tn-num">
+                    Última visita {agoText(c.days)} · {formatDate(c.last, b!.timezone)}
+                    {wa ? null : " · Sem WhatsApp no cadastro"}
+                  </span>
+                }
+                action={
+                  wa ? (
+                    <a className="tn-button" data-variant="secondary" data-size="compact" href={wa} target="_blank" rel="noopener noreferrer" aria-label={`Chamar ${c.name} no WhatsApp`}>
+                      Chamar no WhatsApp
+                    </a>
+                  ) : undefined
+                }
+              />
             );
           })}
         </ul>
       ) : null}
+      {b && !b.visits.complete ? <ListCutNote text="A agenda tem mais atendimentos do que esta leitura alcança; a lista pode estar incompleta." /> : null}
     </Section>
   );
 }

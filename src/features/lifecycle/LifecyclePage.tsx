@@ -4,6 +4,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Button, Card, ChipGroup, ConfirmAction, Field, Help, PageHeader, ShareActions, type ShareHow, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { ListCutNote } from "../../components/ui/layout.tsx";
 import { explain, MESSAGE_STATUS, RULE_LABEL, SKIP_REASON, STEP_STATUS } from "./labels.ts";
 import { type Audience, type LifecycleCampaign, type LifecyclePort, type LifecycleSettings, type LifecycleStep, type LifecycleStepStatus, type StepsList } from "./port.ts";
 import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
@@ -179,9 +180,8 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
       <div className="tn-page-intro">
         <PageHeader id="lc-title" title="Relacionamento" />
         <Help><p>Confirmação e lembretes do agendamento, acompanhamento de orçamento parado e lembrete de cobrança vencida, com cada passo visível. A régua para sozinha no aceite, cancelamento, pagamento ou quando a cliente pede SAIR. Sem canal conectado, o texto fica pronto para você compartilhar.</p></Help>
-        {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Agenda de exemplo; nada é enviado. Use "Rodar a régua" para ver os passos vencidos saírem.</StatusBanner> : null}
+        {/* P54, D11 (b): o aviso de demonstração fica só na faixa do topo; o botão que só simula vai para o fim da tela. */}
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-        {port.tick ? <div className="tn-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => { toast({ tone: "info", message: `Régua (simulação): ${plural(r.sent, "enviado")} ao canal, ${r.manual} para compartilhar, ${plural(r.deferred, "adiado")}, ${plural(r.skipped, "pulado")}.` }); refresh(); }, (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Rodar a régua (simulação)</Button></div> : null}
       </div>
 
       <Card aria-labelledby="lc-steps-title">
@@ -199,6 +199,8 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
         <ul className="tn-lc-list" aria-label="Passos">
           {list?.steps.map((s) => <StepItem key={s.id} step={s} timezone={timezone} port={port} onDone={done} />)}
         </ul>
+        {/* P56: a porta devolve no máximo 200 passos e diz quando cortou. */}
+        {list?.truncated?.steps ? <ListCutNote /> : null}
       </Card>
 
       <Card aria-labelledby="lc-settings-title">
@@ -255,6 +257,9 @@ export function LifecyclePage({ port, timezone }: { port: LifecyclePort; timezon
           </ul>
         ) : null}
       </Card>
+
+      {/* Só na demonstração (no servidor, o cron faz isso): nunca o primeiro controle da tela. */}
+      {port.tick ? <div className="tn-actions"><Button variant="secondary" onClick={() => void port.tick!().then((r) => { toast({ tone: "info", message: `Régua (simulação): ${plural(r.sent, "enviado")} ao canal, ${r.manual} para compartilhar, ${plural(r.deferred, "adiado")}, ${plural(r.skipped, "pulado")}.` }); refresh(); }, (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>Rodar a régua (simulação)</Button></div> : null}
     </div>
   );
 }

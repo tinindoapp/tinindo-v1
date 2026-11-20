@@ -1,19 +1,22 @@
-// Ficha do cliente (auditoria de UX, item 35): contato, ligar e WhatsApp, e o histórico de atendimentos lido da agenda.
+// Ficha do cliente (auditoria de UX, item 35; P54, doc 07 §4.3 e doc 11 §3.6): o nome com "Agendar" como ação principal,
+// o resumo de retorno, os próximos e os anteriores em linhas (cada um abre o atendimento na agenda) e o contato no fim.
 // Somente leitura: editar e arquivar continuam na lista.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { BookingStatus, CrmCustomer } from "@contracts";
-import { Card, PageHeader, StatusBanner } from "../../components/ui/index.tsx";
+import { LinkButton, PageHeader, Section, StatusBanner } from "../../components/ui/index.tsx";
+import { ActionRow, type BadgeTone, CappedList, StatusBadge, Summary, SummaryHero, SummaryRows } from "../../components/ui/layout.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { type CustomerHistory, type HistoryItem, useCrmApi } from "./api.ts";
 import { ContactButtons } from "./contact.tsx";
 import { capitalize, useProfession } from "./CustomersPage.tsx";
 import { formatPhone, SOURCE_LABEL } from "./format.ts";
 import { PROFESSION_CONFIG } from "./profession.ts";
-import { CrmDemoNotice, Tag } from "./shared.tsx";
+import { Tag } from "./shared.tsx";
 import { serverMessage } from "../../lib/errors.ts";
 import { formatCents } from "../../lib/money.ts";
-import { formatWeekdayDateTime } from "../../lib/time.ts";
+import { formatDate, formatWeekdayDateTime } from "../../lib/time.ts";
+import { agoText, daysSince } from "../../lib/visits.ts";
 
 /** Estado do atendimento sempre por palavra. */
 export const VISIT_STATUS: Record<BookingStatus, string> = {
@@ -23,6 +26,16 @@ export const VISIT_STATUS: Record<BookingStatus, string> = {
   expired: "Reserva vencida",
   cancelled: "Cancelado",
   no_show: "Faltou",
+};
+
+/** Tom do selo (D15): concluído em verde, confirmado neutro, falta pede atenção. */
+const VISIT_TONE: Record<BookingStatus, BadgeTone> = {
+  held: "neutral",
+  confirmed: "neutral",
+  completed: "success",
+  expired: "neutral",
+  cancelled: "neutral",
+  no_show: "warning",
 };
 
 type Load<T> = { status: "loading" } | { status: "ok"; value: T } | { status: "error"; message: string };
@@ -64,8 +77,8 @@ export function CustomerPage() {
   }, [api, customerId]);
 
   const back = (
-    <Link to="/app/clientes" className="tn-button crm-back" data-variant="ghost">
-      <Icon name="voltar" size={20} />
+    <Link to="/app/clientes" className="tn-button crm-back" data-variant="ghost" data-size="compact">
+      <Icon name="voltar" size={18} />
       {capitalize(noun.many)}
     </Link>
   );
@@ -84,9 +97,10 @@ export function CustomerPage() {
   }
 
   const c = customer.value;
-  const nowIso = history.status === "ok" ? history.value.now : "";
-  const upcoming = history.status === "ok" ? history.value.items.filter((i) => Date.parse(i.starts_at) >= Date.parse(nowIso)).reverse() : [];
-  const past = history.status === "ok" ? history.value.items.filter((i) => Date.parse(i.starts_at) < Date.parse(nowIso)) : [];
+  const h = history.status === "ok" ? history.value : null;
+  const now = h ? Date.parse(h.now) : 0;
+  const upcoming = h ? h.items.filter((i) => Date.parse(i.starts_at) >= now).reverse() : [];
+  const past = h ? h.items.filter((i) => Date.parse(i.starts_at) < now) : [];
 
   return (
     <div className="tn-stack">
@@ -96,80 +110,109 @@ export function CustomerPage() {
         eyebrow={`Ficha do ${noun.one}`}
         title={c.name}
         subtitle={c.archived_at ? <Tag>Arquivado</Tag> : undefined}
+        actions={
+          <>
+            {/* O Novo agendamento pode ainda não ler `cliente`; o link já leva o cliente certo. */}
+            <LinkButton to={`/app/agenda/novo?cliente=${encodeURIComponent(c.id)}`}>Agendar</LinkButton>
+            <ContactButtons name={c.name} phone={c.phone} variant="ghost" />
+          </>
+        }
       />
-      <CrmDemoNotice />
 
-      <Card aria-labelledby="crm-customer-contact">
-        <div className="tn-stack" data-gap="sm">
-          <h2 id="crm-customer-contact">Contato</h2>
-          <dl className="crm-facts">
-            <div>
-              <dt>Telefone</dt>
-              <dd>{c.phone ? formatPhone(c.phone) : "Não cadastrado"}</dd>
-            </div>
-            <div>
-              <dt>E-mail</dt>
-              <dd>{c.email ?? "Não cadastrado"}</dd>
-            </div>
-            <div>
-              <dt>Como chegou</dt>
-              <dd>{c.declared_source ? SOURCE_LABEL[c.declared_source] : "Não informado"}</dd>
-            </div>
-          </dl>
-          {c.phone ? (
-            <div className="tn-actions">
-              <ContactButtons name={c.name} phone={c.phone} />
-            </div>
-          ) : (
-            <p className="tn-muted">Sem telefone cadastrado: para ligar ou chamar no WhatsApp daqui, cadastre o número na lista, em “⋯” › Editar.</p>
-          )}
-        </div>
-      </Card>
+      {history.status === "loading" ? <p role="status" className="tn-muted">Carregando o histórico…</p> : null}
+      {history.status === "error" ? <StatusBanner tone="warning">Histórico ainda não disponível: {history.message}</StatusBanner> : null}
+      {h ? <ReturnSummary history={h} past={past} upcoming={upcoming} /> : null}
+      {h && h.items.length === 0 ? <p className="tn-muted">Nenhum atendimento ainda.</p> : null}
+      {upcoming.length > 0 ? (
+        <Section id="crm-history-next" title="Próximos" count={upcoming.length}>
+          <div className="crm-visits">
+            <ul className="tn-list" aria-label="Próximos atendimentos">
+              {upcoming.map((v) => <VisitRow key={v.id} visit={v} timezone={h!.timezone} />)}
+            </ul>
+          </div>
+        </Section>
+      ) : null}
+      {past.length > 0 ? (
+        <Section id="crm-history-past" title="Anteriores" count={past.length}>
+          <div className="crm-visits">
+            <CappedList
+              label="Atendimentos anteriores"
+              items={past}
+              render={(v) => <VisitRow key={v.id} visit={v} timezone={h!.timezone} />}
+              truncated={!h!.complete}
+              truncatedText={`Mostrando os ${h!.items.length} mais recentes; os mais antigos não aparecem aqui.`}
+            />
+          </div>
+        </Section>
+      ) : null}
 
-      <Card aria-labelledby="crm-customer-history">
-        <div className="tn-stack" data-gap="sm">
-          <h2 id="crm-customer-history">Atendimentos</h2>
-          {history.status === "loading" ? <p role="status" className="tn-muted">Carregando o histórico…</p> : null}
-          {history.status === "error" ? (
-            <StatusBanner tone="warning">Histórico ainda não disponível: {history.message}</StatusBanner>
-          ) : null}
-          {history.status === "ok" ? (
-            <>
-              {historySummary(past) || !history.value.complete ? (
-                <p className="tn-muted">
-                  {historySummary(past) ? `Até agora: ${historySummary(past)}.` : ""}
-                  {history.value.complete ? "" : ` Mostrando os ${history.value.items.length} mais recentes; os mais antigos não aparecem aqui.`}
-                </p>
-              ) : null}
-              {history.value.items.length === 0 ? <p>Nenhum atendimento ainda.</p> : null}
-              {upcoming.length > 0 ? <VisitList title="Próximos" id="crm-history-next" items={upcoming} timezone={history.value.timezone} /> : null}
-              {past.length > 0 ? <VisitList title="Anteriores" id="crm-history-past" items={past} timezone={history.value.timezone} /> : null}
-            </>
-          ) : null}
-        </div>
-      </Card>
+      <Section id="crm-customer-contact" title="Contato">
+        <dl className="crm-facts">
+          <div>
+            <dt>Telefone</dt>
+            <dd className="tn-num">{c.phone ? formatPhone(c.phone) : "Não cadastrado"}</dd>
+          </div>
+          <div>
+            <dt>E-mail</dt>
+            <dd>{c.email ?? "Não cadastrado"}</dd>
+          </div>
+          <div>
+            <dt>Como chegou</dt>
+            <dd>{c.declared_source ? SOURCE_LABEL[c.declared_source] : "Não informado"}</dd>
+          </div>
+        </dl>
+        {c.phone ? null : (
+          <p className="tn-muted">Sem telefone cadastrado: para ligar ou chamar no WhatsApp daqui, cadastre o número na lista, em “⋯” › Editar.</p>
+        )}
+      </Section>
     </div>
   );
 }
 
-function VisitList({ title, id, items, timezone }: { title: string; id: string; items: HistoryItem[]; timezone: string }) {
+/** Resumo de retorno: a última visita concluída em destaque; concluídos, faltas e o próximo atendimento em linhas. */
+function ReturnSummary({ history, past, upcoming }: { history: CustomerHistory; past: HistoryItem[]; upcoming: HistoryItem[] }) {
+  const tz = history.timezone;
+  const count = (s: BookingStatus) => past.filter((i) => i.status === s).length;
+  const last = past.find((i) => i.status === "completed");
+  const next = upcoming[0];
+  const rows = [
+    { key: "done", label: "Concluídos", value: count("completed") },
+    { key: "missed", label: "Faltas", value: count("no_show") },
+    ...(count("cancelled") ? [{ key: "cancelled", label: "Cancelados", value: count("cancelled") }] : []),
+    next
+      ? { key: "next", label: "Próximo atendimento", value: formatWeekdayDateTime(next.starts_at, tz), to: `/app/agenda/atendimento/${next.id}` }
+      : { key: "next", label: "Próximo atendimento", value: "Nenhum marcado" },
+  ];
   return (
-    <section aria-labelledby={id} className="tn-stack" data-gap="sm">
-      <h3 id={id}>
-        {title} ({items.length})
-      </h3>
-      <ul className="tn-item-list">
-        {items.map((v) => (
-          <li key={v.id} className="crm-visit">
-            <span className="crm-visit__when">{formatWeekdayDateTime(v.starts_at, timezone)}</span>
-            <span>{v.service}</span>
-            <span className="crm-visit__meta">
-              {VISIT_STATUS[v.status]}
-              {v.price_cents !== null ? ` · ${formatCents(v.price_cents)}` : ""}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <Summary label="Resumo de retorno">
+      {last ? (
+        <SummaryHero
+          id="crm-summary-hero"
+          label="Última visita"
+          value={agoText(daysSince(last.starts_at, new Date(history.now), tz))}
+          hint={`${formatDate(last.starts_at, tz)} · ${last.service}`}
+        />
+      ) : (
+        <SummaryHero id="crm-summary-hero" label="Última visita" value="Nenhuma" hint="Nenhum atendimento concluído na agenda." />
+      )}
+      <SummaryRows label="Atendimentos" rows={rows} />
+    </Summary>
+  );
+}
+
+/** Um atendimento em uma linha: quando, serviço, estado e valor; abre o atendimento na agenda. */
+function VisitRow({ visit: v, timezone }: { visit: HistoryItem; timezone: string }) {
+  return (
+    <ActionRow
+      to={v.id ? `/app/agenda/atendimento/${v.id}` : undefined}
+      title={<span className="tn-num">{formatWeekdayDateTime(v.starts_at, timezone)}</span>}
+      meta={
+        <>
+          {v.service}
+          {v.price_cents !== null ? <span className="tn-num"> · {formatCents(v.price_cents)}</span> : null}
+        </>
+      }
+      badge={<StatusBadge tone={VISIT_TONE[v.status]}>{VISIT_STATUS[v.status]}</StatusBadge>}
+    />
   );
 }

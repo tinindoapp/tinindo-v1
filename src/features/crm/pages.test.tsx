@@ -70,10 +70,21 @@ const type = (label: string | RegExp, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe("clientes", () => {
-  it("lista clientes do negócio com contato formatado e origem declarada", async () => {
+  it("linha compacta (P54): nome e retorno; sem a agenda, o telefone formatado; o contato completo fica na ficha", async () => {
     renderWith(fakeApi(), <CustomersPage />);
-    expect(await screen.findByText("Ana Exemplo")).toBeInTheDocument();
-    expect(screen.getByText(/\(11\) 98765-4321 · ana@exemplo\.test · Origem: Instagram/)).toBeInTheDocument();
+    const ana = (await screen.findByRole("link", { name: "Ana Exemplo" })).closest("li")!;
+    expect(await within(ana).findByText("Sem visita nos últimos 6 meses")).toBeInTheDocument();
+    expect(ana).not.toHaveTextContent("Origem");
+    expect(ana).not.toHaveTextContent("ana@exemplo.test");
+    // Lista sem cartão em volta e sem caixa por cliente: linhas de .tn-list.
+    expect(ana.closest("ul")).toHaveClass("tn-list");
+    expect(ana.closest(".tn-card")).toBeNull();
+  });
+
+  it("agenda fora do ar: a linha mostra o telefone formatado", async () => {
+    renderWith(fakeApi({ visitSummary: vi.fn(async () => Promise.reject(new Error("fora"))) }), <CustomersPage />);
+    const ana = (await screen.findByRole("link", { name: "Ana Exemplo" })).closest("li")!;
+    expect(ana).toHaveTextContent("(11) 98765-4321");
   });
 
   it("personal trainer vê “Alunos”", async () => {
@@ -516,7 +527,7 @@ describe("retorno na lista de clientes (P49)", () => {
 });
 
 describe("módulo no app (demonstração sem servidor)", () => {
-  it("rota /app/clientes mostra clientes de exemplo, banner e formulários bloqueados", async () => {
+  it("rota /app/clientes mostra clientes de exemplo e formulários bloqueados, sem aviso azul de demonstração (D11 b)", async () => {
     const router = createMemoryRouter(routes, { initialEntries: ["/app/clientes"] });
     render(
       <SessionProvider client={null}>
@@ -524,7 +535,7 @@ describe("módulo no app (demonstração sem servidor)", () => {
       </SessionProvider>,
     );
     expect(await screen.findByText(DEMO_CUSTOMERS[0]!.name)).toBeInTheDocument();
-    expect(screen.getByText(/nada é salvo\. Os formulários ficam bloqueados/)).toBeInTheDocument();
+    expect(screen.queryByText(/nada é salvo/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Novo cliente" })).toBeDisabled();
     // P49: a base de exemplo tem os dois com horário hoje (terça 20/10).
     expect(await screen.findAllByText("Próximo: ter., 20/10")).toHaveLength(2);

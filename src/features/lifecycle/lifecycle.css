@@ -20,13 +20,13 @@
 .tn-lc-number__box input { width: 100%; padding-right: 4.5rem; text-align: right; }
 .tn-lc-number__unit { position: absolute; right: var(--tn-space-3); color: var(--tn-text-muted); font-size: var(--tn-text-support); pointer-events: none; }
 
-/* Aba Retorno (P49): três blocos em seções simples, linhas com divisor e uma ação visível por linha. */
-.tn-rt-list { list-style: none; margin: 0; padding: 0; display: grid; }
-.tn-rt-item { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); min-width: 0; overflow-wrap: anywhere; }
-.tn-rt-item:last-child { border-bottom: 0; }
-.tn-rt-item h3 { margin: 0; font-size: var(--tn-text-body); }
-.tn-rt-item p { margin: 0; }
-.tn-rt-row { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-.tn-rt-row__main { display: grid; gap: var(--tn-space-1); min-width: 0; }
-.tn-rt-row__name { font-weight: var(--tn-font-weight-medium); }
-@media (max-width: 30rem) { .tn-rt-row { grid-template-columns: minmax(0, 1fr); } }
+/* Aba Retorno (P49; P54): três blocos em seções simples; cada registro é uma linha de .tn-list com uma ação visível. */
+.tn-rt-list .tn-list__meta { display: grid; gap: 2px; }
+/* O texto pronto em duas linhas; inteiro no WhatsApp, que abre com ele para revisar. */
+.tn-rt-body { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; color: var(--tn-text); }
+/* Nome que abre a ficha: alvo de 44 px de altura dentro da linha. */
+.tn-rt-row__name { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); font-weight: var(--tn-font-weight-medium); }
+/* No celular, o texto do lembrete usa a largura toda e a ação desce para baixo dele (alinhada à direita). */
+.tn-rt-list .tn-list__row--split { flex-wrap: wrap; padding-bottom: var(--tn-space-2); }
+.tn-rt-list .tn-list__row--split > .tn-list__main { flex: 1 1 14rem; }
+.tn-rt-list .tn-list__actions { margin-left: auto; }

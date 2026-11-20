@@ -159,7 +159,8 @@ export function Section({ title, id, action, count, collapsed, children }: {
   const heading = (
     <>
       {title}
-      {count !== undefined ? <span className="tn-section__count"> · <span className="tn-num">{count}</span></span> : null}
+      {/* A contagem fica fora do nome da região (a lista já diz quantos itens tem): "A receber", não "A receber · 3". */}
+      {count !== undefined ? <span className="tn-section__count" aria-hidden="true"> · <span className="tn-num">{count}</span></span> : null}
     </>
   );
   if (collapsed !== undefined) {

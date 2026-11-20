@@ -28,6 +28,9 @@ test("retorno: aba na barra, três blocos em ordem, lembrete marcado como compar
   await expect(lapsed.getByRole("listitem")).toHaveCount(1);
   await expect(lapsed).toContainText("Rita (exemplo)");
   await expect(lapsed).toContainText("Última visita há 56 dias");
+  // P54: o nome que abre a ficha é alvo de toque de 44 px; sem aviso azul de demonstração na tela (D11 b).
+  expect((await lapsed.getByRole("link", { name: "Rita (exemplo)" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await expect(page.getByRole("main").locator('.tn-banner[data-tone="info"]')).toHaveCount(0);
 
   const width = page.viewportSize()!.width;
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
