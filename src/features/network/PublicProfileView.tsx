@@ -8,7 +8,7 @@ import { phoneToE164 } from "../../lib/phone.ts";
 import { addDays, dayWindow, formatTime, localParts } from "../../lib/time.ts";
 import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicService, RequestState, SlotsData } from "./api.ts";
 import { buildIcs } from "./ics.ts";
-import { BusinessHeader, businessOf } from "./public-kit.tsx";
+import { BusinessHeader, businessOf } from "../../components/public/public-kit.tsx";
 import { errorMessage, formatPhoneBr, newIdempotencyKey } from "./public/labels.ts";
 
 /** Dia da demonstração (fixtures do piloto). Com servidor, o visitante escolhe a partir de hoje. */

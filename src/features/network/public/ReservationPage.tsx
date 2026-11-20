@@ -7,9 +7,9 @@ import { ApiError } from "../../../lib/api/client.ts";
 import { formatTime } from "../../../lib/time.ts";
 import type { BookingView, LinkReview } from "../api.ts";
 import { BookingFacts } from "../PublicProfileView.tsx";
-import { PublicFrame, PublicMissing, PublicSkeleton, type PublicBusiness, usePublicBusiness } from "../public-kit.tsx";
+import { PublicFrame, PublicMissing, PublicSkeleton, type PublicBusiness, usePublicBusiness } from "../../../components/public/public-kit.tsx";
 import { newIdempotencyKey } from "./labels.ts";
-import { usePublicNetworkApi } from "./anon.ts";
+import { networkBusinessReader, usePublicNetworkApi } from "./anon.ts";
 import "../network.css";
 
 const KEY = "tinindo.reserva";
@@ -108,7 +108,7 @@ function ReviewForm({ token, business, onDone }: { token: string; business: stri
 export function ReservationPage() {
   const { slug } = useParams();
   const api = usePublicNetworkApi();
-  const fromSlug = usePublicBusiness(slug);
+  const fromSlug = usePublicBusiness(slug, networkBusinessReader);
   const [token] = useState(takeToken);
   const [view, setView] = useState<BookingView | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing">(token ? "loading" : "missing");

@@ -8,7 +8,7 @@ import { CHARGE_STATUS, DIFF_LABEL, explain, FAILURE_REASON, formatCents, format
 import { CodeDetails, CopyButton, ShareCharge } from "./Share.tsx";
 import { type ChargesList, newKey, type PaymentCharge, type PaymentProvider, type PaymentsPort, type Receivable, type Reconciliation } from "./port.ts";
 import { plural } from "../../lib/text/plural.ts";
-import { withBusinessSlug } from "./public-kit.tsx";
+import { withBusinessSlug } from "../../components/public/public-kit.tsx";
 
 /** Retorno de uma ação: sai num aviso curto (Toast), sempre à vista. A lista mostra o estado que fica. */
 const notify = (tone: Tone, text: string) => toast({ message: text, tone });

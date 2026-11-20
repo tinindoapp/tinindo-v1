@@ -5,7 +5,7 @@ import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { createDemoLinkPort, createDemoPort, resetDemoState } from "./demoPort.ts";
 import { PayLinkPage } from "./PayLinkPage.tsx";
 import { type LinkView, newKey, type PaymentLinkPort } from "./port.ts";
-import { setPublicBusinessReader } from "./public-kit.tsx";
+import { setPublicBusinessReader } from "../../components/public/public-kit.tsx";
 
 const TOKEN = "t".repeat(43);
 

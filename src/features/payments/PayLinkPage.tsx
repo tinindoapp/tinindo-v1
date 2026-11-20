@@ -9,7 +9,7 @@ import { Button, StatusBanner, toast } from "../../components/ui/index.tsx";
 import { CHARGE_STATUS, deadlineText, explain, formatCents, formatPaidAt, missingText, splitDescription } from "./labels.ts";
 import { CodeDetails, CopyButton } from "./Share.tsx";
 import type { LinkView, PaymentLinkPort } from "./port.ts";
-import { type PublicBusiness, PublicDone, PublicFrame, PublicMissing, PublicSkeleton, usePublicBusiness } from "./public-kit.tsx";
+import { type PublicBusiness, PublicDone, PublicFrame, PublicMissing, PublicSkeleton, usePublicBusiness } from "../../components/public/public-kit.tsx";
 
 const KEY = "tinindo.pay";
 
