@@ -26,6 +26,7 @@ import * as reputation from "./reputation.ts";
 import * as accounts from "./finance-advanced.ts";
 import * as field from "./field-service.ts";
 import * as setup from "./setup.ts";
+import * as scope from "./scope.ts";
 import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
@@ -770,6 +771,9 @@ export const OPERATIONS = {
   "setup.templates": { module: "setup", owner: "P44", kind: "query", idempotent: false, input: setup.SetupTemplatesInput, output: setup.SetupTemplatesOutput },
   "setup.services_apply": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupServicesApplyInput, output: setup.SetupServicesApplyOutput },
   "setup.draft_apply": { module: "setup", owner: "P44", kind: "command", idempotent: true, input: setup.SetupDraftApplyInput, output: setup.SetupDraftApplyOutput },
+  // P51 · escopo visível do piloto: a sessão lê profissão, plano e os módulos; o dono liga os "por ativação".
+  "setup.scope": { module: "setup", owner: "P51", kind: "query", idempotent: false, input: scope.SetupScopeInput, output: scope.SetupScopeOutput },
+  "setup.module_set": { module: "setup", owner: "P51", kind: "command", idempotent: true, input: scope.SetupModuleSetInput, output: scope.SetupModuleSetOutput },
   // Rota própria no handler (não é "uma RPC"): regras primeiro e o modelo de linguagem do P46 só para o que faltar.
   "setup.describe": { module: "setup", owner: "P50", kind: "query", idempotent: false, input: setup.SetupDescribeInput, output: setup.SetupDescribeOutput },
 } as const satisfies Record<string, OperationSpec>;

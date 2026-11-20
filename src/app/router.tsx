@@ -9,6 +9,7 @@ import { presencePublicRoutes } from "../features/presence/module.tsx";
 import { discoveryPublicRoutes } from "../features/discovery/module.tsx";
 import { reputationPublicRoutes } from "../features/reputation/module.tsx";
 import { AppShell } from "./AppShell.tsx";
+import { ModuleGate } from "./ModuleGate.tsx";
 import { MODULES } from "./modules.ts";
 import { Home } from "./pages/Home.tsx";
 import { NotFound, RouteError } from "./pages/Fallbacks.tsx";
@@ -46,7 +47,8 @@ export const routes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { index: true, element: <Home /> },
-          ...MODULES.map((m) => ({ path: m.path, children: m.routes })),
+          // P51: toda rota de módulo passa pela porta; módulo guardado ou desligado explica e oferece saída.
+          ...MODULES.map((m) => ({ path: m.path, element: <ModuleGate module={m} />, children: m.routes })),
         ],
       },
       { path: "*", element: <NotFound /> },

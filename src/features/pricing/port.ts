@@ -22,5 +22,3 @@ export interface PricingPort {
   now(): Date;
   timezone(): Promise<string>;
 }
-
-export const newKey = () => crypto.randomUUID();

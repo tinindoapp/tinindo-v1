@@ -5,16 +5,18 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import {
-  BOOKING_STATUS, CLASS_STATUS, explain, formatCents, formatDay, formatPercent, formatTime, KIND_LABEL, KIND_PLURAL, localDate, localInstant, localMidnight, SEAT_STATUS,
+  BOOKING_STATUS, CLASS_STATUS, explain, formatDay, formatPercent, formatTime, KIND_LABEL, KIND_PLURAL, localDate, localInstant, localMidnight, SEAT_STATUS,
 } from "./labels.ts";
 import {
-  newKey, type ResourcesPort, type TeamBase, type TeamBooking, type TeamClass, type TeamCommissionRule, type TeamCommissions, type TeamResource, type TimeRange,
+  type ResourcesPort, type TeamBase, type TeamBooking, type TeamClass, type TeamCommissionRule, type TeamCommissions, type TeamResource, type TimeRange,
 } from "./port.ts";
-import { parseBRL } from "../../lib/money.ts";
+import { newIdempotencyKey, useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatCents, parseBRL } from "../../lib/money.ts";
 import { plural } from "../../lib/text/plural.ts";
 
 type Notice = { tone: "success" | "danger" | "info" | "warning"; text: string; undo?: () => void } | null;
 const KINDS = ["professional", "room", "chair", "equipment"] as const;
+// eslint-disable-next-line no-restricted-syntax -- percentual em pontos-base, não é dinheiro
 const parsePercent = (v: string) => (v.trim() === "" ? null : Math.round(Number(v.replace(",", ".")) * 100));
 const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -26,6 +28,7 @@ function ResourceForm({ port, resource, onDone }: { port: ResourcesPort; resourc
   const [active, setActive] = useState(resource?.active ?? true);
   const pro = kind === "professional";
   const [busy, setBusy] = useState(false);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"name" | "pct">();
   const pctBad = pro && pct.trim() !== "" && !(parsePercent(pct)! >= 0 && parsePercent(pct)! <= 10000);
   async function submit(e: FormEvent) {
@@ -33,8 +36,10 @@ function ResourceForm({ port, resource, onDone }: { port: ResourcesPort; resourc
     if (!show({ name: name.trim() ? null : "Informe o nome.", pct: pctBad ? "Use um número de 0 a 100." : null })) return;
     setBusy(true);
     try {
-      const saved = await port.save({ resource_id: resource?.id ?? null, expected_version: resource?.version ?? null, kind, name: name.trim(), active,
-        commission_bps: pro ? parsePercent(pct) : null, agenda_linked: pro && linked }, newKey());
+      const input = { resource_id: resource?.id ?? null, expected_version: resource?.version ?? null, kind, name: name.trim(), active,
+        commission_bps: pro ? parsePercent(pct) : null, agenda_linked: pro && linked };
+      const saved = await port.save(input, idem.keyFor(input));
+      idem.reset();
       onDone({ tone: "success", text: resource ? `${KIND_LABEL[saved.kind]} “${saved.name}” atualizado.` : `${KIND_LABEL[saved.kind]} “${saved.name}” cadastrado.` });
     } catch (err) {
       onDone({ tone: "danger", text: explain(err) });
@@ -66,8 +71,9 @@ function RuleForm({ port, base, pro, rules, onDone }: { port: ResourcesPort; bas
   const mine = rules.filter((r) => r.professional_id === pro.id);
   const svcName = (sid: string) => base.services.find((s) => s.id === sid)?.name ?? "serviço";
   const { formRef, errors, show } = useFormErrors<"pct">();
-  const save = (bps: number | null, sid: string, undoBps?: number) =>
-    port.saveRule(pro.id, sid, bps, newKey()).then(
+  const command = useCommand();
+  const save = (bps: number | null, sid: string, undoBps?: number): Promise<void> =>
+    command({ rule: pro.id, service: sid, bps }, (key) => port.saveRule(pro.id, sid, bps, key)).then(
       () => onDone(bps === null
         ? { tone: "success", text: `Regra de ${svcName(sid)} removida: vale a comissão padrão.`,
             // Remover a regra volta atrás gravando o mesmo percentual de antes.
@@ -108,7 +114,7 @@ function BookingForm({ port, base, resources, onDone }: { port: ResourcesPort; b
   const [day, setDay] = useState(() => localDate(plusDays(base.now, 1), base.timezone));
   const [slots, setSlots] = useState<TimeRange[] | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
-  const [key, setKey] = useState(newKey);
+  const [key, setKey] = useState(newIdempotencyKey);
   const [busy, setBusy] = useState(false);
   const [slotError, setSlotError] = useState<string | null>(null);
   const reset = () => { setSlots(null); setSlot(null); setSlotError(null); };
@@ -130,11 +136,11 @@ function BookingForm({ port, base, resources, onDone }: { port: ResourcesPort; b
     setBusy(true);
     try {
       const b = await port.book({ service_id: serviceId, professional_id: proId, resource_ids: picked, customer_id: customerId || null, starts_at: slot }, key);
-      setKey(newKey());
+      setKey(newIdempotencyKey());
       reset();
       onDone({ tone: "success", text: `Reservado: ${b.service_name} com ${b.resources.map((r) => r.name).join(" + ")}, ${formatDay(b.starts_at, base.timezone)} às ${formatTime(b.starts_at, base.timezone)}. Comissão de ${formatPercent(b.commission_bps)} congelada.` });
     } catch (err) {
-      setKey(newKey());
+      setKey(newIdempotencyKey());
       reset();
       onDone({ tone: "danger", text: explain(err) });
     } finally {
@@ -187,7 +193,9 @@ function BookingForm({ port, base, resources, onDone }: { port: ResourcesPort; b
 }
 
 function BookingItem({ b, port, base, onDone }: { b: TeamBooking; port: ResourcesPort; base: TeamBase; onDone: (n: Notice) => void }) {
-  const act = (run: () => Promise<unknown>, ok: string) => run().then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
+  const command = useCommand();
+  const act = (intent: unknown, send: (key: string) => Promise<unknown>, ok: string) =>
+    command(intent, send).then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
   const started = Date.parse(b.starts_at) <= Date.parse(base.now);
   return (
     <li className="tn-rs-item">
@@ -197,11 +205,11 @@ function BookingItem({ b, port, base, onDone }: { b: TeamBooking; port: Resource
         {b.status === "completed" ? ` (${formatCents(b.commission_cents)} lançada; cobrança no Caixa)` : ""}</p>
       {b.status === "confirmed" ? (
         <div className="tn-actions">
-          {started ? <Button variant="secondary" onClick={() => void act(() => port.completeBooking(b, newKey()), `Concluída. Cobrança de ${formatCents(b.agreed_price_cents)} aberta no Caixa e comissão lançada.`)}>Concluir</Button> : null}
+          {started ? <Button variant="secondary" onClick={() => void act({ completeBooking: b.id, version: b.version }, (key) => port.completeBooking(b, key), `Concluída. Cobrança de ${formatCents(b.agreed_price_cents)} aberta no Caixa e comissão lançada.`)}>Concluir</Button> : null}
           <ConfirmAction trigger="Cancelar" triggerLabel={`Cancelar a reserva de ${b.service_name} com ${b.professional_name}`}
             title={`Cancelar ${b.service_name} com ${b.professional_name}?`}
             consequence={`${b.customer_name ?? "O horário"} das ${formatTime(b.starts_at, base.timezone)} sai da agenda e a profissional e os recursos ficam livres. Não dá para desfazer.`}
-            confirmLabel="Sim, cancelar" onConfirm={() => act(() => port.cancelBooking(b, null, newKey()), "Reserva cancelada: a profissional e todos os recursos foram liberados.")} />
+            confirmLabel="Sim, cancelar" onConfirm={() => act({ cancelBooking: b.id, version: b.version }, (key) => port.cancelBooking(b, null, key), "Reserva cancelada: a profissional e todos os recursos foram liberados.")} />
         </div>
       ) : null}
     </li>
@@ -220,6 +228,7 @@ function ClassForm({ port, base, resources, onDone }: { port: ResourcesPort; bas
   const [capacity, setCapacity] = useState("6");
   const [price, setPrice] = useState("");
   const [busy, setBusy] = useState(false);
+  const idem = useIdempotencyKey();
   const { formRef, errors, show } = useFormErrors<"title" | "pro" | "capacity" | "price">();
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -233,8 +242,10 @@ function ClassForm({ port, base, resources, onDone }: { port: ResourcesPort; bas
     }) || seat === undefined) return;
     setBusy(true);
     try {
-      const c = await port.createClass({ title: title.trim(), service_id: serviceId, professional_id: proId, room_id: roomId || null, starts_at: localInstant(day, time, base.timezone),
-        capacity: Number(capacity), seat_price_cents: seat }, newKey());
+      const input = { title: title.trim(), service_id: serviceId, professional_id: proId, room_id: roomId || null, starts_at: localInstant(day, time, base.timezone),
+        capacity: Number(capacity), seat_price_cents: seat };
+      const c = await port.createClass(input, idem.keyFor(input));
+      idem.reset();
       onDone({ tone: "success", text: `Turma “${c.title}” criada com ${c.professional_name}${c.room_name ? ` na ${c.room_name}` : ""}: ${c.capacity} vagas.` });
     } catch (err) {
       onDone({ tone: "danger", text: explain(err) });
@@ -263,7 +274,9 @@ function ClassForm({ port, base, resources, onDone }: { port: ResourcesPort; bas
 function ClassItem({ c, port, base, onDone }: { c: TeamClass; port: ResourcesPort; base: TeamBase; onDone: (n: Notice) => void }) {
   const [customerId, setCustomerId] = useState(base.customers[0]?.id ?? "");
   const [present, setPresent] = useState<string[]>([]);
-  const act = (run: () => Promise<unknown>, ok: string) => run().then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
+  const command = useCommand();
+  const act = (intent: unknown, send: (key: string) => Promise<unknown>, ok: string) =>
+    command(intent, send).then(() => onDone({ tone: "success", text: ok }), (e: unknown) => onDone({ tone: "danger", text: explain(e) }));
   const live = c.seats.filter((s) => s.status !== "cancelled");
   const started = Date.parse(c.starts_at) <= Date.parse(base.now);
   return (
@@ -280,9 +293,9 @@ function ClassItem({ c, port, base, onDone }: { c: TeamClass; port: ResourcesPor
                   {s.customer_name} esteve presente</label>
               ) : <span>{s.customer_name} · {SEAT_STATUS[s.status]}</span>}
               {c.status === "scheduled" && s.status === "booked" && !started ? (
-                <Button variant="ghost" aria-label={`Liberar a vaga de ${s.customer_name}`} onClick={() => void port.cancelSeat(s.id, s.version, newKey()).then(
+                <Button variant="ghost" aria-label={`Liberar a vaga de ${s.customer_name}`} onClick={() => void command({ cancelSeat: s.id, version: s.version }, (key) => port.cancelSeat(s.id, s.version, key)).then(
                   // A vaga volta inscrevendo a mesma cliente de novo (se ainda houver lugar).
-                  () => onDone({ tone: "success", text: `Vaga de ${s.customer_name} liberada.`, undo: () => void act(() => port.enroll(c.id, s.customer_id, newKey()), `${s.customer_name} voltou para a turma.`) }),
+                  () => onDone({ tone: "success", text: `Vaga de ${s.customer_name} liberada.`, undo: () => void act({ enroll: c.id, customer: s.customer_id }, (key) => port.enroll(c.id, s.customer_id, key), `${s.customer_name} voltou para a turma.`) }),
                   (e: unknown) => onDone({ tone: "danger", text: explain(e) }))}>Liberar vaga</Button>
               ) : null}
             </li>
@@ -294,14 +307,14 @@ function ClassItem({ c, port, base, onDone }: { c: TeamClass; port: ResourcesPor
           {!started ? (
             <>
               <Field as="select" label="Inscrever cliente" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>{base.customers.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Field>
-              <Button variant="secondary" onClick={() => void act(() => port.enroll(c.id, customerId, newKey()), "Vaga reservada.")}>Inscrever</Button>
+              <Button variant="secondary" onClick={() => void act({ enroll: c.id, customer: customerId }, (key) => port.enroll(c.id, customerId, key), "Vaga reservada.")}>Inscrever</Button>
             </>
           ) : (
-            <Button variant="secondary" onClick={() => void act(() => port.completeClass(c, present, newKey()), `Turma concluída: ${plural(present.length, "presença")} com cobrança no Caixa; as demais viraram falta.`)}>Concluir turma</Button>
+            <Button variant="secondary" onClick={() => void act({ completeClass: c.id, version: c.version, present }, (key) => port.completeClass(c, present, key), `Turma concluída: ${plural(present.length, "presença")} com cobrança no Caixa; as demais viraram falta.`)}>Concluir turma</Button>
           )}
           <ConfirmAction trigger="Cancelar turma" triggerLabel={`Cancelar a turma ${c.title}`} title={`Cancelar a turma “${c.title}”?`}
             consequence={`${live.length ? `As ${live.length} vagas reservadas são canceladas. ` : ""}A profissional e a sala ficam livres. Não dá para desfazer.`}
-            confirmLabel="Sim, cancelar turma" onConfirm={() => act(() => port.cancelClass(c, newKey()), "Turma cancelada: profissional e sala liberadas, vagas canceladas.")} />
+            confirmLabel="Sim, cancelar turma" onConfirm={() => act({ cancelClass: c.id, version: c.version }, (key) => port.cancelClass(c, key), "Turma cancelada: profissional e sala liberadas, vagas canceladas.")} />
         </div>
       ) : null}
     </li>
@@ -318,6 +331,7 @@ export function ResourcesPage({ port }: { port: ResourcesPort }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
+  const command = useCommand();
 
   useEffect(() => {
     let alive = true;
@@ -440,7 +454,7 @@ export function ResourcesPage({ port }: { port: ResourcesPort }) {
                   <ConfirmAction trigger="Estornar" triggerLabel={`Estornar a comissão de ${e.professional_name}`}
                     title={`Estornar ${formatCents(e.amount_cents)} de comissão de ${e.professional_name}?`}
                     consequence="Sai do valor a pagar no mês. O lançamento original continua no histórico."
-                    confirmLabel="Sim, estornar" onConfirm={() => port.reverseCommission(e.id, newKey()).then(() => done({ tone: "success", text: "Comissão estornada." }), (x: unknown) => done({ tone: "danger", text: explain(x) }))} />
+                    confirmLabel="Sim, estornar" onConfirm={() => command({ reverseCommission: e.id }, (key) => port.reverseCommission(e.id, key)).then(() => done({ tone: "success", text: "Comissão estornada." }), (x: unknown) => done({ tone: "danger", text: explain(x) }))} />
                 ) : null}
                 {e.reversed ? " · estornada" : ""}
               </li>

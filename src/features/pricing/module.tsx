@@ -44,6 +44,8 @@ function PricingLayout() {
 export const pricingModule: ModuleDefinition = {
   id: "pricing",
   owner: "P05",
+  // P51: nível de visibilidade no piloto (o mesmo mapa está em @contracts MODULE_LEVELS e no banco).
+  level: "pilot",
   path: "precos",
   navLabel: "Preços",
   routes: [{ index: true, element: <PricingLayout /> }],

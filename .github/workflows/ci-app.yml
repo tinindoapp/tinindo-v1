@@ -139,7 +139,10 @@ jobs:
       - run: npm ci
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run build
+      # P51 (D4): no PR, os e2e dos módulos guardados ficam de fora; na `main` roda tudo (playwright.config.ts).
       - run: npm run test:e2e
+        env:
+          E2E_PILOTO: ${{ github.event_name == 'pull_request' && '1' || '' }}
       # P59 · jornada do ciclo (agendar, atender, receber, retorno) na tela, com gravação real: build com servidor,
       # gateway de teste montando os handlers de produção e o Postgres do runner (tests/e2e/servidor/README.md).
       - name: Postgres 16 do runner para a jornada com servidor

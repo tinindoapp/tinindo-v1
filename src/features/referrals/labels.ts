@@ -1,8 +1,11 @@
 // Textos do módulo Indicações. Estado por palavra; o benefício é crédito de franquia, nunca avaliação.
 import type { ReferralInvite } from "@contracts";
 
-export const formatDate = (v: string, timeZone = "America/Sao_Paulo") =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(v));
+import { errorExplainer } from "../../lib/errors.ts";
+import { formatDate as formatLocalDate } from "../../lib/time.ts";
+
+/** "20/10/2026". Fuso padrão embutido mantido até a parte 2 (origem do fuso do negócio). */
+export const formatDate = (v: string, timeZone = "America/Sao_Paulo") => formatLocalDate(v, timeZone);
 export const formatMonth = (ymd: string) => {
   const [y, m] = ymd.split("-");
   return `${m}/${y}`;
@@ -27,12 +30,7 @@ export function activationLabel(inv: ReferralInvite): string {
       return `Sem benefício: ${a.block_reason ? BLOCK[a.block_reason] : "bloqueado"}`;
   }
 }
-export function explain(err: unknown): string {
-  const e = err as { code?: string } | null;
-  switch (e?.code) {
-    case "FORBIDDEN":
-      return "Só o dono do negócio vê as indicações.";
-    default:
-      return "Não foi possível carregar agora. Tentar de novo é seguro.";
-  }
-}
+export const explain = errorExplainer({
+  FORBIDDEN: "Só o dono do negócio vê as indicações.",
+  default: "Não foi possível carregar agora. Tentar de novo é seguro.",
+});

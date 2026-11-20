@@ -1,9 +1,12 @@
 // Textos do módulo Campanhas. Resultado por braço com intervalo; o veredito nunca afirma causa fora do desenho.
 import type { Campaign, CampaignOffer, CampaignSegment } from "@contracts";
 
+import { errorExplainer } from "../../lib/errors.ts";
+import { formatDayMonth } from "../../lib/time.ts";
+
 export { formatCents } from "../../lib/money.ts";
-export const formatDate = (v: string, timeZone = "America/Sao_Paulo") =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone, day: "2-digit", month: "2-digit" }).format(new Date(v));
+/** "20/10". Fuso padrão embutido mantido até a parte 2 (origem do fuso do negócio). */
+export const formatDate = (v: string, timeZone = "America/Sao_Paulo") => formatDayMonth(v, timeZone);
 export const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
 export const ci = (c: [number, number]) => `${Math.round(c[0] * 100)}% a ${Math.round(c[1] * 100)}%`;
 export const segmentLabel = (s: CampaignSegment) =>
@@ -18,23 +21,14 @@ export const VERDICT: Record<Campaign["result"]["verdict"], string> = {
   inconclusive: "Inconclusivo: grupos pequenos demais para comparar.",
   observation_only: "Só observação: sem grupo de controle, o resultado não mede efeito da campanha.",
 };
-export function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  switch (e?.code) {
-    case "STALE_VERSION":
-      return e.field === "audience_hash" ? "O público mudou desde a prévia. Atualizamos: confira e aprove de novo." : "Isto mudou em outro lugar. Atualizamos a tela: confira e tente de novo.";
-    case "POLICY_REJECTED":
-      if (e.field === "audience") return "Nenhuma cliente elegível neste segmento agora.";
-      if (e.field === "spend_cap") return "O teto de gasto não cobre nem uma oferta. Aumente o teto ou reduza a oferta.";
-      if (e.field === "status") return "Esta campanha já não está em curso.";
-      return "As regras não permitem esta ação agora. Nada foi alterado.";
-    case "VALIDATION_ERROR":
-      return "Confira os campos: janela 7–60 dias, controle 0–50%, envios 1–500, desconto 5–50%.";
-    case "NOT_FOUND":
-      return "Não encontrado. A tela pode estar desatualizada.";
-    case "FORBIDDEN":
-      return "Só o dono do negócio acessa as campanhas.";
-    default:
-      return "Não foi possível concluir agora. Tentar de novo é seguro.";
-  }
-}
+export const explain = errorExplainer({
+  "STALE_VERSION.audience_hash": "O público mudou desde a prévia. Atualizamos: confira e aprove de novo.",
+  STALE_VERSION: "Isto mudou em outro lugar. Atualizamos a tela: confira e tente de novo.",
+  "POLICY_REJECTED.audience": "Nenhuma cliente elegível neste segmento agora.",
+  "POLICY_REJECTED.spend_cap": "O teto de gasto não cobre nem uma oferta. Aumente o teto ou reduza a oferta.",
+  "POLICY_REJECTED.status": "Esta campanha já não está em curso.",
+  POLICY_REJECTED: "As regras não permitem esta ação agora. Nada foi alterado.",
+  VALIDATION_ERROR: "Confira os campos: janela 7–60 dias, controle 0–50%, envios 1–500, desconto 5–50%.",
+  NOT_FOUND: "Não encontrado. A tela pode estar desatualizada.",
+  FORBIDDEN: "Só o dono do negócio acessa as campanhas.",
+});

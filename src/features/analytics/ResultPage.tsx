@@ -6,15 +6,17 @@ import { Link } from "react-router";
 import { Button, Card, Field, Help, PageHeader, Stat, Stats, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { plural } from "../../lib/text/plural.ts";
 import { formatCents, localDayStart, metricMath, metricValue, monthStartOffset, PERIODS, trend } from "./format.ts";
-import { type AnalyticsPort, newKey } from "./port.ts";
+import type { AnalyticsPort } from "./port.ts";
+import { errorExplainer } from "../../lib/errors.ts";
+import { newIdempotencyKey } from "../../lib/idempotency.ts";
+import { formatDayMonth } from "../../lib/time.ts";
 
-function explain(err: unknown): string {
-  const e = err as { code?: string; field?: string } | null;
-  if (e?.code === "VALIDATION_ERROR" && e.field === "period") return "O ponto de partida precisa de um período já encerrado (até ontem).";
-  if (e?.code === "FORBIDDEN") return "Só o dono do negócio vê os indicadores.";
-  if (e?.code === "VALIDATION_ERROR") return "Confira os campos. Nada foi gravado.";
-  return "Não foi possível carregar agora. Tentar de novo é seguro.";
-}
+const explain = errorExplainer({
+  "VALIDATION_ERROR.period": "O ponto de partida precisa de um período já encerrado (até ontem).",
+  FORBIDDEN: "Só o dono do negócio vê os indicadores.",
+  VALIDATION_ERROR: "Confira os campos. Nada foi gravado.",
+  default: "Não foi possível carregar agora. Tentar de novo é seguro.",
+});
 // Indicadores de uso interno da Tinindo (operação assistida): não são do profissional, ficam fora desta tela.
 const INTERNAL_METRICS = new Set<string>(["human_minutes"]);
 // Dinheiro vai na faixa do topo (item 54): Recebido, Gasto e Sobrou, antes dos indicadores de agenda.
@@ -78,7 +80,7 @@ function MoneyStrip({ data, range }: { data: AnalyticsMetricsOutput; range: stri
   );
 }
 
-const fmtDay = (v: string, tz: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit" }).format(new Date(v));
+const fmtDay = formatDayMonth;
 
 export function ResultPage({ port }: { port: AnalyticsPort }) {
   const [tz, setTz] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
   const [saving, setSaving] = useState(false);
   const { formRef, errors, show } = useFormErrors<"label">();
   const [label, setLabel] = useState("Antes da Tinindo");
-  const [key, setKey] = useState(newKey);
+  const [key, setKey] = useState(newIdempotencyKey);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
@@ -126,7 +128,7 @@ export function ResultPage({ port }: { port: AnalyticsPort }) {
     setSaveError(null);
     try {
       const b = await port.createBaseline(label.trim(), period("28", tz), key);
-      setKey(newKey());
+      setKey(newIdempotencyKey());
       setBaselineId(b.id);
       toast(`Ponto de partida “${b.label}” guardado com os números dos últimos 28 dias. Escolha-o em “Comparar com”.`);
       setNonce((n) => n + 1);
