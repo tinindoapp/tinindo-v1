@@ -9,11 +9,16 @@ import { PublicReviewsPage } from "./PublicReviewsPage.tsx";
 import { createServerPublicPort } from "./serverPort.ts";
 import "./reputation.css";
 
+function publicPort(): PublicReviewsPort {
+  const call = anonCall();
+  return call ? createServerPublicPort(call) : createDemoPublicPort();
+}
+
+/** Lista pública para quem monta as rotas (as avaliações em destaque do perfil). Falhou ou não existe: null. */
+export const readPublicReviews = (slug: string) => publicPort().list(slug).catch(() => null);
+
 function PublicReviews() {
-  const port = useMemo<PublicReviewsPort>(() => {
-    const call = anonCall();
-    return call ? createServerPublicPort(call) : createDemoPublicPort();
-  }, []);
+  const port = useMemo<PublicReviewsPort>(() => publicPort(), []);
   return <PublicReviewsPage port={port} />;
 }
 

@@ -2,7 +2,7 @@
 // vai para a pasta do negócio no Storage e só então o perfil passa a apontar para ela; a anterior é apagada.
 // As três chaves começam desligadas e o servidor decide o que o público recebe.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, ChoiceCard, Field, StatusBanner, toast } from "../../components/ui/index.tsx";
+import { Button, ChoiceCard, Field, Section, StatusBanner, toast } from "../../components/ui/index.tsx";
 import type { NetworkApi, OwnerProfile } from "./api.ts";
 import { PhotoError, type ProcessedPhoto, processPhoto } from "./photo.ts";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
@@ -10,7 +10,8 @@ import { errorMessage, formatPhoneBr } from "./useNetworkApi.ts";
 
 /** "+5511999990001" → "(11) 99999-0001". */
 
-export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi; profile: OwnerProfile; onSaved: () => Promise<void> }) {
+/** `collapsed`: com o perfil no ar, a seção nasce recolhida (P54); sem ele, aberta e sem dobra. */
+export function ProfileMediaEditor({ api, profile, onSaved, collapsed }: { api: NetworkApi; profile: OwnerProfile; onSaved: () => Promise<void>; collapsed?: boolean }) {
   const m = profile.media;
   // Foto nova escolhida e ainda não salva; `uploaded` guarda o caminho já enviado para uma nova tentativa não reenviar.
   const [draft, setDraft] = useState<{ photo: ProcessedPhoto; preview: string; uploaded: string | null } | null>(null);
@@ -72,8 +73,7 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
   }
 
   return (
-    <Card aria-labelledby="midia-titulo">
-      <h2 id="midia-titulo">Foto e contato</h2>
+    <Section id="midia-titulo" title="Foto e contato" collapsed={collapsed}>
       <form className="tn-stack" onSubmit={save} noValidate>
         <div className="tn-net-head">
           {preview ? (
@@ -121,18 +121,20 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
         ) : null}
         <fieldset className="tn-stack" data-gap="sm">
           <legend>O que aparece no perfil público</legend>
-          <ChoiceCard
-            type="checkbox"
-            name="midia"
-            value="show_photo"
-            checked={showPhoto && hasPhoto}
-            disabled={!hasPhoto}
-            onChange={(on) => {
-              setShowPhoto(on);
-            }}
-            title="Mostrar foto"
-            description={hasPhoto ? "A foto aparece no perfil e na prévia do link." : "Escolha uma foto primeiro."}
-          />
+          {/* Sem foto, a opção não aparece (antes: desligada, com texto sem contraste). */}
+          {hasPhoto ? (
+            <ChoiceCard
+              type="checkbox"
+              name="midia"
+              value="show_photo"
+              checked={showPhoto}
+              onChange={(on) => {
+                setShowPhoto(on);
+              }}
+              title="Mostrar foto"
+              description="A foto aparece no perfil e na prévia do link."
+            />
+          ) : null}
           <ChoiceCard
             type="checkbox"
             name="midia"
@@ -167,6 +169,6 @@ export function ProfileMediaEditor({ api, profile, onSaved }: { api: NetworkApi;
           </Button>
         </div>
       </form>
-    </Card>
+    </Section>
   );
 }

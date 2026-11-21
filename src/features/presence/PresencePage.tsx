@@ -3,7 +3,7 @@
 // gerente que o dono concede e revoga; entregas com evidência. Sem promessa de posição no Google.
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, ChoiceCard, ConfirmAction, Field, LinkButton, PageHeader, Section, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { ACTOR_LABEL, CHECK_LABEL, DELIVERY_LABEL, explain, formatCents, formatDateTime, SECTION_LABEL } from "./labels.ts";
 import { type PresenceOverview, type PresencePort, type SiteSection } from "./port.ts";
 import { SitePreview } from "./SitePreview.tsx";
@@ -24,13 +24,15 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
   // Falhou, tocar de novo na mesma ação manda a mesma chave; deu certo ou a ação é outra, chave nova.
   const command = useCommand();
   return (
-    <Card aria-labelledby="prs-site-title">
-      <div className="tn-prs-head">
-        <h2 id="prs-site-title">Seu site</h2>
+    <Section
+      id="prs-site-title"
+      title="Seu site"
+      action={
         <span className="tn-prs-chip" data-state={o.site.status}>
           {live ? `No ar · versão ${o.published!.version_no}` : o.site.status === "unpublished" ? "Fora do ar" : "Rascunho"}
         </span>
-      </div>
+      }
+    >
       {!o.profile.published ? (
         <StatusBanner tone="warning">
           <strong>Publique seu perfil público primeiro.</strong> O site usa só o que o perfil mostra (nome, área, link de agendamento).{" "}
@@ -42,9 +44,16 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
         const input = { expected_version: o.site.version, headline: headline.trim() || null, sections, theme, service_ids: ids };
         void run(() => command({ saveSite: input }, (key) => port.saveSite(input, key)), "Rascunho salvo. Nada foi ao ar: confira a prévia e publique quando quiser.");
       }}>
-        <Field label="Frase de apresentação (opcional)" maxLength={o.rules.headline_max} value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Ex.: Corte na hora marcada, no centro" />
-        {/* P46: rascunho no tom escolhido pelo Assistente; você revisa, copia e cola aqui. */}
-        <Link className="tn-prs-assist" to="/app/assistente" state={{ draft: { kind: "bio", text: headline } }}>Redigir a apresentação com o assistente</Link>
+        {/* P46: rascunho no tom escolhido pelo Assistente; você revisa, copia e cola aqui. O link fica na frase da dica
+            (link dentro de texto, WCAG 2.5.8), sem ocupar uma linha própria. */}
+        <Field
+          label="Frase de apresentação (opcional)"
+          maxLength={o.rules.headline_max}
+          value={headline}
+          onChange={(e) => setHeadline(e.target.value)}
+          placeholder="Ex.: Corte na hora marcada, no centro"
+          hint={<>Sem ideia? <Link to="/app/assistente" state={{ draft: { kind: "bio", text: headline } }}>Redigir a apresentação com o assistente</Link>.</>}
+        />
         <fieldset>
           <legend>O que aparece</legend>
           {/* Linha inteira tocável, de 44 px (E14), como nas outras telas. */}
@@ -80,7 +89,7 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
       {o.preview ? (
         <div className="tn-prs-preview">
           <h3>Prévia</h3>
-          <p className="tn-muted">Só entram dados públicos: nunca clientes, contatos, custos ou preço mínimo.</p>
+          <p className="tn-muted">Só dados públicos, sem clientes nem custos.</p>
           <SitePreview site={o.preview} />
           <div className="tn-actions">
             {upToDate ? <p className="tn-muted">Esta prévia é exatamente o que está no ar.</p> : (
@@ -123,7 +132,7 @@ function SiteCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Prese
           </ul>
         </details>
       ) : null}
-    </Card>
+    </Section>
   );
 }
 
@@ -133,8 +142,8 @@ function DomainCard({ o, run, port, onCheck }: { o: PresenceOverview; run: Run; 
   const command = useCommand();
   const d = o.domain;
   return (
-    <Card aria-labelledby="prs-domain-title">
-      <h2 id="prs-domain-title">Domínio</h2>
+    // Sem domínio, recolhida (P54: duas alturas de celular); com domínio, aberta: o estado dele cabe em poucas linhas.
+    <Section id="prs-domain-title" title="Domínio" collapsed={!d}>
       <p className="tn-muted">O domínio é seu: você compra e mantém no registrador (ex.: Registro.br). A Tinindo não compra nem registra domínios; só liga o seu ao site depois de verificar no DNS.</p>
       {!d ? (
         <form className="tn-prs-inline" aria-label="Ligar domínio" ref={formRef} noValidate onSubmit={(e) => {
@@ -188,7 +197,7 @@ function DomainCard({ o, run, port, onCheck }: { o: PresenceOverview; run: Run; 
           </div>
         </div>
       )}
-    </Card>
+    </Section>
   );
 }
 
@@ -200,8 +209,8 @@ function GoogleCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Pre
   const command = useCommand();
   const g = o.google;
   return (
-    <Card aria-labelledby="prs-google-title">
-      <h2 id="prs-google-title">Perfil da Empresa no Google</h2>
+    // Sem acesso, recolhida (o formulário é longo); com acesso, aberta, com o perfil e o "Revogar acesso".
+    <Section id="prs-google-title" title="Perfil da Empresa no Google" collapsed={g.status !== "granted"}>
       <p className="tn-muted">O perfil continua seu. Com acesso de gerente, a equipe Tinindo atualiza horários, fotos, publicações e respostas, e cada entrega aparece abaixo com link de comprovação. Você revoga quando quiser.</p>
       {g.status === "granted" ? (
         <>
@@ -254,14 +263,13 @@ function GoogleCard({ o, run, port }: { o: PresenceOverview; run: Run; port: Pre
           <div className="tn-actions"><Button type="submit">Registrar acesso</Button></div>
         </form>
       )}
-    </Card>
+    </Section>
   );
 }
 
 function Deliveries({ o }: { o: PresenceOverview }) {
   return (
-    <Card aria-labelledby="prs-del-title">
-      <h2 id="prs-del-title">Entregas</h2>
+    <Section id="prs-del-title" title="Entregas" count={o.deliveries.length} collapsed>
       {o.deliveries.length === 0 ? <p className="tn-muted">Nada entregue ainda. Cada publicação, verificação e ação no Google aparece aqui com a evidência.</p> : null}
       <ul className="tn-prs-list" aria-label="Entregas">
         {o.deliveries.map((d) => {
@@ -278,7 +286,7 @@ function Deliveries({ o }: { o: PresenceOverview }) {
           );
         })}
       </ul>
-    </Card>
+    </Section>
   );
 }
 
@@ -322,10 +330,15 @@ export function PresencePage({ port }: { port: PresencePort }) {
   };
   return (
     <div className="tn-prs">
-      <PageHeader id="prs-title" title="Site e Google" subtitle="Sua página na internet, seu domínio e seu perfil no Google, com o que foi entregue." />
-      <Help><p>O site é montado com o que seu perfil público já mostra e os serviços que você escolher. Nada vai ao ar sem você aprovar a prévia; cada publicação vira uma versão que você pode tirar do ar ou pôr de volta. O domínio continua seu, e o perfil no Google também: a Tinindo entra como gerente e sai quando você revogar.</p></Help>
-      <StatusBanner tone="info"><strong>Sem promessa de posição.</strong> Ninguém controla a ordem dos resultados do Google. Aqui você vê o que foi feito, com comprovação.</StatusBanner>
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Demonstração.</strong> Dados de exemplo; nada é publicado na internet e o DNS é simulado.</StatusBanner> : null}
+      {/* P54: abertura com a ajuda recolhida e sem aviso de ambiente (D11 b): o botão "Simular registro no DNS
+          (demonstração)" já diz que o DNS é simulado. A falta de promessa de posição fica visível, porque é o combinado. */}
+      <PageHeader
+        id="prs-title"
+        title="Site e Google"
+        subtitle="Sua página na internet, seu domínio e seu perfil no Google, com o que foi entregue."
+        help={<><p>O site é montado com o que seu perfil público já mostra e os serviços que você escolher. Nada vai ao ar sem você aprovar a prévia; cada publicação vira uma versão que você pode tirar do ar ou pôr de volta. O domínio continua seu, e o perfil no Google também: a Tinindo entra como gerente e sai quando você revogar.</p><p>Ninguém controla a ordem dos resultados do Google. Aqui você vê o que foi feito, com comprovação.</p></>}
+      />
+      <p className="tn-prs-promise"><strong>Sem promessa de posição no Google.</strong></p>
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {o ? (
         <>

@@ -3,6 +3,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
+import { setReviewsReader } from "../features/network/public/ReviewHighlights.tsx";
+import { readPublicReviews } from "../features/reputation/public-routes.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { createAppRouter } from "./router.tsx";
 import { SessionProvider } from "./session.tsx";
@@ -10,6 +12,8 @@ import { SessionProvider } from "./session.tsx";
 import "../styles/global.css";
 
 export function mountApp(root: HTMLElement) {
+  // Mesma ligação do pacote público (public-app.tsx): avaliações em destaque no perfil aberto de dentro do app.
+  setReviewsReader(readPublicReviews);
   createRoot(root).render(
     <StrictMode>
       <SessionProvider client={supabase}>

@@ -13,7 +13,9 @@ async function publishWithWhatsapp(page: Page, slug: string) {
   await page.getByLabel("Endereço do perfil").fill(slug);
   await page.getByLabel("Bairro ou região").fill("Centro");
   await page.getByRole("button", { name: "Publicar perfil" }).click();
-  const media = page.getByRole("region", { name: "Foto e contato" });
+  // No ar, a seção nasce recolhida (P54).
+await page.getByRole("heading", { name: "Foto e contato", level: 2 }).click();
+  const media = page.getByRole("group", { name: "Foto e contato" });
   await media.getByRole("checkbox", { name: /Mostrar botão do WhatsApp/ }).check();
   await media.getByRole("button", { name: "Salvar foto e opções" }).click();
   await expect(page.getByText("Foto e opções do perfil salvas.")).toBeVisible();
