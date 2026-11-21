@@ -1,6 +1,7 @@
 // Porta real do Assistente: Edge Function `agent` (o banco decide vínculo, franquia, aprovação e execução).
 import { ActionApproval, ActionReceipt, AgentAnswer, AgentDraftOutput, SetupDismissOutput, SetupProgressOutput } from "@contracts";
 import type { createApiClient } from "../../lib/api/client.ts";
+import { FormDraftOutput } from "../../../supabase/functions/_shared/domain/agent/forms.ts";
 import type { AgentPort } from "./port.ts";
 
 type Call = ReturnType<typeof createApiClient>;
@@ -29,6 +30,10 @@ export function createServerPort(call: Call, tenantId: string): AgentPort {
       } catch {
         return null;
       }
+    },
+    async formDraft(form, text, key) {
+      // Rota da função `agent` fora do registro de contratos (schemas em _shared/domain/agent/forms.ts).
+      return (await call("/agent/assist.form_draft", FormDraftOutput, post({ form, text }, key))).data;
     },
     async setupDismiss(step, key) {
       return (await call("/setup/setup.dismiss", SetupDismissOutput, post({ step, dismissed: true }, key))).data.progress;
