@@ -14,7 +14,8 @@ import type { z } from "zod";
 export interface PricingPort {
   readonly kind: "demo" | "server";
   services(): Promise<ProviderService[]>;
-  list(): Promise<{ rules: PricingRule[]; proposals: PricingRuleProposal[] }>;
+  /** `truncated` (P56, recado #169): o servidor cortou regras (100) ou prévias (20). A demonstração não corta. */
+  list(): Promise<{ rules: PricingRule[]; proposals: PricingRuleProposal[]; truncated?: { rules: boolean; proposals: boolean } }>;
   propose(input: z.input<typeof PricingProposeRuleInput>, key: string): Promise<PricingRuleProposal>;
   approve(input: z.input<typeof PricingApproveRuleInput>, key: string): Promise<z.infer<typeof ActionApproval>>;
   publish(input: z.input<typeof PricingPublishRuleInput>, key: string): Promise<PricingRule>;

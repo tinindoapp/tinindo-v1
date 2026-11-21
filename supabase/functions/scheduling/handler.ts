@@ -13,6 +13,7 @@ import {
   BookingCreateSeriesInput,
   BookingCreateSeriesOutput,
   BookingGetInput,
+  BookingLinkCustomerInput,
   BookingListByCustomerInput,
   BookingListInput,
   BookingListOutput,
@@ -96,6 +97,10 @@ export const SCHEDULING_ROUTES: Record<string, Route> = {
   "booking.complete": route({
     rpc: "scheduling_booking_complete", input: BookingCompleteInput, output: BookingOutput, command: true,
     args: (i) => ({ p_booking_id: i.booking_id, p_expected_version: i.expected_version }),
+  }),
+  "booking.link_customer": route({
+    rpc: "scheduling_booking_link_customer", input: BookingLinkCustomerInput, output: BookingOutput, command: true,
+    args: (i) => ({ p_booking_id: i.booking_id, p_expected_version: i.expected_version, p_customer_id: i.customer_id }),
   }),
   "booking.no_show": route({
     rpc: "scheduling_booking_no_show", input: BookingNoShowInput, output: BookingOutput, command: true,

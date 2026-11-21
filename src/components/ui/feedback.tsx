@@ -82,7 +82,7 @@ export function Toaster() {
               {item.action.label}
             </button>
           ) : null}
-          <IconButton icon="fechar" label="Fechar aviso" size="sm" onClick={() => dismissToast(item.id)} />
+          <IconButton className="tn-toast__close" icon="fechar" label="Fechar aviso" size="sm" onClick={() => dismissToast(item.id)} />
         </div>
       ) : null}
     </div>

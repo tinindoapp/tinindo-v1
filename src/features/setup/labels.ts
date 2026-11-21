@@ -31,7 +31,7 @@ export const stepWhy = (s: { step: SetupStepCode; why: string | null }): string 
 
 export const specOf =(step: SetupStepCode): StepSpec => STEP_CATALOG.find((s) => s.step === step)!;
 
-export const PROFESSION_LABEL = { barber: "Barbearia", hairdresser: "Cabeleireira(o)", personal_trainer: "Personal trainer", other: "Outra" } as const;
+export const PROFESSION_LABEL = { barber: "Barbearia", hairdresser: "Cabeleireiro(a)", personal_trainer: "Personal trainer", other: "Outra" } as const;
 
 /** "R$ 60,00" com espaço comum (o formatCents da lib usa o espaço inseparável do Intl): o texto da tela fica igual. */
 export function priceText(cents: number): string {

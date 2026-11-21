@@ -151,14 +151,21 @@ function BookingDetail({
   onCancelled: (c: Cancelled) => void;
 }) {
   const port = usePort();
-  const { ctx, services, customers } = useBase();
+  const { ctx, services, customers, addCustomer } = useBase();
   const tz = ctx.timezone;
   const now = port.now();
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | undefined>();
   const [confirming, setConfirming] = useState(false);
   // Mesma chave enquanto o pedido não mudar: tentar de novo não duplica (ADR-0002).
-  const [keys] = useState(() => ({ cancel: newIdempotencyKey(), release: newIdempotencyKey(), confirm: newIdempotencyKey() }));
+  const [keys] = useState(() => ({
+    cancel: newIdempotencyKey(),
+    release: newIdempotencyKey(),
+    confirm: newIdempotencyKey(),
+    customer: newIdempotencyKey(),
+    link: newIdempotencyKey(),
+  }));
+  const [saving, setSaving] = useState(false);
 
   const customerRef = customers.find((c) => c.id === booking.customer_id);
   const customer = customerRef?.name ?? (booking.customer_id ? "Cliente" : "Sem cliente cadastrado");
@@ -187,7 +194,7 @@ function BookingDetail({
   function failed(err: unknown, op: Operation) {
     onFailure({ err, op });
     const code = (err as { code?: string }).code;
-    if (code === "STALE_VERSION" || code === "IDEMPOTENCY_MISMATCH" || (op === "confirm" && code === "POLICY_REJECTED")) reload();
+    if (code === "STALE_VERSION" || code === "IDEMPOTENCY_MISMATCH" || ((op === "confirm" || op === "link_customer") && code === "POLICY_REJECTED")) reload();
   }
 
   async function cancel() {
@@ -257,6 +264,30 @@ function BookingDetail({
     }
   }
 
+  // Pedido pelo link sem cadastro (A11, recado #160): o dono salva a pessoa como cliente e o atendimento passa a contar no
+  // Retorno e no histórico. Se já houver cliente com o mesmo WhatsApp, liga a ele em vez de duplicar.
+  const samePhone = contact && !booking.customer_id ? customers.find((c) => c.phone === contact.phone_e164) ?? null : null;
+  async function saveAsCustomer() {
+    if (!contact) return;
+    setSaving(true);
+    onFailure(null);
+    try {
+      let target = samePhone;
+      if (!target) {
+        const out = await port.createCustomer({ name: contact.name, phone: contact.phone_e164 }, keys.customer);
+        target = out.customer;
+        addCustomer(out.customer);
+      }
+      await port.linkCustomer({ booking_id: booking.id, expected_version: booking.version, customer_id: target.id }, keys.link);
+      toast(samePhone ? `Atendimento ligado a ${target.name}.` : `${target.name} agora está nos seus clientes.`);
+      reload();
+    } catch (err) {
+      failed(err, "link_customer");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function revertNoShow() {
     try {
       await port.noShow(
@@ -297,6 +328,13 @@ function BookingDetail({
               <a href={`https://wa.me/${contact.phone_e164.slice(1)}`} target="_blank" rel="noreferrer">
                 <span className="tn-num">{contact.phone_e164}</span>
               </a>
+              {!booking.customer_id ? (
+                <div className="tn-sched-detail__save-customer">
+                  <Button variant="secondary" onClick={() => void saveAsCustomer()} loading={saving} loadingText="Salvando…">
+                    {samePhone ? `Ligar a ${samePhone.name}` : "Salvar como cliente"}
+                  </Button>
+                </div>
+              ) : null}
             </dd>
           </>
         ) : null}

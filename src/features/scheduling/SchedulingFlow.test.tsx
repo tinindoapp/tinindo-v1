@@ -408,6 +408,47 @@ describe("onda 3 da auditoria de UX (itens 19, 28, 29, 30, 32 e 34)", () => {
     expect(await screen.findByText("Sem cliente cadastrado", undefined, SLOW)).toBeInTheDocument();
   });
 
+  it("pedido pelo link sem cadastro: Salvar como cliente cria o cliente com nome e WhatsApp e liga o atendimento (A11)", async () => {
+    const port = createFixturePort();
+    const created = await port.create(
+      { service_id: FX.services.corteA, resource_id: FX.resources.A, customer_id: null, quote_id: null, mode: "confirm", slot: { starts_at: "2026-10-20T16:00:00.000Z", ends_at: "2026-10-20T16:30:00.000Z" } },
+      "chave-teste-link-cliente-0001",
+    );
+    const getBooking = port.getBooking.bind(port);
+    vi.spyOn(port, "getBooking").mockImplementation(async (id) => ({ ...(await getBooking(id)), source: "public_link" }));
+    vi.spyOn(port, "publicContact").mockResolvedValue({ name: "Dora Link", phone_e164: "+5511977776666" });
+    const create = vi.spyOn(port, "createCustomer");
+    renderAt(`/app/agenda/atendimento/${created.id}`, null, port);
+    fireEvent.click(await screen.findByRole("button", { name: "Salvar como cliente" }, SLOW));
+    await waitFor(() => expect(toaster()).toHaveTextContent("Dora Link agora está nos seus clientes."), SLOW);
+    expect(create).toHaveBeenCalledWith({ name: "Dora Link", phone: "+5511977776666" }, expect.any(String));
+    const after = await getBooking(created.id);
+    expect(after.customer_id).toBe((await create.mock.results[0]!.value).customer.id);
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Salvar como cliente" })).not.toBeInTheDocument());
+    expect(screen.queryByText("Sem cliente cadastrado")).not.toBeInTheDocument();
+  });
+
+  it("pedido pelo link com o WhatsApp de um cliente que já existe: liga a ele, sem cadastrar de novo", async () => {
+    const port = createFixturePort();
+    const ana = (await port.listCustomers()).find((c) => c.id === ANA)!;
+    const phone = ana.phone ?? "+5511955554444";
+    if (!ana.phone) await port.createCustomer({ name: "Cliente com WhatsApp", phone }, "chave-teste-link-cliente-0002");
+    const target = (await port.listCustomers()).find((c) => c.phone === phone)!;
+    const created = await port.create(
+      { service_id: FX.services.corteA, resource_id: FX.resources.A, customer_id: null, quote_id: null, mode: "confirm", slot: { starts_at: "2026-10-20T16:00:00.000Z", ends_at: "2026-10-20T16:30:00.000Z" } },
+      "chave-teste-link-cliente-0003",
+    );
+    const getBooking = port.getBooking.bind(port);
+    vi.spyOn(port, "getBooking").mockImplementation(async (id) => ({ ...(await getBooking(id)), source: "public_link" }));
+    vi.spyOn(port, "publicContact").mockResolvedValue({ name: "Outro nome", phone_e164: phone });
+    const create = vi.spyOn(port, "createCustomer");
+    renderAt(`/app/agenda/atendimento/${created.id}`, null, port);
+    fireEvent.click(await screen.findByRole("button", { name: `Ligar a ${target.name}` }, SLOW));
+    await waitFor(() => expect(toaster()).toHaveTextContent(`Atendimento ligado a ${target.name}.`), SLOW);
+    expect(create).not.toHaveBeenCalled();
+    expect((await getBooking(created.id)).customer_id).toBe(target.id);
+  });
+
   it("+ Novo: cadastra nome e WhatsApp, já escolhe e agenda para o cliente novo", async () => {
     const port = createFixturePort();
     const create = vi.spyOn(port, "createCustomer");
