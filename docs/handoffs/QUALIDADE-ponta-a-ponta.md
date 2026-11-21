@@ -70,7 +70,7 @@ PLAYWRIGHT_BROWSERS_PATH=<pasta> npx playwright test --project=iphone
 
 Medidas, tetos e caminhos em `docs/qa/revisao-qualidade/02-desempenho.md`.
 
-- **Medida:** celular médio (Pixel 7) com rede "Slow 4G" do Lighthouse e CPU 4× mais lenta. A Hoje ficou visível em 3,2 s (antes 3,3 s) e interativa em 3,4 s (antes 3,5 s). O JS baixado caiu de 338 para 327 KB, o CSS de 130 para 123 KB.
+- **Medida:** celular médio (Pixel 7) com rede "Slow 4G" do Lighthouse e CPU 4× mais lenta. Contra a `main` atual (com o app instalável do #195), a Hoje ficou visível em 4,03 s (antes 4,08 s) e interativa em 4,20 s (antes 4,25 s). O JS baixado caiu de 344 para 330 KB, o CSS de 132 para 124 KB. A tela de abertura do #195 somou cerca de 0,8 s aos dois lados.
 - **Teste com tetos:** `tests/e2e/desempenho/desempenho.spec.ts`, no projeto desktop do Chromium. Confere o tamanho do build (maior pedaço, total de JS e de CSS) e o que a Hoje baixa e quanto demora. Reprova ao passar do teto.
 - **Três custos atacados**, todos passando a carregar sob demanda:
   - as rotas públicas do Perfil (`network/public-routes.tsx`);

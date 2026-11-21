@@ -9,17 +9,17 @@ import { devices, expect, test } from "@playwright/test";
 // tirar dependência, ou subir o teto neste arquivo com a medida nova e o motivo no PR.
 const TETOS = {
   // Pacotes do build (dist/assets), sem compactar.
-  maiorPedacoJsKb: 240, // hoje 223 (react-dom); supabase 210, react-router + zod 197
-  totalJsKb: 1900, // hoje 1.804 em 106 arquivos
-  totalCssKb: 145, // hoje 134
+  maiorPedacoJsKb: 240, // hoje 210 (supabase); react-dom e react-router + zod logo abaixo
+  totalJsKb: 1950, // hoje 1.818 em 110 arquivos
+  totalCssKb: 150, // hoje 136
   // O que a Hoje baixa no primeiro carregamento.
-  hojeJsTransferidoKb: 345, // hoje 327 (compactado)
-  hojeJsKb: 1020, // hoje 982 (sem compactar)
-  hojeCssKb: 130, // hoje 123
-  hojePedidosJs: 60, // hoje 54
+  hojeJsTransferidoKb: 345, // hoje 330 (compactado)
+  hojeJsKb: 1040, // hoje 993 (sem compactar)
+  hojeCssKb: 132, // hoje 124
+  hojePedidosJs: 65, // hoje 57
   // Tempo na rede e CPU de celular médio, do início da navegação.
-  hojeVisivelMs: 5200, // hoje ~3.200
-  hojeInterativaMs: 5600, // hoje ~3.400 (o primeiro toque, Menu, responde)
+  hojeVisivelMs: 6500, // hoje ~4.000
+  hojeInterativaMs: 7000, // hoje ~4.200 (o primeiro toque, Menu, responde)
 };
 
 const kb = (n: number) => Math.round(n / 1024);

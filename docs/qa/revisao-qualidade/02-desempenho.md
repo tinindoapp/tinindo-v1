@@ -11,21 +11,23 @@ Medido em 21/11/2026 sobre o build de produção (`vite preview`), na demonstra�
 - **Visível:** do início da navegação até o título "Hoje" aparecer.
 - **Interativa:** até o primeiro toque (Menu) responder.
 
-Os tempos são a mediana de cinco cargas, com o mesmo script nas duas versões: `main` em `b818dbe` contra este PR.
+Os tempos são a mediana de cinco cargas, com o mesmo script nas duas versões: `main` atual (`b68bdc3`, já com o app instalável do #195) contra este PR mesclado com ela.
 
 ## Antes e depois
 
-| Medida | Antes | Depois | Teto no teste |
+| Medida | Antes (`main`) | Depois (este PR) | Teto no teste |
 |---|---|---|---|
-| Hoje visível | 3.302 ms | 3.167 ms | 5.200 ms |
-| Hoje interativa (primeiro toque responde) | 3.514 ms | 3.384 ms | 5.600 ms |
-| JS baixado na Hoje, compactado | 338 KB | 327 KB | 345 KB |
-| JS da Hoje sem compactar | 1.024 KB | 982 KB | 1.020 KB |
-| CSS da Hoje | 130 KB | 123 KB | 130 KB |
-| Pedidos de JS na Hoje | 50 | 54 | 60 |
-| Maior pedaço de JS do build | 230 KB (`global`, react-dom) | 223 KB | 240 KB |
-| JS total do build | 1.846 KB em 106 arquivos | 1.804 KB | 1.900 KB |
-| CSS total do build | 134 KB | 134 KB | 145 KB |
+| Hoje visível | 4.081 ms | 4.034 ms | 6.500 ms |
+| Hoje interativa (primeiro toque responde) | 4.254 ms | 4.197 ms | 7.000 ms |
+| JS baixado na Hoje, compactado | 344 KB | 330 KB | 345 KB |
+| JS da Hoje sem compactar | 1.035 KB | 993 KB | 1.040 KB |
+| CSS da Hoje | 132 KB | 124 KB | 132 KB |
+| Pedidos de JS na Hoje | 53 | 57 | 65 |
+| Maior pedaço de JS do build | 210 KB (`supabase`) | 210 KB | 240 KB |
+| JS total do build | — | 1.818 KB em 110 arquivos | 1.950 KB |
+| CSS total do build | — | 136 KB | 150 KB |
+
+**Antes da tela de abertura.** Na primeira medida (`main` em `b818dbe`, sem o #195), a Hoje aparecia em 3.302 ms antes e 3.167 ms depois deste PR. O #195 (tela de abertura e service worker) somou cerca de 0,8 s aos dois lados. Vale olhar no pacote do app no celular: é a tela de abertura esperando, não o tamanho.
 
 O teste `tests/e2e/desempenho/desempenho.spec.ts` roda no projeto desktop do Chromium, em todo PR. Ele reprova quando uma medida passa do teto:
 
