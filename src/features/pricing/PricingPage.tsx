@@ -37,7 +37,7 @@ export function PricingPage() {
   const port = usePort();
   const [services, setServices] = useState<ProviderService[] | null>(null);
   const [tz, setTz] = useState("America/Sao_Paulo");
-  const [data, setData] = useState<{ rules: PricingRule[]; proposals: PricingRuleProposal[] } | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<PricingPort["list"]>> | null>(null);
   const [nonce, setNonce] = useState(0);
   const [error, setError] = useState<unknown>(null);
   const [creating, setCreating] = useState(false);
@@ -86,9 +86,10 @@ export function PricingPage() {
                 onProposed={(p) => { setPreview(p); setCreating(false); reload(); }} />
             </FormPanel>
           ) : null}
-          <Rules rules={data.rules} name={name} tz={tz} onChange={reload} />
+          <Rules rules={data.rules} truncated={data.truncated?.rules ?? false} name={name} tz={tz} onChange={reload} />
           {proposals.length ? (
-            <Proposals proposals={proposals} name={name} onDone={(p) => { if (preview?.proposal_id === p) setPreview(null); reload(); }} />
+            <Proposals proposals={proposals} truncated={data.truncated?.proposals ?? false} name={name}
+              onDone={(p) => { if (preview?.proposal_id === p) setPreview(null); reload(); }} />
           ) : null}
           <Simulator services={services} />
         </>
@@ -153,8 +154,8 @@ function windowsText(w: { weekday: number; local_start: string; local_end: strin
   return w.map((x) => `${WEEKDAYS[x.weekday]} ${x.local_start}–${x.local_end}`).join(", ");
 }
 
-function Rules({ rules, name, tz, onChange }: {
-  rules: PricingRule[]; name: (id: string) => string; tz: string; onChange: () => void;
+function Rules({ rules, truncated, name, tz, onChange }: {
+  rules: PricingRule[]; truncated: boolean; name: (id: string) => string; tz: string; onChange: () => void;
 }) {
   const port = usePort();
   const active = rules.filter((r) => r.active);
@@ -200,12 +201,15 @@ function Rules({ rules, name, tz, onChange }: {
           ))}
         </ul>
       )}
+      {truncated ? <p className="tn-muted">Mostrando as 100 regras mais recentes.</p> : null}
     </Section>
   );
 }
 
 /** Prévias aguardando aprovação: aprovar publica exatamente o que está escrito na linha. */
-function Proposals({ proposals, name, onDone }: { proposals: PricingRuleProposal[]; name: (id: string) => string; onDone: (proposalId: string) => void }) {
+function Proposals({ proposals, truncated, name, onDone }: {
+  proposals: PricingRuleProposal[]; truncated: boolean; name: (id: string) => string; onDone: (proposalId: string) => void;
+}) {
   const port = usePort();
   const [publishing, setPublishing] = useState<string | null>(null);
   const approveCommand = useCommand();
@@ -248,6 +252,7 @@ function Proposals({ proposals, name, onDone }: { proposals: PricingRuleProposal
           </li>
         ))}
       </ul>
+      {truncated ? <p className="tn-muted">Mostrando as 20 prévias mais recentes.</p> : null}
     </Section>
   );
 }
