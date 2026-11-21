@@ -4,6 +4,26 @@ Fecha a lacuna UX-01 do docs/10: até aqui o app só foi testado em Chrome deskt
 
 Anotar: modelo do iPhone, versão do iOS e SHA de `/version.json`. Para cada linha, marcar ok ou descrever o problema com uma captura de tela.
 
+## 0 · O que já roda sozinho no CI (desde 21/11/2026)
+
+O projeto `iphone` do Playwright (`playwright.config.ts`) usa o WebKit, o motor do Safari, com o perfil do iPhone 13. Ele roda o ciclo principal em todo PR, junto do Chromium:
+
+- pastas `foundation`, `setup`, `scheduling`, `crm`, `finance`, `lifecycle`, `network`, `qa` e `iphone`;
+- 142 testes: configurar, agendar, atender, receber, retorno e reserva pelo link.
+
+Em `tests/e2e/iphone/ciclo-iphone.spec.ts`, cada tela do ciclo confere o que o iPhone cobra:
+
+| O que confere | Por quê |
+|---|---|
+| Campo com letra de 16 px ou mais | O Safari amplia a tela ao tocar num campo menor |
+| `touch-action: manipulation` em botões e links | Sem isso, toque rápido vira zoom de toque duplo |
+| Data e hora com 44 px | Vazios, esses campos encolhem no iOS |
+| Nenhuma barra fixa por cima do campo focado | Topo, abas e barra de confirmar não podem cobrir o campo |
+| Sem rolagem de lado | Inclusive em 320 px (iPhone SE) |
+| Código da reserva com `autocomplete="one-time-code"` | O iOS oferece o código da mensagem em cima do teclado |
+
+**O emulador não substitui o aparelho:** não tem o teclado virtual de verdade, a área segura (entalhe e barra inferior), o modo instalado na tela inicial, o VoiceOver nem o Texto maior. A lista abaixo continua necessária, com o iPhone na mão.
+
 ## 1 · No Safari
 
 | # | O que fazer | O que esperar |
