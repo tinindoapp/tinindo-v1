@@ -1,7 +1,7 @@
 // Operação Tinindo (P15): fila de pedidos de todos os negócios para a equipe. Não há acesso global: o operador só
 // começa e só lê dados com a concessão do dono, e a leitura fica registrada para o dono ver. Minutos têm teto.
 import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, Card, Field, LinkButton, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { explain, formatCents, minutesText, ORDER_STATUS, SCOPE_LABEL } from "./labels.ts";
 import { type OpsPort, type OpsQueue, type QueueOrder, type Snapshot } from "./port.ts";
 import { newIdempotencyKey, useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
@@ -167,7 +167,7 @@ export function OpsPage({ port }: { port: OpsPort }) {
   return (
     <div className="tn-svc">
       <div className="tn-page-intro">
-        <PageHeader id="ops-title" title="Operação Tinindo" />
+        <PageHeader id="ops-title" title="Operação Tinindo" actions={<LinkButton to="/app/servicos-tinindo/operacao/saude" variant="secondary">Saúde da operação</LinkButton>} />
         <p className="tn-muted">Fila dos serviços assistidos. Sem acesso concedido pelo cliente não dá para começar nem ler dados; cada leitura fica no registro do cliente.</p>
         {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Na demonstração você também é a operadora.</StatusBanner> : null}
         {forbidden ? <StatusBanner tone="warning">Só a equipe Tinindo acessa esta tela.</StatusBanner> : null}

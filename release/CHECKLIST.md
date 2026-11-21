@@ -33,20 +33,21 @@ Dupla reserva, dado de outro negócio visível, smoke reprovado depois de public
 
 ## B · Só para produção (não bloqueia o UAT)
 
-- [ ] Projeto Supabase de produção em plano com backup diário, na organização da empresa (D36), com `release/ambientes/producao.env` próprio.
+- [ ] Projeto Supabase de produção em plano com backup diário, na organização da empresa (D36), com `release/ambientes/producao.env` próprio. Passo a passo e lista do que criar: `PRODUCAO.md`. O `publicar.sh producao` exige a tag e a palavra digitada.
 - [ ] Repositório privado (D37) antes de contrato com provedor e de dado real.
-- [ ] Ensaio de reversão e restore com tempos (`ENSAIO-ROLLBACK.md`; `npm run db:restore:drill` no CI cobre o banco local).
+- [ ] Ensaio de reversão e restore com tempos (`ENSAIO-ROLLBACK.md`). No CI, `npm run ensaio:restore`, `npm run test:release` e `npm run db:restore:drill` cobrem o banco local.
 - [ ] Tag `vAAAA.MM.DD-N` do SHA aprovado; migrations desde a última tag todas aditivas (sem `drop` sem plano de expansão e contração).
 - [ ] Termos, política, CNPJ, encarregado e canal (D27, issue #87); prazos de retenção (D25); exportar e eliminar por negócio (D26).
 - [ ] Limite de abuso da reserva pública (D30) e cabeçalhos de segurança.
 - [ ] Provedores reais: nenhum `WHATSAPP_*`, `PSP_*` ou `FISCAL_PROVIDER_*` sem contrato e decisão por escrito. P16: nenhum negócio com `production_enabled` sem caso homologado.
 - [ ] Módulos guardados (P51) só voltam por negócio, quando o portão de cada um for cumprido: diretório com moderação (P23), avaliações com fila de denúncias e verificação de identidade (P24), site com a rota pública revisada (P17).
 - [ ] Logs das funções sem PII (amostra de 20 linhas: só `fn`, `route`, `request_id`, `status`, `ms`).
-- [ ] Monitorar 30 minutos depois de publicar: 5xx por função, `pending` mais antigo do outbox, dead-letter, `job_ticks` com falhas.
+- [ ] Monitorar 30 minutos depois de publicar no painel **Saúde da operação** (`/app/servicos-tinindo/operacao/saude`) ou com `npm run smoke -- producao`: 5xx por função, `pending` mais antigo do outbox, dead-letter, `job_ticks` com falhas.
+- [ ] Equipe Tinindo cadastrada em `platform_operators`, para o painel abrir. Aviso por e-mail do alerta decidido (ligado ou não; `RUNBOOK.md`).
 - [ ] Aprovação por escrito do responsável (nome, data, SHA).
 
 ## Reversão
 
-- Frontend e funções: `git checkout <sha anterior> && EXIGE_MAIN=0 npm run publicar -- homolog`. Não desfaz dados.
+- Frontend e funções: `npm run reverter -- <ambiente> <sha anterior>` (`--conferir` antes). Não desfaz dados.
 - Banco: nunca `down migration`. Correção para frente com migration nova; dado corrompido: restore em banco isolado e reconciliação manual (`RUNBOOK.md`).
 - Gatilhos: dupla reserva, vazamento entre negócios, outbox parado há mais de 15 minutos, 5xx acima de 2% por 10 minutos.

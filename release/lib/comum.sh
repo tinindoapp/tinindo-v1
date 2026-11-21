@@ -38,6 +38,8 @@ carregar_ambiente() {
   APP_URL="${APP_URL%/}"
   if [[ "$ALVO" == supabase ]]; then
     : "${SUPABASE_REF:?falta SUPABASE_REF em $arq}" "${WRANGLER_CONFIG:?falta WRANGLER_CONFIG em $arq}"
+    # Arquivo copiado do .exemplo sem preencher: para antes de qualquer conta (P58, produção preparada).
+    [[ "$SUPABASE_REF$APP_URL$WRANGLER_CONFIG" != *PREENCHER* ]] || falha "$arq ainda tem PREENCHER: complete com os dados do projeto (release/PRODUCAO.md)."
     FN_URL="https://$SUPABASE_REF.supabase.co/functions/v1"
     SUPABASE_URL="https://$SUPABASE_REF.supabase.co"
   else
@@ -88,6 +90,40 @@ if not re.search(r"Local\s*\|\s*Remote", t):
 for l in linhas:
     local, remote, _ = [c.strip().strip("`").strip() for c in l.split("|")]
     print(local or "-", remote or "-")'
+}
+
+# P58 · ambiente que exige confirmação digitada (CONFIRMAR=<palavra> no .env, ex.: produção). Só pergunta quando vai
+# mudar algo (fora do --conferir). Sem terminal para digitar, recusa: nada de pular a pergunta por variável.
+confirmar_ambiente() {
+  local acao="$1"
+  [[ -n "${CONFIRMAR:-}" && $CONFERIR -eq 0 ]] || return 0
+  [[ -t 0 ]] || falha "$NOME exige confirmação digitada e não há terminal para digitar. Rode no seu terminal, sem pipe nem CI."
+  printf '\n%s vai %s em %s.\nPara continuar, digite %s e tecle Enter: ' "$(whoami)" "$acao" "$NOME" "$CONFIRMAR" >&2
+  local resposta=""
+  IFS= read -r resposta || true
+  [[ "$resposta" == "$CONFIRMAR" ]] || falha "confirmação diferente de \"$CONFIRMAR\". Nada foi alterado."
+  msg "   ok: confirmado por quem está no terminal"
+}
+
+# P58 · ambiente com EXIGE_TAG=1 (produção) só recebe commit com tag vAAAA.MM.DD-N (CHECKLIST.md, B).
+exigir_tag() {
+  local sha="$1"
+  [[ "${EXIGE_TAG:-0}" == 1 ]] || return 0
+  local tag; tag=$(git tag --points-at "$sha" --list 'v[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]-*' | head -1)
+  [[ -n "$tag" ]] || falha "$NOME só recebe commit com tag vAAAA.MM.DD-N; ${sha:0:12} não tem (git tag v$(date +%Y.%m.%d)-1 $sha && git push origin --tags)."
+  msg "   ok: tag $tag"
+}
+
+# P58 · anota a publicação ou reversão em public.ops_releases (o painel e o smoke mostram a versão publicada).
+registrar_release() {
+  local tipo="$1" sha="$2" ate="$3" funcoes="$4"
+  [[ "$sha" =~ ^[0-9a-f]{40}$ && "$tipo" =~ ^(publish|revert)$ && "$ate" =~ ^[0-9]{14}_[a-z0-9_]+$ ]] || falha "registro de release com valor inválido."
+  local arq; arq=$(mktemp)
+  printf "do \$\$ begin if to_regclass('public.ops_releases') is not null then insert into public.ops_releases (environment, kind, sha, migrations_until, functions) values ('%s', '%s', '%s', '%s', %d); end if; end \$\$;\n" \
+    "$AMBIENTE" "$tipo" "$sha" "$ate" "$funcoes" >"$arq"
+  db_arquivo "$arq" || { rm -f "$arq"; falha "não consegui anotar a versão em public.ops_releases."; }
+  rm -f "$arq"
+  msg "   ok: versão anotada em public.ops_releases ($tipo ${sha:0:12})"
 }
 
 exigir() { for c in "$@"; do command -v "$c" >/dev/null 2>&1 || falha "falta o comando '$c' neste computador."; done; }

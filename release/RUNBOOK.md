@@ -1,6 +1,63 @@
 # Runbook · cinco incidentes (docs/09)
 
+Primeiro: **quando o alerta acende**, siga a seção logo abaixo; ela diz para qual incidente ir.
+
 Ordem fixa em todos: **conter** (flag ou pausa) → **preservar** (não apagar nada; exportar evidência) → **avaliar afetados** → **corrigir** → **testar regressão** (teste automatizado novo) → registrar no handoff. O dono do negócio continua operando agenda e caixa pela tela quando assistente ou canal caem.
+
+## Quando o alerta acende (P58)
+
+O alerta é o estado "precisa de atenção" que a rotina `ops_watch` (linha do `job_ticks`) calcula a cada minuto. Ele aparece em três lugares:
+
+- no painel **Saúde da operação** (`/app/servicos-tinindo/operacao/saude`, só a equipe Tinindo);
+- no `npm run smoke -- <ambiente>`, que reprova;
+- no log da função `jobs`, com `level: error` e `ops_attention`.
+
+O e-mail é opcional e vem desligado; para ligar, veja "Aviso por e-mail" no fim desta seção.
+
+Os limites ficam em `public.ops_alert_settings` e só mudam por migration:
+
+| Motivo | Limite |
+|---|---|
+| fila atrasada | 15 min |
+| rotina falhando | 3 falhas seguidas |
+| erros 5xx das funções | 20 por hora |
+
+1. **Abra o painel** ou rode `npm run smoke -- <ambiente>`. Anote a hora, o motivo e o SHA da "Versão publicada".
+2. **Veja se começou com uma publicação.** Compare a hora de "Versão publicada" (`public.ops_releases`) com a hora em que o alerta acendeu (`since` em `public.ops_alert_state`).
+   - Se acendeu até 30 minutos depois de publicar e o motivo é erro 5xx ou rotina falhando, volte para o commit anterior: `npm run reverter -- <ambiente> <sha anterior> --conferir` e, se o plano estiver certo, sem `--conferir`. A reversão leva o frontend e as funções; o banco fica como está.
+   - Depois da reversão, o smoke tem de passar. Se não passar, siga o passo 3.
+3. **Vá pelo motivo:**
+
+   | Motivo no painel ou no smoke | O que fazer |
+   |---|---|
+   | **Fila de eventos atrasada** | Incidente 3 (fila parada), abaixo. Confira primeiro "Respostas ao cron" no smoke: 401 quer dizer que o segredo do Vault é diferente do da função. Nesse caso, publique de novo. |
+   | **Rotina com 3 falhas seguidas** | O painel mostra o `last_error` da rotina. Erro de dado ou de código: corrija para frente, com migration ou PR. A rotina com defeito não segura as outras (P56): a fila e as demais seguem. Não desligue a rotina à mão; desligar é `update public.job_ticks set enabled = false` em migration. |
+   | **Erros 5xx acima do teto** | Ache a função na lista "Erros na última hora". Para ver o pedido, use o `request_id` de `public.ops_errors` e procure-o no log da função, no painel do Supabase (Edge Functions › Logs). 503 `PROVIDER_UNAVAILABLE` em várias funções ao mesmo tempo é o banco ou o provedor: incidente 4. Uma função só, logo depois de publicar: passo 2. |
+   | **Rotina do alerta parada** | O cron do `jobs` parou: o projeto foi pausado (plano grátis), o `pg_cron` está desligado ou o segredo mudou. Reative o projeto e publique de novo; o passo 5 do publicar refaz o cron. |
+
+4. **Gatilhos de reversão imediata** (`ENSAIO-ROLLBACK.md`): dupla reserva, dado de um negócio visível em outro, fila parada há mais de 15 minutos, 5xx acima de 2% por 10 minutos. Quem decide é o Felipe. Sem resposta em 15 minutos, quem estiver de plantão reverte o frontend e avisa.
+5. **Feche o incidente.**
+   - O alerta volta a "Tudo certo" sozinho na rodada seguinte.
+   - Anote a hora, o motivo, o que foi feito e o SHA no handoff do incidente.
+   - Crie um teste de regressão, como pede a ordem do topo deste arquivo.
+
+**Aviso por e-mail.** O aviso sai uma vez, na passagem de "Tudo certo" para "precisa de atenção". Vai pelo Resend e leva só os motivos e o link do painel. Para ligar, coloque nos segredos das funções do ambiente:
+
+- `OPS_ALERT_EMAIL=on`;
+- `OPS_ALERT_EMAIL_TO=<endereços separados por vírgula>`;
+- `OPS_ALERT_RESEND_KEY=<chave só de envio>`;
+- `OPS_ALERT_EMAIL_FROM`, opcional; o padrão é `nao-responda@mail.tinindoapp.com.br`, que já está verificado (`EMAIL-RESEND.md`).
+
+Depois, publique de novo a função `jobs`. Para desligar, `npx supabase secrets unset OPS_ALERT_EMAIL --project-ref <ref>`.
+
+**O que a captura guarda.** Em `public.ops_errors` ficam só estes campos, por 14 dias:
+
+- de onde veio (tela ou função) e o tipo do erro;
+- a rota sem id, com uuid, número longo, e-mail e token trocados por `:id`;
+- a função, o status e o código do catálogo;
+- o SHA e o `request_id`.
+
+Mensagem de erro, corpo, token, negócio e dado de cliente nunca entram. Para desligar a captura das funções, use o segredo `OPS_CAPTURE=off`.
 
 ## 1 · Reserva duplicada
 
@@ -43,5 +100,14 @@ Ordem fixa em todos: **conter** (flag ou pausa) → **preservar** (não apagar n
 - Regressão: pgTAP de isolamento de cada módulo + `00_seguranca`.
 
 ## Restore (OPS-01)
+
+`npm run ensaio:restore` (P58) faz o ensaio no banco do ambiente local:
+
+1. backup;
+2. restore num banco novo e isolado;
+3. o smoke rodado no restaurado, mais as contagens comparadas;
+4. uma gravação com o papel do app.
+
+O tempo de cada parte fica anotado; no CI, vai para o resumo da execução.
 
 `npm run db:restore:drill` reproduz: dump custom → restore em banco novo → contagens, RLS, políticas, FKs → comando real → idempotência preservada, com tempo medido. Em produção o mesmo roteiro usa o backup do Supabase restaurado num projeto isolado; nunca em cima do projeto vivo.

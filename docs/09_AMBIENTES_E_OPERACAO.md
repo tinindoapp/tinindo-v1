@@ -32,7 +32,7 @@ O workflow `app-ci` (`.github/workflows/ci-app.yml`) roda em todo PR para a `mai
 |---|---|
 | `lint · typecheck · unit · contratos · build` | ESLint sem aviso, TypeScript, Vitest (unit e contratos), build de produção, testes do coordenador e `npm audit` crítico |
 | `edge functions (deno check)` | As 29 funções compilam no Deno com o lock |
-| `banco (migrations do zero · seed · pgTAP/RLS)` | Ordem das migrations, banco do zero com seed, pgTAP, lint de schema, concorrência, integração handler ↔ banco, dicionário igual às migrations, ensaio de restore e o `release/publicar.sh` aplicando as migrations num banco descartável |
+| `banco (migrations do zero · seed · pgTAP/RLS)` | Ordem das migrations, banco do zero com seed, pgTAP, lint de schema, concorrência, integração handler ↔ banco, dicionário igual às migrations, ensaio de restore e o `release/publicar.sh` aplicando as migrations num banco descartável, mais os testes dos scripts de release (smoke com o alerta, reverter, travas de produção) e o ensaio de restore do ambiente (P58) |
 | `e2e smoke (desktop + mobile)` | Playwright sobre a demonstração (no PR, sem os módulos guardados; na `main`, todos) e a jornada do ciclo com servidor (P59) |
 | `varredura de segredos` | gitleaks nos commits do PR |
 
@@ -45,6 +45,33 @@ O e2e contra a homologação (`npm run test:staging`, `tests/e2e-staging`) não 
 `npm run publicar -- <ambiente>` (`release/publicar.sh`, passo a passo em `release/PUBLICAR.md`). Os ambientes ficam em `release/ambientes/<nome>.env`, só com dados públicos (projeto, endereço, arquivo do Worker). Ordem fixa, parando no primeiro erro: conferências (commit da `main`, ordem das migrations no repositório e no ambiente) → migrations → segredos das funções (gerados no terminal, nunca impressos) → funções → cron (quatro agendamentos; as rotinas dos módulos rodam pelo `job_ticks`) → Worker com o commit em `/version.json` → smoke (`release/smoke.sh`). `--conferir` só mostra o que faria. O ambiente `local` aplica as migrations num Postgres descartável com o mesmo `supabase db push`, e é como o CI testa o script.
 
 Depois de publicar: `npm run test:staging` (e2e com a jornada do UAT, cerca de 5 minutos) e, no UAT, `npm run preparar:uat` para ligar Mensagens só nos negócios do teste.
+
+Cada publicação grava `BUILD_SHA` nas funções, que respondem `X-Tinindo-Build`, e anota o commit em `public.ops_releases`. O smoke confere os dois.
+
+## Voltar atrás e produção (P58)
+
+**Reverter:** `npm run reverter -- <ambiente> <sha> [--conferir]` (`release/reverter.sh`). Publica de novo o frontend e as funções de um commit que já esteve no ar, numa cópia temporária com o lockfile dele.
+
+- O banco não volta: as migrations são só aditivas e ficam.
+- O script recusa commit fora da `main` ou com migration que o ambiente não tem.
+- Aponta as migrations posteriores que apagam ou renomeiam algo.
+- Anota a reversão e roda o smoke.
+
+**Produção:** está preparada, mas não publicada (D36 a).
+
+- O arquivo é `release/ambientes/producao.env.exemplo`, com `PREENCHER`. A lista do que criar está em `release/PRODUCAO.md`.
+- Em produção, `publicar.sh` e `reverter.sh` exigem a tag `vAAAA.MM.DD-N` e a palavra `producao` digitada num terminal. Sem terminal, recusam; não há variável que pule a pergunta.
+
+**Ensaio de backup e restore:** `npm run ensaio:restore` (`release/ensaio-restore.sh`) faz o ensaio no banco do ambiente local:
+
+1. backup;
+2. restore num banco novo;
+3. as conferências do smoke no restaurado, mais as contagens;
+4. uma gravação com o papel do app.
+
+O tempo fica anotado no resumo do CI. O `npm run db:restore:drill` continua cobrindo o cenário com dados do seed.
+
+**Testes dos scripts:** `npm run test:release` (`release/testes-locais.sh`) prova contra o Postgres local o smoke com o alerta, a reversão e as travas de produção. Roda no job de banco do CI.
 
 ## Publicação
 
@@ -62,7 +89,34 @@ Google Calendar começa com uma única fonte de verdade e escopos mínimos. Sinc
 
 ## Observabilidade e suporte
 
-Painel interno mínimo: tenants ativos, erro de reserva, 409 esperado vs falha, jobs, cota, ações aprovadas/executadas, integrações desconectadas. Registrar `request_id` do começo ao fim. Erro de UI tem mensagem acionável e caminho para suporte. Instrumentação mede evento de resultado, não grava telas/inputs privados indiscriminadamente.
+Painel interno mínimo: tenants ativos, erro de reserva, 409 esperado vs falha, jobs, cota, ações aprovadas/executadas, integrações desconectadas. Registrar `request_id` do começo ao fim.
+
+**Captura de erro (P58, sem serviço externo).** Os erros ficam em `public.ops_errors`, com retenção de 14 dias (`retention_policies`, categoria `ops_errors`). A rotina `ops_watch` apaga os vencidos. Duas origens gravam:
+
+- **Funções:** o embrulho `withBuild` (`supabase/functions/_shared/http/build.ts` e `capture.ts`), que todas usam, registra toda resposta 5xx e toda exceção. Exceção vira 500 `INTERNAL_ERROR` no envelope v1. Cada linha leva função, rota, status, código, SHA e `request_id`.
+- **Front:** `src/lib/telemetry` registra erro de tela, chamada que voltou 5xx ou não chegou, e erro solto na página. A ligação na raiz do app é um recado para o integrador.
+
+Os dois gravam pela RPC `public.ops_error_record`, aberta a anon. A RPC só aceita vocabulário fechado, troca id, número longo, e-mail e token da rota por `:id`, e tem teto de 500 linhas por origem a cada 10 minutos. Nunca entram mensagem, corpo, token, negócio ou dado de cliente.
+
+**Saúde da operação (P58).** `app.ops_health_snapshot()` dá uma leitura única com:
+
+- fila: vencidos, atraso do mais antigo, pendentes e mortos por tipo;
+- rotinas do `job_ticks`, com as falhas seguidas;
+- erros por função na última hora;
+- versão publicada;
+- estado do alerta e limites.
+
+A leitura aparece em três lugares: no painel **Saúde da operação** (`/app/servicos-tinindo/operacao/saude`, só operador ativo, por `public.ops_health()`), no smoke e no log da função `jobs`.
+
+**Alerta (P58).** A rotina `ops_watch` (linha do `job_ticks`) marca "precisa de atenção" quando acontece qualquer uma destas situações:
+
+- o evento vencido mais antigo da fila espera há mais de 15 minutos;
+- uma rotina ligada falha 3 vezes seguidas;
+- os 5xx das funções passam de 20 na última hora.
+
+Os limites ficam em `public.ops_alert_settings` e só mudam por migration. A leitura também acusa a própria rotina parada há 5 minutos. O smoke reprova com qualquer motivo.
+
+O e-mail vai pelo Resend, só na passagem de "tudo certo" para "precisa de atenção". Fica atrás de `OPS_ALERT_EMAIL=on`, `OPS_ALERT_EMAIL_TO` e `OPS_ALERT_RESEND_KEY` e vem desligado. O que fazer quando o alerta acende, em passos: `release/RUNBOOK.md`. Erro de UI tem mensagem acionável e caminho para suporte. Instrumentação mede evento de resultado, não grava telas/inputs privados indiscriminadamente.
 
 Runbook de cinco incidentes: reserva duplicada; mensagem indevida; fila parada; provedor indisponível; suspeita de vazamento. Primeiro conter a ação com flag, preservar dados, avaliar afetados, corrigir e testar regressão. Owner pode operar agenda e caixa visualmente quando IA/WhatsApp caírem.
 

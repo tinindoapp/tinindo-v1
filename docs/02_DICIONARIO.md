@@ -11,12 +11,12 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 136 |
-| Com RLS ligada | 136 |
+| Tabelas em `public` | 140 |
+| Com RLS ligada | 140 |
 | Políticas (todas de leitura) | 100 |
 | FKs | 277 (135 compostas) |
-| Funções em `public` / `app` | 307 / 306 |
-| Rotinas periódicas (`job_ticks`) | 10 |
+| Funções em `public` / `app` | 309 / 310 |
+| Rotinas periódicas (`job_ticks`) | 11 |
 
 ## Rotinas periódicas
 
@@ -34,6 +34,7 @@ Uma linha por rotina em `public.job_ticks`; `public.jobs_run` roda cada uma isol
 | `insights` | `app.gi_tick` | depois da fila | 20 | 20 | sim |
 | `retention` | `app.retention_tick` | depois da fila | 30 | 500 | sim |
 | `privacy_erasure` | `app.privacy_erasure_tick` | depois da fila | 40 | 5 | sim |
+| `ops_watch` | `app.ops_watch_tick` | depois da fila | 90 | 500 | sim |
 
 ## Tabelas
 
@@ -1574,6 +1575,81 @@ Versão publicada de plano/serviço: preço, escopo e franquia. Imutável.
 - **Referências:** (offering_id) → `platform_offerings`
 - **Leitura:** `offering_versions_select` (authenticated)
 - **Só acrescenta:** sim
+
+### `ops_alert_settings`
+
+P58: limites do "precisa de atenção". Uma linha; mudar = migration nova.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | boolean |
+| `queue_late_minutes` | integer |
+| `tick_failures` | integer |
+| `function_errors_per_hour` | integer |
+
+- **Chaves e unicidade:** PK (id)
+- **Referências:** —
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `ops_alert_state`
+
+P58: último estado calculado pela rotina ops_watch (job_ticks).
+
+| Coluna | Tipo |
+|---|---|
+| `id` | boolean |
+| `state` | text |
+| `reasons` | jsonb |
+| `since` | timestamp with time zone ? |
+| `checked_at` | timestamp with time zone ? |
+| `notified_at` | timestamp with time zone ? |
+
+- **Chaves e unicidade:** PK (id)
+- **Referências:** —
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `ops_errors`
+
+P58: erros de tela, de chamada e 5xx das funções. Só rota sem id, código, SHA e request_id; sem dado pessoal. Retenção: ops_errors em retention_policies.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | bigint |
+| `occurred_at` | timestamp with time zone |
+| `source` | text |
+| `kind` | text |
+| `fn` | text ? |
+| `route` | text ? |
+| `status` | integer ? |
+| `code` | text ? |
+| `build_sha` | text ? |
+| `request_id` | uuid ? |
+
+- **Chaves e unicidade:** PK (id)
+- **Referências:** —
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `ops_releases`
+
+P58: cada publicação e reversão (release/publicar.sh, release/reverter.sh). Só service_role grava.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | bigint |
+| `published_at` | timestamp with time zone |
+| `environment` | text |
+| `kind` | text |
+| `sha` | text |
+| `migrations_until` | text ? |
+| `functions` | integer ? |
+
+- **Chaves e unicidade:** PK (id)
+- **Referências:** —
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
 
 ### `outbox_events`
 

@@ -128,6 +128,19 @@ jobs:
           bash release/publicar.sh local
           bash release/publicar.sh local | grep -q "nada a aplicar"
           EXIGE_MAIN=0 bash release/publicar.sh homolog --conferir
+          EXIGE_MAIN=0 bash release/reverter.sh homolog origin/main~1 --conferir
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          LOCAL_DB: tinindo_publicar
+      # P58: smoke com a saúde da operação (ok e reprovando com o alerta aceso), reversão, travas de produção e o ensaio
+      # de backup e restore do ambiente, com o tempo no resumo da execução.
+      - name: Operação (smoke com alerta, reverter, travas de produção, ensaio de restore)
+        run: |
+          bash release/testes-locais.sh
+          bash release/ensaio-restore.sh
         env:
           PGHOST: localhost
           PGPORT: "5432"

@@ -1,6 +1,6 @@
 # Ensaio de reversão e restore na homologação (P42)
 
-Prova com o ambiente hospedado o que o `npm run db:restore:drill` já prova localmente (OPS-01) e a seção 5 do `CHECKLIST.md`.
+Prova com o ambiente hospedado o que o CI já prova localmente: `npm run db:restore:drill` (OPS-01), `npm run ensaio:restore` (backup e restore do banco do ambiente, com o smoke no restaurado) e `npm run test:release` (reversão e travas). Complementa a seção B do `CHECKLIST.md`.
 Roda só na **homologação**, nunca em produção. Anotar cada tempo na tabela do fim e anexar ao PR do P42.
 
 ## A · Backup e restore do banco (Felipe)
@@ -19,11 +19,13 @@ Roda só na **homologação**, nunca em produção. Anotar cada tempo na tabela 
 
 ## B · Reverter o frontend e as funções (Felipe)
 
-1. Anotar o SHA servido: `curl -s <STAGING_URL>/version.json`.
-2. Publicar no Worker de homologação a tag anterior (Cloudflare → Deployments → Rollback, ou redeploy da tag).
-3. Conferir que `/version.json` mostra o SHA anterior e que o login e a Agenda abrem.
-4. Funções: `git checkout <tag anterior> && npx supabase functions deploy`. Os contratos são aditivos, então o frontend anterior continua funcionando.
-5. Voltar para o SHA atual (frontend e funções). Rodar de novo o e2e de `tests/e2e-staging`, que tem que passar.
+1. Anote o SHA servido: `curl -s <STAGING_URL>/version.json`. O mesmo SHA está em "Versão publicada", no painel Saúde da operação.
+2. Rode `npm run reverter -- homolog <sha anterior> --conferir` e confira o plano. Depois, rode sem `--conferir`. O script publica o frontend e as funções do commit anterior, anota a reversão e roda o smoke. No fim, mostra o tempo total.
+3. Confira três coisas:
+   - `/version.json` mostra o SHA anterior;
+   - as funções respondem `X-Tinindo-Build` com ele (o smoke confere);
+   - o login e a Agenda abrem.
+4. Volte para o SHA atual: `npm run publicar -- homolog`. Depois, rode de novo o e2e de `tests/e2e-staging`, que tem de passar.
 
 ## C · Banco nunca volta (regra)
 
@@ -43,9 +45,10 @@ Quem decide é o Felipe. Se ele não responder em 15 minutos, o Gabriel pode rev
 
 | Passo | Quem | Data e hora | Tempo | Resultado |
 |---|---|---|---|---|
+| Local (CI), `ensaio:restore` | sessão P58 | 21/11/2026 | backup 0,3 s · restore 1,9 s · app de volta em 3,4 s | ok (banco do publicar local, 56 migrations) |
+| Local (CI), `reverter.sh local` | sessão P58 | 21/11/2026 | 2 s (conferências, registro e smoke) | ok |
 | A.2 backup | | | | |
 | A.3 restore no isolado | | | | |
 | A.4 conferência | | | | |
-| B.2 frontend anterior | | | | |
-| B.4 funções anteriores | | | | |
-| B.5 de volta + e2e | | | | |
+| B.2 reverter (frontend e funções) | | | | |
+| B.4 de volta + e2e | | | | |

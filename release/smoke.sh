@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Smoke depois de publicar (recado #109): em cerca de 2 minutos diz se o ambiente está bom. Falha se faltar variável
 # ou segredo, se a versão no ar não for o commit publicado, se faltar migration, função, CORS ou cron, ou se uma
-# rotina do job_ticks estiver falhando. Só lê: não grava nada no ambiente.
+# rotina do job_ticks estiver falhando. P58: também reprova quando a saúde da operação diz "precisa de atenção" (fila
+# atrasada, rotina com 3 falhas, erros acima do teto, rotina do alerta parada), quando a versão anotada no banco não é
+# a esperada e quando as funções não devolvem o SHA esperado em X-Tinindo-Build. Só lê: não grava nada no ambiente.
 #
 # Uso: bash release/smoke.sh <ambiente> [--sha <commit>] [--desde <instante ISO>]
 #   --sha    commit que deve estar no ar (padrão: o commit atual do repositório)
@@ -96,19 +98,59 @@ else
   else ruim "não consegui ler public.job_ticks"; fi
 fi
 
+# --- 4b. saúde da operação (P58) --------------------------------------------------------------------------------------
+msg "Saúde da operação"
+if [[ $SEM_BANCO -eq 1 ]]; then
+  pulou "saúde da operação (sem acesso ao banco)"
+elif ! h=$(db_json "select app.ops_health_snapshot() as h" 2>/dev/null); then
+  ruim "app.ops_health_snapshot() não existe (migration do P58 não aplicada?)"
+else
+  # Mesmo texto do painel (src/features/service-ops/health.ts, reasonText). Saída: linhas "ok|…", "ruim|…" ou "info|…".
+  while IFS='|' read -r tipo texto; do
+    case "$tipo" in ok) ok "$texto" ;; ruim) ruim "$texto" ;; *) msg "         $texto" ;; esac
+  done < <(python3 - "$h" "$SHA" <<'PY'
+import json, sys
+h = json.loads(sys.argv[1])[0]["h"]; esperado = sys.argv[2]
+def texto(r):
+    c = r["code"]
+    if c == "queue_late": return f"fila de eventos atrasada: o mais antigo vencido espera há {r.get('minutes')} min (limite {r.get('limit')} min)"
+    if c == "tick_failing": return f"rotina com {r.get('limit')} ou mais falhas seguidas: {', '.join(r.get('ticks', []))}"
+    if c == "errors_over_ceiling": return f"erros 5xx das funções na última hora: {r.get('count')} (teto {r.get('limit')})"
+    if c == "watch_stale": return f"a rotina do alerta não roda há {r.get('minutes')} min (cron do jobs parado?)"
+    return f"motivo {c}"
+if h["attention"]:
+    for r in h["reasons"]: print(f"ruim|precisa de atenção: {texto(r)}")
+else:
+    print("ok|saúde da operação: nenhum motivo de alerta")
+o = h["outbox"]; e = h["errors"]
+print(f"info|fila: {o['due']} vencido(s), atraso {o['late_minutes']} min; {o['pending']} pendente(s); {o['dead']} morto(s) ({o['dead_24h']} em 24 h)")
+print(f"info|erros na última hora: {e['function_total']} das funções" + (" (" + ", ".join(f"{x['fn']} {x['count']}" for x in e["functions"]) + ")" if e["functions"] else "") + f"; {e['front_total']} do navegador")
+w = h["watch"]; print(f"info|rotina do alerta: {'nunca rodou' if not w['checked_at'] else ('parada' if w['stale'] else 'rodando')}")
+rel = h["release"]
+if not rel: print("ruim|nenhuma versão anotada em public.ops_releases (publique pelo release/publicar.sh)")
+elif rel["sha"] != esperado: print(f"ruim|a versão anotada no banco é {rel['sha'][:12]} ({rel['kind']}), não {esperado[:12]}")
+else: print(f"ok|versão anotada no banco: {rel['sha'][:12]} ({'reversão' if rel['kind'] == 'revert' else 'publicação'} em {rel['published_at'][:16]})")
+PY
+)
+fi
+
 # --- 5. funções e cron (só hospedado) ---------------------------------------------------------------------------------
 msg "Funções e cron"
 if [[ "$ALVO" != supabase ]]; then
   pulou "funções e cron: o ambiente local não tem"
 else
-  falhou_fn=()
+  falhou_fn=(); outra_versao=()
   for dir in supabase/functions/*/; do
     fn=$(basename "$dir"); [[ "$fn" == _* || "$fn" == jobs ]] && continue
     hdr=$(curl -s -o /dev/null -D - --max-time 15 -X OPTIONS -H "Origin: $APP_URL" -H "Access-Control-Request-Method: POST" "$FN_URL/$fn/health")
     code=$(awk 'NR==1 {print $2}' <<<"$hdr")
     grep -qi "^access-control-allow-origin: $APP_URL" <<<"$hdr" && [[ "${code:-500}" -lt 300 ]] || falhou_fn+=("$fn($code)")
+    # Recado #135 e P58: cada função devolve o commit publicado em X-Tinindo-Build (segredo BUILD_SHA do publicar).
+    build=$(awk 'tolower($1) == "x-tinindo-build:" {print $2}' <<<"$hdr" | tr -d '\r')
+    [[ "$build" == "$SHA" ]] || outra_versao+=("$fn(${build:-sem})")
   done
   [[ ${#falhou_fn[@]} -eq 0 ]] && ok "todas as funções do navegador sobem e aceitam $APP_URL (CORS)" || ruim "funções sem subir ou sem CORS para $APP_URL: ${falhou_fn[*]}"
+  [[ ${#outra_versao[@]} -eq 0 ]] && ok "todas as funções respondem com X-Tinindo-Build = ${SHA:0:12}" || ruim "funções de outra versão (X-Tinindo-Build): ${outra_versao[*]}"
   if [[ $SEM_BANCO -eq 0 ]]; then
     filtro=""; [[ -n "$DESDE" ]] && filtro="and d.start_time >= '$DESDE'::timestamptz"
     # Espera até 2 minutos pela primeira rodada de cada agendamento depois da publicação.
