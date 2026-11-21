@@ -121,3 +121,37 @@ describe("assist.form_draft", () => {
     expect(w.sent).toHaveLength(0);
   });
 });
+
+describe("assist.event (T15)", () => {
+  const ev = (body: unknown) => new Request("http://edge/functions/v1/agent/assist.event", {
+    method: "POST", body: JSON.stringify(body), headers: { Authorization: "Bearer jwt-do-dono", "X-Tinindo-Tenant": FX.tenants.A },
+  });
+
+  it("grava evento, superfície e contagem, sem portão nem franquia (vale com LLM_PROVIDER=none)", async () => {
+    const rpc = vi.fn<Rpc>(async () => ({ data: { recorded: true }, error: null }));
+    const handler = createAgentHandler({ rpc, allowedOrigins: [], clock: { now: () => NOW } });
+    const res = await handler(ev({ event: "applied", surface: "form:lifecycle.settings", filled: 2 }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toEqual({ recorded: true });
+    expect(rpc.mock.calls.map((c) => c[1])).toEqual(["assist_event_record"]);
+    expect(rpc.mock.calls[0]![2]).toEqual({ p_tenant_id: FX.tenants.A, p_event: "assist.applied.v1", p_surface: "form:lifecycle.settings", p_filled: 2 });
+  });
+
+  it("não aceita conteúdo: campo extra, evento ou superfície fora da lista = 400", async () => {
+    const rpc = vi.fn<Rpc>();
+    const handler = createAgentHandler({ rpc, allowedOrigins: [], clock: { now: () => NOW } });
+    for (const body of [
+      { event: "applied", surface: "draft", text: "o texto do dono" },
+      { event: "clicked", surface: "draft" },
+      { event: "shown", surface: "fiscal" },
+      { event: "applied", surface: "form:service", filled: 99 },
+    ]) expect((await handler(ev(body))).status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("quem não é do negócio: 403 do banco", async () => {
+    const rpc = vi.fn<Rpc>(async () => ({ data: null, error: { code: "PT403", message: "FORBIDDEN" } }));
+    const handler = createAgentHandler({ rpc, allowedOrigins: [], clock: { now: () => NOW } });
+    expect((await handler(ev({ event: "shown", surface: "explain" }))).status).toBe(403);
+  });
+});

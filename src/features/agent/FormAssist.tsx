@@ -81,6 +81,7 @@ export function FormAssistPanel({ port }: { port: AgentPort }) {
         onRequest={(text) => port.formDraft(form, text, newKey())}
         describe={(draft) => <ul>{describeDraft(draft as Record<string, unknown>).map((l) => <li key={l}>{l}</li>)}</ul>}
         fieldLabel={(f) => LABEL[f] ?? f}
+        onEvent={(event, { filled }) => void port.assistEvent({ event, surface: `form:${form}`, filled: event === "applied" ? filled : null })}
         onApply={(draft, filled) => {
           const state: AssistDraftState = { assistDraft: { form, draft: draft as Record<string, unknown>, filled } };
           navigate(FORM_SCREEN[form].path, { state });

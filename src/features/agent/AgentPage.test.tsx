@@ -24,6 +24,7 @@ function setup(execute: AgentPort["execute"]) {
     draft: vi.fn(async () => ({ available: false, suggestion: null })),
     setupDismiss: vi.fn(), setupProgress: vi.fn(async () => null),
     formDraft: vi.fn(async (form) => ({ available: false, form, draft: null, filled: [], notes: [] })),
+    assistEvent: vi.fn(async () => undefined),
   };
   render(<AgentPortProvider value={port}><AgentPage /></AgentPortProvider>);
   return port;

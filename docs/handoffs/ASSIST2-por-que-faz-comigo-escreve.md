@@ -130,3 +130,17 @@ O pacote não está no quadro do `coord.py` (o quadro vai até P46); não houve 
   - `engine-assist.test.ts` (13 casos): faltas na quarta; quieta e insuficiente; `ui_context`; equipe; preço; "por que" sem tema; configurar lembretes, horários e sem tema; "como você foi configurado"; lista de espera; nota fiscal.
   - `understand.test.ts` (5 casos): frase suspeita usada, descartada e não chamada; teto; `none`.
   - pgTAP 46 (16 asserções).
+
+## Item 5 · Eventos `assist.shown`, `assist.applied` e `assist.dismissed` (T15)
+
+- **Migration `*_assist_events.sql` e pgTAP 47.**
+  - Tabela `assist_events` com evento, superfície (`form:<formulário>`, `draft` ou `explain`), `filled` (contagem de campos, só em `applied`) e data.
+  - Nenhuma coluna de conteúdo (o pgTAP trava a lista de colunas). Só acrescenta, e só o dono lê.
+  - RPC `assist_event_record`: membro do negócio, valida evento, superfície e contagem, e ignora acima de 500 por negócio por dia.
+- **Rota `assist.event`** na função `agent`. Não passa pelo portão nem pela franquia, não chama modelo e vale com `LLM_PROVIDER=none`. O schema é estrito: um campo extra (texto) dá 400.
+- **Quem mede:**
+  - "Faz comigo" no Assistente: `shown` ao abrir, `applied` com a contagem e `dismissed` no "Agora não".
+  - "Usar este texto": `applied` em `draft`.
+  - "Por quê?" em Metas: `shown` em `explain`, pela porta do servidor e sem esperar.
+  - A demonstração não mede.
+- **Por que tabela e não outbox:** os tipos `assist.*.v1` precisam entrar no catálogo `EventType` (contratos) e no `docs/01`, os dois fora da área. O recado pede o registro e a leitura no P18.
