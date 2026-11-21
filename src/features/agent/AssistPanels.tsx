@@ -157,7 +157,10 @@ export function DraftPanel({ port, initial }: {
             {initial?.returnTo ? (
               // T5: a sugestão volta para o campo de onde o rascunho veio. A tela de origem preenche e mostra o selo.
               <UseTextButton text={suggestion} max={initial.max}
-                onUse={(t) => navigate(initial.returnTo!, { state: { assistText: { field: initial.field ?? null, text: t } } })} />
+                onUse={(t) => {
+                  void port.assistEvent({ event: "applied", surface: "draft" });
+                  navigate(initial.returnTo!, { state: { assistText: { field: initial.field ?? null, text: t } } });
+                }} />
             ) : null}
             <Button variant={initial?.returnTo ? "secondary" : "primary"} onClick={() => void copy()}>Copiar texto</Button>
             <span className="tn-muted">Revise antes de usar. Nada foi salvo nem enviado.</span>
