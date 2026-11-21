@@ -12,7 +12,7 @@ const CNPJ = /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g;
  * Não casa logo depois de DDD ("(11) 32654321", "11 32654321"): aí é telefone fixo e o PHONE trata.
  * O prefixo de zona sozinho ("01310", usado no Domicílio) tem 5 dígitos e fica.
  */
-const CEP = /(?<![\p{N}.\-/])(?<![\p{N})][\s.\-]?)\d{2}\.?\d{3}-?\d{3}(?![\p{N}]|[.\-/][\p{N}])/gu;
+const CEP = /(?<![\p{N}.\-/])(?<![\p{N})][\s.-]?)\d{2}\.?\d{3}-?\d{3}(?![\p{N}]|[.\-/][\p{N}])/gu;
 /** Telefone BR: +55, DDD com ou sem parênteses, 8 ou 9 dígitos, separadores comuns. */
 const PHONE = /(?:\+?55[\s.-]?)?(?:\(?\d{2}\)?[\s.-]?)?9?\d{4}[\s.-]?\d{4}\b/g;
 /** Qualquer sequência longa de dígitos que sobrou (RG, cartão, conta): 9 ou mais dígitos, com separadores.

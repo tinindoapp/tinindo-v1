@@ -21,6 +21,20 @@ export interface ExtractRequest<T> {
   schema: z.ZodType<T>;
   /** Teto de saída. Padrão 1024. */
   maxOutputTokens?: number;
+  /**
+   * Uso de cada tentativa (inclusive a de reserva), para o servidor somar por negócio (T11). Chamado depois do
+   * registro técnico; só números e a tarefa, nunca texto. Erro aqui não muda o resultado da chamada.
+   */
+  onUsage?: (u: LlmUsage) => void;
+}
+
+/** Uso de uma tentativa ao modelo: o que vai para `agent_llm_usage` (sem tenant aqui; quem sabe o negócio é a função). */
+export interface LlmUsage {
+  task: LlmTask;
+  input_tokens: number;
+  output_tokens: number;
+  /** null = modelo sem preço na tabela (conta como chamada sem preço, nunca como custo zero). */
+  cost_usd: number | null;
 }
 
 export interface Llm {
