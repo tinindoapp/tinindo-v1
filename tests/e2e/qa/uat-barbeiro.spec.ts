@@ -30,7 +30,8 @@ test.describe("UAT barbeiro", () => {
     await page.goto("/app/clientes/servicos");
     await page.getByRole("button", { name: "Novo serviço" }).click();
     await page.getByRole("button", { name: "Modelo: Corte (30 min)" }).click();
-    await page.getByLabel("Preço base (R$)").fill("60,00");
+    await page.getByLabel("Preço à vista (R$)").fill("60,00");
+    await page.getByText("Mais opções").click();
     await page.getByLabel("Piso (R$)").fill("45,00");
     await page.getByRole("button", { name: "Salvar" }).click();
     await expect(page.getByText("Corte foi salvo.")).toBeVisible();
@@ -96,6 +97,8 @@ test.describe("UAT barbeiro", () => {
   test("5b · barbeiro cria a oferta de terça com piso e ela passa a valer nas novas cotações", async ({ page }) => {
     await page.goto("/app");
     await openFromNav(page, "Preços");
+    // P54: "Nova regra" é a ação principal da abertura e abre o formulário (folha no celular).
+    await page.getByRole("button", { name: "Nova regra" }).click();
     const form = page.getByRole("form", { name: "Nova regra" });
     await form.getByLabel("Desconto pedido (%)").fill("40");
     await form.getByLabel("Desconto máximo (%)").fill("40");

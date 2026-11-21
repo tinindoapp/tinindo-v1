@@ -56,15 +56,25 @@ test("configuração: passos com por quê, frase do negócio vira rascunho revis
   if (info.project.name === "mobile") await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/app/configurar");
   await expect(page.getByRole("heading", { name: "Deixe seu negócio pronto", level: 1 })).toBeVisible();
-  await expect(page.getByText("Demonstração: o que você salvar aqui vale só nesta aba.")).toBeVisible();
+  // D11 (b): sem aviso de demonstração por tela; a faixa do topo já diz.
+  await expect(page.getByText("Demonstração: o que você salvar aqui vale só nesta aba.")).toHaveCount(0);
+  // P54: o próximo passo em destaque e o outro que falta à vista; os 5 feitos recolhidos até "Ver os feitos".
   const steps = page.getByRole("list", { name: "Passos da configuração" }).getByRole("listitem");
+  await expect(steps).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: "Passos · 5 de 7 feitos" })).toBeVisible();
+  await expect(steps.nth(0)).toContainText("Próximo passo");
+  await expect(steps.nth(0)).toContainText("Publicar seu perfil e mandar o link");
+  await expect(steps.nth(0).getByRole("link", { name: /Publicar perfil/ })).toHaveAttribute("href", "/app/perfil");
+  await expect(steps.nth(0).getByRole("button", { name: "Agora não" })).toHaveCount(0);
+  await expect(steps.nth(1).getByRole("button", { name: /Agora não/ })).toBeVisible();
+  await page.getByRole("button", { name: "Ver os feitos (5)" }).click();
   await expect(steps).toHaveCount(7);
-  await expect(steps.nth(3)).toContainText("Publicar seu perfil e mandar o link");
-  await expect(steps.nth(3).getByRole("link", { name: /Publicar perfil/ })).toHaveAttribute("href", "/app/perfil");
-  await expect(steps.nth(2).getByRole("button", { name: "Agora não" })).toHaveCount(0);
-  await expect(steps.nth(5).getByRole("button", { name: "Agora não" })).toBeVisible();
+  await expect(steps.nth(4)).toContainText("Definir a antecedência para cancelar");
+  await expect(steps.nth(4)).toContainText("Feito");
+  await expect(steps.nth(4).getByRole("button", { name: /Agora não/ })).toHaveCount(0);
 
-  // Frase → rascunho: cada campo preenchido para revisão; nada salvo até confirmar.
+  // Frase → rascunho (seção recolhida: horários e serviço já estão feitos); nada salvo até confirmar.
+  await page.getByRole("heading", { name: "Descreva seu negócio em uma frase" }).click();
   await page.getByLabel("Sua frase").fill("Sou barbeiro, sozinho, de terça a sábado das 9 às 19. Faço sobrancelha.");
   await page.getByRole("button", { name: "Montar rascunho" }).click();
   const draft = page.getByRole("form", { name: "Rascunho do seu negócio" });
@@ -83,9 +93,11 @@ test("configuração: passos com por quê, frase do negócio vira rascunho revis
   await confirm.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Salvo: expediente de 5 dias e 1 serviço criado." })).toBeVisible();
 
-  // Modelos: já no catálogo fica desabilitado; marcar pede o preço; criar só depois da confirmação.
+  // Modelos: já no catálogo vira texto; marcar pede o preço; criar só depois da confirmação.
+  await page.getByRole("heading", { name: /Modelos de serviço · Barbearia/ }).click();
+  await expect(page.getByText("Já no catálogo: Corte, Barba.")).toBeVisible();
   const models = page.getByRole("form", { name: "Modelos de serviço" });
-  await expect(models.getByRole("checkbox", { name: /Corte · já no catálogo/ })).toBeDisabled();
+  await expect(models.getByRole("checkbox", { name: /^Corte$/ })).toHaveCount(0);
   await models.getByRole("checkbox", { name: /Corte e barba/ }).check();
   const price = models.getByLabel("Preço de Corte e barba (R$)");
   await expect(price).toHaveValue("55,00");
@@ -95,7 +107,8 @@ test("configuração: passos com por quê, frase do negócio vira rascunho revis
   await expect(create).toContainText("Corte e barba (50 min, R$ 70,00)");
   await create.getByRole("button", { name: "Criar" }).click();
   await expect(page.getByRole("status").filter({ hasText: "1 serviço criado: Corte e barba." })).toBeVisible();
-  await expect(models.getByRole("checkbox", { name: /Corte e barba · já no catálogo/ })).toBeDisabled();
+  await expect(page.getByText("Já no catálogo: Corte, Barba, Corte e barba.")).toBeVisible();
+  await expect(models).toHaveCount(0);
   await noHorizontalScroll(page);
 });
 

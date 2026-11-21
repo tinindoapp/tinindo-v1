@@ -7,23 +7,29 @@
 // e cada confirmação passa pelas mesmas regras do catálogo (P02) e da agenda (P03).
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router";
-import type { Profession, WeeklyWindow } from "@contracts";
-import { Button, Card, ChipGroup, ChoiceCard, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
+import type { Profession, WeeklyWindow } from "@contracts";
+import { ActionRow, Button, ChipGroup, ChoiceCard, ConfirmAction, Field, LinkButton, PageHeader, Section, StatusBadge, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { useScope } from "../../app/scope.tsx";
 import { useCommand } from "../../lib/idempotency.ts";
 import { centsToInput, parseBRL } from "../../lib/money.ts";
 import { setupView } from "../../lib/setup/steps.ts";
 import { plural } from "../../lib/text/plural.ts";
 import { explain, priceRange, priceText, PROFESSION_LABEL, specOf, stepWhy, summarizeHours } from "./labels.ts";
-import { type BusinessDescription, type SetupDescribeOutput, type SetupPort, type SetupProgress, type SetupServiceDraft, type SetupStepCode, type SetupTemplate } from "./port.ts";
+import { type BusinessDescription, type SetupDescribeOutput, type SetupPort, type SetupProgress, type SetupServiceDraft, type SetupStep, type SetupStepCode, type SetupTemplate } from "./port.ts";
 import "./setup.css";
 
 const fail = (err: unknown) => toast({ tone: "danger", message: explain(err) });
 const PROFESSIONS = ["barber", "hairdresser", "personal_trainer", "other"] as const satisfies readonly Profession[];
 
+/**
+ * Passos (P54, doc 07 §4.9): os que faltam ficam abertos, com o próximo em destaque e o único botão principal da tela;
+ * os feitos ficam recolhidos atrás de "Ver os feitos (5)". Dispensado continua entre os que faltam, sem destaque.
+ */
 function Steps({ progress, port, onChange }: { progress: SetupProgress; port: SetupPort; onChange: (p: SetupProgress) => void }) {
   const [busy, setBusy] = useState<SetupStepCode | null>(null);
+  // Feitos recolhidos (doc 07 §4.9): ficam na lista, escondidos até "Ver os feitos".
+  const [showDone, setShowDone] = useState(false);
   const command = useCommand();
   // P51: passo cuja tela não aparece para o negócio fica fora da lista e da conta.
   const view = setupView(progress, useScope().canOpen);
@@ -38,46 +44,69 @@ function Steps({ progress, port, onChange }: { progress: SetupProgress; port: Se
       setBusy(null);
     }
   }
+  const open = view.steps.filter((s) => !s.done);
+  // O próximo vem primeiro; os outros na ordem do catálogo.
+  const ordered = view.next ? [view.next, ...open.filter((s) => s.step !== view.next!.step)] : open;
+  const done = view.steps.filter((s) => s.done);
+  const dismissButton = (s: SetupStep, size?: "compact") => (s.required ? null : (
+    <Button variant="ghost" size={size} loading={busy === s.step} onClick={() => void toggle(s.step, !s.dismissed)}
+      aria-label={size ? `${s.dismissed ? "Voltar a mostrar" : "Agora não"}: ${s.title}` : undefined}>
+      {s.dismissed ? "Voltar a mostrar" : "Agora não"}
+    </Button>
+  ));
   return (
-    <Card aria-labelledby="setup-steps-title">
-      <h2 id="setup-steps-title">
-        Passos <span className="tn-num tn-muted">· {view.done} de {view.total} feitos</span>
-      </h2>
+    <Section id="setup-steps-title" title={<>Passos <span className="tn-section__count tn-num">· {view.done} de {view.total} feitos</span></>}>
       {progress.ready ? (
         <StatusBanner tone="success">Seu negócio está pronto para receber reservas pelo link. Os passos que faltam são opcionais.</StatusBanner>
-      ) : (
-        <p className="tn-muted">Os quatro primeiros deixam o link público funcionando. Os outros podem ficar para depois.</p>
-      )}
-      <ol className="tn-setup-steps" aria-label="Passos da configuração">
-        {view.steps.map((s, i) => {
+      ) : null}
+      {/* Uma lista só, na ordem: o próximo, os outros que faltam e, recolhidos até "Ver os feitos", os feitos. */}
+      <ol className="tn-list tn-setup-steps" aria-label="Passos da configuração" data-show-done={showDone || undefined}>
+        {ordered.map((s) => {
           const spec = specOf(s.step);
-          return (
-            <li key={s.step} className="tn-setup-step" data-done={s.done || undefined} data-dismissed={s.dismissed || undefined} data-next={view.next?.step === s.step || undefined}>
-              <span className="tn-setup-step__mark" aria-hidden="true">{s.done ? "✓" : i + 1}</span>
-              <div className="tn-setup-step__body">
-                <p className="tn-setup-step__title">
-                  {s.title}
-                  {s.done ? <span className="tn-visually-hidden"> (feito)</span> : null}
-                  {!s.required ? <span className="tn-setup-step__tag">opcional</span> : null}
-                  {s.dismissed ? <span className="tn-setup-step__tag">dispensado</span> : null}
-                </p>
+          const tags = (
+            <>
+              {!s.required ? <span className="tn-setup-step__tag">opcional</span> : null}
+              {s.dismissed ? <> <StatusBadge tone="neutral">dispensado</StatusBadge></> : null}
+            </>
+          );
+          if (view.next?.step === s.step) {
+            return (
+              <li key={s.step} className="tn-setup-step" data-next>
+                <p className="tn-caps tn-setup-step__eyebrow">Próximo passo</p>
+                <p className="tn-setup-step__title">{s.title}{tags}</p>
                 {stepWhy(s) ? <p className="tn-setup-step__why">{stepWhy(s)}</p> : null}
-                {!s.done ? (
-                  <div className="tn-setup-step__actions">
-                    <Link to={s.link} className="tn-setup-step__go">{spec.cta}<Icon name="seta" size={16} /></Link>
-                    {!s.required ? (
-                      <Button variant="ghost" loading={busy === s.step} onClick={() => void toggle(s.step, !s.dismissed)}>
-                        {s.dismissed ? "Voltar a mostrar" : "Agora não"}
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            </li>
+                <div className="tn-actionbar">
+                  <LinkButton to={s.link}>{spec.cta}</LinkButton>
+                  {dismissButton(s)}
+                </div>
+              </li>
+            );
+          }
+          return (
+            <ActionRow key={s.step} to={s.link} title={<span data-dismissed={s.dismissed || undefined} className="tn-setup-step__name">{s.title}{tags}</span>}
+              meta={stepWhy(s) ?? undefined} action={dismissButton(s, "compact")} />
           );
         })}
+        {done.map((s) => (
+          <li key={s.step} data-done>
+            <Link to={s.link} className="tn-list__row">
+              <span className="tn-list__text"><span className="tn-list__title">{s.title}<span className="tn-visually-hidden"> (feito)</span></span></span>
+              <StatusBadge tone="success">Feito</StatusBadge>
+              <Icon name="seta" size={18} className="tn-list__chevron" />
+            </Link>
+          </li>
+        ))}
       </ol>
-    </Card>
+      {ordered.length === 0 ? <p className="tn-muted">Nenhum passo faltando. Tudo pronto.</p> : null}
+      {done.length ? (
+        <div className="tn-list-foot">
+          <span />
+          <Button variant="ghost" size="compact" aria-expanded={showDone} onClick={() => setShowDone((v) => !v)}>
+            {showDone ? "Esconder os feitos" : `Ver os feitos (${done.length})`}
+          </Button>
+        </div>
+      ) : null}
+    </Section>
   );
 }
 
@@ -307,14 +336,16 @@ function DraftReview({ draft, port, onSaved }: { draft: SetupDescribeOutput; por
       </fieldset>
       <div className="tn-actions">
         {/* Os erros aparecem embaixo dos campos ao tocar em Salvar; a confirmação só abre com tudo válido. */}
-        <ConfirmAction triggerVariant="primary" trigger="Salvar expediente e serviços" title="Salvar o rascunho?" consequence={consequence} confirmLabel="Salvar"
+        <ConfirmAction triggerVariant="secondary" trigger="Salvar expediente e serviços" title="Salvar o rascunho?" consequence={consequence} confirmLabel="Salvar"
           onConfirm={save} disabled={busy} beforeOpen={validate} canConfirm={problem === null} missingHint={problem ?? undefined} />
       </div>
     </form>
   );
 }
 
-function Describe({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgress) => void }) {
+function Describe({ port, onSaved, collapsed: startCollapsed }: { port: SetupPort; onSaved: (p: SetupProgress) => void; collapsed: boolean }) {
+  // Recolhida ou aberta só na chegada: salvar o rascunho conclui o passo, e a seção não fecha na mão de quem está nela.
+  const [collapsed] = useState(startCollapsed);
   const [sentence, setSentence] = useState("");
   const [draft, setDraft] = useState<{ id: string; value: SetupDescribeOutput } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -335,21 +366,21 @@ function Describe({ port, onSaved }: { port: SetupPort; onSaved: (p: SetupProgre
     }
   }
   return (
-    <Card aria-labelledby="setup-describe-title">
-      <h2 id="setup-describe-title" tabIndex={-1}>Descreva seu negócio em uma frase</h2>
+    <Section id="setup-describe-title" title="Descreva seu negócio em uma frase" collapsed={collapsed}>
       <p className="tn-muted">Exemplo: “Sou barbeiro, sozinho, de terça a sábado das 9 às 19, faço corte e barba”. Montamos um rascunho e você revisa cada campo antes de salvar.</p>
       <form ref={formRef} aria-label="Descrever o negócio" onSubmit={(e) => void build(e)} noValidate>
         <Field as="textarea" label="Sua frase" rows={2} maxLength={500} value={sentence} error={errors.sentence} onChange={(e) => setSentence(e.target.value)} />
         <div className="tn-actions">
-          <Button type="submit" variant={draft ? "secondary" : "primary"} loading={busy} loadingText="Montando…">{draft ? "Montar de novo" : "Montar rascunho"}</Button>
+          <Button type="submit" variant="secondary" loading={busy} loadingText="Montando…">{draft ? "Montar de novo" : "Montar rascunho"}</Button>
         </div>
       </form>
       {draft ? <DraftReview key={draft.id} draft={draft.value} port={port} onSaved={onSaved} /> : null}
-    </Card>
+    </Section>
   );
 }
 
-function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSaved: (p: SetupProgress) => void; version: number; onReady: () => void }) {
+function Templates({ port, onSaved, version, onReady, collapsed: startCollapsed }: { port: SetupPort; onSaved: (p: SetupProgress) => void; version: number; onReady: () => void; collapsed: boolean }) {
+  const [collapsed] = useState(startCollapsed);
   const [data, setData] = useState<{ profession: Profession; templates: SetupTemplate[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
@@ -361,8 +392,13 @@ function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSav
   }, [port, onReady]);
   // `version` muda quando o rascunho salva: a profissão ou o catálogo podem ter mudado.
   useEffect(load, [load, version]);
-  if (error) return <StatusBanner tone="danger">{error}</StatusBanner>;
-  if (!data) return <p role="status" className="tn-muted">Carregando modelos…</p>;
+  if (error || !data) {
+    return (
+      <Section id="setup-templates-title" title="Modelos de serviço" collapsed={collapsed}>
+        {error ? <StatusBanner tone="danger">{error}</StatusBanner> : <p role="status" className="tn-muted">Carregando modelos…</p>}
+      </Section>
+    );
+  }
   const chosen = data.templates.filter((t) => t.kind === "service" && t.code in picked);
   const drafts: SetupServiceDraft[] = chosen.map((t) => ({ template_code: t.code, name: t.name, duration_min: t.duration_min, base_price_cents: parseBRL(picked[t.code] ?? "") ?? -1 }));
   const problem = chosen.length === 0 ? "Marque pelo menos um modelo." : drafts.some((d) => d.base_price_cents < 0) ? "Informe o preço de cada serviço marcado, em reais (ex.: 35,00)." : null;
@@ -381,12 +417,15 @@ function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSav
       setBusy(false);
     }
   }
-  const services = data.templates.filter((t) => t.kind === "service");
+  // Já no catálogo: uma linha de texto, não caixa desligada (o cinza da caixa desligada não passava no contraste).
+  const services = data.templates.filter((t) => t.kind === "service" && !t.exists);
+  const existing = data.templates.filter((t) => t.kind === "service" && t.exists);
   const packages = data.templates.filter((t) => t.kind === "package");
   return (
-    <Card aria-labelledby="setup-templates-title">
-      <h2 id="setup-templates-title" tabIndex={-1}>Modelos de serviço · {PROFESSION_LABEL[data.profession]}</h2>
+    <Section id="setup-templates-title" title={`Modelos de serviço · ${PROFESSION_LABEL[data.profession]}`} count={services.length} collapsed={collapsed}>
       <p className="tn-muted">Marque os que você faz e confirme o preço. A faixa é um ponto de partida, não uma média de mercado. Nada é criado antes de você confirmar.</p>
+      {existing.length ? <p className="tn-setup-existing">Já no catálogo: {existing.map((t) => t.name).join(", ")}.</p> : null}
+      {services.length === 0 ? <p className="tn-muted">Todos os modelos da sua profissão já estão no catálogo.</p> : (
       <form ref={formRef} aria-label="Modelos de serviço" onSubmit={(e) => e.preventDefault()} noValidate>
         {errors.pick ? <p className="tn-field__error" id="setup-templates-error">{errors.pick}</p> : null}
         <div className="tn-setup-templates">
@@ -395,14 +434,14 @@ function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSav
             const checked = t.code in picked;
             return (
               <div key={t.code} className="tn-setup-template">
-                <ChoiceCard type="checkbox" name="template" value={t.code} checked={checked} disabled={t.exists || busy}
+                <ChoiceCard type="checkbox" name="template" value={t.code} checked={checked} disabled={busy}
                   onChange={(on) => setPicked((p) => {
                     const next = { ...p };
                     if (on) next[t.code] = t.price_from_cents === null ? "" : centsToInput(t.price_from_cents);
                     else delete next[t.code];
                     return next;
                   })}
-                  title={t.exists ? `${t.name} · já no catálogo` : t.name}
+                  title={t.name}
                   description={`${t.duration_min} min${range ? ` · faixa ${range}` : ""}`} invalid={!!errors.pick} describedBy={errors.pick ? "setup-templates-error" : undefined} />
                 {checked ? (
                   <Field label={`Preço de ${t.name} (R$)`} inputMode="decimal" value={picked[t.code] ?? ""} hint={range ? `Sugestão: ${range}.` : "Preço é seu."}
@@ -416,12 +455,13 @@ function Templates({ port, onSaved, version, onReady }: { port: SetupPort; onSav
           <p className="tn-muted">{packages.map((p) => `${p.name}: vende-se no Caixa como pacote${p.price_from_cents !== null ? ` (faixa ${priceRange(p.price_from_cents, p.price_to_cents)})` : ""}, depois de criar o serviço avulso.`).join(" ")}</p>
         ) : null}
         <div className="tn-actions">
-          <ConfirmAction triggerVariant="primary" trigger={chosen.length ? `Criar ${plural(chosen.length, "serviço", "serviços")}` : "Criar serviços"} title="Criar os serviços marcados?"
+          <ConfirmAction triggerVariant="secondary" trigger={chosen.length ? `Criar ${plural(chosen.length, "serviço", "serviços")}` : "Criar serviços"} title="Criar os serviços marcados?"
             consequence={drafts.length ? `Entram no catálogo: ${drafts.map((d) => `${d.name} (${d.duration_min} min, ${d.base_price_cents >= 0 ? priceText(d.base_price_cents) : "sem preço"})`).join("; ")}.` : "Nenhum modelo marcado."}
             confirmLabel="Criar" onConfirm={create} disabled={busy} beforeOpen={validate} canConfirm={problem === null} missingHint={problem ?? undefined} />
         </div>
       </form>
-    </Card>
+      )}
+    </Section>
   );
 }
 
@@ -439,14 +479,18 @@ export function SetupPage({ port }: { port: SetupPort }) {
   useEffect(load, [load]);
   const onTemplatesReady = useCallback(() => setTemplatesReady(true), []);
   // Âncoras (#descrever, #modelos): só rola depois que os passos e os modelos carregaram. Antes disso o título de
-  // "Modelos" nem existe e o de "Descreva" muda de lugar quando a lista de passos entra.
+  // "Modelos" nem existe e o de "Descreva" muda de lugar quando a lista de passos entra. A seção recolhida abre antes.
   const settled = (progress !== null || error !== null) && templatesReady;
   useEffect(() => {
     const id = ANCHORS[hash];
     if (!id || !settled) return;
     const el = document.getElementById(id);
-    el?.scrollIntoView?.({ block: "start" });
-    el?.focus({ preventScroll: true });
+    if (!el) return;
+    const fold = el.closest("details");
+    if (fold && !fold.open) fold.open = true;
+    el.setAttribute("tabindex", "-1");
+    el.scrollIntoView?.({ block: "start" });
+    el.focus({ preventScroll: true });
   }, [hash, settled]);
   // P51: a conta só com os passos cuja tela aparece para o negócio, a mesma da lista e da Home.
   const scope = useScope();
@@ -455,20 +499,27 @@ export function SetupPage({ port }: { port: SetupPort }) {
     setProgress(p);
     setTemplatesVersion((v) => v + 1);
   }, []);
+  // A frase e os modelos são atalhos dos passos "horários" e "serviço" (doc 07 §4.9): abertos enquanto um deles falta;
+  // com os dois feitos, recolhidos numa linha (a âncora da Home abre a seção).
+  const pending = (step: SetupStepCode) => view?.steps.some((s) => s.step === step && !s.done) ?? false;
   return (
     <div className="tn-setup">
-      <div className="tn-page-intro">
-        <PageHeader id="setup-title" title="Deixe seu negócio pronto" eyebrow="Configuração"
-          subtitle={progress && view ? `${progress.business_name}: ${view.done} de ${view.total} passos feitos.` : "Cada passo diz por que importa e leva à tela certa."} />
-        {port.kind === "demo" ? <StatusBanner tone="info">Demonstração: o que você salvar aqui vale só nesta aba.</StatusBanner> : null}
-        {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-        <Help label="Como funciona">
-          O estado de cada passo é lido dos seus dados: feito é o que existe de verdade (serviço com preço, expediente, perfil publicado). Nenhum serviço, horário ou preço é gravado sem a sua confirmação.
-        </Help>
-      </div>
+      <PageHeader id="setup-title" title="Deixe seu negócio pronto" eyebrow="Configuração"
+        subtitle={progress && view ? `${progress.business_name}: ${view.done} de ${view.total} passos feitos.` : "Cada passo diz por que importa e leva à tela certa."}
+        help={
+          <>
+            <p>Os quatro primeiros passos deixam o link público funcionando. Os outros podem ficar para depois.</p>
+            <p>O estado de cada passo é lido dos seus dados: feito é o que existe de verdade (serviço com preço, expediente, perfil publicado). Nenhum serviço, horário ou preço é gravado sem a sua confirmação.</p>
+          </>
+        } />
+      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
       {progress ? <Steps progress={progress} port={port} onChange={setProgress} /> : <p role="status" className="tn-muted">Carregando os passos…</p>}
-      <Describe port={port} onSaved={onDraftSaved} />
-      <Templates port={port} onSaved={setProgress} version={templatesVersion} onReady={onTemplatesReady} />
+      {progress || error ? (
+        <>
+          <Describe port={port} onSaved={onDraftSaved} collapsed={hash !== "#descrever" && !pending("hours") && !pending("service")} />
+          <Templates port={port} onSaved={setProgress} version={templatesVersion} onReady={onTemplatesReady} collapsed={hash !== "#modelos" && !pending("service")} />
+        </>
+      ) : null}
     </div>
   );
 }

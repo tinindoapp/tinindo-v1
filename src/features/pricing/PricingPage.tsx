@@ -1,8 +1,10 @@
 // Preços (P05): simulador de desconto/margem (cálculo real), regras por horário com prévia, aprovação
 // explícita do dono (presa ao conteúdo e à versão) e publicação. Cotação não segura horário.
+// P54 (doc 07 §4.10): primeiro o que está valendo ("Regras ativas"), depois as prévias aguardando aprovação; "Nova regra"
+// é a ação principal da abertura e abre o formulário numa folha; o simulador fica recolhido numa linha.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { PricingRule, PricingRuleProposal, ProviderService } from "@contracts";
-import { Button, Card, ChipGroup, ConfirmAction, Field, PageHeader, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
+import { Button, ChipGroup, ConfirmAction, Field, FormPanel, PageHeader, Section, StatusBanner, Summary, SummaryHero, SummaryRows, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
 import { computePrice } from "../../../supabase/functions/_shared/domain/pricing/price.ts";
 import { endOfLocalDayExclusive, formatBps, formatCents, formatDate, localDate, parsePercent, WEEKDAYS } from "./format.ts";
 import type { PricingPort } from "./port.ts";
@@ -38,6 +40,9 @@ export function PricingPage() {
   const [data, setData] = useState<{ rules: PricingRule[]; proposals: PricingRuleProposal[] } | null>(null);
   const [nonce, setNonce] = useState(0);
   const [error, setError] = useState<unknown>(null);
+  const [creating, setCreating] = useState(false);
+  // Prévia recém-gerada: aparece primeiro na lista de aprovação, mesmo antes de a lista recarregar.
+  const [preview, setPreview] = useState<PricingRuleProposal | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -56,15 +61,18 @@ export function PricingPage() {
   const reload = () => setNonce((n) => n + 1);
   const name = (id: string) => services?.find((s) => s.id === id)?.name ?? "Serviço";
 
+  const ready = services && data && services.length > 0;
+  const proposals = data ? (preview ? [preview, ...data.proposals.filter((p) => p.proposal_id !== preview.proposal_id)] : data.proposals) : [];
   return (
     <section aria-labelledby="pr-title" className="tn-pr">
-      <PageHeader id="pr-title" title="Preços" subtitle="Descontos por horário, sem passar do menor preço que você aceita e só com a sua aprovação. Ver o valor não segura horário." />
-      {port.kind === "demo" ? (
-        <StatusBanner tone="info">
-          <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no servidor;
-          as mudanças valem só nesta aba.
-        </StatusBanner>
-      ) : null}
+      <PageHeader id="pr-title" title="Preços" subtitle="Descontos por horário, sem passar do menor preço que você aceita."
+        actions={ready ? <Button onClick={() => setCreating(true)}>Nova regra</Button> : undefined}
+        help={
+          <>
+            <p>Uma regra ativa por serviço: publicar substitui a anterior. Nada é publicado sem a sua aprovação, e a aprovação vale para exatamente a prévia que você viu.</p>
+            <p>Ver o valor não segura horário. Reservas já feitas mantêm o preço combinado.</p>
+          </>
+        } />
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {!services || !data ? (
         <p role="status">Carregando preços…</p>
@@ -72,9 +80,17 @@ export function PricingPage() {
         <StatusBanner tone="info">Cadastre um serviço em Clientes → Serviços para criar regras de preço.</StatusBanner>
       ) : (
         <>
-          <Simulator services={services} />
+          {creating ? (
+            <FormPanel title="Nova regra por horário" onClose={() => setCreating(false)}>
+              <NewRule services={services} tz={tz} onCancel={() => setCreating(false)}
+                onProposed={(p) => { setPreview(p); setCreating(false); reload(); }} />
+            </FormPanel>
+          ) : null}
           <Rules rules={data.rules} name={name} tz={tz} onChange={reload} />
-          <NewRule services={services} tz={tz} proposals={data.proposals} name={name} onChange={reload} />
+          {proposals.length ? (
+            <Proposals proposals={proposals} name={name} onDone={(p) => { if (preview?.proposal_id === p) setPreview(null); reload(); }} />
+          ) : null}
+          <Simulator services={services} />
         </>
       )}
     </section>
@@ -93,8 +109,7 @@ function Simulator({ services }: { services: ProviderService[] }) {
     fee_bps: svc.fee_bps, target_margin_bps: m, discount_bps: d, max_discount_bps: d,
   });
   return (
-    <Card aria-labelledby="pr-sim-title">
-      <h2 id="pr-sim-title">Simulador de desconto</h2>
+    <Section id="pr-sim-title" title="Simular um desconto" collapsed>
       <p className="tn-muted">Cálculo real com os dados do serviço (preço base, menor preço que você aceita, custo e taxa). Não publica nada.</p>
       <div className="tn-form-grid">
         <Field as="select" label="Serviço" id="sim-svc" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
@@ -112,23 +127,25 @@ function Simulator({ services }: { services: ProviderService[] }) {
             : "Taxa + margem chegam a 100% ou mais: não existe preço que cubra isso."}
         </StatusBanner>
       ) : (
-        <dl className="tn-pr-dl" aria-label="Resultado da simulação">
-          <dt>Preço base</dt><dd className="tn-num">{formatCents(svc.base_price_cents)}</dd>
-          <dt>Menor preço que você aceita</dt>
-          <dd className="tn-num">
-            {formatCents(r.floor_cents)}{" "}
-            <span className="tn-muted">
-              {r.floor_is_manual_only
-                ? "(o que você definiu; sem o custo do serviço, não dá para saber se cobre os custos)"
-                : `(para cobrir custos e margem: ${formatCents(r.economic_floor_cents)})`}
-            </span>
-          </dd>
-          <dt>Valor final</dt><dd className="tn-num"><strong>{formatCents(r.final_cents)}</strong> <span className="tn-muted">{REASON[r.reason]}</span></dd>
-          <dt>Sobra depois dos custos</dt>
-          <dd className="tn-num">{r.contribution_cents === null ? "Informe o custo do serviço" : `${formatCents(r.contribution_cents)} (estimativa; não é lucro)`}</dd>
-        </dl>
+        <Summary label="Resultado da simulação">
+          <SummaryHero id="pr-sim-final" label="Valor final" value={formatCents(r.final_cents)} hint={REASON[r.reason]} />
+          <SummaryRows label="Detalhes da simulação" rows={[
+            { key: "base", label: "Preço base", value: formatCents(svc.base_price_cents) },
+            {
+              key: "floor", label: "Menor preço que você aceita", value: formatCents(r.floor_cents),
+              hint: r.floor_is_manual_only
+                ? "O que você definiu; sem o custo do serviço, não dá para saber se cobre os custos."
+                : `Para cobrir custos e margem: ${formatCents(r.economic_floor_cents)}.`,
+            },
+            {
+              key: "left", label: "Sobra depois dos custos",
+              value: r.contribution_cents === null ? "—" : formatCents(r.contribution_cents),
+              hint: r.contribution_cents === null ? "Informe o custo do serviço." : "Estimativa; não é lucro.",
+            },
+          ]} />
+        </Summary>
       )}
-    </Card>
+    </Section>
   );
 }
 
@@ -154,40 +171,89 @@ function Rules({ rules, name, tz, onChange }: {
     }
   }
   return (
-    <section aria-labelledby="pr-rules-title" className="tn-pr-section">
-      <h2 id="pr-rules-title">Regras ativas</h2>
+    <Section id="pr-rules-title" title="Regras ativas" count={active.length}>
       {active.length === 0 ? (
         <p className="tn-muted">Nenhuma regra ativa: todas as cotações usam o preço base.</p>
       ) : (
-        <ul className="tn-item-list">
+        <ul className="tn-list" aria-label="Regras valendo">
           {active.map((r) => (
-            <li key={r.rule_id} className="tn-pr-item">
-              <div>
-                <strong>{name(r.service_id)}</strong> · {windowsText(r.windows)}
-                <div className="tn-muted">
-                  Desconto {formatBps(Math.min(r.discount_bps, r.max_discount_bps))} (máximo {formatBps(r.max_discount_bps)})
-                  {" "}· válida até {formatDate(new Date(Date.parse(r.valid.ends_at) - 1000).toISOString(), tz)}
-                </div>
+            <li key={r.rule_id}>
+              <div className="tn-list__row tn-pr-row">
+                <span className="tn-list__text">
+                  <span className="tn-list__title">{name(r.service_id)} · {windowsText(r.windows)}</span>
+                  <span className="tn-list__meta tn-num">
+                    Desconto {formatBps(Math.min(r.discount_bps, r.max_discount_bps))} (máximo {formatBps(r.max_discount_bps)})
+                    {" "}· válida até {formatDate(new Date(Date.parse(r.valid.ends_at) - 1000).toISOString(), tz)}
+                  </span>
+                </span>
+                {/* Não há "reativar" no port: voltar exige nova proposta e aprovação. Por isso confirma antes. */}
+                <ConfirmAction
+                  trigger="Desativar"
+                  triggerLabel={`Desativar regra de ${name(r.service_id)}`}
+                  title={`Desativar a regra de ${name(r.service_id)}?`}
+                  consequence={`Novos valores de ${name(r.service_id)} voltam ao preço base. Reservas já feitas não mudam. Para voltar, é preciso criar e aprovar a regra de novo.`}
+                  confirmLabel="Sim, desativar"
+                  onConfirm={() => deactivate(r)}
+                />
               </div>
-              {/* Não há "reativar" no port: voltar exige nova proposta e aprovação. Por isso confirma antes. */}
-              <ConfirmAction
-                trigger="Desativar"
-                triggerLabel={`Desativar regra de ${name(r.service_id)}`}
-                title={`Desativar a regra de ${name(r.service_id)}?`}
-                consequence={`Novos valores de ${name(r.service_id)} voltam ao preço base. Reservas já feitas não mudam. Para voltar, é preciso criar e aprovar a regra de novo.`}
-                confirmLabel="Sim, desativar"
-                onConfirm={() => deactivate(r)}
-              />
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </Section>
   );
 }
 
-function NewRule({ services, tz, proposals, name, onChange }: {
-  services: ProviderService[]; tz: string; proposals: PricingRuleProposal[]; name: (id: string) => string; onChange: () => void;
+/** Prévias aguardando aprovação: aprovar publica exatamente o que está escrito na linha. */
+function Proposals({ proposals, name, onDone }: { proposals: PricingRuleProposal[]; name: (id: string) => string; onDone: (proposalId: string) => void }) {
+  const port = usePort();
+  const [publishing, setPublishing] = useState<string | null>(null);
+  const approveCommand = useCommand();
+  const publishCommand = useCommand();
+
+  async function approveAndPublish(p: PricingRuleProposal) {
+    setPublishing(p.proposal_id);
+    try {
+      const approve = { proposal_id: p.proposal_id, payload_hash: p.payload_hash!, expected_version: p.version };
+      const approval = await approveCommand({ approve }, (key) => port.approve(approve, key));
+      const publish = { proposal_id: p.proposal_id, approval_id: approval.approval_id, expected_version: p.version };
+      const rule = await publishCommand({ publish }, (key) => port.publish(publish, key));
+      toast(`Regra publicada para ${name(rule.service_id)}. Vale para os próximos agendamentos; reservas já feitas mantêm o preço.`);
+    } catch (err) {
+      toast({ tone: "danger", message: explain(err) });
+    } finally {
+      setPublishing(null);
+      onDone(p.proposal_id);
+    }
+  }
+
+  return (
+    <Section id="pr-proposals-title" title="Aguardando sua aprovação" count={proposals.length}>
+      <p className="tn-muted">Ainda não valem. Ao aprovar, você aprova exatamente a prévia; a aprovação vale 15 minutos.</p>
+      <ul className="tn-list" aria-label="Propostas aguardando aprovação">
+        {proposals.map((p) => (
+          <li key={p.proposal_id}>
+            <div className="tn-list__row tn-pr-row">
+              <span className="tn-list__text">
+                <span className="tn-list__title">Prévia · {name(p.service_id)} · {windowsText(p.windows ?? [])}</span>
+                <span className="tn-list__meta tn-num">
+                  {formatCents(p.preview.example_base_cents)} → <strong>{formatCents(p.preview.example_final_cents)}</strong>
+                  {" "}(desconto aplicado {formatBps(p.preview.effective_discount_bps ?? Math.min(p.discount_bps, p.max_discount_bps ?? p.discount_bps))}).
+                  {" "}Menor preço que você aceita: {formatCents(p.preview.floor_cents)}.
+                  {p.preview.reason ? ` ${REASON[p.preview.reason]}` : ""}
+                </span>
+              </span>
+              <Button variant="secondary" size="compact" loading={publishing === p.proposal_id} disabled={publishing !== null} onClick={() => void approveAndPublish(p)}>Aprovar e publicar</Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+function NewRule({ services, tz, onProposed, onCancel }: {
+  services: ProviderService[]; tz: string; onProposed: (p: PricingRuleProposal) => void; onCancel: () => void;
 }) {
   const port = usePort();
   const today = localDate(port.now(), tz);
@@ -202,15 +268,11 @@ function NewRule({ services, tz, proposals, name, onChange }: {
     const d = new Date(Date.parse(`${today}T12:00:00Z`) + 90 * 86_400_000);
     return d.toISOString().slice(0, 10);
   });
-  const [preview, setPreview] = useState<PricingRuleProposal | null>(null);
   const { formRef, errors, show } = useFormErrors<"days" | "to" | "discount" | "cap" | "margin" | "until">();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [publishing, setPublishing] = useState<string | null>(null);
   // Mesma chave enquanto a proposta for a mesma (o instante de início não conta): repetir a prévia não cria outra.
   const proposeKey = useIdempotencyKey();
-  const approveCommand = useCommand();
-  const publishCommand = useCommand();
 
   async function propose(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -234,8 +296,7 @@ function NewRule({ services, tz, proposals, name, onChange }: {
     const key = proposeKey.keyFor({ ...input, valid: until });
     setPending(true);
     try {
-      setPreview(await port.propose(input, key));
-      onChange();
+      onProposed(await port.propose(input, key));
     } catch (err) {
       setError(explain(err));
     } finally {
@@ -243,68 +304,28 @@ function NewRule({ services, tz, proposals, name, onChange }: {
     }
   }
 
-  async function approveAndPublish(p: PricingRuleProposal) {
-    setPublishing(p.proposal_id);
-    try {
-      const approve = { proposal_id: p.proposal_id, payload_hash: p.payload_hash!, expected_version: p.version };
-      const approval = await approveCommand({ approve }, (key) => port.approve(approve, key));
-      const publish = { proposal_id: p.proposal_id, approval_id: approval.approval_id, expected_version: p.version };
-      const rule = await publishCommand({ publish }, (key) => port.publish(publish, key));
-      toast(`Regra publicada para ${name(rule.service_id)}. Vale para os próximos agendamentos; reservas já feitas mantêm o preço.`);
-      setPreview(null);
-    } catch (err) {
-      toast({ tone: "danger", message: explain(err) });
-    } finally {
-      setPublishing(null);
-      onChange();
-    }
-  }
-
-  const open = preview ? [preview, ...proposals.filter((p) => p.proposal_id !== preview.proposal_id)] : proposals;
   return (
-    <section aria-labelledby="pr-new-title" className="tn-pr-section">
-      <h2 id="pr-new-title">Nova regra por horário</h2>
-      <p className="tn-muted">Uma regra ativa por serviço: publicar substitui a anterior. Nada é publicado sem a sua aprovação.</p>
-      <form ref={formRef} className="tn-form-grid" onSubmit={(e) => void propose(e)} noValidate aria-label="Nova regra">
-        <Field as="select" label="Serviço da regra" id="nr-svc" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
-          {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </Field>
-        <div data-span="full">
-          <ChipGroup label="Dias" options={WEEKDAY_CHIPS} shortcuts={WEEKDAY_SHORTCUTS} value={days} onChange={setDays}
-            error={errors.days} errorId="nr-days-error" />
-        </div>
-        <Field label="Das" id="nr-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} />
-        <Field label="Até" id="nr-to" type="time" step={900} value={to} error={errors.to} onChange={(e) => setTo(e.target.value)} />
-        <Field label="Desconto pedido (%)" id="nr-disc" inputMode="decimal" value={discount} error={errors.discount} onChange={(e) => setDiscount(e.target.value)} />
-        <Field label="Desconto máximo (%)" id="nr-cap" hint="O desconto nunca passa disso, nem do menor preço que você aceita." inputMode="decimal" value={cap} error={errors.cap} onChange={(e) => setCap(e.target.value)} />
-        <Field label="Margem alvo da regra (%)" id="nr-margin" inputMode="decimal" value={margin} error={errors.margin} onChange={(e) => setMargin(e.target.value)} />
-        <Field label="Válida até" id="nr-until" type="date" min={today} value={until} error={errors.until} onChange={(e) => setUntil(e.target.value)} />
-        {error ? <div data-span="full"><StatusBanner tone="danger">{error}</StatusBanner></div> : null}
-        <div className="tn-actions" data-span="full">
-          <Button type="submit" loading={pending}>Ver prévia</Button>
-        </div>
-      </form>
-      {open.length ? (
-        <ul className="tn-item-list" aria-label="Propostas aguardando aprovação">
-          {open.map((p) => (
-            <li key={p.proposal_id} className="tn-pr-proposal">
-              <div>
-                <strong>Prévia · {name(p.service_id)}</strong> · {windowsText(p.windows ?? [])}
-                <p className="tn-num">
-                  {formatCents(p.preview.example_base_cents)} → <strong>{formatCents(p.preview.example_final_cents)}</strong>
-                  {" "}(desconto aplicado {formatBps(p.preview.effective_discount_bps ?? Math.min(p.discount_bps, p.max_discount_bps ?? p.discount_bps))}).
-                  {" "}Menor preço que você aceita: {formatCents(p.preview.floor_cents)}.
-                  {p.preview.reason ? ` ${REASON[p.preview.reason]}` : ""}
-                </p>
-                <p className="tn-muted">
-                  Ainda não vale. Ao aprovar, você aprova exatamente esta prévia; a aprovação vale 15 minutos.
-                </p>
-              </div>
-              <Button loading={publishing === p.proposal_id} disabled={publishing !== null} onClick={() => void approveAndPublish(p)}>Aprovar e publicar</Button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
+    <form ref={formRef} className="tn-form-grid" onSubmit={(e) => void propose(e)} noValidate aria-label="Nova regra">
+      <p className="tn-muted" data-span="full">Uma regra ativa por serviço: publicar substitui a anterior. A prévia não publica nada.</p>
+      <Field as="select" label="Serviço da regra" id="nr-svc" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+        {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </Field>
+      <div data-span="full">
+        <ChipGroup label="Dias" options={WEEKDAY_CHIPS} shortcuts={WEEKDAY_SHORTCUTS} value={days} onChange={setDays}
+          error={errors.days} errorId="nr-days-error" />
+      </div>
+      <Field label="Das" id="nr-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} />
+      <Field label="Até" id="nr-to" type="time" step={900} value={to} error={errors.to} onChange={(e) => setTo(e.target.value)} />
+      <Field label="Desconto pedido (%)" id="nr-disc" inputMode="decimal" value={discount} error={errors.discount} onChange={(e) => setDiscount(e.target.value)} />
+      <Field label="Desconto máximo (%)" id="nr-cap" hint="O desconto nunca passa disso, nem do menor preço que você aceita." inputMode="decimal" value={cap} error={errors.cap} onChange={(e) => setCap(e.target.value)} />
+      <Field label="Margem alvo da regra (%)" id="nr-margin" inputMode="decimal" value={margin} error={errors.margin} onChange={(e) => setMargin(e.target.value)} />
+      <Field label="Válida até" id="nr-until" type="date" min={today} value={until} error={errors.until} onChange={(e) => setUntil(e.target.value)} />
+      {error ? <div data-span="full"><StatusBanner tone="danger">{error}</StatusBanner></div> : null}
+      {/* No celular, a ação fica presa no rodapé da folha. */}
+      <div className="tn-actions" data-span="full" data-sheet-footer>
+        <Button type="submit" loading={pending}>Ver prévia</Button>
+        <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
+      </div>
+    </form>
   );
 }
