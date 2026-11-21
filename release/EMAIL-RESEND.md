@@ -26,6 +26,8 @@ Se não verificar em 30 minutos: confira se o nome não ficou duplicado (`resend
 
 ## 3 · Supabase de homologação (10 min)
 
+Atalho sem painel: `bash release/email-smtp-setup.sh` faz tudo deste passo pela Management API (usa o login do Supabase CLI e pede a API key do Resend sem mostrar na tela). Reversão: `DESLIGAR=1 bash release/email-smtp-setup.sh`. Pelo painel:
+
 Authentication › Emails › SMTP Settings › Enable custom SMTP:
 
 | Campo | Valor |
