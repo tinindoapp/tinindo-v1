@@ -119,6 +119,8 @@ select is(jsonb_array_length(public.campaign_list((select tenant_a from ids))->'
 reset role;
 update public.campaigns set ends_at = clock_timestamp() - interval '1 minute' where id = pg_temp.cid('exp');
 -- P51 (D4): Campanhas é módulo guardado. Sem o módulo ligado no negócio, a rotina não fecha nada; ligado pelo backend, fecha.
+-- O seed liga tudo para A (recado #142): desliga aqui para provar que a rotina para.
+select app.module_admin_set((select tenant_a from ids), 'campaigns', false);
 select is((public.jobs_run(100)->'campaigns'->>'closed')::int, 0, 'negócio sem o módulo Campanhas: a rotina fica parada');
 select is((select status from public.campaigns where id = pg_temp.cid('exp')), 'running', 'campanha vencida segue em curso enquanto o módulo está desligado');
 select app.module_admin_set((select tenant_a from ids), 'campaigns', true);
