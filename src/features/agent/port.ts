@@ -2,6 +2,7 @@
 import type { ActionApproval, ActionProposal, ActionReceipt, AgentAnswer, AgentDraftInput, AgentDraftOutput } from "@contracts";
 import type { z } from "zod";
 import type { SetupProgress, SetupStepCode } from "@contracts";
+import type { AssistEventInput } from "../../../supabase/functions/_shared/domain/agent/events.ts";
 import type { FormDraftOutput, FormId } from "../../../supabase/functions/_shared/domain/agent/forms.ts";
 
 export type FormDraftResult = FormDraftOutput;
@@ -35,6 +36,8 @@ export interface AgentPort {
    * `available: false` = assistente desligado neste ambiente.
    */
   formDraft(form: FormId, text: string, key: string): Promise<FormDraftResult>;
+  /** T15: medição sem conteúdo (faixa mostrada, rascunho aplicado, faixa dispensada). Nunca falha para a tela. */
+  assistEvent(event: AssistEventInput): Promise<void>;
 }
 
 export const newKey = () => crypto.randomUUID();

@@ -11,11 +11,11 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 135 |
-| Com RLS ligada | 135 |
-| Políticas (todas de leitura) | 99 |
-| FKs | 276 (135 compostas) |
-| Funções em `public` / `app` | 306 / 306 |
+| Tabelas em `public` | 136 |
+| Com RLS ligada | 136 |
+| Políticas (todas de leitura) | 100 |
+| FKs | 277 (135 compostas) |
+| Funções em `public` / `app` | 307 / 306 |
 | Rotinas periódicas (`job_ticks`) | 10 |
 
 ## Rotinas periódicas
@@ -239,6 +239,24 @@ Ponto de partida congelado para comparar períodos. Append-only.
 - **Chaves e unicidade:** PK (id); única (tenant_id, id)
 - **Referências:** (tenant_id) → `tenants`
 - **Leitura:** `analytics_baselines_select_owner` (authenticated)
+- **Só acrescenta:** sim
+
+### `assist_events`
+
+Medição do assistente nas telas (T15): evento, superfície e contagem de campos. Sem conteúdo. Só acrescenta.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | uuid |
+| `tenant_id` | uuid |
+| `event` | text |
+| `surface` | text |
+| `filled` | integer ? |
+| `created_at` | timestamp with time zone |
+
+- **Chaves e unicidade:** PK (id); única (tenant_id, id)
+- **Referências:** (tenant_id) → `tenants`
+- **Leitura:** `assist_events_owner_select` (authenticated)
 - **Só acrescenta:** sim
 
 ### `audit_events`
