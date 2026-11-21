@@ -6,6 +6,7 @@ import { createContext, type FormEvent, useContext, useEffect, useRef, useState 
 import { Button, Field, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
 import { approveLabel, splitAnswer } from "./answer.ts";
 import { DraftPanel, SetupGuidePanel } from "./AssistPanels.tsx";
+import { FormAssistPanel } from "./FormAssist.tsx";
 import { type AgentPort, type Answer, type Approval, type DraftRequest, newKey, type Proposal, type Receipt } from "./port.ts";
 
 const PortContext = createContext<AgentPort | null>(null);
@@ -127,13 +128,17 @@ function ProposalCard({ turn, proposal, onApprove }: {
   );
 }
 
-/** Rascunho trazido de outra tela (Relacionamento, Site, Campanhas): abre o painel de redação já preenchido. */
-export type InitialDraft = { kind?: DraftRequest["kind"]; text?: string };
+/**
+ * Rascunho trazido de outra tela (Relacionamento, Site, Campanhas): abre o painel de redação já preenchido.
+ * Com `returnTo`, a sugestão volta para a tela de origem pelo "Usar este texto" (T5), no campo `field`, respeitando o
+ * limite `max` do destino (T6: a frase do Site tem até 90 caracteres).
+ */
+export type InitialDraft = { kind?: DraftRequest["kind"]; text?: string; returnTo?: string; field?: string; max?: number };
 
 export function AgentPage({ initialDraft }: { initialDraft?: InitialDraft } = {}) {
   const port = usePort();
-  const [panel, setPanel] = useState<"setup" | "draft" | null>(initialDraft ? "draft" : null);
-  const toggle = (p: "setup" | "draft") => setPanel((cur) => (cur === p ? null : p));
+  const [panel, setPanel] = useState<"setup" | "draft" | "form" | null>(initialDraft ? "draft" : null);
+  const toggle = (p: "setup" | "draft" | "form") => setPanel((cur) => (cur === p ? null : p));
   const [text, setText] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -213,6 +218,7 @@ export function AgentPage({ initialDraft }: { initialDraft?: InitialDraft } = {}
         </div>
         <div className="tn-actions tn-ag-tools">
           <Button variant="secondary" aria-expanded={panel === "setup"} aria-controls="ag-panel-setup" onClick={() => toggle("setup")}>Me ajuda a configurar</Button>
+          <Button variant="secondary" aria-expanded={panel === "form"} aria-controls="ag-panel-form" onClick={() => toggle("form")}>Faz comigo</Button>
           <Button variant="secondary" aria-expanded={panel === "draft"} aria-controls="ag-panel-draft" onClick={() => toggle("draft")}>Redigir um texto</Button>
         </div>
       </div>
@@ -221,6 +227,12 @@ export function AgentPage({ initialDraft }: { initialDraft?: InitialDraft } = {}
         <section id="ag-panel-setup" className="tn-ag-panel" aria-labelledby="ag-panel-setup-title">
           <h2 id="ag-panel-setup-title">Deixe seu negócio pronto</h2>
           <SetupGuidePanel port={port} />
+        </section>
+      ) : null}
+      {panel === "form" ? (
+        <section id="ag-panel-form" className="tn-ag-panel" aria-labelledby="ag-panel-form-title">
+          <h2 id="ag-panel-form-title">Faz comigo</h2>
+          <FormAssistPanel port={port} />
         </section>
       ) : null}
       {panel === "draft" ? (

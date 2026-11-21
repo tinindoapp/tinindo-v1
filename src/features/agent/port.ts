@@ -2,6 +2,9 @@
 import type { ActionApproval, ActionProposal, ActionReceipt, AgentAnswer, AgentDraftInput, AgentDraftOutput } from "@contracts";
 import type { z } from "zod";
 import type { SetupProgress, SetupStepCode } from "@contracts";
+import type { FormDraftOutput, FormId } from "../../../supabase/functions/_shared/domain/agent/forms.ts";
+
+export type FormDraftResult = FormDraftOutput;
 
 export type Answer = z.infer<typeof AgentAnswer>;
 export type Proposal = z.infer<typeof ActionProposal>;
@@ -27,6 +30,11 @@ export interface AgentPort {
    * Devolve o progresso depois de dispensar. Passo obrigatório é recusado pelo servidor.
    */
   setupDismiss(step: SetupStepCode, key: string): Promise<SetupProgress>;
+  /**
+   * "Faz comigo" (revisão 06/11, T4): frase do dono → rascunho de um formulário do catálogo fechado. Nunca grava;
+   * `available: false` = assistente desligado neste ambiente.
+   */
+  formDraft(form: FormId, text: string, key: string): Promise<FormDraftResult>;
 }
 
 export const newKey = () => crypto.randomUUID();

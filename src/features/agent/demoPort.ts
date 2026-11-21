@@ -220,6 +220,8 @@ export function createDemoPort(): AgentPort {
     }),
     // A demonstração não tem provedor de linguagem (LLM_PROVIDER=none): o dono segue com o próprio rascunho.
     draft: () => Promise.resolve({ available: false, suggestion: null }),
+    // Nem preenche formulário: a faixa mostra a dica fixa e o caminho da tela, como no servidor sem provedor.
+    formDraft: (form) => Promise.resolve({ available: false, form, draft: null, filled: [], notes: [] }),
     setupProgress: () => Promise.resolve(demoSetupProgress()),
     setupDismiss: (step) => {
       const progress = demoSetupSkip(step);
