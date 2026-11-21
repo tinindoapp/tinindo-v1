@@ -99,7 +99,7 @@ export function createDemoPort(): SalesPort {
         services: SERVICES.map((s) => ({ id: s.id, name: s.name, duration_min: s.duration_min, base_price_cents: s.base_price_cents })) };
     },
     async list() {
-      return state().rows.map(toQuote).reverse();
+      return { quotes: state().rows.map(toQuote).reverse(), truncated: false };
     },
     async get(quoteId) {
       const r = find(quoteId);

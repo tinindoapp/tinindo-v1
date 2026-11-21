@@ -3,41 +3,22 @@
 .tn-msg-form { display: flex; flex-wrap: wrap; gap: var(--tn-space-3); align-items: flex-end; min-width: 0; }
 .tn-msg-form > .tn-field { flex: 1 1 12rem; }
 .tn-msg-form > :is(.tn-banner, p) { flex-basis: 100%; margin: 0; }
-.tn-msg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
-/* Linha da conversa: o cartão inteiro é o link (alvo grande), com seta à direita. */
-.tn-msg-list > li { border-bottom: 1px solid var(--tn-border); }
-.tn-msg-list > li:last-child { border-bottom: 0; }
-.tn-msg-row {
-  position: relative;
-  display: grid;
-  gap: var(--tn-space-1);
-  min-height: var(--tn-size-touch);
-  padding: var(--tn-space-3) calc(var(--tn-space-6) + var(--tn-space-2)) var(--tn-space-3) var(--tn-space-2);
-  border-radius: var(--tn-radius-md);
-  color: var(--tn-text);
-  text-decoration: none;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-@media (hover: hover) { .tn-msg-row:hover { background: var(--tn-action-subtle); } }
-.tn-msg-row:active { background: var(--tn-action-subtle); }
-.tn-msg-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
-.tn-msg-row__chevron { position: absolute; right: var(--tn-space-2); top: 50%; transform: translateY(-50%); color: var(--tn-text-muted); }
-/* Selo de não lidas: o número escrito, com contraste do botão principal (nunca só a cor). */
-.tn-msg-badge {
-  display: inline-block;
-  padding: 0 var(--tn-space-2);
-  border-radius: var(--tn-radius-pill);
-  background: var(--tn-action);
-  color: var(--tn-text-on-action);
-  font-size: var(--tn-text-label);
-  font-weight: var(--tn-font-weight-semibold);
-}
+/* Caixa de entrada (P54): linhas do kit; a linha inteira abre a conversa; não lidas em selo com tom (nunca pílula preta). */
+.tn-msg .tn-list__meta { display: grid; gap: 2px; }
+.tn-msg-row__last { color: var(--tn-text); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.tn-msg .tn-list__trailing .tn-badge { white-space: nowrap; }
+/* Resumo da semana (P45, doc 07 §4.4): seção recolhida, sem cartão; o título é o da seção. Some quando não há resumo. */
+.tn-msg-digest:not(:has(.tn-card)) { display: none; }
+.tn-msg-digest > .tn-section { margin-top: var(--tn-space-4); }
+.tn-msg-digest .tn-card { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.tn-msg-digest .tn-card > h2 { display: none; }
+.tn-msg-digest .tn-card > p { margin: 0 0 var(--tn-space-2); font-size: var(--tn-text-support); }
+.tn-msg > .tn-section { margin-top: var(--tn-space-4); }
 .tn-msg-steps { margin: 0; padding-left: var(--tn-space-6); display: grid; gap: var(--tn-space-1); }
 /* Linha de status da conexão (número conectado). */
 .tn-msg-status { display: grid; gap: var(--tn-space-2); min-width: 0; }
 .tn-msg-status__line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tn-space-2); padding: var(--tn-space-1) var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); background: var(--tn-surface); }
-.tn-msg-status__line p { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: var(--tn-text-support); }
+.tn-msg-status__line p { margin: 0; min-width: 0; flex: 1 1 12rem; overflow-wrap: anywhere; font-size: var(--tn-text-support); }
 .tn-msg-back { justify-self: start; padding-left: var(--tn-space-2); }
 /* Campo de escrever fixo no rodapé da conversa: acima da barra de abas no celular, respeitando a área segura. */
 .tn-msg-composer {

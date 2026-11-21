@@ -2,7 +2,8 @@
 // A Tinindo não envia mensagens: o dono compartilha o link. Aceito não é pago: a cobrança fica no Caixa.
 import { createContext, type FormEvent, useContext, useEffect, useState } from "react";
 import type { SalesQuote } from "@contracts";
-import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, PageHeader, ShareActions, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { type BadgeTone, Button, CappedList, Card, ChoiceCard, Field, type MenuAction, PageHeader, Section, ShareActions, StatusBadge, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { InlineConfirm, Row } from "./rows.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { withBusinessSlug } from "../../components/public/public-kit.tsx";
 import { type QuoteDetail, type QuoteDraft, type QuoteMaterialCost, type SalesBase, type SalesPort } from "./port.ts";
@@ -20,7 +21,13 @@ import {
   validUntilInDays,
 } from "./rules.ts";
 import { newIdempotencyKey, useCommand } from "../../lib/idempotency.ts";
+import type { SalesQuoteStatus } from "@contracts";
 import { localParts } from "../../lib/time.ts";
+
+/** Selo de estado (P54): tom por estado, nunca pílula preta. */
+const STATUS_TONE: Record<SalesQuoteStatus, BadgeTone> = {
+  draft: "neutral", sent: "info", accepted: "success", declined: "warning", expired: "warning", cancelled: "neutral",
+};
 
 // Id de linha do formulário (chave do React), não é chave de idempotência.
 let rowSeq = 0;
@@ -139,6 +146,10 @@ export function QuotesPage({ business }: {
   const port = usePort();
   const [base, setBase] = useState<SalesBase | null>(null);
   const [quotes, setQuotes] = useState<SalesQuote[] | null>(null);
+  // O servidor devolve no máximo 200 orçamentos (P56): a lista avisa quando cortou.
+  const [truncated, setTruncated] = useState(false);
+  // Linha com a confirmação aberta embaixo ("cancel:<id>" ou "relink:<id>").
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
   const [error, setError] = useState<unknown>(null);
   const [form, setForm] = useState<FormState | null>(null);
@@ -164,7 +175,7 @@ export function QuotesPage({ business }: {
   }, [port]);
   useEffect(() => {
     let alive = true;
-    port.list().then((q) => alive && setQuotes(q), (e: unknown) => alive && setError(e ?? new Error("erro")));
+    port.list().then((r) => { if (alive) { setQuotes(r.quotes); setTruncated(r.truncated); } }, (e: unknown) => alive && setError(e ?? new Error("erro")));
     return () => { alive = false; };
   }, [port, nonce]);
   const reload = () => setNonce((n) => n + 1);
@@ -257,6 +268,7 @@ export function QuotesPage({ business }: {
         id="qt-title"
         title="Orçamentos"
         subtitle={<><strong>Aceito não é pago:</strong> a cobrança fica no Caixa.</>}
+        help={<p>Proposta com validade. O cliente aceita pelo link a versão que viu; se houver horário proposto, o aceite só vale se o horário ainda estiver livre. A Tinindo não envia mensagens: você manda o link.</p>}
         actions={form && base && !composing ? (
           <Button onClick={() => { setEditing(null); setForm(emptyForm(base, port.now())); setCustomerQuery(""); setFormError(null); show({}); setComposing(true); }}>
             <Icon name="mais" size={20} />
@@ -264,8 +276,6 @@ export function QuotesPage({ business }: {
           </Button>
         ) : null}
       />
-      <Help><p>Proposta com validade. O cliente aceita pelo link a versão que viu; se houver horário proposto, o aceite só vale se o horário ainda estiver livre.</p></Help>
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Demonstração sem servidor: nada sai do navegador.</StatusBanner> : null}
 
       {fresh ? (
         <Card aria-labelledby="qt-link-title">
@@ -369,83 +379,92 @@ export function QuotesPage({ business }: {
         </Card>
       ) : null}
 
-      <Card aria-labelledby="qt-list-title">
-        <div className="tn-stack">
-          <h2 id="qt-list-title">Seus orçamentos</h2>
-          {quotes === null ? <p role="status">Carregando…</p> : null}
-          {quotes?.length === 0 ? <p className="tn-muted">Nenhum orçamento ainda.</p> : null}
-          <ul className="tn-qt-list">
-            {quotes?.map((q) => (
-              <li key={q.id} className="tn-qt-row">
-                <div>
-                  <strong>{q.current.title}</strong> · {customer(q.customer_id)}
-                  <div className="tn-muted">
-                    <span className="tn-num">{formatCents(q.current.total_cents)}</span> · versão {q.current.version_no} · {STATUS_LABEL[q.status]}
-                    {q.status === "sent" || q.status === "draft" ? ` · vale até ${formatDateTime(q.current.valid_until, tz)}` : ""}
-                  </div>
-                  {q.current.slot ? <div className="tn-muted">Horário proposto: {formatSlot(q.current.slot, tz)}</div> : null}
-                  {q.status === "accepted" ? (
-                    <div className="tn-muted">
-                      {q.booking_id ? "Horário reservado na agenda. " : ""}Aceito não é pago: registre a cobrança no Caixa quando for o caso.
-                    </div>
-                  ) : null}
-                </div>
-                <div className="tn-actions">
-                  {q.status === "draft" ? (
-                    <Button disabled={pending} onClick={() => void run(async () => {
-                      const r = await command({ send: q.id, version: q.current.version_no }, (key) => port.send(q, key));
-                      if (r.token) setFresh({ quoteId: q.id, token: r.token });
-                      return "Link gerado. Compartilhe com o cliente.";
-                    })}>Gerar link</Button>
-                  ) : null}
-                  {/* Novo link invalida o que o cliente já recebeu: não volta atrás, então confirma antes. */}
-                  {q.status === "sent" ? (
-                    <ConfirmAction
-                      trigger="Gerar novo link"
-                      triggerVariant="primary"
-                      disabled={pending}
-                      title="Gerar novo link?"
-                      consequence={<p>O link que {customer(q.customer_id)} já recebeu para de funcionar. Você manda o novo em seguida.</p>}
-                      confirmLabel="Sim, gerar novo link"
-                      onConfirm={() => run(async () => {
-                        const r = await command({ resend: q.id, version: q.current.version_no }, (key) => port.send(q, key));
-                        if (r.token) setFresh({ quoteId: q.id, token: r.token });
-                        return "Novo link gerado. O link anterior não funciona mais.";
-                      })}
-                    />
-                  ) : null}
-                  {q.status === "draft" || q.status === "sent" || q.status === "expired" ? (
-                    <Button variant="secondary" disabled={pending} onClick={() => startRevise(q)}>Revisar</Button>
-                  ) : null}
-                  {/* Cancelar não tem volta no port: confirma com a consequência para o cliente. */}
-                  {q.status === "draft" || q.status === "sent" || q.status === "expired" ? (
-                    <ConfirmAction
-                      trigger="Cancelar orçamento"
-                      triggerLabel={`Cancelar orçamento “${q.current.title}”`}
-                      disabled={pending}
-                      title={`Cancelar “${q.current.title}”?`}
-                      consequence={
-                        <p>
-                          {q.status === "sent" ? `O link de ${customer(q.customer_id)} para de funcionar e ` : ""}o orçamento de{" "}
-                          {formatCents(q.current.total_cents)} não pode mais ser aceito nem revisado.
-                        </p>
-                      }
-                      confirmLabel="Sim, cancelar"
-                      onConfirm={() => run(async () => {
-                        await command({ cancel: q.id }, (key) => port.cancel(q.id, key));
-                        return "Orçamento cancelado. O link deixou de funcionar.";
-                      })}
-                    />
-                  ) : null}
-                  <Button variant="ghost" onClick={() => void port.get(q.id).then(setDetail, (e: unknown) => toast({ tone: "danger", message: explain(e) }))}>
-                    Ver versões
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Card>
+      <Section id="qt-list-title" title="Seus orçamentos" count={quotes?.length || undefined}>
+        {quotes === null ? <p role="status">Carregando…</p> : null}
+        {quotes?.length === 0 ? <p className="tn-muted">Nenhum orçamento ainda.</p> : null}
+        {quotes?.length ? (
+          <CappedList
+            items={quotes}
+            label="Orçamentos"
+            truncated={truncated}
+            truncatedText="Mostrando os 200 orçamentos mais recentes."
+            render={(q) => {
+              const open = q.status === "draft" || q.status === "sent" || q.status === "expired";
+              const versions = () => void port.get(q.id).then(setDetail, (e: unknown) => toast({ tone: "danger", message: explain(e) }));
+              const sendLink = () => void run(async () => {
+                const r = await command({ send: q.id, version: q.current.version_no }, (key) => port.send(q, key));
+                if (r.token) setFresh({ quoteId: q.id, token: r.token });
+                return "Link gerado. Compartilhe com o cliente.";
+              });
+              // Uma ação visível por linha (a do momento do orçamento); o resto vai para o "⋯".
+              const action =
+                q.status === "draft" ? <Button size="compact" variant="secondary" disabled={pending} onClick={sendLink}>Gerar link</Button>
+                : q.status === "sent" || q.status === "expired" ? <Button size="compact" variant="secondary" disabled={pending} onClick={() => startRevise(q)}>Revisar</Button>
+                : <Button size="compact" variant="secondary" onClick={versions}>Ver versões</Button>;
+              const more: MenuAction[] = [];
+              if (q.status === "sent") more.push({ label: "Gerar novo link…", disabled: pending, onSelect: () => setConfirming(`relink:${q.id}`) });
+              if (q.status === "draft") more.push({ label: "Revisar", disabled: pending, onSelect: () => startRevise(q) });
+              if (open) more.push({ label: "Ver versões", onSelect: versions });
+              if (open) more.push({ label: "Cancelar orçamento…", tone: "danger", disabled: pending, onSelect: () => setConfirming(`cancel:${q.id}`) });
+              return (
+                <Row
+                  key={q.id}
+                  title={q.current.title}
+                  badge={<StatusBadge tone={STATUS_TONE[q.status]}>{STATUS_LABEL[q.status]}</StatusBadge>}
+                  meta={
+                    <>
+                      <span>
+                        {customer(q.customer_id)} · <span className="tn-num">{formatCents(q.current.total_cents)}</span> · versão {q.current.version_no}
+                        {q.status === "sent" || q.status === "draft" ? ` · vale até ${formatDateTime(q.current.valid_until, tz)}` : ""}
+                      </span>
+                      {q.current.slot ? <span>Horário proposto: {formatSlot(q.current.slot, tz)}</span> : null}
+                      {q.status === "accepted" ? (
+                        <span>{q.booking_id ? "Horário reservado na agenda. " : ""}Aceito não é pago: registre a cobrança no Caixa quando for o caso.</span>
+                      ) : null}
+                    </>
+                  }
+                  action={action}
+                  more={more}
+                  moreLabel={`Mais ações para “${q.current.title}”`}
+                  below={
+                    confirming === `cancel:${q.id}` ? (
+                      // Cancelar não tem volta no port: confirma com a consequência para o cliente.
+                      <InlineConfirm
+                        title={`Cancelar “${q.current.title}”?`}
+                        consequence={
+                          <p>
+                            {q.status === "sent" ? `O link de ${customer(q.customer_id)} para de funcionar e ` : ""}o orçamento de{" "}
+                            {formatCents(q.current.total_cents)} não pode mais ser aceito nem revisado.
+                          </p>
+                        }
+                        confirmLabel="Sim, cancelar"
+                        onClose={() => setConfirming(null)}
+                        onConfirm={() => run(async () => {
+                          await command({ cancel: q.id }, (key) => port.cancel(q.id, key));
+                          return "Orçamento cancelado. O link deixou de funcionar.";
+                        })}
+                      />
+                    ) : confirming === `relink:${q.id}` ? (
+                      // Novo link invalida o que o cliente já recebeu: não volta atrás, então confirma antes.
+                      <InlineConfirm
+                        title="Gerar novo link?"
+                        consequence={<p>O link que {customer(q.customer_id)} já recebeu para de funcionar. Você manda o novo em seguida.</p>}
+                        confirmLabel="Sim, gerar novo link"
+                        onClose={() => setConfirming(null)}
+                        onConfirm={() => run(async () => {
+                          const r = await command({ resend: q.id, version: q.current.version_no }, (key) => port.send(q, key));
+                          if (r.token) setFresh({ quoteId: q.id, token: r.token });
+                          return "Novo link gerado. O link anterior não funciona mais.";
+                        })}
+                      />
+                    ) : undefined
+                  }
+                />
+              );
+            }}
+          />
+        ) : null}
+      </Section>
 
       {detail ? (
         <Card aria-labelledby="qt-detail-title">

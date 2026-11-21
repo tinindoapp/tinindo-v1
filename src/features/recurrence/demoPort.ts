@@ -102,7 +102,7 @@ export function createDemoPort(): RecurrencePort {
       });
     },
     async subscriptions() {
-      return state().subs.map(withCurrent);
+      return { subscriptions: state().subs.map(withCurrent), truncated: false };
     },
     subscribe(planId, customerId, key) {
       return once(key, () => {

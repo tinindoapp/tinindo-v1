@@ -29,17 +29,24 @@ describe("orçamentos", () => {
   beforeEach(() => resetDemoState());
   afterEach(() => dismissToast());
 
-  it("Cancelar orçamento pede confirmação e só cancela no “Sim”", async () => {
+  it("Cancelar orçamento (no “⋯” da linha) pede confirmação e só cancela no “Sim”", async () => {
     const port = await withQuote();
     const cancel = vi.spyOn(port, "cancel");
     page(port);
-    fireEvent.click(await screen.findByRole("button", { name: "Cancelar orçamento “Corte e barba”" }));
+    const more = await screen.findByRole("button", { name: "Mais ações para “Corte e barba”" });
+    // Uma ação visível por linha (P54): no rascunho, "Gerar link"; cancelar fica no menu.
+    expect(screen.getByRole("button", { name: "Gerar link" })).toBeInTheDocument();
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Cancelar orçamento…" }));
     const confirm = screen.getByRole("group", { name: "Cancelar “Corte e barba”?" });
     expect(confirm).toHaveTextContent(/não pode mais ser aceito/);
     expect(cancel).not.toHaveBeenCalled();
     fireEvent.click(within(confirm).getByRole("button", { name: "Voltar" }));
     expect(cancel).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar orçamento “Corte e barba”" }));
+    expect(screen.queryByRole("group", { name: "Cancelar “Corte e barba”?" })).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Cancelar orçamento…" }));
     fireEvent.click(screen.getByRole("button", { name: "Sim, cancelar" }));
     await waitFor(() => expect(cancel).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Orçamento cancelado. O link deixou de funcionar.")).toBeInTheDocument();
@@ -104,6 +111,21 @@ describe("orçamentos", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
     expect(create.mock.calls[0]![0]).toMatchObject({ customer_id: FX.customers.abInA, title: "Corte e Hidratação" });
+  });
+
+  it("lista cortada pelo servidor: avisa embaixo da lista; sem corte, nada", async () => {
+    const port = await withQuote();
+    const list = port.list.bind(port);
+    const spy = vi.spyOn(port, "list").mockImplementation(async () => ({ ...(await list()), truncated: true }));
+    const { unmount } = page(port);
+    const region = await screen.findByRole("region", { name: "Seus orçamentos" });
+    expect(await within(region).findByText("Mostrando os 200 orçamentos mais recentes.")).toBeInTheDocument();
+    unmount();
+    spy.mockRestore();
+    page(port);
+    const again = await screen.findByRole("region", { name: "Seus orçamentos" });
+    await within(again).findByText("Corte e barba");
+    expect(within(again).queryByText(/Mostrando os/)).not.toBeInTheDocument();
   });
 
   it("título sugerido junta até três itens e resume o resto", () => {

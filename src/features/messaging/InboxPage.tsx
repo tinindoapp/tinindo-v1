@@ -3,7 +3,7 @@
 // de 24 h só modelo aprovado; a cliente que pediu SAIR não recebe nada; humano assume quando você pede.
 import { type FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ConfirmAction, Field, FormPanel, Help, PageHeader, SetupHint, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { ActionBar, ActionRow, Button, CappedList, ConfirmAction, Field, FormPanel, ListCutNote, type MenuAction, PageHeader, Section, SetupHint, StatusBadge, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, templateInfo, unreadLabel } from "./labels.ts";
 import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort } from "./port.ts";
@@ -239,17 +239,32 @@ function useActions(refresh: () => void) {
   return { done, fail, act };
 }
 
-function DemoNotice({ port }: { port: MessagingPort }) {
-  return port.kind === "demo" ? (
-    <StatusBanner tone="info"><strong>Demonstração.</strong> O provedor é simulado: nenhuma mensagem sai do navegador. O telefone da cliente é o simulador, no menu desta tela.</StatusBanner>
-  ) : null;
+/**
+ * "Como funciona" de Mensagens. D11 b: sem aviso de demonstração por tela (a faixa do topo já diz); o que a
+ * demonstração simula e o caminho para o simulador do telefone da cliente ficam aqui.
+ */
+function InboxHelp({ port }: { port: MessagingPort }) {
+  return (
+    <>
+      <p>Canal oficial do seu número. Enviada, entregue, lida e falhou são estados diferentes; nada é reenviado sem você saber. Fora de 24 h da última mensagem da cliente, só modelos aprovados. Quem responde SAIR não recebe mais nada.</p>
+      {port.kind === "demo" ? (
+        <p>
+          Na demonstração o provedor é simulado: nenhuma mensagem sai do navegador. Para escrever como cliente ou confirmar
+          a entrega, use o <Link to="/app/mensagens/simulador">Simulador do telefone</Link>.
+        </p>
+      ) : null}
+    </>
+  );
 }
+
+const dispatchText = (r: { sent: number; failed: number; unknown: number; reconciled: number }) =>
+  `Despacho (simulação): ${plural(r.sent, "enviada")}, ${r.failed} ${pluralWord(r.failed, "falhou", "falharam")}, ${plural(r.unknown, "desconhecida")}, ${plural(r.reconciled, "resolvida")}.`;
 
 /** Despacho da fila, só na demonstração (no servidor, o cron faz isso). */
 function DispatchButton({ port, done, fail }: { port: MessagingPort; done: Done; fail: (e: unknown) => void }) {
   if (!port.dispatch) return null;
   return (
-    <Button variant="secondary" onClick={() => void port.dispatch!().then((r) => done(`Despacho (simulação): ${plural(r.sent, "enviada")}, ${r.failed} ${pluralWord(r.failed, "falhou", "falharam")}, ${plural(r.unknown, "desconhecida")}, ${plural(r.reconciled, "resolvida")}.`), fail)}>
+    <Button variant="secondary" onClick={() => void port.dispatch!().then((r) => done(dispatchText(r)), fail)}>
       Rodar o despacho (simulação)
     </Button>
   );
@@ -305,46 +320,37 @@ export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: str
   const needsSetup = !!status && (!conn || conn.status === "disconnected");
 
   return (
-    <div className="tn-stack">
-      <div className="tn-page-intro">
-        <PageHeader id="msg-title" title="Mensagens" />
-        <Help><p>Canal oficial do seu número. Enviada, entregue, lida e falhou são estados diferentes; nada é reenviado sem você saber. Fora de 24 h da última mensagem da cliente, só modelos aprovados. Quem responde SAIR não recebe mais nada.</p></Help>
-        <DemoNotice port={port} />
-        {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-      </div>
-      {extra}
+    <div className="tn-stack tn-msg">
+      <PageHeader id="msg-title" title="Mensagens" help={<InboxHelp port={port} />} />
+      {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {!status && !error ? <p role="status" className="tn-muted">Carregando…</p> : null}
 
       {/* Sem número: estado vazio guiado, com o que é e o passo para conectar. */}
       {needsSetup ? (
-        <Card aria-labelledby="msg-setup-title">
-          <div className="tn-stack" data-gap="sm">
-            <h2 id="msg-setup-title">Conecte o número do seu negócio</h2>
-            <p>Com o número conectado, as mensagens das suas clientes chegam aqui e você responde pelo canal oficial.</p>
-            {conn?.status === "disconnected" ? <p className="tn-muted">O número {formatPhone(conn.phone_e164)} foi desconectado. Para voltar, conecte e verifique de novo.</p> : null}
-            <ol className="tn-msg-steps">
-              <li>Informe o número do negócio e toque em Conectar.</li>
-              <li>Um código de 6 números chega pelo próprio canal, nesse número.</li>
-              <li>Digite o código aqui para concluir.</li>
-            </ol>
-            <ConnectForm port={port} onDone={actions.done} />
-            <SetupHint to="/app/configurar" action="Ver os passos">
-              Passo opcional de “Deixe seu negócio pronto”: sem provedor contratado, conecte o número simulado para testar o fluxo.
-            </SetupHint>
-          </div>
-        </Card>
+        <Section id="msg-setup-title" title="Conecte o número do seu negócio">
+          <p>Com o número conectado, as mensagens das suas clientes chegam aqui e você responde pelo canal oficial.</p>
+          {conn?.status === "disconnected" ? <p className="tn-muted">O número {formatPhone(conn.phone_e164)} foi desconectado. Para voltar, conecte e verifique de novo.</p> : null}
+          <ol className="tn-msg-steps">
+            <li>Informe o número do negócio e toque em Conectar.</li>
+            <li>Um código de 6 números chega pelo próprio canal, nesse número.</li>
+            <li>Digite o código aqui para concluir.</li>
+          </ol>
+          <ConnectForm port={port} onDone={actions.done} />
+          <SetupHint to="/app/configurar" action="Ver os passos">
+            Passo opcional de “Deixe seu negócio pronto”: sem provedor contratado, conecte o número simulado para testar o fluxo.
+          </SetupHint>
+        </Section>
       ) : null}
 
       {/* Número registrado, falta o código: é o passo que importa agora. */}
       {status && conn?.status === "pending_verification" ? (
-        <Card aria-labelledby="msg-verify-title">
+        <Section id="msg-verify-title" title="Falta verificar o número">
           <div className="tn-msg-box" role="group" aria-label="Número conectado">
-            <h2 id="msg-verify-title">Falta verificar o número</h2>
             <p><strong>{CONNECTION_STATUS[conn.status]}</strong> · {formatPhone(conn.phone_e164)} · {PROVIDER_LABEL[conn.provider]}</p>
             <VerifyForm port={port} onDone={actions.done} />
             <ConnectionActions port={port} status={status} conn={conn} actions={actions} />
           </div>
-        </Card>
+        </Section>
       ) : null}
 
       {/* Conectado: a conexão vira uma linha de status e as conversas vêm primeiro. */}
@@ -356,7 +362,7 @@ export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: str
               {status.queued > 0 ? ` · ${status.queued} na fila` : ""}
               {status.unknown > 0 ? ` · ${status.unknown} com entrega desconhecida` : ""}
             </p>
-            <Button variant="ghost" aria-expanded={managing} aria-controls={panelId} onClick={() => setManaging((v) => !v)}>
+            <Button variant="ghost" size="compact" aria-expanded={managing} aria-controls={panelId} onClick={() => setManaging((v) => !v)}>
               Gerenciar
             </Button>
           </div>
@@ -371,33 +377,47 @@ export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: str
       ) : null}
 
       {status && !needsSetup ? (
-        <Card aria-labelledby="msg-inbox-title">
-          <h2 id="msg-inbox-title">Caixa de entrada</h2>
+        <Section id="msg-inbox-title" title="Caixa de entrada" count={inbox?.contacts.length || undefined}>
           {inbox && inbox.contacts.length === 0 ? <p className="tn-muted">Nenhuma conversa ainda. Quando uma cliente escrever para o número, ela aparece aqui.</p> : null}
-          <ul className="tn-msg-list">
-            {inbox?.contacts.map((k) => (
-              <li key={k.id}>
-                {/* A linha inteira abre a conversa. */}
-                <Link to={k.id} className="tn-msg-row">
-                  <span className="tn-msg-row__head">
-                    <strong>{k.customer_name ?? k.profile_name ?? k.phone_e164}</strong>
-                    {k.unread_count > 0 ? <span className="tn-msg-badge">{unreadLabel(k.unread_count)}</span> : null}
-                  </span>
-                  {k.last_message ? (
-                    <span className="tn-msg-row__last">
-                      {k.last_message.direction === "inbound" ? "Cliente: " : "Você: "}{k.last_message.body} <span className="tn-muted">({MESSAGE_STATUS[k.last_message.status]})</span>
-                    </span>
-                  ) : null}
-                  <span className="tn-muted">
-                    {k.phone_e164} · {k.handling === "human" ? "Você está atendendo" : "Assistente atende"} · {k.opted_out ? "Pediu para não receber" : k.window_open ? "Janela aberta" : "Fora da janela de 24 h"}
-                  </span>
-                  <Icon name="seta" size={18} className="tn-msg-row__chevron" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {inbox?.truncated?.contacts ? <p className="tn-muted">Mostrando as 200 conversas mais recentes.</p> : null}
-        </Card>
+          {inbox?.contacts.length ? (
+            <CappedList
+              items={inbox.contacts}
+              label="Conversas"
+              truncated={inbox.truncated?.contacts}
+              truncatedText="Mostrando as 200 conversas mais recentes."
+              render={(k) => (
+                // A linha inteira abre a conversa.
+                <ActionRow
+                  key={k.id}
+                  to={k.id}
+                  title={k.customer_name ?? k.profile_name ?? k.phone_e164}
+                  badge={k.unread_count > 0 ? <StatusBadge tone="info">{unreadLabel(k.unread_count)}</StatusBadge> : undefined}
+                  meta={
+                    <>
+                      {k.last_message ? (
+                        <span className="tn-msg-row__last">
+                          {k.last_message.direction === "inbound" ? "Cliente: " : "Você: "}{k.last_message.body} ({MESSAGE_STATUS[k.last_message.status]})
+                        </span>
+                      ) : null}
+                      <span>
+                        {k.phone_e164} · {k.handling === "human" ? "Você está atendendo" : "Assistente atende"} · {k.opted_out ? "Pediu para não receber" : k.window_open ? "Janela aberta" : "Fora da janela de 24 h"}
+                      </span>
+                    </>
+                  }
+                />
+              )}
+            />
+          ) : null}
+        </Section>
+      ) : null}
+
+      {/* P45 e doc 07 §4.4: o resumo semanal fica em Mensagens, como seção compacta recolhida. Some quando não há resumo. */}
+      {extra ? (
+        <div className="tn-msg-digest">
+          <Section id="msg-digest-section" title="Resumo da semana" collapsed>
+            {extra}
+          </Section>
+        </div>
       ) : null}
     </div>
   );
@@ -445,48 +465,46 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
 
   const contact = convo.contact;
   const name = contact.customer_name ?? contact.profile_name ?? contact.phone_e164;
+  // Ações menos usadas da conversa: no "⋯" (P54, uma ação de cada peso à vista).
+  const more: MenuAction[] = [];
+  if (contact.opted_out) {
+    more.push({ label: "Cliente pediu para voltar a receber", onSelect: () => void act({ consent: contact.id, optedIn: true }, (key) => port.consent(contact.id, true, key), "Permissão registrada como declarada por você. Só use se a cliente pediu pessoalmente.") });
+  }
+  if (contact.customer_id) {
+    // Desvincular volta atrás com o mesmo cadastro: executa na hora e o aviso oferece "Desfazer".
+    const { id: cid, customer_id: customerId } = contact;
+    more.push({
+      label: "Desvincular do cadastro",
+      onSelect: () => void act({ link: cid, customer: null }, (key) => port.link(cid, null, key), "Contato desvinculado do cadastro.", {
+        intent: { link: cid, customer: customerId },
+        send: (key) => port.link(cid, customerId, key),
+        ok: "Contato vinculado de novo ao cadastro.",
+      }),
+    });
+  }
+  if (conn?.status === "active" && port.dispatch) {
+    const dispatch = port.dispatch;
+    more.push({ label: "Rodar o despacho (simulação)", onSelect: () => void dispatch().then((r) => actions.done(dispatchText(r)), actions.fail) });
+  }
   return (
     <div className="tn-stack">
       {back}
-      <div className="tn-page-intro">
-        <PageHeader id="msg-convo-title" title={name} subtitle={contact.phone_e164 === name ? undefined : contact.phone_e164} />
-        <DemoNotice port={port} />
-        {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
-      </div>
+      <PageHeader id="msg-convo-title" title={name} subtitle={contact.phone_e164 === name ? undefined : contact.phone_e164} />
+      {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
       <section className="tn-stack" data-gap="sm" aria-label={`Conversa com ${name}`}>
         <p className="tn-muted">
           {contact.handling === "human" ? "Você está atendendo. " : "O assistente atende. "}
           {contact.window_open && contact.window_until ? `Texto livre até ${formatDateTime(contact.window_until, timezone)}.` : "Fora da janela de 24 h: só modelo aprovado."}
           {contact.opted_out ? " A cliente pediu para não receber mensagens." : ""}
         </p>
-        <div className="tn-actions">
+        <ActionBar more={more} moreLabel="Mais ações da conversa">
           <Button variant="secondary" onClick={() => void act({ handoff: contact.id, to: contact.handling === "human" ? "assistant" : "human" }, (key) => port.handoff(contact.id, contact.handling === "human" ? "assistant" : "human", key), contact.handling === "human" ? "O assistente volta a atender." : "Você assumiu a conversa.")}>
             {contact.handling === "human" ? "Devolver ao assistente" : "Assumir a conversa"}
           </Button>
-          {contact.opted_out ? (
-            <Button variant="ghost" onClick={() => void act({ consent: contact.id, optedIn: true }, (key) => port.consent(contact.id, true, key), "Permissão registrada como declarada por você. Só use se a cliente pediu pessoalmente.")}>Cliente pediu para voltar a receber</Button>
-          ) : null}
-          {contact.customer_id ? (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                // Desvincular volta atrás com o mesmo cadastro: executa na hora e o aviso oferece "Desfazer".
-                const { id: cid, customer_id: customerId } = contact;
-                void act({ link: cid, customer: null }, (key) => port.link(cid, null, key), "Contato desvinculado do cadastro.", {
-                  intent: { link: cid, customer: customerId },
-                  send: (key) => port.link(cid, customerId, key),
-                  ok: "Contato vinculado de novo ao cadastro.",
-                });
-              }}
-            >
-              Desvincular do cadastro
-            </Button>
-          ) : null}
           {conn?.status === "active" && status ? (
             <Button variant="ghost" aria-expanded={templateOpen} onClick={() => setTemplateOpen(true)}>Enviar modelo aprovado</Button>
           ) : null}
-          {conn?.status === "active" ? <DispatchButton port={port} done={actions.done} fail={actions.fail} /> : null}
-        </div>
+        </ActionBar>
         {convo.messages.length === 0 ? <p className="tn-muted">Nenhuma mensagem nesta conversa.</p> : null}
         <ul className="tn-msg-thread" aria-label="Mensagens da conversa">
           {convo.messages.map((m) => (
@@ -500,7 +518,7 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
             </li>
           ))}
         </ul>
-        {convo.truncated?.messages ? <p className="tn-muted">Mostrando as 200 mensagens mais recentes.</p> : null}
+        {convo.truncated?.messages ? <ListCutNote text="Mostrando as 200 mensagens mais recentes." /> : null}
         {/* Modelo aprovado: folha no celular; no desktop, cartão perto do campo de escrever, com o foco no primeiro campo. */}
         {conn?.status === "active" && status && templateOpen ? (
           <FormPanel title="Enviar modelo aprovado" onClose={() => setTemplateOpen(false)}>

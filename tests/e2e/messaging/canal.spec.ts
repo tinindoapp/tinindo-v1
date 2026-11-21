@@ -4,6 +4,8 @@ import { clientWrites, connectSimulated, soft } from "./helpers.ts";
 test("canal: número verificado pelo código entregue no canal, cliente escreve, resposta na janela, enviada → lida, opt-out e humano assume", async ({ page }) => {
   await page.goto("/app/mensagens");
   await expect(page.getByRole("heading", { name: "Mensagens", level: 1 })).toBeVisible();
+  // D11 b: sem aviso de demonstração por tela; o que é simulado (e o caminho do simulador) fica em "Como funciona".
+  await page.getByText("Como funciona").click();
   await expect(page.getByText("nenhuma mensagem sai do navegador")).toBeVisible();
   // Sem conexão: estado vazio guiado.
   await expect(page.getByRole("heading", { name: "Conecte o número do seu negócio" })).toBeVisible();
@@ -42,7 +44,8 @@ test("canal: número verificado pelo código entregue no canal, cliente escreve,
   await reply.getByRole("button", { name: "Enviar" }).click();
   await expect(reply.getByText("Mensagem na fila.")).toBeVisible();
   await expect(convo).toContainText("Na fila");
-  await convo.getByRole("button", { name: "Rodar o despacho (simulação)" }).click();
+  await convo.getByRole("button", { name: "Mais ações da conversa" }).click();
+  await convo.getByRole("menuitem", { name: "Rodar o despacho (simulação)" }).click();
   await expect(convo).toContainText("Enviada");
   await expect(convo).not.toContainText("Entregue");
 

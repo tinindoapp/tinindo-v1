@@ -16,7 +16,7 @@ describe("demonstração de Assinaturas (mesmas regras do banco)", () => {
     expect(await code(port.savePlan({ plan_id: plan!.id, expected_version: 9, service_id: plan!.service_id, name: "x", sessions_per_cycle: 4, price_cents: 1 }, "p0"))).toBe("STALE_VERSION/-");
     const p2 = await port.savePlan({ plan_id: plan!.id, expected_version: plan!.version, service_id: plan!.service_id, name: plan!.name, sessions_per_cycle: 4, cycle_days: 30, price_cents: 25000 }, "p1");
     expect(p2).toMatchObject({ price_cents: 25000, subscribers: 1 });
-    expect((await port.subscriptions())[0]!.terms.price_cents).toBe(20000);
+    expect((await port.subscriptions()).subscriptions[0]!.terms.price_cents).toBe(20000);
     expect(await code(port.savePlan({ service_id: plan!.service_id, name: "ruim", sessions_per_cycle: 0, price_cents: 100 }, "p2"))).toBe("VALIDATION_ERROR/plan");
   });
 
@@ -28,7 +28,7 @@ describe("demonstração de Assinaturas (mesmas regras do banco)", () => {
     advanceDemoClock(31 * 86_400_000);
     expect(await port.tick!()).toEqual({ renewed: 1, closed: 0 });
     expect(await port.tick!()).toEqual({ renewed: 0, closed: 0 });
-    let s = (await port.subscriptions())[0]!;
+    let s = (await port.subscriptions()).subscriptions[0]!;
     expect(s.cycles_count).toBe(2);
     expect((await port.cycles(s.id)).map((c) => c.cycle_no)).toEqual([2, 1]);
     s = await port.cancel(s, true, "mudou", "c1");
@@ -38,7 +38,7 @@ describe("demonstração de Assinaturas (mesmas regras do banco)", () => {
     expect((await port.cancel(s, true, null, "c2")).cancel_at_period_end).toBe(true);
     advanceDemoClock(31 * 86_400_000);
     expect(await port.tick!()).toEqual({ renewed: 0, closed: 1 });
-    expect((await port.subscriptions())[0]!.status).toBe("cancelled");
+    expect((await port.subscriptions()).subscriptions[0]!.status).toBe("cancelled");
     const t = await port.subscribe(plan!.id, DEMO_CUSTOMERS[1]!.id, "s3");
     const now = await port.cancel(t, false, null, "c3");
     expect(now.status).toBe("cancelled");

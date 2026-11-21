@@ -22,7 +22,7 @@ test("lista de espera: oferta para o primeiro da fila, link sem envio automátic
   await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true }));
   await share.getByRole("button", { name: "Copiar link" }).click();
   await expect(share.getByRole("status")).toHaveText("Copiado ✓");
-  const offers = page.getByRole("region", { name: "Ofertas" });
+  const offers = page.getByRole("group", { name: "Ofertas" });
   await expect(offers).toContainText("Oferta aberta");
   await expect(offers).toContainText("a entrega não é confirmada");
   await expect(offers).not.toContainText(/entregue/i);
@@ -36,7 +36,7 @@ test("lista de espera: oferta para o primeiro da fila, link sem envio automátic
   await expect(page.getByText("Reserva confirmada")).toBeVisible();
 
   await soft(page, "/app/lista-de-espera");
-  await expect(page.getByRole("region", { name: "Ofertas" })).toContainText("Aceita: reserva confirmada");
+  await expect(page.getByRole("group", { name: "Ofertas" })).toContainText("Aceita: reserva confirmada");
   await expect(page.getByRole("region", { name: "Vagas para oferecer" })).toContainText("Nenhuma vaga liberada");
 
   const width = page.viewportSize()!.width;
@@ -45,6 +45,8 @@ test("lista de espera: oferta para o primeiro da fila, link sem envio automátic
 
 test("lista de espera: só entra quem autorizou o aviso de vaga", async ({ page }) => {
   await page.goto("/app/lista-de-espera");
+  // P54: o formulário abre pela ação principal da abertura (folha no celular, painel no desktop).
+  await page.getByRole("button", { name: "Adicionar à lista" }).click();
   const form = page.getByRole("form", { name: "Adicionar à lista" });
   await form.getByLabel("Cliente", { exact: true }).selectOption({ label: "Cliente Exemplo Bruno" });
   await form.getByLabel("Quinta").check();

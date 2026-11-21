@@ -183,7 +183,7 @@ test.describe("UAT barbeiro", () => {
     const slots = page.getByRole("region", { name: "Vagas para oferecer" });
     await slots.getByRole("button", { name: /Preparar oferta/ }).click();
     await expect(page.getByRole("region", { name: "Link da oferta" })).toContainText("A Tinindo não envia mensagens");
-    await expect(page.getByRole("region", { name: "Ofertas" })).toContainText("Oferta aberta");
+    await expect(page.getByRole("group", { name: "Ofertas" })).toContainText("Oferta aberta");
   });
 
   test("8 · Atendido oferece como receber; \"Cobrar depois\" conclui as 09:00 sem registrar pagamento", async ({ page }) => {

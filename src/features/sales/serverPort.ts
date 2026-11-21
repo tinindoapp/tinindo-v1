@@ -46,7 +46,8 @@ export function createServerPort(call: Call, tenantId: string): SalesPort {
       };
     },
     async list() {
-      return (await call(op("quote.list"), SalesQuoteListOutput, post({}))).data.quotes;
+      const { data } = await call(op("quote.list"), SalesQuoteListOutput, post({}));
+      return { quotes: data.quotes, truncated: data.truncated?.quotes ?? false };
     },
     async get(quoteId) {
       return (await call(op("quote.get"), SalesQuoteDetailOutput, post({ quote_id: quoteId }))).data;

@@ -2,7 +2,9 @@
 // A Tinindo não envia mensagens: o dono compartilha o link, e compartilhar não confirma entrega.
 import { createContext, type FormEvent, useContext, useEffect, useRef, useState } from "react";
 import type { TimeRange, WaitlistEntry, WaitlistOffer } from "@contracts";
-import { Button, Card, ChipGroup, ConfirmAction, Field, PageHeader, ShareActions, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS } from "../../components/ui/index.tsx";
+import { Button, CappedList, Card, ChipGroup, Field, FormPanel, PageHeader, Section, ShareActions, StatusBadge, StatusBanner, toast, useFormErrors, WEEKDAY_CHIPS, WEEKDAY_SHORTCUTS, type BadgeTone } from "../../components/ui/index.tsx";
+import { Icon } from "../../components/ui/icons.tsx";
+import { InlineConfirm, Row } from "./rows.tsx";
 import { endOfLocalDay, entriesForStart, formatDateTime, formatSlot, formatStart, localDate, windowsText } from "./format.ts";
 import type { WaitlistBase, WaitlistPort } from "./port.ts";
 import { errorExplainer } from "../../lib/errors.ts";
@@ -15,6 +17,9 @@ const usePort = () => useContext(PortContext)!;
 const OFFER_STATUS: Record<WaitlistOffer["status"], string> = {
   pending_approval: "Aguardando aprovação", offered: "Oferta aberta", accepted: "Aceita: reserva confirmada",
   declined: "Recusada", expired: "Vencida", invalidated: "Retirada",
+};
+const OFFER_TONE: Record<WaitlistOffer["status"], BadgeTone> = {
+  pending_approval: "warning", offered: "info", accepted: "success", declined: "neutral", expired: "neutral", invalidated: "neutral",
 };
 const DELIVERY: Record<string, string> = {
   prepared: "Link pronto, ainda não compartilhado",
@@ -45,6 +50,9 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
   const [nonce, setNonce] = useState(0);
   const [fresh, setFresh] = useState<{ offerId: string; token: string } | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [joining, setJoining] = useState(false);
+  // Linha com a confirmação aberta embaixo ("offer:<id>" ou "entry:<id>").
+  const [confirming, setConfirming] = useState<string | null>(null);
   const command = useCommand();
 
   useEffect(() => {
@@ -122,30 +130,48 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
     if (typeof targetRef.current.scrollIntoView === "function") targetRef.current.scrollIntoView({ block: "center" });
   }, [ready]);
 
+  const openOffers = data?.offers.some((o) => o.status === "offered" || o.status === "pending_approval") ?? false;
+  const slotCount = others.length + (highlight && !targetDone ? 1 : 0);
+
   return (
-    <section aria-labelledby="wl-title" className="tn-wl">
-      <PageHeader id="wl-title" title="Lista de espera" subtitle="Quando um horário fica livre, ofereça a quem está esperando. Abrir o link não reserva; o cliente aceita ou recusa." />
-      {port.kind === "demo" ? (
-        <StatusBanner tone="info">
-          <strong>Dados de exemplo.</strong> Demonstração sem servidor: esta tela ainda não guarda nem altera dados no servidor;
-          as mudanças valem só nesta aba.
-        </StatusBanner>
-      ) : null}
+    <section aria-labelledby="wl-title" className="tn-wl tn-stack">
+      <PageHeader
+        id="wl-title"
+        title="Lista de espera"
+        subtitle="Ofereça o horário que ficou livre a quem está esperando."
+        // Uma ação principal: com a vaga que chegou pela URL, a principal é "Preparar oferta" e esta fica secundária.
+        actions={base ? (
+          <Button variant={highlight && !targetDone ? "secondary" : "primary"} aria-expanded={joining} onClick={() => setJoining(true)}>
+            <Icon name="mais" size={20} />
+            Adicionar à lista
+          </Button>
+        ) : null}
+        help={
+          <>
+            <p>Quando um atendimento é cancelado, o horário aparece em “Vagas para oferecer” para o primeiro da fila que aceita aquele dia e hora. Uma pessoa de cada vez: o horário fica guardado para ela até a oferta vencer.</p>
+            <p>A Tinindo não envia mensagens: você copia o link ou abre o WhatsApp e manda. Abrir o link não reserva; o cliente aceita ou recusa.</p>
+          </>
+        }
+      />
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
       {fresh ? <ShareCard token={fresh.token} onShared={() => run({ shared: fresh.offerId }, (key) => port.markShared(fresh.offerId, key), "Compartilhamento registrado. A entrega não é confirmada pela Tinindo.")} onClose={() => setFresh(null)} /> : null}
+      {joining && base ? (
+        <FormPanel title="Adicionar à lista" onClose={() => setJoining(false)}>
+          <JoinForm base={base} onCancel={() => setJoining(false)} onDone={(text) => { setJoining(false); toast(text); reload(); }} />
+        </FormPanel>
+      ) : null}
       {!base || !data ? (
         <p role="status">Carregando a lista…</p>
       ) : (
         <>
-          <section aria-labelledby="wl-slots-title" className="tn-wl-section">
-            <h2 id="wl-slots-title">Vagas para oferecer</h2>
+          <Section id="wl-slots-title" title="Vagas para oferecer" count={slotCount || undefined}>
             {target !== null ? (
               targetDone ? (
                 <p className="tn-wl-target" data-state="done" role="status">
                   Oferta preparada para {targetDone} na vaga de {formatStart(new Date(target).toISOString(), tz)}. Veja em “Ofertas”.
                 </p>
               ) : highlight ? (
-                <div className="tn-wl-item tn-wl-target" data-state="open">
+                <div className="tn-wl-target" data-state="open">
                   <div>
                     <span className="tn-wl-target__tag">Vaga liberada agora</span>
                     <strong>{formatSlot(highlight.slot, tz)}</strong>
@@ -169,95 +195,109 @@ export function WaitlistPage({ vaga = null }: { vaga?: string | null } = {}) {
                 <p className="tn-muted">Nenhuma vaga liberada que sirva a alguém da lista. Quando um atendimento for cancelado, ela aparece aqui.</p>
               ) : null
             ) : (
-              <ul className="tn-item-list" aria-label={target !== null ? "Outras vagas" : undefined}>
-                {others.map(([start, list]) => {
+              <CappedList
+                items={others}
+                label={target !== null ? "Outras vagas" : "Vagas"}
+                render={([start, list]) => {
                   const first = list[0]!;
                   const entry = entryOf(first.entry_id);
                   return (
-                    <li key={start} className="tn-wl-item">
-                      <div>
-                        <strong>{formatSlot(first.slot, tz)}</strong>
-                        <div className="tn-muted">
+                    <Row
+                      key={start}
+                      title={formatSlot(first.slot, tz)}
+                      meta={
+                        <>
                           Próximo da fila: {entry ? `${customer(entry.customer_id)} · ${service(entry.service_id)}` : "—"}
                           {list.length > 1 ? ` · depois: ${list.length - 1}` : ""}
-                        </div>
-                      </div>
-                      {entry ? (
-                        <Button onClick={() => void prepare(entry, first.slot)}>
+                        </>
+                      }
+                      action={entry ? (
+                        <Button size="compact" variant="secondary" onClick={() => void prepare(entry, first.slot)}>
                           Preparar oferta<span className="tn-visually-hidden"> para {customer(entry.customer_id)}</span>
                         </Button>
-                      ) : null}
-                    </li>
+                      ) : undefined}
+                    />
                   );
-                })}
-              </ul>
+                }}
+              />
             )}
-          </section>
+          </Section>
 
-          <section aria-labelledby="wl-offers-title" className="tn-wl-section">
-            <h2 id="wl-offers-title">Ofertas</h2>
+          {/* Histórico de ofertas: secundário. Nasce recolhido quando não há oferta em aberto. */}
+          <Section id="wl-offers-title" title="Ofertas" count={data.offers.length} collapsed={!openOffers}>
             {data.offers.length === 0 ? (
               <p className="tn-muted">Nenhuma oferta feita.</p>
             ) : (
-              <ul className="tn-item-list">
-                {data.offers.map((o) => {
+              <CappedList
+                items={data.offers}
+                label="Ofertas feitas"
+                truncated={data.truncated?.offers}
+                truncatedText="Mostrando as 50 ofertas mais recentes."
+                render={(o) => {
                   const e = entryOf(o.entry_id);
+                  const who = e ? customer(e.customer_id) : "Cliente";
                   return (
-                    <li key={o.id} className="tn-wl-item">
-                      <div>
-                        <strong>{OFFER_STATUS[o.status]}</strong>
-                        {e ? ` · ${customer(e.customer_id)}` : ""}
-                        <div className="tn-muted">
-                          {o.status === "offered" ? `Vale até ${formatDateTime(o.expires_at, tz)} · ` : ""}
-                          {o.delivery_state ? DELIVERY[o.delivery_state] ?? "" : ""}
-                        </div>
-                      </div>
-                      {o.status === "offered" ? (
-                        // Retirar invalida o link que o cliente já pode ter recebido: não volta atrás, então confirma antes.
-                        <ConfirmAction
-                          trigger="Retirar oferta"
-                          triggerLabel={`Retirar oferta${e ? ` de ${customer(e.customer_id)}` : ""}`}
+                    <Row
+                      key={o.id}
+                      title={who}
+                      badge={<StatusBadge tone={OFFER_TONE[o.status]}>{OFFER_STATUS[o.status]}</StatusBadge>}
+                      meta={(o.status === "offered" ? `Vale até ${formatDateTime(o.expires_at, tz)} · ` : "") + (o.delivery_state ? DELIVERY[o.delivery_state] ?? "" : "")}
+                      // Retirar invalida o link que o cliente já pode ter recebido: não volta atrás, então confirma antes.
+                      action={o.status === "offered" ? (
+                        <Button size="compact" variant="ghost" data-return aria-label={`Retirar oferta${e ? ` de ${who}` : ""}`} onClick={() => setConfirming(`offer:${o.id}`)}>
+                          Retirar oferta
+                        </Button>
+                      ) : undefined}
+                      below={confirming === `offer:${o.id}` ? (
+                        <InlineConfirm
                           title="Retirar oferta?"
-                          consequence={`O link${e ? ` de ${customer(e.customer_id)}` : ""} para de funcionar e o horário volta a ficar livre.`}
+                          consequence={`O link${e ? ` de ${who}` : ""} para de funcionar e o horário volta a ficar livre.`}
                           confirmLabel="Sim, retirar"
+                          onClose={() => setConfirming(null)}
                           onConfirm={() => run({ cancelOffer: o.id, version: o.version }, (key) => port.cancelOffer(o.id, key), "Oferta retirada. O horário voltou a ficar livre.")}
                         />
-                      ) : null}
-                    </li>
+                      ) : undefined}
+                    />
                   );
-                })}
-              </ul>
+                }}
+              />
             )}
-          </section>
+          </Section>
 
-          <section aria-labelledby="wl-entries-title" className="tn-wl-section">
-            <h2 id="wl-entries-title">Na lista</h2>
+          <Section id="wl-entries-title" title="Na lista" count={data.entries.length}>
             {data.entries.length === 0 ? (
               <p className="tn-muted">Ninguém na lista.</p>
             ) : (
-              <ul className="tn-item-list">
-                {data.entries.map((e) => (
-                  <li key={e.id} className="tn-wl-item">
-                    <div>
-                      <strong>{customer(e.customer_id)}</strong> · {service(e.service_id)}
-                      <div className="tn-muted">{windowsText(e.acceptable_windows)} · até {formatDateTime(e.valid_until, tz)}</div>
-                    </div>
-                    {/* Voltar exige novo cadastro com consentimento (e a vez na fila se perde): confirma antes. */}
-                    <ConfirmAction
-                      trigger="Tirar da lista"
-                      triggerLabel={`Tirar da lista ${customer(e.customer_id)}`}
-                      title={`Tirar ${customer(e.customer_id)} da lista?`}
-                      consequence={`${customer(e.customer_id)} deixa de receber vagas de ${service(e.service_id)} e perde a vez na fila. Para voltar, é preciso adicionar de novo.`}
-                      confirmLabel="Sim, tirar"
-                      onConfirm={() => run({ withdraw: e.id, version: e.version }, (key) => port.withdraw(e, key), "Cliente saiu da lista.")}
-                    />
-                  </li>
-                ))}
-              </ul>
+              <CappedList
+                items={data.entries}
+                label="Quem está na lista"
+                truncated={data.truncated?.entries}
+                truncatedText="Mostrando as 200 primeiras pessoas da fila."
+                render={(e) => (
+                  <Row
+                    key={e.id}
+                    title={<>{customer(e.customer_id)} · {service(e.service_id)}</>}
+                    meta={`${windowsText(e.acceptable_windows)} · até ${formatDateTime(e.valid_until, tz)}`}
+                    // Voltar exige novo cadastro com consentimento (e a vez na fila se perde): confirma antes.
+                    action={
+                      <Button size="compact" variant="ghost" data-return aria-label={`Tirar da lista ${customer(e.customer_id)}`} onClick={() => setConfirming(`entry:${e.id}`)}>
+                        Tirar da lista
+                      </Button>
+                    }
+                    below={confirming === `entry:${e.id}` ? (
+                      <InlineConfirm
+                        title={`Tirar ${customer(e.customer_id)} da lista?`}
+                        consequence={`${customer(e.customer_id)} deixa de receber vagas de ${service(e.service_id)} e perde a vez na fila. Para voltar, é preciso adicionar de novo.`}
+                        confirmLabel="Sim, tirar"
+                        onClose={() => setConfirming(null)}
+                        onConfirm={() => run({ withdraw: e.id, version: e.version }, (key) => port.withdraw(e, key), "Cliente saiu da lista.")}
+                      />
+                    ) : undefined}
+                  />
+                )}
+              />
             )}
-          </section>
-
-          <JoinForm base={base} onDone={(text) => { toast(text); reload(); }} />
+          </Section>
         </>
       )}
     </section>
@@ -284,7 +324,7 @@ function ShareCard({ token, onShared, onClose }: { token: string; onShared: () =
   );
 }
 
-function JoinForm({ base, onDone }: { base: WaitlistBase; onDone: (t: string) => void }) {
+function JoinForm({ base, onDone, onCancel }: { base: WaitlistBase; onDone: (t: string) => void; onCancel: () => void }) {
   const port = usePort();
   const today = localDate(port.now(), base.timezone);
   const [customer, setCustomer] = useState("");
@@ -327,9 +367,7 @@ function JoinForm({ base, onDone }: { base: WaitlistBase; onDone: (t: string) =>
   }
 
   return (
-    <section aria-labelledby="wl-join-title" className="tn-wl-section">
-      <h2 id="wl-join-title">Adicionar à lista</h2>
-      <form ref={formRef} className="tn-form-grid" onSubmit={(e) => void submit(e)} noValidate aria-label="Adicionar à lista">
+    <form ref={formRef} className="tn-form-grid" onSubmit={(e) => void submit(e)} noValidate aria-label="Adicionar à lista">
         <Field as="select" label="Cliente" id="wl-customer" value={customer} error={errors.customer} onChange={(e) => setCustomer(e.target.value)}>
           <option value="">Escolha…</option>
           {base.customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -353,10 +391,10 @@ function JoinForm({ base, onDone }: { base: WaitlistBase; onDone: (t: string) =>
           {errors.consent ? <span id="wl-consent-error" className="tn-field__error">{errors.consent}</span> : null}
         </div>
         {failure ? <div data-span="full"><StatusBanner tone="danger">{failure}</StatusBanner></div> : null}
-        <div className="tn-actions" data-span="full">
+        <div className="tn-actions" data-span="full" data-sheet-footer>
           <Button type="submit" loading={pending}>Adicionar</Button>
+          <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
         </div>
       </form>
-    </section>
   );
 }

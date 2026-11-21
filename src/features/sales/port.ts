@@ -29,7 +29,8 @@ export interface SalesPort {
   readonly kind: "demo" | "server";
   now(): Date;
   base(): Promise<SalesBase>;
-  list(): Promise<SalesQuote[]>;
+  /** No máximo 200 (os mais recentes); `truncated` diz que o servidor cortou a lista (P56). */
+  list(): Promise<{ quotes: SalesQuote[]; truncated: boolean }>;
   get(quoteId: string): Promise<QuoteDetail>;
   create(draft: QuoteDraft, key: string): Promise<SalesQuote>;
   /** Nova versão a partir da versão atual que o dono viu (expected_version). */

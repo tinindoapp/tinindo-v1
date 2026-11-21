@@ -1,8 +1,9 @@
 // Assinaturas (P20): planos do profissional e assinaturas das clientes. O que a tela promete é o que o banco garante:
 // termos congelados na adesão; cada ciclo abre um pacote de sessões e uma cobrança pelo preço aceito; mudar o plano
 // não muda quem já assina; cancelar preserva o aceito e o saldo do ciclo. Assinar não é receber: a cobrança é do Caixa.
-import { type FormEvent, useEffect, useState } from "react";
-import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { Button, CappedList, Card, Field, type MenuAction, PageHeader, Section, StatusBadge, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { InlineConfirm, Row } from "./rows.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
 import { cycleLabel, explain, formatCents, RECEIVABLE_STATUS } from "./labels.ts";
 import { type RecurrenceBase, type RecurrenceCycle, type RecurrencePlan, type RecurrencePort, type RecurrenceSubscription } from "./port.ts";
@@ -125,13 +126,44 @@ function SubscribeForm({ port, base, plans, onDone }: { port: RecurrencePort; ba
   );
 }
 
+/** Parar de renovar (volta atrás com "Manter assinatura"): abre embaixo da linha com o motivo opcional. */
+function EndPanel({ who, reason, onReason, busy, onEnd, onClose }: {
+  who: string; reason: string; onReason: (v: string) => void; busy: boolean; onEnd: () => void; onClose: () => void;
+}) {
+  const heading = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
+  const title = `Parar de renovar a assinatura de ${who}?`;
+  const back = () => {
+    const menu = heading.current?.closest("li")?.querySelector<HTMLElement>(".tn-menu > button");
+    onClose();
+    menu?.focus();
+  };
+  return (
+    <div className="tn-confirm" role="group" aria-label={title}>
+      <p ref={heading} tabIndex={-1} className="tn-confirm__title">{title}</p>
+      <div className="tn-confirm__body"><p>A assinatura segue até o fim do ciclo e não renova. Saldo e termos ficam preservados, e dá para desfazer.</p></div>
+      <Field label="Motivo (opcional)" maxLength={280} value={reason} onChange={(e) => onReason(e.target.value)} />
+      <div className="tn-actions">
+        <Button variant="secondary" loading={busy} onClick={onEnd}>Cancelar no fim do ciclo</Button>
+        <Button variant="ghost" onClick={back} disabled={busy}>Voltar</Button>
+      </div>
+    </div>
+  );
+}
+
 function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubscription; port: RecurrencePort; timezone: string; onDone: () => void }) {
   const [history, setHistory] = useState<RecurrenceCycle[] | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<"end" | "resume" | null>(null);
+  // O que abre embaixo da linha: parar de renovar ou encerrar agora.
+  const [panel, setPanel] = useState<"end" | "now" | null>(null);
   const command = useCommand();
   const who = sub.customer_name ?? "cliente";
   const c = sub.current_cycle;
+  const renewing = sub.status === "active" && !sub.cancel_at_period_end;
+  const ending = sub.status === "active" && sub.cancel_at_period_end;
 
   async function resume(s: RecurrenceSubscription, message: string) {
     try {
@@ -149,6 +181,7 @@ function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubs
     try {
       const why = reason.trim() || null;
       const updated = await command({ cancelAtEnd: sub.id, version: sub.version, why }, (key) => port.cancel(sub, true, why, key));
+      setPanel(null);
       toast({
         message: "A assinatura segue até o fim do ciclo e não renova. Saldo e termos preservados.",
         action: { label: "Desfazer", onAction: () => resume(updated, "Pronto: a assinatura volta a renovar.") },
@@ -177,52 +210,75 @@ function SubscriptionItem({ sub, port, timezone, onDone }: { sub: RecurrenceSubs
       throw err;
     }
   }
+  const cycles = () => void port.cycles(sub.id).then(setHistory, fail);
+
+  // Uma ação visível por linha (P54): "Manter assinatura" quando ela não vai renovar; senão, "Ver ciclos". O resto no "⋯".
+  const action = ending ? (
+    <Button size="compact" variant="secondary" loading={busy === "resume"} onClick={() => void keep()}>Manter assinatura</Button>
+  ) : (
+    <Button size="compact" variant="secondary" onClick={cycles}>Ver ciclos</Button>
+  );
+  const more: MenuAction[] = renewing
+    ? [
+        { label: "Cancelar no fim do ciclo…", onSelect: () => setPanel("end") },
+        { label: "Cancelar agora…", tone: "danger", onSelect: () => setPanel("now") },
+      ]
+    : ending ? [{ label: "Ver ciclos", onSelect: cycles }] : [];
 
   return (
-    <li className="tn-rc-item">
-      <h3>{who} · {sub.terms.plan_name}</h3>
-      <p>
-        <strong>{sub.status === "active" ? (sub.cancel_at_period_end ? "Ativa, não renova no fim do ciclo" : "Ativa") : "Cancelada"}</strong>
-        {" · "}{sub.terms.sessions_per_cycle} × {sub.terms.service_name ?? "sessão"} {cycleLabel(sub.terms.cycle_days)} por {formatCents(sub.terms.price_cents)} (termos aceitos em {formatDate(sub.accepted_at, timezone)})
-      </p>
-      {c ? (
-        <p className="tn-muted">
-          Ciclo {c.cycle_no}: {formatDate(c.starts_at, timezone)} a {formatDate(c.ends_at, timezone)} · {c.package.remaining_credits} de {c.package.purchased_credits} sessões restantes · {RECEIVABLE_STATUS[c.receivable.status]} ({formatCents(c.receivable.amount_cents)})
-          {sub.next_renewal_at && sub.status === "active" && !sub.cancel_at_period_end ? ` · renova em ${formatDate(sub.next_renewal_at, timezone)}` : ""}
-        </p>
-      ) : null}
-      <div className="tn-actions">
-        {sub.status === "active" && !sub.cancel_at_period_end ? (
+    <Row
+      title={`${who} · ${sub.terms.plan_name}`}
+      badge={
+        <StatusBadge tone={renewing ? "success" : ending ? "warning" : "neutral"}>
+          {renewing ? "Ativa" : ending ? "Ativa, não renova no fim do ciclo" : "Cancelada"}
+        </StatusBadge>
+      }
+      meta={
+        <>
+          <span>{sub.terms.sessions_per_cycle} × {sub.terms.service_name ?? "sessão"} {cycleLabel(sub.terms.cycle_days)} por {formatCents(sub.terms.price_cents)} (termos aceitos em {formatDate(sub.accepted_at, timezone)})</span>
+          {c ? (
+            <span>
+              Ciclo {c.cycle_no}: {formatDate(c.starts_at, timezone)} a {formatDate(c.ends_at, timezone)} · {c.package.remaining_credits} de {c.package.purchased_credits} sessões restantes · {RECEIVABLE_STATUS[c.receivable.status]} ({formatCents(c.receivable.amount_cents)})
+              {sub.next_renewal_at && renewing ? ` · renova em ${formatDate(sub.next_renewal_at, timezone)}` : ""}
+            </span>
+          ) : null}
+        </>
+      }
+      action={action}
+      more={more}
+      moreLabel={`Mais ações para ${who}`}
+      below={
+        panel || history ? (
           <>
-            <Field label="Motivo (opcional)" className="tn-rc-reason" maxLength={280} value={reason} onChange={(e) => setReason(e.target.value)} />
-            <Button variant="secondary" loading={busy === "end"} onClick={() => void cancelAtEnd()}>Cancelar no fim do ciclo</Button>
-            <ConfirmAction
-              trigger="Cancelar agora"
-              triggerLabel={`Cancelar agora a assinatura de ${who}`}
-              title={`Encerrar a assinatura de ${who} agora?`}
-              consequence={
-                <p>
-                  {sub.customer_name ?? "A cliente"} deixa de assinar hoje e nada mais renova.
-                  {c ? ` ${c.package.remaining_credits === 1 ? "A sessão restante do ciclo atual continua" : `As ${c.package.remaining_credits} sessões restantes do ciclo atual continuam`} valendo até ${formatDate(c.ends_at, timezone)}, e a cobrança deste ciclo (${formatCents(c.receivable.amount_cents)}) continua no Caixa.` : ""}
-                  {" "}Para desfazer, será preciso uma nova adesão. Se quiser só parar de renovar, use “Cancelar no fim do ciclo”.
-                </p>
-              }
-              confirmLabel="Sim, encerrar agora"
-              onConfirm={cancelNow}
-            />
+            {panel === "end" && renewing ? (
+              <EndPanel who={who} reason={reason} onReason={setReason} busy={busy === "end"} onEnd={() => void cancelAtEnd()} onClose={() => setPanel(null)} />
+            ) : null}
+            {panel === "now" && renewing ? (
+              <InlineConfirm
+                title={`Encerrar a assinatura de ${who} agora?`}
+                consequence={
+                  <p>
+                    {sub.customer_name ?? "A cliente"} deixa de assinar hoje e nada mais renova.
+                    {c ? ` ${c.package.remaining_credits === 1 ? "A sessão restante do ciclo atual continua" : `As ${c.package.remaining_credits} sessões restantes do ciclo atual continuam`} valendo até ${formatDate(c.ends_at, timezone)}, e a cobrança deste ciclo (${formatCents(c.receivable.amount_cents)}) continua no Caixa.` : ""}
+                    {" "}Para desfazer, será preciso uma nova adesão. Se quiser só parar de renovar, use “Cancelar no fim do ciclo”.
+                  </p>
+                }
+                confirmLabel="Sim, encerrar agora"
+                onClose={() => setPanel(null)}
+                onConfirm={cancelNow}
+              >
+                <Field label="Motivo (opcional)" maxLength={280} value={reason} onChange={(e) => setReason(e.target.value)} />
+              </InlineConfirm>
+            ) : null}
+            {history ? (
+              <ul className="tn-rc-cycles" aria-label={`Ciclos de ${who}`}>
+                {history.map((h) => <li key={h.id}>Ciclo {h.cycle_no} · {formatDate(h.starts_at, timezone)} a {formatDate(h.ends_at, timezone)} · {h.package.remaining_credits}/{h.package.purchased_credits} sessões · {RECEIVABLE_STATUS[h.receivable.status]}</li>)}
+              </ul>
+            ) : null}
           </>
-        ) : null}
-        {sub.status === "active" && sub.cancel_at_period_end ? (
-          <Button variant="secondary" loading={busy === "resume"} onClick={() => void keep()}>Manter assinatura</Button>
-        ) : null}
-        <Button variant="ghost" onClick={() => void port.cycles(sub.id).then(setHistory, fail)}>Ver ciclos</Button>
-      </div>
-      {history ? (
-        <ul className="tn-rc-list" aria-label={`Ciclos de ${who}`}>
-          {history.map((h) => <li key={h.id}>Ciclo {h.cycle_no} · {formatDate(h.starts_at, timezone)} a {formatDate(h.ends_at, timezone)} · {h.package.remaining_credits}/{h.package.purchased_credits} sessões · {RECEIVABLE_STATUS[h.receivable.status]}</li>)}
-        </ul>
-      ) : null}
-    </li>
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -230,6 +286,8 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
   const [base, setBase] = useState<RecurrenceBase | null>(null);
   const [plans, setPlans] = useState<RecurrencePlan[]>([]);
   const [subs, setSubs] = useState<RecurrenceSubscription[] | null>(null);
+  // O servidor devolve no máximo 200 assinaturas (P56): a lista avisa quando cortou.
+  const [truncated, setTruncated] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   // Lista primeiro: cada formulário abre pelo seu botão e fecha ao concluir.
   const [open, setOpen] = useState<"plan" | "sub" | null>(null);
@@ -243,7 +301,8 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
       if (!alive) return;
       setBase(b);
       setPlans(p);
-      setSubs(s);
+      setSubs(s.subscriptions);
+      setTruncated(s.truncated);
       setError(null);
     }, (e: unknown) => alive && setError(e ?? new Error("erro")));
     return () => { alive = false; };
@@ -274,19 +333,20 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
       <PageHeader
         id="rc-title"
         title="Assinaturas"
+        subtitle="Assinar não é receber: a cobrança fica no Caixa."
         actions={base && plans.some((p) => p.active) && open !== "sub" ? (
           <Button onClick={() => setOpen("sub")}>
             <Icon name="mais" size={20} />
             Nova assinatura
           </Button>
         ) : null}
+        help={
+          <>
+            <p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (por Pix ou registro manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p>
+            {port.kind === "demo" ? <p>Na demonstração nada é cobrado. “Avançar o ciclo”, no fim da tela, simula agora a renovação que o sistema faz sozinho.</p> : null}
+          </>
+        }
       />
-      {/* Um aviso só, em uma linha (item 19); as explicações ficam em "Como funciona". */}
-      {port.kind === "demo" ? <StatusBanner tone="info"><strong>Dados de exemplo.</strong> Nada é cobrado.</StatusBanner> : null}
-      <Help>
-        <p>Planos do seu negócio (ex.: 4 cortes por mês) e as clientes que assinam. Cada ciclo abre as sessões e uma cobrança pelo preço aceito; o Caixa recebe (por Pix ou registro manual). Mudar um plano não muda quem já assina; cancelar preserva o que foi aceito e o saldo do ciclo.</p>
-        {port.kind === "demo" ? <p>“Avançar o ciclo” simula agora a renovação que o sistema faz sozinho.</p> : null}
-      </Help>
       {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
 
       {open === "sub" && base ? (
@@ -297,38 +357,46 @@ export function RecurrencePage({ port }: { port: RecurrencePort }) {
         </Card>
       ) : null}
 
-      <Card aria-labelledby="rc-plans-title">
-        <div className="tn-rc-head">
-          <h2 id="rc-plans-title">Planos</h2>
-          {base && open !== "plan" ? <Button variant="secondary" onClick={() => setOpen("plan")}><Icon name="mais" size={20} />Novo plano</Button> : null}
-        </div>
+      <Section id="rc-subs-title" title="Assinantes" count={subs?.length || undefined}>
+        {base && !plans.some((p) => p.active) ? <p className="tn-muted">Crie um plano ativo para registrar adesões.</p> : null}
+        {subs && subs.length === 0 ? <p className="tn-muted">Nenhuma assinatura ainda.</p> : null}
+        {subs?.length ? (
+          <CappedList
+            items={subs}
+            label="Assinaturas"
+            truncated={truncated}
+            truncatedText="Mostrando as 200 assinaturas mais recentes."
+            render={(s) => <SubscriptionItem key={s.id} sub={s} port={port} timezone={timezone} onDone={reload} />}
+          />
+        ) : null}
+      </Section>
+
+      {/* Planos são configuração: seção secundária, recolhida quando já existe plano. */}
+      <Section id="rc-plans-title" title="Planos" count={plans.length || undefined} collapsed={!base || plans.length > 0}>
+        {base && open !== "plan" ? (
+          <div className="tn-actions"><Button variant="secondary" onClick={() => setOpen("plan")}><Icon name="mais" size={20} />Novo plano</Button></div>
+        ) : null}
         {open === "plan" && base ? (
           <div className="tn-rc-new">
             <PlanForm key={`new:${nonce}`} port={port} base={base} plan={null} onDone={saved} />
             <div className="tn-actions"><Button variant="ghost" onClick={() => setOpen(null)}>Fechar</Button></div>
           </div>
         ) : null}
-        {plans.length === 0 ? <p className="tn-muted">Nenhum plano ainda. Crie o primeiro em “Novo plano”.</p> : null}
-        <ul className="tn-rc-list" aria-label="Planos cadastrados">
-          {plans.map((p) => (
-            <li key={p.id} className="tn-rc-item">
-              <h3>{p.name}{p.active ? "" : " (inativo)"}</h3>
-              <p>{p.sessions_per_cycle} × {p.service_name ?? "sessão"} {cycleLabel(p.cycle_days)} · {formatCents(p.price_cents)} · {plural(p.subscribers, "assinante")}</p>
-              <div className="tn-actions"><Button variant="ghost" onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? "Fechar" : "Editar"}</Button></div>
-              {editing === p.id && base ? <PlanForm port={port} base={base} plan={p} onDone={saved} /> : null}
-            </li>
-          ))}
-        </ul>
-      </Card>
-
-      <Card aria-labelledby="rc-subs-title">
-        <h2 id="rc-subs-title">Assinantes</h2>
-        {base && !plans.some((p) => p.active) ? <p className="tn-muted">Crie um plano ativo para registrar adesões.</p> : null}
-        {subs && subs.length === 0 ? <p className="tn-muted">Nenhuma assinatura ainda.</p> : null}
-        <ul className="tn-rc-list" aria-label="Assinaturas">
-          {subs?.map((s) => <SubscriptionItem key={s.id} sub={s} port={port} timezone={timezone} onDone={reload} />)}
-        </ul>
-      </Card>
+        {plans.length === 0 ? <p className="tn-muted">Nenhum plano ainda. Crie o primeiro em “Novo plano”.</p> : (
+          <ul className="tn-list" aria-label="Planos cadastrados">
+            {plans.map((p) => (
+              <Row
+                key={p.id}
+                title={p.name}
+                badge={p.active ? undefined : <StatusBadge tone="neutral">Inativo</StatusBadge>}
+                meta={`${p.sessions_per_cycle} × ${p.service_name ?? "sessão"} ${cycleLabel(p.cycle_days)} · ${formatCents(p.price_cents)} · ${plural(p.subscribers, "assinante")}`}
+                action={<Button size="compact" variant="ghost" aria-expanded={editing === p.id} onClick={() => setEditing(editing === p.id ? null : p.id)}>{editing === p.id ? "Fechar" : "Editar"}</Button>}
+                below={editing === p.id && base ? <PlanForm port={port} base={base} plan={p} onDone={saved} /> : undefined}
+              />
+            ))}
+          </ul>
+        )}
+      </Section>
       {port.tick ? <div className="tn-actions"><Button variant="secondary" loading={ticking} onClick={() => void tick()}>Avançar o ciclo (simulação)</Button></div> : null}
     </div>
   );

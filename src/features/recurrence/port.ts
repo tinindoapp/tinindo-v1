@@ -16,7 +16,8 @@ export interface RecurrencePort {
   base(): Promise<RecurrenceBase>;
   plans(): Promise<RecurrencePlan[]>;
   savePlan(input: PlanInput, key: string): Promise<RecurrencePlan>;
-  subscriptions(): Promise<RecurrenceSubscription[]>;
+  /** No máximo 200 (as mais recentes); `truncated` diz que o servidor cortou a lista (P56). */
+  subscriptions(): Promise<{ subscriptions: RecurrenceSubscription[]; truncated: boolean }>;
   subscribe(planId: string, customerId: string, key: string): Promise<RecurrenceSubscription>;
   cancel(sub: RecurrenceSubscription, atPeriodEnd: boolean, reason: string | null, key: string): Promise<RecurrenceSubscription>;
   resume(sub: RecurrenceSubscription, key: string): Promise<RecurrenceSubscription>;
