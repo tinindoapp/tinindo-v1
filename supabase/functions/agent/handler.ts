@@ -27,7 +27,17 @@ import {
 } from "../_shared/contracts/index.ts";
 import { FormDraftInput, FormDraftOutput } from "../_shared/domain/agent/forms.ts";
 import type { Window } from "../_shared/domain/agent/time.ts";
-import { type Agenda, type AgentData, type Directory, type Finance, ToolError } from "../_shared/domain/agent/types.ts";
+import {
+  type Agenda,
+  type AgentData,
+  type Directory,
+  type Finance,
+  type InsightsRead,
+  type LifecycleRead,
+  type SetupRead,
+  ToolError,
+  type WaitlistRead,
+} from "../_shared/domain/agent/types.ts";
 import { canonicalJson, sha256Hex } from "../_shared/http/command.ts";
 import { mapDbError } from "../_shared/http/errors.ts";
 import { type Clock, corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
@@ -167,11 +177,18 @@ export function createAgentHandler(deps: AgentDeps) {
         directory: () => tool<Directory>("agent_directory", {}),
         agenda: (w: Window) => tool<Agenda>("agent_agenda_read", { p_from: w.starts_at, p_to: w.ends_at }),
         finance: (w: Window) => tool<Finance>("agent_finance_read", { p_from: w.starts_at, p_to: w.ends_at }),
+        // Revisão 06/11 (T8): leituras para explicar e ajudar a configurar, sem nome de cliente nem recado.
+        setup: () => tool<SetupRead>("agent_setup_read", {}),
+        insights: () => tool<InsightsRead>("agent_insights_read", {}),
+        waitlist: () => tool<WaitlistRead>("agent_waitlist_read", {}),
+        lifecycle: () => tool<LifecycleRead>("agent_lifecycle_read", {}),
       };
       // 2 · motor: o texto do usuário e os dados do negócio são dados; ui_context não muda tenant nem papel.
       //     Pedido que o motor não entende passa pelo modelo (se ligado), que só escolhe intenção e argumentos.
       const { result, llm: llmUse } = await understand(input.data.text, {
         tenant: { id: tenantId, name: start.tenant_name, timezone: start.timezone }, role: start.role, now: clock.now(),
+        // T10: ids do que está na tela; só resolvem "essa sugestão"/"esse cliente" contra o que as ferramentas devolvem.
+        ui: input.data.ui_context,
       }, data, llm);
       meta.intent = result.intent;
       meta.tool_calls = result.tool_calls.length;
