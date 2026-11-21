@@ -1,24 +1,20 @@
 // Módulo Privacidade · P57 (D26). Só esta pasta pertence ao módulo. Registro no app (src/app/modules.ts, o código
 // "privacy" em ModuleCode de @contracts e o link em Conta) é do integrador: recado no handoff do P57.
 // Sem Supabase (demonstração offline) usa a emulação local, sempre rotulada; com Supabase, a função `privacy`.
-import { useMemo } from "react";
+import { usePort } from "../../app/api.tsx";
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { appEnv } from "../../app/env.ts";
 import { useSession } from "../../app/session.tsx";
 import { Card, StatusBanner } from "../../components/ui/index.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
 import { createDemoPort } from "./demoPort.ts";
 import type { PrivacyPort } from "./port.ts";
 import { PrivacyPage } from "./PrivacyPage.tsx";
 import { createServerPort } from "./serverPort.ts";
 
+// P53 (recado #146): o cliente da sessão, não um cliente próprio. Fábricas fora do componente (estáveis).
+const PORTS = { demo: createDemoPort, server: createServerPort };
+
 export function usePrivacyPort(): PrivacyPort | null {
-  const { state, tenantId, getAccessToken } = useSession();
-  return useMemo<PrivacyPort | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return createDemoPort();
-    if (!tenantId) return null;
-    return createServerPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken }), tenantId);
-  }, [state.status, tenantId, getAccessToken]);
+  return usePort<PrivacyPort>(PORTS);
 }
 
 export function PrivacyLayout() {

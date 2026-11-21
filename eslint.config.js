@@ -77,9 +77,6 @@ const LEGACY_CLIENT = [
   "src/features/finance/module.tsx",
   "src/features/lifecycle/module.tsx",
   "src/features/messaging/unread.ts",
-  // P57 entrou na main antes do P53 e cria o próprio cliente; a main ficou com lint vermelho. Fica aqui até a migração
-  // (anotado no handoff da Agenda do personal).
-  "src/features/privacy/module.tsx",
   "src/features/sales/owner-slug.ts",
   "src/features/sales/public-kit.tsx",
 ];

@@ -1,6 +1,6 @@
 // Porta real: Edge Function `privacy` (exportar e eliminar) e a busca de clientes do CRM pelo contrato.
 import { CustomerListOutput } from "@contracts";
-import type { createApiClient } from "../../lib/api/client.ts";
+import type { ApiCall } from "../../lib/api/session-client.ts";
 import {
   PrivacyEraseOutput,
   PrivacyErasuresListOutput,
@@ -9,7 +9,7 @@ import {
 } from "../../../supabase/functions/privacy/contract.ts";
 import type { PrivacyPort } from "./port.ts";
 
-type Call = ReturnType<typeof createApiClient>;
+type Call = ApiCall;
 const op = (name: string) => `/privacy/${name}`;
 
 export function createServerPort(call: Call, tenantId: string): PrivacyPort {
