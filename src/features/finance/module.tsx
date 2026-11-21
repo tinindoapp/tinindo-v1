@@ -1,55 +1,13 @@
 // Módulo Caixa · P07 (tasks/P07.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 // Sem Supabase (demonstração offline) usa a emulação local, sempre rotulada; com Supabase, a função `finance`.
-import { useMemo } from "react";
+// Manifesto (P53): a tela fica em routes.tsx e é carregada sob demanda. O caixa emulado (demo.ts) segue exportado daqui
+// porque a Hoje e o "Atendido" da Agenda usam o mesmo.
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { appEnv } from "../../app/env.ts";
-import { useSession } from "../../app/session.tsx";
-import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
-import { completedVisits, provideDemoCollect } from "../../lib/demo/journey.ts";
-import { createDemoPort } from "./demoPort.ts";
-import { FinancePage, FinancePortProvider } from "./FinancePage.tsx";
-import type { FinancePort } from "./port.ts";
-import { createServerPort } from "./serverPort.ts";
+import { screen } from "../../app/lazy-route.ts";
+import { getDemoPort, resetDemoPort } from "./demo.ts";
 import "./finance.css";
 
-let demoPort: FinancePort | null = null;
-/** Uma emulação por carregamento de página: as mudanças valem enquanto a aba estiver aberta. */
-export function getDemoPort(): FinancePort {
-  // Atendimentos concluídos na Agenda da mesma aba aparecem aqui como "sem cobrança" (nunca como recebidos).
-  demoPort ??= createDemoPort({ visits: completedVisits });
-  return demoPort;
-}
-/** Só para testes. */
-export function resetDemoPort() {
-  demoPort = null;
-}
-// P48: "Atendido" na Agenda e na Hoje cobra neste mesmo caixa emulado (o mesmo que a tela do Caixa lê).
-provideDemoCollect(getDemoPort);
-
-function FinanceLayout() {
-  const { state, tenantId, getAccessToken } = useSession();
-  const port = useMemo<FinancePort | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return getDemoPort();
-    if (!tenantId) return null;
-    const call = createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken });
-    return createServerPort(call, tenantId);
-  }, [state.status, tenantId, getAccessToken]);
-
-  if (!port) {
-    return (
-      <div className="tn-page-intro">
-        <PageHeader id="fin-no-tenant" title="Caixa" />
-        <StatusBanner tone="info">Selecione um negócio para ver o caixa.</StatusBanner>
-      </div>
-    );
-  }
-  return (
-    <FinancePortProvider value={port}>
-      <FinancePage key={`${port.kind}:${tenantId ?? ""}`} />
-    </FinancePortProvider>
-  );
-}
+export { getDemoPort, resetDemoPort };
 
 export const financeModule: ModuleDefinition = {
   id: "finance",
@@ -58,5 +16,5 @@ export const financeModule: ModuleDefinition = {
   level: "pilot",
   path: "caixa",
   navLabel: "Caixa",
-  routes: [{ index: true, element: <FinanceLayout /> }],
+  routes: [{ index: true, lazy: screen(() => import("./routes.tsx"), (m) => m.FinanceLayout) }],
 };

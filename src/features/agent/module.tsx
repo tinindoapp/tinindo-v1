@@ -1,42 +1,9 @@
 // Módulo Assistente · P08 (tasks/P08.md). Só esta pasta pertence ao módulo; src/app/modules.ts é do integrador.
 // Sem Supabase (demonstração offline) usa o mesmo motor sobre dados de exemplo; com Supabase, a função `agent`.
-import { useMemo } from "react";
-import { useLocation } from "react-router";
+// Manifesto (P53): a tela fica em routes.tsx e é carregada sob demanda.
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { appEnv } from "../../app/env.ts";
-import { useSession } from "../../app/session.tsx";
-import { PageHeader, StatusBanner } from "../../components/ui/index.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
-import { AgentPage, AgentPortProvider, type InitialDraft } from "./AgentPage.tsx";
-import { createDemoPort } from "./demoPort.ts";
-import type { AgentPort } from "./port.ts";
-import { createServerPort } from "./serverPort.ts";
+import { screen } from "../../app/lazy-route.ts";
 import "./agent.css";
-
-function AgentLayout() {
-  const { state, tenantId, getAccessToken } = useSession();
-  // "Ajustar o texto com o assistente" de outras telas chega como estado da navegação (fica no navegador, fora da URL).
-  const initialDraft = (useLocation().state as { draft?: InitialDraft } | null)?.draft;
-  const port = useMemo<AgentPort | null>(() => {
-    if (state.status === "offline_demo" || !appEnv.supabase) return createDemoPort();
-    if (!tenantId) return null;
-    return createServerPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken }), tenantId);
-  }, [state.status, tenantId, getAccessToken]);
-  if (!port) {
-    return (
-      <div className="tn-page-intro">
-        <PageHeader id="ag-no-tenant" title="Assistente" />
-        <StatusBanner tone="info">Selecione um negócio para usar o assistente.</StatusBanner>
-      </div>
-    );
-  }
-  return (
-    <AgentPortProvider value={port}>
-      {/* Trocar de negócio recomeça a conversa: nada de um negócio vira contexto de outro. */}
-      <AgentPage key={`${port.kind}:${tenantId ?? ""}`} initialDraft={initialDraft} />
-    </AgentPortProvider>
-  );
-}
 
 export const agentModule: ModuleDefinition = {
   id: "agent",
@@ -45,5 +12,5 @@ export const agentModule: ModuleDefinition = {
   level: "pilot",
   path: "assistente",
   navLabel: "Assistente",
-  routes: [{ index: true, element: <AgentLayout /> }],
+  routes: [{ index: true, lazy: screen(() => import("./routes.tsx"), (m) => m.AgentLayout) }],
 };

@@ -2,9 +2,8 @@
 // (recado #89) a cada troca de tela e, com a aba visível, a cada minuto. Sem canal, sem permissão (só o dono lê o canal)
 // ou com erro, não mostra selo. Nunca inventa número.
 import { useEffect, useMemo, useState } from "react";
-import { appEnv } from "../../app/env.ts";
+import { useApi } from "../../app/api.tsx";
 import { useSession } from "../../app/session.tsx";
-import { createApiClient } from "../../lib/api/client.ts";
 import { createDemoPort } from "./demoPort.ts";
 import type { Inbox, MessagingPort } from "./port.ts";
 import { createServerPort } from "./serverPort.ts";
@@ -18,16 +17,17 @@ export const unreadTotal = (inbox: Inbox) => inbox.contacts.reduce((n, k) => n +
 
 /** Total de mensagens não lidas do negócio. `refreshKey` (a rota atual) faz ler de novo. */
 export function useUnreadMessages(refreshKey: string, active = true): number {
-  const { state, tenantId, getAccessToken } = useSession();
-  const demo = state.status === "offline_demo" || !appEnv.supabase;
+  const { state } = useSession();
+  // P53 (recado #148): o cliente da sessão, não um cliente próprio.
+  const { demo, call, tenantId } = useApi();
   // P51: `active` falso (Mensagens não aparece para o negócio) = não lê nada.
   const ready = active && (state.status === "offline_demo" || state.status === "signed_in");
   const port = useMemo<MessagingPort | null>(() => {
     if (!ready) return null;
     if (demo) return createDemoPort();
-    if (!tenantId || !appEnv.supabase) return null;
-    return createServerPort(createApiClient({ baseUrl: appEnv.supabase.url, publishableKey: appEnv.supabase.publishableKey, getAccessToken }), tenantId);
-  }, [ready, demo, tenantId, getAccessToken]);
+    if (!tenantId || !call) return null;
+    return createServerPort(call, tenantId);
+  }, [ready, demo, call, tenantId]);
   const [count, setCount] = useState<{ port: MessagingPort; n: number } | null>(null);
   useEffect(() => {
     if (!port) return;

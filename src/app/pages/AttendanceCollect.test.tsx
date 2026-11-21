@@ -133,7 +133,8 @@ describe("Atendido → receber, no detalhe do atendimento (P48)", () => {
     // O detalhe aponta o Caixa no próprio atendimento.
     expect(await screen.findByRole("link", { name: "Cobrar no Caixa" }, SLOW)).toHaveAttribute("href", `/app/caixa?atendimento=${FIRST}`);
     await act(async () => { fireEvent.click(within(toaster()).getByRole("button", { name: "Abrir no Caixa" })); });
-    expect(router.state.location.pathname).toBe("/app/caixa");
+    // O Caixa vem sob demanda (P53): a navegação termina quando a tela carrega.
+    await waitFor(() => expect(router.state.location.pathname).toBe("/app/caixa"), SLOW);
     expect(router.state.location.search).toBe(`?atendimento=${FIRST}`);
     // A cobrança foi criada (o primeiro registro passou): o recebimento dela abre direto, com o foco no valor.
     const open = within(await screen.findByRole("region", { name: "A receber" }, SLOW));

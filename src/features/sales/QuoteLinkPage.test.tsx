@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FX, tenantA } from "@contracts/fixtures.ts";
 import { createDemoLinkPort, createDemoPort, resetDemoState } from "./demoPort.ts";
 import type { QuoteDraft, QuoteLinkPort } from "./port.ts";
-import { setPublicBusinessReader } from "./public-kit.tsx";
+import { setPublicBusinessReader } from "../../components/public/public-kit.tsx";
 import { QuoteLinkPage } from "./QuoteLinkPage.tsx";
 import { quoteLink, quoteMessage } from "./QuotesPage.tsx";
 
