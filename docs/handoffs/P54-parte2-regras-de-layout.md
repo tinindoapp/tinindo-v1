@@ -149,6 +149,11 @@ Assinaturas. Cada uma tem teste de unidade.
 **e2e:** só seletores. `insights.spec` abre a seção "Resumo da semana" antes de ler; `canal`, `assinaturas`, `lista` e
 `uat-barbeiro` seguem as linhas novas.
 
+**e2e compartilhado:** no celular, `openFromNav` (`tests/e2e/qa/helpers.ts`) agora tenta abrir o Menu até ele ficar
+aberto. Em `uat-barbeiro` 1a, o toque no Menu chegava antes de a rota de Clientes terminar de carregar, e a troca de
+rota fechava a folha. Falhava em 2 de 10 execuções com este grupo e em 0 de 10 na `main`. É um caso de
+tempo do teste; quem usa o app vê o menu fechar se tocar enquanto a tela carrega (casca, `src/app`, fora da área).
+
 **Recados:** `P54-parte2/recados-grupo-mensagens.md`, juntos na issue #169.
 - **Kit:** `ActionRow` com conteúdo embaixo e `ConfirmAction` aberto pelo "⋯". As quatro cópias locais de `rows.tsx` somem com isso.
 - **Resumo da semana:** variante de seção do `WeeklyDigestCard`.
