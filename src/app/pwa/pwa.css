@@ -18,6 +18,8 @@
   box-shadow: var(--tn-elevation-2);
 }
 .tn-pwa-bar p { margin: 0; flex: 1 1 14rem; }
+/* Sem conexão: fundo de aviso opaco, para não parecer dado ao vivo. */
+.tn-pwa-bar[data-tone="warning"] { background: var(--tn-warning-bg); color: var(--tn-warning-text); border-color: currentColor; }
 .tn-pwa-bar__actions { display: flex; gap: var(--tn-space-2); flex-wrap: wrap; }
 .tn-pwa-bar__actions .tn-button { min-height: 44px; }
 .tn-pwa-bar + .tn-pwa-bar { bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-3) + 5.5rem); }

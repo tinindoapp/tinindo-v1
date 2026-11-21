@@ -4,7 +4,8 @@
 // O que o service worker faz, e o que nunca faz:
 // - Navegação (abrir uma tela): rede primeiro. Sem rede, o app guardado (index.html), para a casca abrir.
 // - Arquivos do build com hash (/assets/*): do cache, que nunca muda para o mesmo nome.
-// - Chamadas às Edge Functions: passam direto pela rede. Gravação (POST de comando) nunca é guardada nem posta em fila.
+// - Chamadas às Edge Functions: as leituras da Hoje e da Agenda guardam a última resposta para abrir sem internet
+//   (sw-offline.ts); comando vai só pela rede e, sem ela, falha na hora. Nada é guardado nem posto em fila para depois.
 // - Páginas do cliente final (/p, /pagar, /reserva…): passam direto; o cliente não precisa do app guardado.
 import { isPublicPath } from "../public-paths.ts";
 
@@ -69,4 +70,4 @@ export function precacheList(bundleFiles: readonly string[], publicFiles: readon
 }
 
 /** Mensagens entre a página e o service worker. */
-export const SW_MESSAGE = { skipWaiting: "tinindo:skip-waiting" } as const;
+export const SW_MESSAGE = { skipWaiting: "tinindo:skip-waiting", clearOffline: "tinindo:clear-offline" } as const;
