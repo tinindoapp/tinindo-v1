@@ -84,7 +84,11 @@
 @media (min-width: 900px) { .tn-card { padding: var(--tn-space-6); } }
 
 /* min-width/width: campos nativos não podem alargar o cartão em 320 px (WCAG 1.4.10). */
-.tn-field { display: grid; gap: var(--tn-space-1); min-width: 0; align-content: start; }
+.tn-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--tn-space-1); min-width: 0; align-content: start; }
+/* Safari: o texto da opção comprida de um select vaza da caixa no layout (mesmo com width 100%) e a tela rola de lado
+   em 320 px (/app/conta tinha 339 px). contain: paint prende o desenho do select na própria caixa; o anel de foco do
+   próprio campo não é cortado. */
+.tn-field select { contain: paint; }
 .tn-field label { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
 .tn-field input:not([type="checkbox"], [type="radio"]),
 .tn-field select,
@@ -120,6 +124,14 @@
 @media (pointer: coarse) {
   input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea { font-size: max(16px, 1em) !important; }
 }
+/* iPhone (bloco 1 da revisão de qualidade):
+   - toque duplo: sem `manipulation` o Safari espera para saber se foi um zoom de toque duplo e, em toque rápido em
+     "+"/"−" ou nas setas da agenda, amplia a tela em vez de tocar duas vezes. O zoom de pinça continua.
+   - data e hora: no iOS o campo vazio encolhe (sem texto, a altura vira a da fonte) e o valor fica centralizado;
+     altura de toque e texto à esquerda, como os outros campos. */
+:where(a, button, input, select, textarea, label, summary, [role="button"], [role="tab"]) { touch-action: manipulation; }
+:where(input[type="date"], input[type="time"], input[type="datetime-local"]) { min-height: var(--tn-size-touch); text-align: start; }
+:where(input[type="date"], input[type="time"], input[type="datetime-local"])::-webkit-date-and-time-value { text-align: start; min-height: 1.5em; }
 :where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(textarea) { padding: var(--tn-space-2) var(--tn-space-3); min-height: 96px; }
 :where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(input, select, textarea):focus-visible { border-color: var(--tn-text); }
 :where(.tn-app, .tn-auth, .tn-net-public, .tn-dir-page, .tn-rev-page, .tn-site-page, .tn-pay-public) :where(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; accent-color: var(--tn-action); }
