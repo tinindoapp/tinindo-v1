@@ -440,7 +440,7 @@ async function codigoNoSimulador(page: Page, e164: string): Promise<string> {
 async function conectarNumeroSimulado(page: Page, e164: string) {
   await expect(page.getByRole("heading", { name: "Conecte o número do seu negócio" })).toBeVisible();
   const form = page.getByRole("form", { name: "Conectar número" });
-  await form.getByLabel("Provedor").selectOption("simulated");
+  await expect(form.getByText("Provedor: Simulado (sem envio real)")).toBeVisible();
   await form.getByLabel("Número do negócio (formato internacional)").fill(e164);
   await form.getByRole("button", { name: "Conectar" }).click();
   await expect(page.getByRole("heading", { name: "Falta verificar o número" })).toBeVisible();

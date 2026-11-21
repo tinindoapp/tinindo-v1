@@ -32,13 +32,10 @@ test("pagamentos: cobrança Pix pelo provedor simulado, cliente paga pelo link, 
   await expect(page.getByText("nenhum dinheiro existe")).toBeVisible();
   await expect(page.getByText("Nenhuma cobrança ainda")).toBeVisible();
 
-  // Pix de verdade sem credenciais: recusa explícita.
+  // O provedor é do servidor (segredo PSP_PROVIDER): a tela só mostra qual é, sem escolha.
   const form = page.getByRole("form", { name: "Cobrar por Pix" });
-  await expect(form.getByLabel("Como receber")).toContainText("Recebimento simulado (demonstração)");
-  await form.getByLabel("Como receber").selectOption("psp");
-  await form.getByRole("button", { name: "Gerar cobrança Pix" }).click();
-  await expect(page.getByText(/O banco não respondeu ou o Pix de verdade ainda não está ligado/)).toBeVisible();
-  await form.getByLabel("Como receber").selectOption("simulated");
+  await expect(form.getByText("Como receber: Recebimento simulado (demonstração)")).toBeVisible();
+  await expect(form.getByLabel("Como receber")).toHaveCount(0);
   const url = await chargeFirst(page);
   expect(url).toMatch(/\/pagar#t=[A-Za-z0-9_-]{43}$/);
   const list = page.getByRole("region", { name: "Cobranças" });

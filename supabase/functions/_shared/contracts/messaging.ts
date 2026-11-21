@@ -29,15 +29,20 @@ export const ChannelTemplate = z.object({
 });
 
 export const ChannelStatusInput = z.object({});
+/** Provedor que o servidor usa para número novo (segredo MESSAGING_PROVIDER). Sem segredo nenhum: só o estado. */
+export const ChannelActiveProvider = z.object({ active: ChannelProvider, real: z.boolean(), configured: z.boolean() });
 export const ChannelStatusOutput = z.object({
   connection: ChannelConnection.nullable(),
+  /** Opcional para tolerar servidor antigo. */
+  provider: ChannelActiveProvider.optional(),
   queued: z.int().min(0),
   unknown: z.int().min(0),
   templates: z.array(ChannelTemplate),
 });
 
 export const ChannelConnectInput = z.object({
-  provider: ChannelProvider,
+  /** Ignorado pelo servidor: o número nasce no provedor ativo (MESSAGING_PROVIDER). Mantido para clientes antigos. */
+  provider: ChannelProvider.optional(),
   phone_e164: PhoneE164,
   /** phone_number_id na API oficial; vazio no simulado. */
   external_account_id: z.string().trim().max(80).nullable().optional(),
