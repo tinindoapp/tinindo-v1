@@ -33,11 +33,21 @@ export async function openFromNav(page: Page, name: string) {
   await expect(menu.or(nav).filter({ visible: true }).first()).toBeVisible();
   if (await menu.isVisible()) {
     // Logo depois de um clique no menu, a tela anterior pode ainda estar carregando: quando a rota troca, a casca fecha
-    // a folha que acabou de abrir. Tenta de novo até a folha ficar aberta.
+    // a folha que acabou de abrir, às vezes já depois de ela ter aberto (com a máquina carregada, no Safari e no Chrome).
+    // Abrir e tocar no link vão juntos na nova tentativa, com prazo curto no clique, para não esperar 30 s por um link
+    // que a folha recém-fechada escondeu.
+    const link = nav.getByRole("link", { name, exact: true });
+    let sameRoute = false;
     await expect(async () => {
       if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
       await expect(menu).toHaveAttribute("aria-expanded", "true", { timeout: 1000 });
+      sameRoute = (await link.getAttribute("aria-current", { timeout: 2000 })) === "page";
+      await link.click({ timeout: 2000 });
     }).toPass();
+    // A troca de rota fecha a folha: espera ela fechar, para o próximo passo não pegar a folha no meio. Não é exigência:
+    // quando a tela segura a saída ("Sair sem salvar?"), a rota não troca e a folha fica aberta de propósito.
+    if (!sameRoute) await menu.page().waitForFunction(() => document.querySelector('[aria-controls="tn-menu"]')?.getAttribute("aria-expanded") === "false", null, { timeout: 3000 }).catch(() => undefined);
+    return;
   }
   await expect(nav).toBeVisible();
   await nav.getByRole("link", { name, exact: true }).click();

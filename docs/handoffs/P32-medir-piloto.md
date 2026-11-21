@@ -69,3 +69,45 @@ com a área definida no pedido. Sem `claim`, como nos pacotes P54 a P58.
 | `tests/integration/55_p32_uso.test.ts` | 3 casos pela função `analytics` com o banco real |
 | `tests/contracts/pilot/usage-contracts.test.ts` | rotas ↔ parâmetros das RPCs, `security definer`, sem anon |
 | `tests/e2e/analytics/medicao-uso.spec.ts` | desktop, Pixel 7 e 375 px; na demonstração nenhuma chamada de uso sai |
+
+## Bloco 2 · Funil do primeiro dia
+
+### Entregue
+
+- **Migration** `…_p32_funil.sql`:
+  - `public.usage_days` (negócio, dia no fuso do negócio): só a data em que o app foi usado. Gravada pelo
+    `usage_record` (redefinido, mesmo corpo do bloco 1 mais esta linha) e apagada ao desligar a medição. Fica com o
+    negócio (sem prazo na tabela do P57: não tem hora, usuário nem conteúdo).
+  - `app.pilot_funnel_of(negócio)`: sete passos pela **data real** de cada dado, sem flag gravada à mão:
+    1. `signup` criou a conta (`tenants.created_at`);
+    2. `configured` expediente, serviço com preço e antecedência de cancelamento (`app.setup_state` do P44; a data do último dos três);
+    3. `link_published` perfil publicado (P09/P44);
+    4. `first_booking` primeiro agendamento, de qualquer origem;
+    5. `first_service` primeiro atendimento concluído (auditoria `booking.complete`);
+    6. `first_payment` primeiro recebimento sem estorno;
+    7. `returned` voltou no dia seguinte (uso do app em `usage_days` ou ação na auditoria no dia seguinte ao da conta,
+       no fuso do negócio). Só sim ou não.
+    - Cada passo traz `minutes_since_previous` (desde o último passo feito) e `minutes_since_signup`.
+  - `public.pilot_funnel()`: só operador ativo (`app.svc_operator`), até 200 negócios com `truncated` (regra do P56).
+- **Função nova `pilot`** (`supabase/functions/pilot`): rota `pilot.funnel` sem negócio selecionado; o contrato
+  fica em `contract.ts` da própria função, fora do registro v1 (recado). Usa `withBuild`, como as outras.
+
+### Decisões
+
+- **"Voltou no dia seguinte" pelo negócio, não pela pessoa:** não há usuário no evento (bloco 1). Uso do app ou ação
+  na auditoria contam; assim vale mesmo com a medição desligada (a auditoria já existe).
+- **"Configurou" = os três obrigatórios do P44 menos o perfil**, que vira o passo seguinte ("publicou o link").
+
+### Fora da área
+
+- `supabase/tests/database/37_list_truncated.test.sql`: a contagem de leituras com `truncated` sobe (17 com o
+  `pilot_funnel`).
+- `tests/integration/harness.ts`: a função `pilot` entra no mapa de handlers.
+
+### Testes
+
+| Comando | Resultado |
+|---|---|
+| `supabase/tests/database/57_p32_funil.test.sql` | 16 verificações: só datas e contagens, sete passos na ordem, negócio novo 1 de 7, "voltou" pelo dia seguinte no fuso (mesmo dia não conta), data real do agendamento, tempo nunca negativo, só operador lê |
+| `tests/integration/56_p32_funil.test.ts` | dono recebe 403; operador vê os sete passos, sem contato nem valor |
+| `supabase/functions/pilot/handler.test.ts` e `tests/contracts/pilot/pilot-contracts.test.ts` | sem negócio, leitura, parâmetros da RPC, resposta fora do contrato vira 500 |

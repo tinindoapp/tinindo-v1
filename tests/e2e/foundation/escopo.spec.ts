@@ -57,8 +57,10 @@ test("Mais recursos: ligar Assinaturas põe no menu e abre a tela; desligar tira
   await expect(page.getByRole("heading", { name: "Assinaturas", level: 1 })).toBeVisible();
   expect(await menuLabels(page)).toContain("Assinaturas");
 
-  // Recarregar mantém a escolha na aba.
-  await page.reload();
+  // Recarregar mantém a escolha na aba. Abre o mesmo endereço de novo em vez de page.reload(): no WebKit do Playwright,
+  // recarregar uma página que veio por history.pushState e depois navegar derruba a aba (defeito do motor de teste,
+  // reproduzido até na tela Entrar). A carga completa é a mesma.
+  await page.goto(page.url());
   await expect(page.getByRole("heading", { name: "Assinaturas", level: 1 })).toBeVisible();
 
   await page.goto("/app/conta/recursos");
