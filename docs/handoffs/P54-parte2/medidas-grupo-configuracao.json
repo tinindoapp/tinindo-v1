@@ -1,0 +1,277 @@
+{
+  "medido_em": "390x844, demonstração (módulos todos ligados, como o medir.cjs), docs/handoffs/P54-parte2/medir.cjs",
+  "nota": "blackNonAction só faz sentido no tema claro (no escuro a superfície é quase preta).",
+  "configurar": {
+    "antes": {
+      "claro": {
+        "url": "/app/configurar",
+        "height": 2517,
+        "screens": 2.98,
+        "h1": "Deixe seu negócio pronto",
+        "textCount": 76,
+        "minRatio": 2.48,
+        "contrastFails": [
+          {
+            "text": "Corte · já no catálogo",
+            "r": 3.54,
+            "need": 4.5
+          },
+          {
+            "text": "30 min · faixa R$ 35,00 a R$ 70,00",
+            "r": 2.48,
+            "need": 4.5
+          },
+          {
+            "text": "Barba · já no catálogo",
+            "r": 3.54,
+            "need": 4.5
+          },
+          {
+            "text": "20 min · faixa R$ 25,00 a R$ 50,00",
+            "r": 2.48,
+            "need": 4.5
+          }
+        ],
+        "contrastFailCount": 4,
+        "targetCount": 26,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 8,
+        "blackNonAction": [
+          "span.tn-setup-step__mark ✓",
+          "span.tn-setup-step__mark ✓",
+          "span.tn-setup-step__mark ✓",
+          "span.tn-setup-step__mark ✓",
+          "span.tn-setup-step__mark ✓"
+        ]
+      },
+      "escuro": {
+        "url": "/app/configurar",
+        "height": 2517,
+        "screens": 2.98,
+        "h1": "Deixe seu negócio pronto",
+        "textCount": 76,
+        "minRatio": 3.26,
+        "contrastFails": [
+          {
+            "text": "30 min · faixa R$ 35,00 a R$ 70,00",
+            "r": 3.26,
+            "need": 4.5
+          },
+          {
+            "text": "20 min · faixa R$ 25,00 a R$ 50,00",
+            "r": 3.26,
+            "need": 4.5
+          }
+        ],
+        "contrastFailCount": 2,
+        "targetCount": 26,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 22,
+        "blackNonAction": [
+          "section.tn-card Passos · 5 de 8 feitosOs quatr",
+          "li.tn-setup-step ✓Definir seus horários de aten",
+          "li.tn-setup-step ✓Cadastrar um serviço com dura",
+          "li.tn-setup-step ✓Definir a antecedência para c",
+          "li.tn-setup-step ✓Cadastrar seu primeiro client",
+          "li.tn-setup-step 6Pôr foto e WhatsApp no perfil",
+          "li.tn-setup-step 7Conectar e verificar seu núme",
+          "li.tn-setup-step ✓Registrar o primeiro recebime",
+          "section.tn-card Descreva seu negócio em uma fr",
+          "textarea. "
+        ]
+      }
+    },
+    "depois": {
+      "claro": {
+        "url": "/app/configurar",
+        "height": 1165,
+        "screens": 1.38,
+        "h1": "Deixe seu negócio pronto",
+        "textCount": 53,
+        "minRatio": 6.12,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 29,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 2,
+        "blackNonAction": []
+      },
+      "escuro": {
+        "url": "/app/configurar",
+        "height": 1165,
+        "screens": 1.38,
+        "h1": "Deixe seu negócio pronto",
+        "textCount": 53,
+        "minRatio": 7.62,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 29,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 13,
+        "blackNonAction": [
+          "ol.tn-list tn-setup-steps Próximo passoPublicar seu perf",
+          "textarea. ",
+          "label.tn-choice Corte e barba50 min · faixa R$"
+        ]
+      }
+    }
+  },
+  "servicos": {
+    "antes": {
+      "claro": {
+        "url": "/app/clientes/servicos",
+        "height": 844,
+        "screens": 1,
+        "h1": "Serviços",
+        "textCount": 27,
+        "minRatio": 6.12,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 14,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 2,
+        "blackNonAction": []
+      },
+      "escuro": {
+        "url": "/app/clientes/servicos",
+        "height": 844,
+        "screens": 1,
+        "h1": "Serviços",
+        "textCount": 27,
+        "minRatio": 9.04,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 14,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 10,
+        "blackNonAction": [
+          "section.tn-card Lista de serviçosCorte30 min ·",
+          "li.crm-item crm-service Corte30 min · intervalo 0 ante",
+          "li.crm-item crm-service Barba20 min · intervalo 0 ante"
+        ]
+      }
+    },
+    "depois": {
+      "claro": {
+        "url": "/app/clientes/servicos",
+        "height": 844,
+        "screens": 1,
+        "h1": "Serviços",
+        "textCount": 27,
+        "minRatio": 6.12,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 16,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 2,
+        "blackNonAction": []
+      },
+      "escuro": {
+        "url": "/app/clientes/servicos",
+        "height": 844,
+        "screens": 1,
+        "h1": "Serviços",
+        "textCount": 27,
+        "minRatio": 9.04,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 16,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 6,
+        "blackNonAction": [
+          "ul.tn-list Corte30 min · intervalo 0 ante"
+        ]
+      }
+    }
+  },
+  "precos": {
+    "antes": {
+      "claro": {
+        "url": "/app/precos",
+        "height": 2389,
+        "screens": 2.83,
+        "h1": "Preços",
+        "textCount": 63,
+        "minRatio": 6.12,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 28,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 2,
+        "blackNonAction": []
+      },
+      "escuro": {
+        "url": "/app/precos",
+        "height": 2389,
+        "screens": 2.83,
+        "h1": "Preços",
+        "textCount": 63,
+        "minRatio": 9.04,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 28,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 23,
+        "blackNonAction": [
+          "section.tn-card Simulador de descontoCálculo r",
+          "select. CorteBarba",
+          "input. ",
+          "input. ",
+          "li.tn-pr-item Corte · Terça 13:00–17:00Desco",
+          "select. CorteBarba",
+          "label.tn-chip Seg",
+          "label.tn-chip Qua",
+          "label.tn-chip Qui",
+          "label.tn-chip Sex"
+        ]
+      }
+    },
+    "depois": {
+      "claro": {
+        "url": "/app/precos",
+        "height": 844,
+        "screens": 1,
+        "h1": "Preços",
+        "textCount": 44,
+        "minRatio": 6.12,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 20,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 2,
+        "blackNonAction": []
+      },
+      "escuro": {
+        "url": "/app/precos",
+        "height": 844,
+        "screens": 1,
+        "h1": "Preços",
+        "textCount": 44,
+        "minRatio": 9.04,
+        "contrastFails": [],
+        "contrastFailCount": 0,
+        "targetCount": 20,
+        "smallTargets": [],
+        "smallTargetCount": 0,
+        "blackFills": 9,
+        "blackNonAction": [
+          "ul.tn-list Corte · Terça 13:00–17:00Desco",
+          "select. CorteBarba",
+          "input. ",
+          "input. "
+        ]
+      }
+    }
+  }
+}

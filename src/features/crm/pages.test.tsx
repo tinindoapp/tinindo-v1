@@ -304,7 +304,10 @@ describe("serviços", () => {
     expect(within(item).getByText(/R\$\s60,00/)).toHaveClass("crm-price");
     expect(item).not.toHaveTextContent(/piso|custo/);
     expect(screen.queryByRole("group", { name: "Começar de um modelo" })).not.toBeInTheDocument();
-    fireEvent.click(within(item).getByRole("button", { name: "Editar Corte" }));
+    // P54: uma ação visível por linha (o preço); Editar e Arquivar no "⋯".
+    expect(within(item).queryByRole("button", { name: "Editar Corte" })).not.toBeInTheDocument();
+    await menuAction("Corte", "Editar");
+    expect(screen.getByLabelText("Preço à vista (R$)")).toHaveValue("60,00");
     expect(screen.getByLabelText("Piso (R$)")).toHaveValue("45,00");
     // Editar não oferece modelos (só "Novo serviço").
     expect(screen.queryByRole("group", { name: "Começar de um modelo" })).not.toBeInTheDocument();
@@ -332,7 +335,7 @@ describe("serviços", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Novo serviço" }));
     type("Nome", "Rápido");
     type("Duração (min)", duration);
-    type("Preço base (R$)", "50");
+    type("Preço à vista (R$)", "50");
     type("Piso (R$)", "40");
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText(/Duração entre 5 minutos e 24 horas/)).toBeInTheDocument();
@@ -346,7 +349,7 @@ describe("serviços", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Novo serviço" }));
     fireEvent.click(within(screen.getByRole("group", { name: "Começar de um modelo" })).getByRole("button", { name: "Modelo: Corte e barba (50 min)" }));
     expect(screen.getByLabelText("Duração (min)")).toHaveValue("50");
-    type("Preço base (R$)", "89,90");
+    type("Preço à vista (R$)", "89,90");
     type("Piso (R$)", "70");
     expect(screen.getByText(/piso é manual/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
@@ -367,17 +370,58 @@ describe("serviços", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Novo serviço" }));
     type("Nome", "Caro");
     type("Duração (min)", "30");
-    type("Preço base (R$)", "50");
+    type("Preço à vista (R$)", "50");
     type("Piso (R$)", "60");
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText(/não pode passar do preço base/)).toBeInTheDocument();
+    expect(await screen.findByText(/não pode passar do preço à vista/)).toBeInTheDocument();
+    // O erro está em "Mais opções": a seção abre sozinha para o campo aparecer.
+    expect(screen.getByText("Mais opções").closest("details")).toHaveAttribute("open");
     expect(api.saveService).not.toHaveBeenCalled();
+  });
+
+  it("formulário curto: Nome, Duração e Preço à vista; piso em branco é o próprio preço", async () => {
+    const api = fakeApi();
+    renderWith(api, <ServicesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Novo serviço" }));
+    expect(screen.getByText("Mais opções").closest("details")).not.toHaveAttribute("open");
+    type("Nome", "Pezinho");
+    type("Duração (min)", "15");
+    type("Preço à vista (R$)", "25");
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(api.saveService).toHaveBeenCalled());
+    expect(vi.mocked(api.saveService).mock.calls[0]![0]).toMatchObject({ name: "Pezinho", duration_min: 15, base_price_cents: 2500, min_price_cents: 2500 });
+  });
+
+  it("preço editável direto na linha; piso próprio fica; piso acima do preço novo é negado com o caminho", async () => {
+    const api = fakeApi();
+    renderWith(api, <ServicesPage />);
+    const price = await screen.findByRole("button", { name: /^Mudar o preço de Corte/ });
+    fireEvent.click(price);
+    const form = screen.getByRole("form", { name: "Preço de Corte" });
+    fireEvent.change(within(form).getByLabelText("Preço à vista de Corte (R$)"), { target: { value: "40" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Salvar preço" }));
+    expect(await within(form).findByText(/^O piso deste serviço é R\$\s45,00, acima do preço novo\. Mude o piso em Editar\.$/)).toBeInTheDocument();
+    expect(api.saveService).not.toHaveBeenCalled();
+    fireEvent.change(within(form).getByLabelText("Preço à vista de Corte (R$)"), { target: { value: "70" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Salvar preço" }));
+    await waitFor(() => expect(api.saveService).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(api.saveService).mock.calls[0]![0]).toMatchObject({ name: "Corte", base_price_cents: 7000, min_price_cents: 4500 });
+  });
+
+  it("demonstração: preço como texto e o \"⋯\" diz por que editar e arquivar estão bloqueados", async () => {
+    renderWith(fakeApi({ readOnly: true }), <ServicesPage />);
+    const item = (await screen.findByText("Corte")).closest("li")!;
+    expect(within(item).queryByRole("button", { name: /Mudar o preço/ })).not.toBeInTheDocument();
+    fireEvent.click(within(item).getByRole("button", { name: "Mais ações para Corte" }));
+    expect(screen.getByText("Demonstração: editar, mudar o preço e arquivar ficam bloqueados.")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Editar" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "Novo serviço" })).toBeDisabled();
   });
 
   it("arquivar serviço executa na hora e Desfazer reativa", async () => {
     const api = fakeApi();
     renderWith(api, <ServicesPage />);
-    fireEvent.click(await screen.findByRole("button", { name: "Arquivar Corte" }));
+    await menuAction("Corte", "Arquivar");
     await waitFor(() => expect(api.saveService).toHaveBeenCalledTimes(1));
     expect(vi.mocked(api.saveService).mock.calls[0]![0]).toMatchObject({ active: false });
     expect(within(screen.getByRole("status")).getByText("Corte foi arquivado.")).toBeInTheDocument();

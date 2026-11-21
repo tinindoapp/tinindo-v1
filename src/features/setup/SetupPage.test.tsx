@@ -21,21 +21,40 @@ const click = async (el: HTMLElement) => act(async () => { fireEvent.click(el); 
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } });
 
 describe("Configuração: passos, frase do negócio e modelos", () => {
-  it("lista os 8 passos com por quê e link; opcional dispensa e volta; obrigatório não tem 'Agora não'", async () => {
+  it("P54: o próximo em destaque com o único botão principal, os que faltam abertos, os feitos recolhidos; opcional dispensa e volta", async () => {
     const port = createDemoPort();
     renderPage(port);
-    const list = within(await screen.findByRole("list", { name: "Passos da configuração" }));
-    const items = list.getAllByRole("listitem");
+    const list = await screen.findByRole("list", { name: "Passos da configuração" });
+    const items = within(list).getAllByRole("listitem");
+    // Os 8 passos continuam na lista, na ordem: o próximo, os outros que faltam e os feitos.
     expect(items).toHaveLength(8);
-    expect(items[3]).toHaveTextContent("Publicar seu perfil e mandar o link");
-    expect(within(items[3]!).getByRole("link", { name: /Publicar perfil/ })).toHaveAttribute("href", "/app/perfil");
-    expect(within(items[3]!).queryByRole("button", { name: "Agora não" })).not.toBeInTheDocument();
-    expect(items[0]).toHaveTextContent("(feito)");
-    await click(within(items[6]!).getByRole("button", { name: "Agora não" }));
+    expect(screen.getByRole("heading", { name: "Passos · 5 de 8 feitos" })).toBeInTheDocument();
+    expect(items[0]).toHaveAttribute("data-next");
+    expect(items[0]).toHaveTextContent("Publicar seu perfil e mandar o link");
+    expect(within(items[0]!).getByRole("link", { name: "Publicar perfil" })).toHaveAttribute("href", "/app/perfil");
+    expect(within(items[0]!).getByRole("link", { name: "Publicar perfil" })).toHaveAttribute("data-variant", "primary");
+    expect(within(items[0]!).queryByRole("button", { name: "Agora não" })).not.toBeInTheDocument();
+    expect(document.querySelectorAll('[data-variant="primary"]')).toHaveLength(1);
+    // Feitos: no fim, com selo de estado (nunca a marca preta), escondidos até "Ver os feitos".
+    const done = items.filter((li) => li.hasAttribute("data-done"));
+    expect(done).toHaveLength(5);
+    expect(items.slice(3).every((li) => li.hasAttribute("data-done"))).toBe(true);
+    expect(done[0]).toHaveTextContent("(feito)");
+    expect(within(done[0]!).getByText("Feito")).toBeInTheDocument();
+    expect(list).not.toHaveAttribute("data-show-done");
+    await click(screen.getByRole("button", { name: "Ver os feitos (5)" }));
+    expect(list).toHaveAttribute("data-show-done");
+    expect(screen.getByRole("button", { name: "Esconder os feitos" })).toHaveAttribute("aria-expanded", "true");
+    // Frase e modelos: com horários e serviço feitos, recolhidos numa linha.
+    expect(screen.getByRole("heading", { name: "Descreva seu negócio em uma frase" }).closest("details")).not.toHaveAttribute("open");
+    // Sem aviso de demonstração por tela (D11 b).
+    expect(screen.queryByText(/Demonstração: o que você salvar/)).not.toBeInTheDocument();
+
+    await click(within(items[1]!).getByRole("button", { name: /^Agora não/ }));
     expect(await screen.findByText("Passo dispensado. Ele continua aqui, sem destaque.")).toBeInTheDocument();
-    expect(items[6]).toHaveTextContent("dispensado");
-    await click(within(items[6]!).getByRole("button", { name: "Voltar a mostrar" }));
-    expect(items[6]).not.toHaveTextContent("dispensado");
+    expect(items[1]).toHaveTextContent("dispensado");
+    await click(within(items[1]!).getByRole("button", { name: /^Voltar a mostrar/ }));
+    expect(items[1]).not.toHaveTextContent("dispensado");
   });
 
   it("frase → rascunho revisável; nada é salvo antes da confirmação; a confirmação resume o que vai ser gravado", async () => {
@@ -223,13 +242,14 @@ describe("Configuração: passos, frase do negócio e modelos", () => {
     }
   });
 
-  it("modelos: já no catálogo desabilitado; marcar pede preço; confirmação lista nome e preço; criar passa pela porta", async () => {
+  it("modelos: já no catálogo em texto (sem caixa desligada); marcar pede preço; confirmação lista nome e preço; criar passa pela porta", async () => {
     const port = createDemoPort();
     const apply = vi.spyOn(port, "applyServices");
     renderPage(port, "#modelos");
     await screen.findByRole("heading", { name: /Modelos de serviço · Barbearia/ });
     const form = within(screen.getByRole("form", { name: "Modelos de serviço" }));
-    expect(form.getByRole("checkbox", { name: /Corte · já no catálogo/ })).toBeDisabled();
+    expect(screen.getByText("Já no catálogo: Corte, Barba.")).toBeInTheDocument();
+    expect(form.queryByRole("checkbox", { name: /^Corte$/ })).not.toBeInTheDocument();
     const combo = form.getByRole("checkbox", { name: /Corte e barba/ });
     expect(combo).toBeEnabled();
     expect(form.getByText("50 min · faixa R$ 55,00 a R$ 110,00")).toBeInTheDocument();
@@ -247,6 +267,8 @@ describe("Configuração: passos, frase do negócio e modelos", () => {
     await click(within(confirm).getByRole("button", { name: "Criar" }));
     expect(apply).toHaveBeenCalledWith([{ template_code: "barber_corte_barba", name: "Corte e barba", duration_min: 50, base_price_cents: 7000 }], expect.any(String));
     expect(await screen.findByText("1 serviço criado: Corte e barba.")).toBeInTheDocument();
-    expect(await form.findByRole("checkbox", { name: /Corte e barba · já no catálogo/ })).toBeDisabled();
+    expect(await screen.findByText("Já no catálogo: Corte, Barba, Corte e barba.")).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Modelos de serviço" })).not.toBeInTheDocument();
+    expect(screen.getByText("Todos os modelos da sua profissão já estão no catálogo.")).toBeInTheDocument();
   });
 });

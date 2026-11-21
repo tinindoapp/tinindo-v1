@@ -72,7 +72,8 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
           <Link to="/app/configurar">Deixe seu negócio pronto</Link> <span className="tn-num tn-muted">· {view.done} de {view.total}</span>
         </h2>
         {next && spec ? (
-          <Link to={next.link} className="tn-setup-line__next">
+          // Link do passo como fantasma compacto do kit (P54): lê como ação, sem disputar com o botão principal da Hoje.
+          <Link to={next.link} className="tn-button tn-setup-line__next" data-variant="ghost" data-size="compact">
             {spec.cta}<span className="tn-visually-hidden">: próximo passo{next.required ? "" : " (opcional)"}, {next.title}</span>
           </Link>
         ) : null}
@@ -103,7 +104,7 @@ export function SetupCard({ port, compact = false }: { port: SetupPort; compact?
       ) : null}
       <div className="tn-actions">
         {next && spec ? <LinkButton to={next.link}>{spec.cta}</LinkButton> : null}
-        {next && !next.required ? <Button variant="secondary" onClick={() => void dismiss()} loading={busy} loadingText="Guardando…">Agora não</Button> : null}
+        {next && !next.required ? <Button variant="ghost" onClick={() => void dismiss()} loading={busy} loadingText="Guardando…">Agora não</Button> : null}
         <Link to="/app/configurar" className="tn-setup-card__all">Ver os {view.total} passos</Link>
       </div>
       {needsBasics ? (

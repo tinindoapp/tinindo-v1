@@ -14,30 +14,26 @@
 /* Linha fina da Hoje (P48): título e próximo passo na mesma linha, a barra embaixo. Sem cartão em volta. */
 .tn-setup-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--tn-space-3); row-gap: var(--tn-space-1); margin-top: var(--tn-space-6); }
 .tn-setup-line__title { margin: 0; font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-medium); }
-.tn-setup-line__title a, .tn-setup-line__next { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
-.tn-setup-line__next { font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-semibold); }
+.tn-setup-line__title a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
+.tn-setup-line__next { justify-self: end; }
 .tn-setup-line .tn-setup-card__bar { grid-column: 1 / -1; height: 6px; }
 .tn-setup-card__describe { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 
-.tn-setup { display: grid; gap: var(--tn-space-4); }
-.tn-setup-steps { list-style: none; margin: var(--tn-space-3) 0 0; padding: 0; display: grid; gap: var(--tn-space-2); }
-.tn-setup-step { display: grid; grid-template-columns: auto 1fr; gap: var(--tn-space-3); padding: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); background: var(--tn-surface); }
-/* Passo da vez: mesma marca de selecionado do .tn-choice (borda de 2 px e fundo sutil). O fundo forte
-   (--tn-selected-bg) deixava título e link da cor do fundo nos dois temas. */
-.tn-setup-step[data-next] { border: 2px solid var(--tn-selected-border); padding: calc(var(--tn-space-3) - 1px); background: var(--tn-action-subtle); }
-.tn-setup-step[data-done] { opacity: 0.8; }
-.tn-setup-step[data-dismissed] .tn-setup-step__title { color: var(--tn-text-muted); }
-.tn-setup-step__mark { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); font-weight: var(--tn-font-weight-semibold); font-size: var(--tn-text-support); }
-.tn-setup-step[data-done] .tn-setup-step__mark { background: var(--tn-action); color: var(--tn-text-on-action); }
-.tn-setup-step__body { display: grid; gap: var(--tn-space-1); min-width: 0; }
-.tn-setup-step__title { margin: 0; font-weight: var(--tn-font-weight-semibold); }
+/* Tela Configuração (P54, doc 07 §4.9): abertura, o que falta aberto, feitos recolhidos. Sem cartão em volta das seções. */
+.tn-setup { display: grid; min-width: 0; }
+/* Passo da vez, dentro da lista: fundo sutil e barra à esquerda (item em foco), sem caixa dentro da caixa. */
+.tn-setup-step { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-4); background: var(--tn-action-subtle); box-shadow: inset 3px 0 0 var(--tn-selected-border); }
+.tn-setup-step__eyebrow { margin: 0; }
+.tn-setup-step__title { margin: 0; font-weight: var(--tn-font-weight-semibold); font-size: var(--tn-text-lead); }
+.tn-setup-step__why { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); max-width: var(--tn-measure); }
+.tn-setup-step__name[data-dismissed] { color: var(--tn-text-muted); }
+.tn-setup-step__name .tn-badge { margin-left: var(--tn-space-1); vertical-align: middle; }
 /* Etiqueta "opcional": texto principal sobre o fundo rebaixado. Com --tn-text-muted dava 4,49:1 no tema claro (recado #118). */
-.tn-setup-step__tag { margin-left: var(--tn-space-2); padding: 0 var(--tn-space-2); border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); color: var(--tn-text); font-size: var(--tn-text-label); font-weight: var(--tn-font-weight-medium); }
-.tn-setup-step__why { margin: 0; color: var(--tn-text-muted); font-size: var(--tn-text-support); }
-.tn-setup-step__actions { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
-.tn-setup-step__go { display: inline-flex; align-items: center; gap: var(--tn-space-1); min-height: var(--tn-size-touch); color: var(--tn-link); font-weight: var(--tn-font-weight-medium); }
+.tn-setup-step__tag { margin-left: var(--tn-space-2); padding: 0 var(--tn-space-2); border-radius: var(--tn-radius-pill); background: var(--tn-surface-sunken); color: var(--tn-text); font-size: var(--tn-text-label); font-weight: var(--tn-font-weight-medium); white-space: nowrap; }
+.tn-setup-existing { margin: 0; font-size: var(--tn-text-support); }
 
 .tn-setup-draft { display: grid; gap: var(--tn-space-3); margin-top: var(--tn-space-4); padding-top: var(--tn-space-4); border-top: 1px solid var(--tn-border); }
+.tn-setup .tn-section__body > * + *, .tn-setup .tn-section > form { margin-top: var(--tn-gap-block); }
 .tn-setup-services { margin: 0; padding: 0; border: 0; display: grid; gap: var(--tn-space-2); }
 .tn-setup-services > legend { font-weight: var(--tn-font-weight-semibold); margin-bottom: var(--tn-space-2); }
 .tn-setup-services__row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--tn-space-2); align-items: end; }
@@ -55,3 +51,6 @@
 .tn-setup-notes > li[data-level="refused"] { color: var(--tn-text); border-left-color: var(--tn-selected-border); }
 .tn-setup-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tn-space-2); }
 .tn-setup-services__row[data-exists] { opacity: 0.75; }
+/* Feitos recolhidos: continuam na lista (a contagem e a leitura não mudam), à vista só com "Ver os feitos". */
+.tn-setup-steps:not([data-show-done]) > li[data-done] { display: none; }
+.tn-setup-steps > li[data-done] .tn-badge { flex: none; }

@@ -15,8 +15,9 @@ test.describe("UAT cabeleireira", () => {
     await page.getByRole("button", { name: "Novo serviço" }).click();
     await page.getByLabel("Nome").fill("Coloração");
     await page.getByLabel("Duração (min)").fill("90");
+    await page.getByLabel("Preço à vista (R$)").fill("180,00");
+    await page.getByText("Mais opções").click();
     await page.getByLabel("Intervalo depois (min)").fill("15");
-    await page.getByLabel("Preço base (R$)").fill("180,00");
     await page.getByLabel("Piso (R$)").fill("150,00");
     await page.getByRole("button", { name: "Salvar" }).click();
     await expect(page.getByText("Coloração foi salvo.")).toBeVisible();
@@ -56,7 +57,8 @@ test.describe("UAT cabeleireira", () => {
   test("2 · muda a duração do serviço: novas reservas usam a nova, antigas ficam como estavam", async ({ page }) => {
     test.fixme(true, PENDING.crmWrite);
     await page.goto("/app/clientes/servicos");
-    await page.getByRole("button", { name: "Editar Corte" }).click();
+    await page.getByRole("button", { name: "Mais ações para Corte" }).click();
+    await page.getByRole("menuitem", { name: "Editar" }).click();
     await page.getByLabel("Duração (min)").fill("45");
     await page.getByRole("button", { name: "Salvar" }).click();
     await page.goto("/app/agenda");
@@ -120,9 +122,10 @@ test.describe("UAT cabeleireira", () => {
   test("4c · alterar o preço base do serviço não altera reservas já confirmadas", async ({ page }) => {
     test.fixme(true, PENDING.crmWrite);
     await page.goto("/app/clientes/servicos");
-    await page.getByRole("button", { name: "Editar Corte" }).click();
-    await page.getByLabel("Preço base (R$)").fill("80,00");
-    await page.getByRole("button", { name: "Salvar" }).click();
+    // P54: o preço muda direto na linha do serviço.
+    await page.getByRole("button", { name: /^Mudar o preço de Corte/ }).click();
+    await page.getByLabel("Preço à vista de Corte (R$)").fill("80,00");
+    await page.getByRole("button", { name: "Salvar preço" }).click();
     await page.goto("/app/agenda");
     await expect(page.getByRole("link", { name: /09:00–09:30 Corte .* R\$ 60,00/ })).toBeVisible();
   });
