@@ -2,7 +2,8 @@
 // (webhook, despacho, simulador): chave de SERVIÇO, só aqui e só para as RPCs channel_* de backend (como `jobs`).
 // MESSAGING_PROVIDER escolhe o provedor real; o simulado sempre existe e exige MESSAGING_SIM_SECRET.
 import { createClient } from "@supabase/supabase-js";
-import { createSimulatedProvider, createWhatsAppProvider } from "../_shared/domain/messaging/providers.ts";
+import { createSimulatedProvider } from "../_shared/domain/messaging/providers.ts";
+import { createWhatsAppProvider } from "../_shared/providers/meta.ts";
 import { createMessagingHandler } from "./handler.ts";
 import { withBuild } from "../_shared/http/build.ts";
 import { messagingChoice } from "../_shared/providers/selection.ts";
@@ -43,6 +44,8 @@ const handler = createMessagingHandler({
     whatsapp_cloud: createWhatsAppProvider({
       accessToken: Deno.env.get("WHATSAPP_ACCESS_TOKEN") ?? null,
       appSecret: Deno.env.get("WHATSAPP_APP_SECRET") ?? null,
+      // Opcional: outra versão da Graph (padrão https://graph.facebook.com/v21.0). Não é segredo.
+      graphUrl: Deno.env.get("WHATSAPP_GRAPH_URL") || undefined,
     }),
   },
   choice,

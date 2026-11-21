@@ -74,8 +74,10 @@ describe("demonstração do Canal (mesmas regras do banco)", () => {
     expect(await code(port.send({ contact_id: k!.id, kind: "template", template_code: "lembrete_agendamento", template_params: ["x"] }, "s1"))).toBe("VALIDATION_ERROR/template_params");
     const t = await port.send({ contact_id: k!.id, kind: "template", template_code: "lembrete_agendamento", template_params: ["Corte", "quarta às 10h"] }, "s2");
     expect(t.body).toContain("Lembrete: Corte em quarta às 10h.");
-    await port.simInbound({ kind: "inbound", phone_e164: ANA, text: "SAIR" }, "e2");
+    await port.simInbound({ kind: "inbound", phone_e164: ANA, text: "sair." }, "e2");
     expect(await code(port.send({ contact_id: k!.id, kind: "text", text: "tudo bem" }, "s3"))).toBe("POLICY_REJECTED/opted_out");
+    // O modelo que estava na fila não sai mais (como no banco).
+    expect((await port.conversation(k!.id)).messages.find((m) => m.id === t.id)).toMatchObject({ status: "failed", failure_reason: "opted_out" });
     expect((await port.consent(k!.id, true, "o1")).opted_out).toBe(false);
     await port.simInbound({ kind: "inbound", phone_e164: "+5511988880000", text: "oi" }, "e3");
     await port.simInbound({ kind: "inbound", phone_e164: "+5511988889999", text: "oi" }, "e4");
@@ -84,7 +86,7 @@ describe("demonstração do Canal (mesmas regras do banco)", () => {
     const slow = inbox.contacts.find((x) => x.phone_e164.endsWith("9999"))!;
     await port.send({ contact_id: bad.id, kind: "text", text: "x" }, "b1");
     await port.send({ contact_id: slow.id, kind: "text", text: "y" }, "u1");
-    expect(await port.dispatch!()).toMatchObject({ sent: 1, failed: 1, unknown: 1, reconciled: 0 });
+    expect(await port.dispatch!()).toMatchObject({ sent: 0, failed: 1, unknown: 1, reconciled: 0 });
     expect((await port.conversation(bad.id)).messages.at(-1)).toMatchObject({ status: "failed", failure_reason: "invalid_number" });
     expect((await port.conversation(slow.id)).messages.at(-1)?.status).toBe("delivery_unknown");
     expect((await port.status()).unknown).toBe(1);

@@ -5,7 +5,7 @@ import { type FormEvent, type ReactNode, useEffect, useId, useState } from "reac
 import { Link } from "react-router";
 import { ActionBar, ActionRow, Button, CappedList, ConfirmAction, Field, FormPanel, ListCutNote, type MenuAction, PageHeader, Section, SetupHint, StatusBadge, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, templateInfo, unreadLabel } from "./labels.ts";
+import { CONNECTION_STATUS, explain, FAILURE_REASON, formatPhone, MESSAGE_STATUS, PROVIDER_LABEL, renderTemplate, RETRY_REASON, templateInfo, unreadLabel, VERIFICATION_STATUS } from "./labels.ts";
 import { type ChannelProvider, type ChannelStatus, type Conversation, type Inbox, type MessagingPort } from "./port.ts";
 import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { formatDateTime } from "../../lib/time.ts";
@@ -17,24 +17,49 @@ type ChannelActive = NonNullable<ChannelStatus["provider"]>;
 /** Servidor antigo (sem `provider` no estado): o simulado, como antes. */
 const SIMULATED_ACTIVE: ChannelActive = { active: "simulated", real: false, configured: true };
 
+/** O que fazer na Meta antes de conectar o número oficial (release/WHATSAPP.md). */
+export function MetaSteps() {
+  return (
+    <ol className="tn-msg-steps" aria-label="Antes, na Meta">
+      <li>O número do negócio precisa estar cadastrado na conta do WhatsApp Business ligada à Tinindo (Cloud API). A equipe da Tinindo faz esse cadastro com você.</li>
+      <li>No Gerenciador do WhatsApp da Meta, copie o “ID do número de telefone” (phone_number_id) desse número.</li>
+      <li>Aqui: informe o número, o ID e o seu WhatsApp pessoal, e toque em Conectar. A Tinindo confere na Meta se o ID é desse número.</li>
+      <li>Um código de 6 números chega no seu WhatsApp pessoal, enviado pelo número do negócio. Digite o código aqui para concluir.</li>
+    </ol>
+  );
+}
+
 /** O servidor decide o provedor pelo segredo MESSAGING_PROVIDER; a tela só mostra qual é. */
 function ConnectForm({ port, active, onDone }: { port: MessagingPort; active: ChannelActive; onDone: Done }) {
   const provider: ChannelProvider = active.active;
-  const [phone, setPhone] = useState("+5511999990001");
+  const real = provider === "whatsapp_cloud";
+  const [phone, setPhone] = useState(real ? "" : "+5511999990001");
+  const [accountId, setAccountId] = useState("");
+  const [verifyTo, setVerifyTo] = useState("");
   const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const { formRef, errors, show } = useFormErrors<"phone">();
+  const { formRef, errors, show } = useFormErrors<"phone" | "account" | "verifyTo">();
+  const e164 = /^\+[1-9]\d{7,14}$/;
   async function submit(e: FormEvent) {
     e.preventDefault();
     const value = phone.trim();
-    if (!show({ phone: !value ? "Informe o número do negócio, ex.: +5511999990001." : !/^\+[1-9]\d{7,14}$/.test(value) && "Use o formato internacional: + código do país, DDD e número, ex.: +5511999990001." })) return;
+    const account = accountId.replace(/\s+/g, "");
+    const to = verifyTo.trim();
+    if (!show({
+      phone: !value ? "Informe o número do negócio, ex.: +5511999990001." : !e164.test(value) && "Use o formato internacional: + código do país, DDD e número, ex.: +5511999990001.",
+      account: real && (!account ? "Informe o ID do número na Meta (phone_number_id)." : !/^[0-9]{5,30}$/.test(account) && "O ID do número na Meta tem só números."),
+      verifyTo: real && (!to ? "Informe o seu WhatsApp pessoal, que recebe o código." : !e164.test(to) ? "Use o formato internacional, ex.: +5511988887777." : to === value && "Use um WhatsApp diferente do número do negócio."),
+    })) return;
     setBusy(true);
     setFailure(null);
     try {
-      await port.connect(provider, value, idem.keyFor({ provider, phone: value }));
+      const meta = real ? { external_account_id: account, verify_to_e164: to } : undefined;
+      await port.connect(provider, value, idem.keyFor({ provider, phone: value, ...meta }), meta);
       idem.reset();
-      onDone("Número registrado. O código de verificação sai pelo próprio canal: confira o telefone e informe abaixo.");
+      onDone(real
+        ? "Número registrado. O código sai pelo número do negócio para o seu WhatsApp pessoal: confira e informe abaixo."
+        : "Número registrado. O código de verificação sai pelo próprio canal: confira o telefone e informe abaixo.");
     } catch (err) {
       setFailure(explain(err));
     } finally {
@@ -47,10 +72,35 @@ function ConnectForm({ port, active, onDone }: { port: MessagingPort; active: Ch
       {active.real && !active.configured ? (
         <StatusBanner tone="warning">O WhatsApp oficial ainda não está ligado neste ambiente. Fale com o suporte.</StatusBanner>
       ) : null}
-      <Field label="Número do negócio (formato internacional)" inputMode="tel" value={phone} error={errors.phone} onChange={(e) => setPhone(e.target.value)} />
-      <Button type="submit" loading={busy} loadingText="Conectando…">Conectar</Button>
+      <Field label="Número do negócio (formato internacional)" inputMode="tel" autoComplete="off" value={phone} error={errors.phone} onChange={(e) => setPhone(e.target.value)} />
+      {real ? (
+        <>
+          <Field label="ID do número na Meta (phone_number_id)" inputMode="numeric" autoComplete="off" hint="No Gerenciador do WhatsApp, em Configuração da API." value={accountId} error={errors.account} onChange={(e) => setAccountId(e.target.value)} />
+          <Field label="Seu WhatsApp pessoal (recebe o código)" inputMode="tel" autoComplete="tel" hint="Diferente do número do negócio." value={verifyTo} error={errors.verifyTo} onChange={(e) => setVerifyTo(e.target.value)} />
+        </>
+      ) : null}
+      <Button type="submit" loading={busy} loadingText="Conectando…" disabled={active.real && !active.configured}>Conectar</Button>
       {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
     </form>
+  );
+}
+
+/** Estado real do envio do código (banco): na fila, enviado, não saiu e por quê. */
+function VerificationState({ status, timezone }: { status: ChannelStatus; timezone?: string }) {
+  const v = status.verification;
+  if (!v) return null;
+  const to = formatPhone(v.send_to_e164);
+  if (v.status === "failed") {
+    return (
+      <StatusBanner tone="danger">
+        O código não saiu para {to}: {FAILURE_REASON[v.failure_reason ?? ""] ?? v.failure_reason ?? "o provedor recusou"}. Desconecte e conecte de novo depois de resolver.
+      </StatusBanner>
+    );
+  }
+  return (
+    <p role="status" className="tn-muted">
+      Código para {to}: {VERIFICATION_STATUS[v.status]}. Vale até {formatDateTime(v.expires_at, timezone ?? "America/Sao_Paulo")}.
+    </p>
   );
 }
 
@@ -300,7 +350,7 @@ function ConnectionActions({ port, status, conn, actions }: {
 }
 
 /** `extra`: bloco do dono acima das conversas (P45: o resumo semanal da Tinindo). */
-export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: string; extra?: ReactNode }) {
+export function InboxPage({ port, timezone, extra }: { port: MessagingPort; timezone?: string; extra?: ReactNode }) {
   const [status, setStatus] = useState<ChannelStatus | null>(null);
   const [inbox, setInbox] = useState<Inbox | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -334,11 +384,13 @@ export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: str
         <Section id="msg-setup-title" title="Conecte o número do seu negócio">
           <p>Com o número conectado, as mensagens das suas clientes chegam aqui e você responde pelo canal oficial.</p>
           {conn?.status === "disconnected" ? <p className="tn-muted">O número {formatPhone(conn.phone_e164)} foi desconectado. Para voltar, conecte e verifique de novo.</p> : null}
-          <ol className="tn-msg-steps">
-            <li>Informe o número do negócio e toque em Conectar.</li>
-            <li>Um código de 6 números chega pelo próprio canal, nesse número.</li>
-            <li>Digite o código aqui para concluir.</li>
-          </ol>
+          {(status.provider ?? SIMULATED_ACTIVE).active === "whatsapp_cloud" ? <MetaSteps /> : (
+            <ol className="tn-msg-steps">
+              <li>Informe o número do negócio e toque em Conectar.</li>
+              <li>Um código de 6 números chega pelo próprio canal, nesse número.</li>
+              <li>Digite o código aqui para concluir.</li>
+            </ol>
+          )}
           <ConnectForm port={port} active={status.provider ?? SIMULATED_ACTIVE} onDone={actions.done} />
           <SetupHint to="/app/configurar" action="Ver os passos">
             Passo opcional de “Deixe seu negócio pronto”: sem provedor contratado, conecte o número simulado para testar o fluxo.
@@ -351,6 +403,8 @@ export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: str
         <Section id="msg-verify-title" title="Falta verificar o número">
           <div className="tn-msg-box" role="group" aria-label="Número conectado">
             <p><strong>{CONNECTION_STATUS[conn.status]}</strong> · {formatPhone(conn.phone_e164)} · {PROVIDER_LABEL[conn.provider]}</p>
+            {conn.provider === "whatsapp_cloud" && conn.external_account_id ? <p className="tn-muted">ID do número na Meta: {conn.external_account_id}</p> : null}
+            <VerificationState status={status} timezone={timezone} />
             <VerifyForm port={port} onDone={actions.done} />
             <ConnectionActions port={port} status={status} conn={conn} actions={actions} />
           </div>
@@ -373,6 +427,7 @@ export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: str
           {managing ? (
             <div id={panelId} className="tn-msg-box">
               <p>{CONNECTION_STATUS[conn.status]} · {conn.phone_e164} · {PROVIDER_LABEL[conn.provider]}{conn.simulated ? " · simulação" : ""}</p>
+              {conn.provider === "whatsapp_cloud" && conn.external_account_id ? <p className="tn-muted">ID do número na Meta: {conn.external_account_id}</p> : null}
               <p className="tn-muted">Na fila: {status.queued} · Entrega desconhecida: {status.unknown}</p>
               <ConnectionActions port={port} status={status} conn={conn} actions={actions} />
             </div>
@@ -518,6 +573,9 @@ export function ConversationPage({ port, timezone, contactId }: { port: Messagin
                 {m.direction === "inbound" ? "Cliente" : "Você"} · {formatDateTime(m.created_at, timezone)} · <strong>{MESSAGE_STATUS[m.status]}</strong>
                 {m.status === "failed" && m.failure_reason ? ` (${FAILURE_REASON[m.failure_reason] ?? m.failure_reason})` : ""}
                 {m.status === "delivery_unknown" ? " · o provedor não confirmou; consultamos o status, sem reenviar" : ""}
+                {m.status === "queued" && m.next_attempt_at
+                  ? ` · nova tentativa a partir de ${formatDateTime(m.next_attempt_at, timezone)} (${RETRY_REASON[m.retry_reason ?? ""] ?? "limite de envio do WhatsApp"})`
+                  : ""}
               </p>
             </li>
           ))}

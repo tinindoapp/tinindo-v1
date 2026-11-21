@@ -31,11 +31,13 @@ const TEMPLATES: ChannelStatus["templates"] = [
   { code: "verificacao_numero", category: "utility", body: "Seu código para conectar o número à Tinindo é {{1}}. Vale por 10 minutos.", params: 1, approved: true },
   { code: "confirmacao_agendamento", category: "utility", body: "Olá, {{1}}! Seu horário de {{2}} está confirmado para {{3}}. Responda SAIR para não receber mais avisos.", params: 3, approved: true },
   { code: "lembrete_agendamento", category: "utility", body: "Lembrete: {{1}} em {{2}}. Se precisar remarcar, responda esta mensagem.", params: 2, approved: true },
-  { code: "link_orcamento", category: "utility", body: "Olá, {{1}}! Seu orçamento está pronto: {{2}}", params: 2, approved: true },
-  { code: "oferta_vaga", category: "utility", body: "Olá, {{1}}! Abriu um horário de {{2}} em {{3}}. Veja e aceite aqui: {{4}}", params: 4, approved: true },
+  { code: "link_orcamento", category: "utility", body: "Olá, {{1}}! Seu orçamento está pronto: {{2}} Se tiver dúvida, responda esta mensagem.", params: 2, approved: true },
+  { code: "oferta_vaga", category: "utility", body: "Olá, {{1}}! Abriu um horário de {{2}} em {{3}}. Veja e aceite aqui: {{4}} Se não puder, é só ignorar.", params: 4, approved: true },
 ];
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const OPT_OUT = new Set(["SAIR", "PARAR", "STOP", "CANCELAR"]);
+/** Mesma regra do banco (app.ch_is_opt_out): a palavra sozinha, qualquer caixa, pontuação em volta não conta. */
+export const isOptOut = (text: string) => OPT_OUT.has(text.toUpperCase().replace(/^[\s\p{P}]+|[\s\p{P}]+$/gu, ""));
 
 interface Contact extends Omit<ChannelContact, "window_open" | "window_until" | "customer_name"> { last_inbound_at: string | null }
 interface Message extends ChannelMessage { provider_message_id: string | null; attempts: number; unknown_once: boolean }
@@ -99,7 +101,11 @@ const render = (code: string, params: string[]) => {
 
 function status(): ChannelStatus {
   const s = state();
-  return clone({ connection: s.connection, queued: s.messages.filter((m) => m.status === "queued" || m.status === "sending").length,
+  const v = s.verification;
+  const verification = s.connection?.status === "pending_verification" && v && !v.used
+    ? { status: v.dispatched ? "sent" as const : "queued" as const, failure_reason: null, expires_at: new Date(v.expires_at).toISOString(), send_to_e164: s.connection.phone_e164 }
+    : null;
+  return clone({ connection: s.connection, verification, queued: s.messages.filter((m) => m.status === "queued" || m.status === "sending").length,
     unknown: s.messages.filter((m) => m.status === "delivery_unknown").length, templates: TEMPLATES });
 }
 function upsertContact(phone: string, profileName?: string): Contact {
@@ -244,7 +250,13 @@ export function createDemoPort(): MessagingPort {
         if (s.connection.status !== "active") return { applied: 0, duplicates: 0 };
         if (input.kind === "inbound") {
           const k = upsertContact(input.phone_e164, input.profile_name);
-          if (OPT_OUT.has(input.text.trim().toUpperCase())) k.opted_out = true;
+          if (isOptOut(input.text)) {
+            k.opted_out = true;
+            // Como no banco: o que estava na fila para ela não sai.
+            for (const m of s.messages) {
+              if (m.contact_id === k.id && m.status === "queued") Object.assign(m, { status: "failed", failure_reason: "opted_out", failed_at: ts() });
+            }
+          }
           s.messages.push({ id: id("d0000000"), contact_id: k.id, direction: "inbound", kind: "text", body: input.text.trim(), template_code: null,
             status: "received", failure_reason: null, created_at: ts(), sent_at: null, delivered_at: null, read_at: null, failed_at: null,
             provider_message_id: null, attempts: 0, unknown_once: false });

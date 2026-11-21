@@ -23,8 +23,8 @@ export function createServerPort(call: Call, tenantId: string): MessagingPort {
     async status() {
       return (await call(op("channel.status"), ChannelStatusOutput, post({}))).data;
     },
-    async connect(provider, phone_e164, key) {
-      return (await call(op("channel.connect"), ChannelConnectionOutput, post({ provider, phone_e164 }, key))).data.connection;
+    async connect(provider, phone_e164, key, meta) {
+      return (await call(op("channel.connect"), ChannelConnectionOutput, post({ provider, phone_e164, ...meta }, key))).data.connection;
     },
     async verify(code, key) {
       return (await call(op("channel.verify"), ChannelConnectionOutput, post({ code }, key))).data.connection;

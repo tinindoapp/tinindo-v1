@@ -137,8 +137,8 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `analytics.baseline_create` | rótulo, período encerrado, key | Baseline com indicadores congelados |
 | `analytics.baseline_list` | — | Baselines do negócio (até 20) |
 | `analytics.cost_to_serve` | período, custo-hora | Minutos medidos e custo estimado por cliente (só operação; sem negócio selecionado) |
-| `channel.status` | — | Conexão do número, fila, desconhecidos e modelos com aprovação por provedor |
-| `channel.connect` | provedor, número, id no provedor, key | Número pendente; código de verificação enfileirado pelo próprio canal |
+| `channel.status` | — | Conexão do número, fila, desconhecidos, modelos com aprovação por provedor, provedor ativo e, aguardando o código, o estado do envio do código |
+| `channel.connect` | número, id no provedor, WhatsApp pessoal (só Meta), key | Número pendente no provedor ativo; na Meta, o phone_number_id é conferido na Graph e o código vai ao WhatsApp pessoal do dono |
 | `channel.verify` | código, key | Ativa a conexão; tentativa errada fica contada (envelope 422) |
 | `channel.disconnect` | key | Desconecta; fila pendente vira falha |
 | `inbox.list` | — | Contatos com janela, opt-out, não lidas e última mensagem |
