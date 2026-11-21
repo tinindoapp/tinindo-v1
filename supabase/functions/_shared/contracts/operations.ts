@@ -157,6 +157,10 @@ export const OPERATIONS = {
     module: "scheduling", owner: "P03", kind: "command", idempotent: true,
     input: scheduling.BookingConfirmInput, output: scheduling.BookingOutput,
   },
+  "booking.link_customer": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.BookingLinkCustomerInput, output: scheduling.BookingOutput,
+  },
   "booking.no_show": {
     module: "scheduling", owner: "P03", kind: "command", idempotent: true,
     input: scheduling.BookingNoShowInput, output: scheduling.BookingOutput,

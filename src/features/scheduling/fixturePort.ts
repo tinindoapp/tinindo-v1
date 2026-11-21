@@ -12,6 +12,7 @@ import {
   BookingCancelSeriesFromInput,
   BookingCreateSeriesInput,
   type BookingCreateSeriesOutput,
+  BookingLinkCustomerInput,
   BookingNoShowInput,
   BookingRescheduleInput,
   DEFAULT_MESSAGES,
@@ -612,6 +613,18 @@ export function createFixturePort(options: FixturePortOptions = {}): SchedulingP
           fail("SLOT_CONFLICT", "slot");
         }
         return update(current.id, { status: input.revert ? "confirmed" : "no_show", status_reason: input.revert ? null : input.reason });
+      });
+      return delay(result);
+    },
+
+    async linkCustomer(raw, key) {
+      const input = parse(BookingLinkCustomerInput, raw);
+      const result = idempotent("booking.link_customer", key, input, () => {
+        const current = booking(input.booking_id);
+        checkVersion(current, input.expected_version);
+        if (current.customer_id) fail("POLICY_REJECTED", "customer_id");
+        if (!customers.some((c) => c.id === input.customer_id)) fail("NOT_FOUND", "customer_id");
+        return update(current.id, { customer_id: input.customer_id });
       });
       return delay(result);
     },

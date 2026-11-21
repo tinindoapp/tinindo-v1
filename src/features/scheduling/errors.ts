@@ -18,7 +18,7 @@ export function isErrorLike(e: unknown): e is ErrorLike {
   return typeof e === "object" && e !== null && typeof (e as { code?: unknown }).code === "string";
 }
 
-export type Operation = "create" | "reschedule" | "cancel" | "complete" | "confirm" | "no_show" | "undo_cancel" | "load";
+export type Operation = "create" | "reschedule" | "cancel" | "complete" | "confirm" | "no_show" | "undo_cancel" | "link_customer" | "load";
 
 /** Recusa de regra (422) em ações sobre um atendimento existente: o motivo depende da ação. */
 const POLICY_BY_OPERATION: Partial<Record<Operation, ErrorExplanation>> = {
@@ -40,6 +40,11 @@ const POLICY_BY_OPERATION: Partial<Record<Operation, ErrorExplanation>> = {
   cancel: {
     title: "Este atendimento não pode mais ser cancelado",
     body: "Só reserva provisória ou atendimento confirmado pode ser cancelado. Nada foi alterado.",
+    action: "none",
+  },
+  link_customer: {
+    title: "Este atendimento já tem cliente",
+    body: "Alguém ligou um cliente a este atendimento antes. Recarregamos os dados: confira quem ficou.",
     action: "none",
   },
   undo_cancel: {

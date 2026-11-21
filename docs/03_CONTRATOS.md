@@ -38,6 +38,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `booking.cancel` | id, expected_version, motivo, key | Capacidade liberada e evento |
 | `booking.complete` | id, expected_version, key | Atendimento concluído; caixa não presumido |
 | `booking.confirm` | booking_id, expected_version, key | Hold vira reserva confirmada se o prazo (no banco) não venceu |
+| `booking.link_customer` | booking_id, expected_version, customer_id, key | Atendimento sem cliente (pedido pelo link) passa a apontar para um cliente ativo; já com cliente → 422 |
 | `booking.no_show` | booking_id, expected_version, motivo, revert, key | Falta marcada ou revertida com motivo |
 | `booking.create_series` | serviço, cliente, primeiro slot, semanas (2–12), dias da semana (opcional, um series_id para todos), tudo-ou-nada, key | Ocorrências semanais materializadas; conflitos explícitos |
 | `booking.series` | series_id | Atendimentos da série em ordem (até 84) |

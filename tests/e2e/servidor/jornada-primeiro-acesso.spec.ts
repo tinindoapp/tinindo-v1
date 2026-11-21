@@ -308,6 +308,13 @@ async function jornada(page: Page, browser: Browser, request: APIRequestContext,
     expect(bookingId, "o endereço do atendimento traz o id gravado").not.toBe("");
   });
 
+  await test.step("Salvar como cliente: quem reservou pelo link entra nos clientes (A11, recado #160)", async () => {
+    await page.getByRole("button", { name: "Salvar como cliente" }).click();
+    await expect(toast(page)).toContainText(`${visitante.nome} agora está nos seus clientes.`);
+    await expect(page.getByRole("button", { name: "Salvar como cliente" })).toHaveCount(0);
+    await expect(page.getByRole("main")).not.toContainText("Sem cliente cadastrado");
+  });
+
   await test.step("preparo: o tempo passa (o atendimento vai para ontem ao meio-dia)", async () => {
     await moveBookingToPast(bookingId, 1);
     await page.reload();
@@ -341,15 +348,15 @@ async function jornada(page: Page, browser: Browser, request: APIRequestContext,
     await expect(page.getByRole("heading", { name: "Retorno", level: 1 })).toBeVisible();
     await expect(page.getByRole("region", { name: "Quem não volta" })).toBeVisible();
     await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
-    // Quem reservou pelo link não vira cliente (a reserva fica "Sem cliente cadastrado"): Retorno não tem a quem
-    // chamar. Defeito anotado no relatório da jornada (achado A11 da revisão de 04/11, ainda aberto).
+    // A pessoa salva como cliente veio ontem: ainda não sumiu.
     await expect(page.getByRole("region", { name: "Quem não volta" })).toContainText("Ninguém sumido");
     await noHorizontalScroll(page);
   });
 
   await test.step("Home: o que ficou feito conta no cartão (Mensagens ligado acrescenta o passo do número)", async () => {
-    // 4 obrigatórios + número verificado + primeiro recebimento = 6; com Mensagens ligado são 8 passos.
-    const card = await homeCard(page, 6, 8, /Próximo \(opcional\): Cadastrar seu primeiro cliente/);
+    // 4 obrigatórios + número verificado + primeiro recebimento + primeiro cliente (salvo do pedido pelo link) = 7;
+    // com Mensagens ligado são 8 passos.
+    const card = await homeCard(page, 7, 8, /Próximo \(opcional\): Pôr foto e WhatsApp no perfil/);
     await expect(card).toContainText("Seu link público já recebe reservas.");
   });
 
@@ -374,6 +381,10 @@ async function jornada(page: Page, browser: Browser, request: APIRequestContext,
        join public.provider_services s on s.tenant_id = b.tenant_id and s.id = b.service_id
        left join public.receivables r on r.tenant_id = b.tenant_id and r.booking_id = b.id
        where b.id = $1`, [bookingId]);
+    const [vinculo] = await sql<{ nome: string; telefone: string }>(
+      `select c.name as nome, c.phone as telefone from public.bookings b
+       join public.customers c on c.tenant_id = b.tenant_id and c.id = b.customer_id where b.id = $1`, [bookingId]);
+    expect(vinculo, "o atendimento aponta para o cliente salvo do pedido").toEqual({ nome: visitante.nome, telefone: visitante.e164 });
     expect(rows).toEqual([{ status: "completed", tenant, servico: cenario.servico, preco: cenario.centavos, origem: "public_link", recebivel: "paid", pago: cenario.centavos, recebimentos: 1, metodo: "pix" }]);
 
     // Nada do que esta jornada gravou foi para outro negócio: desde o começo dela (os testes rodam em série, um

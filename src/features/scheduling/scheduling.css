@@ -395,3 +395,5 @@ html:has(.tn-sched-confirmbar, .tn-sched-savebar) { scroll-padding-bottom: calc(
 .tn-sched-steps__item[data-done] { color: var(--tn-text-muted); }
 .tn-sched-steps-top .tn-caps { margin: 0; }
 .tn-sched-steps-top .tn-caps:focus { outline: none; }
+/* "Salvar como cliente" logo abaixo do contato do pedido pelo link (recado #160). */
+.tn-sched-detail__save-customer { margin-top: var(--tn-space-2); }
