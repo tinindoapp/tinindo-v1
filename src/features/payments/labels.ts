@@ -27,9 +27,11 @@ export const FAILURE_REASON: Record<string, string> = {
 import { formatCents } from "../../lib/money.ts";
 import { deviceTimeZone, formatCivilDate, formatDateTime, formatDayMonth, formatTime, isCivilDate, localDate, now } from "../../lib/time.ts";
 export { formatCents, formatDateTime };
-/** Data civil "2026-10-20" → "20/10/2026" (sem fuso: é um dia, não um instante). */
+/** Data civil "2026-10-20" → "20/10/2026" (sem fuso: é um dia, não um instante).
+ *  Data impossível (2026-02-31) não "rola" para março nem passa como se fosse válida (P53, defeito 4). */
 export function formatDay(day: string): string {
-  return isCivilDate(day) ? formatCivilDate(day) : day;
+  if (isCivilDate(day)) return formatCivilDate(day);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? `data inválida (${day})` : day;
 }
 /** Recebível "Corte · Ana Beatriz" → serviço e nome para a mensagem pronta (o nome pode faltar). */
 export function splitDescription(description: string): { service: string; name: string | null } {

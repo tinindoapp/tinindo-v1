@@ -44,7 +44,8 @@ function pendingSummary(e: unknown): PendingSummary | null {
 }
 /** Botão do WhatsApp do perfil: abre a conversa com o número do negócio e uma mensagem pronta (a pessoa envia). */
 export const WHATSAPP_GREETING = "Olá! Vi seu perfil na Tinindo.";
-export const whatsappLink = (e164: string) => `https://wa.me/${e164.replace(/\D/g, "")}?text=${encodeURIComponent(WHATSAPP_GREETING)}`;
+// Mesmo link do kit (P53, defeito 1): E.164 curto (menos de 10 dígitos) abre o WhatsApp sem número, com o texto.
+export const whatsappLink = (e164: string) => whatsappHref(e164, WHATSAPP_GREETING);
 
 /** Quantos dias a fileira de chips mostra a partir de hoje. */
 export const DAYS_AHEAD = 14;

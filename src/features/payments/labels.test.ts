@@ -8,6 +8,9 @@ describe("textos de Pagamentos", () => {
     expect(formatDay("2026-01-01")).toBe("01/01/2026");
     expect(formatDay("2026-12-31")).toBe("31/12/2026");
     expect(formatDay("texto")).toBe("texto");
+    expect(formatDay("2026-02-31")).toBe("data inválida (2026-02-31)");
+    expect(formatDay("2026-13-01")).toBe("data inválida (2026-13-01)");
+    expect(formatDay("2028-02-29")).toBe("29/02/2028");
   });
 
   it("mensagem pronta do Pix com nome, serviço, valor e link", () => {
