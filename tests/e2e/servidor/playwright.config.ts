@@ -27,6 +27,9 @@ export default defineConfig({
     {
       command: "node --experimental-strip-types tests/e2e/servidor/iniciar-gateway.ts",
       cwd: root,
+      // O "cron" do canal simulado: a jornada do primeiro acesso lê em Mensagens › Simulador o código do número e o da
+      // reserva pelo link. O P59 não depende dele (os negócios do seed não têm número conectado).
+      env: { E2E_GATEWAY_DESPACHO_MS: process.env.E2E_GATEWAY_DESPACHO_MS ?? "2000" },
       url: `${gatewayUrl}/__saude`,
       reuseExistingServer: false,
       stdout: "pipe",

@@ -6,7 +6,9 @@ export const EMAIL_UNAVAILABLE = "Não deu para criar a conta com esse e-mail. S
 
 export function messageFor(e: unknown, context: "business" | "onboarding" | "link" | "auth"): string {
   if (e instanceof AuthFlowError) {
-    if (e.kind === "weak_password") return "Senha fraca. Use uma senha maior, que você não usa em outro lugar.";
+    if (e.kind === "weak_password") return "Senha fraca. Use pelo menos 10 caracteres, com letras e números, e que você não use em outro lugar.";
+    if (e.kind === "same_password") return "A nova senha precisa ser diferente da atual.";
+    if (e.kind === "session_ended") return "O link ou a sessão venceu. Peça outro link em “Esqueci minha senha” ou entre de novo.";
     if (e.kind === "rate_limited") return "Muitas tentativas. Espere alguns minutos e tente de novo.";
     // Neutra: não diz se o e-mail já tem conta (E7).
     if (e.kind === "email_unavailable") return EMAIL_UNAVAILABLE;

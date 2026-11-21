@@ -6,6 +6,8 @@ import { Link, useNavigate } from "react-router";
 import { Button, Card, Field, PageHeader, StatusBanner, toast, useFormErrors, Wordmark } from "../../components/ui/index.tsx";
 import { EMAIL_UNAVAILABLE, messageFor } from "./errors.ts";
 import { PasswordToggle, usePasswordVisibility } from "./PasswordToggle.tsx";
+import { type LegalDoc, LegalSheet } from "./LegalSheet.tsx";
+import { useSession } from "../../app/session.tsx";
 import { MIN_PASSWORD_LENGTH, PASSWORD_HINT } from "./presets.ts";
 import { AuthFlowError, IdentityServicesProvider, useIdentityServices } from "./services.tsx";
 
@@ -31,6 +33,7 @@ export function SignUpPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<null | "confirm" | "signed_in">(null);
+  const [reading, setReading] = useState<LegalDoc | null>(null);
   const { formRef, errors, show, clear } = useFormErrors<"email" | "password" | "confirm">();
   const password = usePasswordVisibility();
 
@@ -101,6 +104,11 @@ export function SignUpPage() {
             ) : error ? (
               <StatusBanner tone="danger">{error}</StatusBanner>
             ) : null}
+            <p className="tn-muted tn-id-legal-line">
+              Ao criar a conta, você concorda com os{" "}
+              <button type="button" className="tn-id-link" aria-haspopup="dialog" onClick={() => setReading("terms")}>Termos de uso</button> e a{" "}
+              <button type="button" className="tn-id-link" aria-haspopup="dialog" onClick={() => setReading("privacy")}>Política de privacidade</button> da fase piloto.
+            </p>
             <Button type="submit" loading={pending} loadingText="Criando…" disabled={!services.online}>
               Criar conta
             </Button>
@@ -108,6 +116,7 @@ export function SignUpPage() {
             <Link to="/entrar">Já tenho conta</Link>
           </form>
         )}
+        <LegalSheet doc={reading} onClose={() => setReading(null)} />
       </Card>
     </main>
   );
@@ -163,6 +172,7 @@ export function RecoverPasswordPage() {
 
 export function NewPasswordPage() {
   const services = useIdentityServices();
+  const session = useSession();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -178,6 +188,7 @@ export function NewPasswordPage() {
     setError(null);
     try {
       await services.updatePassword(password);
+      session.endRecovery();
       toast("Senha alterada.");
       navigate("/app/conta");
     } catch (err) {

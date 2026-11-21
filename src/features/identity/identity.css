@@ -157,3 +157,10 @@
 }
 .tn-id-feature[data-on] .tn-id-feature__state { background: var(--tn-success-bg); color: var(--tn-success-text); }
 .tn-id-feature .tn-actions a { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }
+
+/* Folha dos termos (issue #87): texto longo legível; campos a definir marcados sem cor de estado. */
+.tn-id-legal h3 { margin: var(--tn-space-4) 0 0; font-size: var(--tn-text-body); font-weight: var(--tn-font-weight-semibold); }
+.tn-id-legal h4 { margin: var(--tn-space-3) 0 0; font-size: var(--tn-text-support); font-weight: var(--tn-font-weight-semibold); }
+.tn-id-legal p, .tn-id-legal li { overflow-wrap: anywhere; }
+.tn-id-legal ul { margin: 0; padding-left: var(--tn-space-5); display: grid; gap: var(--tn-space-1); }
+.tn-id-legal__pending { background: var(--tn-surface-sunken); color: inherit; padding: 0 var(--tn-space-1); border-radius: 4px; }

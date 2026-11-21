@@ -1,6 +1,7 @@
 // Portas do módulo Metas e sugestões (P22, P45). Demonstração: emulação na aba, sempre rotulada; servidor: Edge Function `growth-advice`.
 import type { AdviceListOutput, ContentListOutput, DigestListOutput, Goal, GoalListOutput, GoalMetricKey, GoalSaveInput, Insight, InsightCommandOutput, InsightListOutput } from "@contracts";
 import type { z } from "zod";
+import type { InsightExplanation } from "../../../supabase/functions/_shared/domain/agent/insight-explain.ts";
 
 export type GoalInput = z.input<typeof GoalSaveInput>;
 export type GoalList = z.infer<typeof GoalListOutput>;
@@ -9,7 +10,9 @@ export type Content = z.infer<typeof ContentListOutput>;
 export type InsightList = z.infer<typeof InsightListOutput>;
 export type InsightCommand = z.infer<typeof InsightCommandOutput>;
 export type Digests = z.infer<typeof DigestListOutput>;
-export type { Goal, GoalMetricKey, Insight };
+/** Regra em "O que a conta olhou". `current`: o número de agora, quando é conhecido (a demonstração sabe; o motor não grava). */
+export type InsightRule = InsightList["rules"][number] & { current?: number | null };
+export type { Goal, GoalMetricKey, Insight, InsightExplanation };
 
 export interface GrowthAdvicePort {
   readonly kind: "demo" | "server";
@@ -27,6 +30,11 @@ export interface GrowthAdvicePort {
   snoozeInsight(insight: Insight, key: string): Promise<InsightCommand>;
   /** "Preparar"/"Ver": cria a proposta no fluxo dono ou devolve a tela do fluxo. Nunca executa. */
   actInsight(insight: Insight, key: string): Promise<InsightCommand>;
+  /**
+   * "Por quê?" de uma sugestão (uma chamada, só quando o dono abre). Frase do assistente guardada por versão, ou a
+   * frase fixa por regra. Opcional: a porta da Home (src/app) não a usa.
+   */
+  explain?(insightId: string): Promise<InsightExplanation>;
   /** Resumos semanais por modelo fixo. */
   digests(): Promise<Digests>;
   /** Só na demonstração: 30 dias passam e o worker acompanha as decisões. */

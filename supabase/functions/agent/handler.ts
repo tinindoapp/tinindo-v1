@@ -6,6 +6,8 @@
 // P46: com provedor de linguagem ligado (`deps.llm`), um pedido que o motor não entende passa pelo modelo, que só
 // escolhe intenção e argumentos (understand.ts); sem provedor (`LLM_PROVIDER=none`), tudo igual ao P08.
 // agent.draft (P46): reescreve um rascunho do dono no tom pedido; volta como sugestão, nada é salvo nem enviado.
+// assist.form_draft ("Faz comigo", revisão 06/11 T4): frase do dono → rascunho de um formulário do catálogo fechado;
+// volta como rascunho para a tela de sempre abrir preenchida. Nunca grava, nunca gera id nem versão.
 // action.approve / action.execute: uma RPC transacional cada (rpc-handler), com Idempotency-Key.
 // Log técnico sem PII: nunca o texto da pergunta, da resposta, o token ou o tenant.
 import {
@@ -23,6 +25,7 @@ import {
   IdempotencyKey,
   TENANT_HEADER,
 } from "../_shared/contracts/index.ts";
+import { FormDraftInput, FormDraftOutput } from "../_shared/domain/agent/forms.ts";
 import type { Window } from "../_shared/domain/agent/time.ts";
 import { type Agenda, type AgentData, type Directory, type Finance, ToolError } from "../_shared/domain/agent/types.ts";
 import { canonicalJson, sha256Hex } from "../_shared/http/command.ts";
@@ -32,12 +35,16 @@ import { createRpcHandler, type Route, route, type RpcHandlerDeps } from "../_sh
 import { type Llm, noneLlm } from "../_shared/llm/index.ts";
 import { labelNames, restoreLabels } from "../_shared/llm/redact.ts";
 import { rewriteDraft } from "../_shared/llm/tasks/draft.ts";
+import { readFormDraft } from "../_shared/llm/tasks/form.ts";
 import { understand } from "./understand.ts";
 
 export interface AgentDeps extends RpcHandlerDeps {
   /** Camada de linguagem (P46). Ausente = `none`: o assistente é o motor determinístico do P08. */
   llm?: Llm;
 }
+
+/** Rotas do assistente fora do registro de contratos (schemas em _shared/domain/agent; registro: recado ao integrador). */
+export const AGENT_ASSIST_ROUTES = ["assist.form_draft"] as const;
 
 export const AGENT_ACTION_ROUTES: Record<string, Route> = {
   "action.approve": route({
@@ -73,12 +80,14 @@ export function createAgentHandler(deps: AgentDeps) {
 
   return async (req: Request): Promise<Response> => {
     const name = /\/agent\/([a-z_.]+)\/?$/.exec(new URL(req.url).pathname)?.[1] ?? "";
-    if (name !== "agent.ask" && name !== "agent.draft") return actions(req);
+    if (name !== "agent.ask" && name !== "agent.draft" && name !== "assist.form_draft") return actions(req);
     const started = clock.now().getTime();
     const requestId = requestIdFrom(req);
     const cors = corsHeaders(req, deps.allowedOrigins);
     const meta: Record<string, unknown> = {};
-    const res = name === "agent.ask" ? await ask(req, requestId, cors, meta) : await draft(req, requestId, cors, meta);
+    const res = name === "agent.ask"
+      ? await ask(req, requestId, cors, meta)
+      : name === "agent.draft" ? await draft(req, requestId, cors, meta) : await formDraft(req, requestId, cors, meta);
     deps.log?.({ fn: "agent", route: name, request_id: requestId, status: res.status, ms: clock.now().getTime() - started, ...meta });
     return res;
   };
@@ -215,6 +224,37 @@ export function createAgentHandler(deps: AgentDeps) {
       meta.suggested = out !== null;
       const suggestion = out === null ? null : restoreLabels(out, labeled.labels).slice(0, 600);
       return ok(AgentDraftOutput.parse({ available: true, suggestion }), requestId, clock, 200, cors);
+    } catch (e) {
+      if (e instanceof RpcFailure) return rpcFailure(e, requestId, cors);
+      return fail("PROVIDER_UNAVAILABLE", requestId, { extra: cors });
+    }
+  }
+
+  async function formDraft(req: Request, requestId: string, cors: Record<string, string>, meta: Record<string, unknown>) {
+    const pre = await preamble(req, requestId, cors);
+    if (pre instanceof Response) return pre;
+    const { token, tenantId, key, json } = pre;
+    const input = FormDraftInput.safeParse(json);
+    if (!input.success) {
+      const path = input.error.issues[0]?.path.map(String).join(".");
+      return fail("VALIDATION_ERROR", requestId, { field: path || undefined, extra: cors });
+    }
+    const { form, text } = input.data;
+    meta.form = form;
+    const none = FormDraftOutput.parse({ available: false, form, draft: null, filled: [], notes: [] });
+    // Sem provedor: nada a fazer e nada a debitar. A tela segue com a dica fixa e o formulário.
+    if (!llm.enabled) return ok(none, requestId, clock, 200, cors);
+    const call = rpcCaller(token, tenantId);
+    try {
+      // Mesmo portão e franquia do agent.ask: vínculo e débito antes de chamar o modelo. Só o dono configura.
+      const start = (await call("agent_run_start", { p_idem_key: key })) as RunStart;
+      if (start.role !== "owner") return fail("FORBIDDEN", requestId, { message: "Só o dono do negócio preenche formulários pelo assistente.", extra: cors });
+      const built = await readFormDraft(llm, form, text);
+      meta.filled = built?.filled.length ?? 0;
+      if (built === null) {
+        return ok(FormDraftOutput.parse({ available: true, form, draft: null, filled: [], notes: [{ field: null, text: "Não consegui ler agora. Preencha o formulário ou tente de novo." }] }), requestId, clock, 200, cors);
+      }
+      return ok(FormDraftOutput.parse({ available: true, form, ...built }), requestId, clock, 200, cors);
     } catch (e) {
       if (e instanceof RpcFailure) return rpcFailure(e, requestId, cors);
       return fail("PROVIDER_UNAVAILABLE", requestId, { extra: cors });

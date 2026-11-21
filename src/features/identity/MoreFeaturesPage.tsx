@@ -19,6 +19,19 @@ const WHAT: Partial<Record<ModuleId, string>> = {
   "service-ops": "Mostra o seu plano e os serviços assistidos da equipe Tinindo. No piloto nada é cobrado.",
 };
 
+/**
+ * O que muda ao ligar, no primeiro dia: onde aparece e por onde começar. A tela nova abre vazia; a frase diz o primeiro
+ * passo, para a pessoa não ligar sem saber o que vem depois.
+ */
+const ON_START: Partial<Record<ModuleId, string>> = {
+  recurrence: "Comece criando um plano (sessões por mês e preço) e depois escolha o cliente.",
+  sales: "Comece com um orçamento para um cliente já cadastrado.",
+  "growth-advice": "Com poucos atendimentos, as sugestões aparecem depois da primeira semana.",
+  analytics: "Os números enchem conforme você registra atendimentos e recebimentos.",
+  referrals: "Mostra só quem você convidou; sem convite, fica vazio.",
+  "service-ops": "Fica para consulta. Nada muda no que você já usa.",
+};
+
 /** Para quem o recurso costuma servir primeiro (só destaque; todo negócio pode ligar qualquer um). */
 const SUGGESTED: Partial<Record<Profession, ModuleId>> = { personal_trainer: "recurrence" };
 
@@ -51,6 +64,7 @@ function Feature({ module, suggested }: { module: ScopeModule; suggested: boolea
           <span className="tn-id-feature__state">{module.enabled ? "Ligado" : "Desligado"}</span>
         </h2>
         <p>{WHAT[module.id]}</p>
+        {!module.enabled && ON_START[module.id] ? <p className="tn-muted">Ao ligar, {module.label} entra no menu. {ON_START[module.id]}</p> : null}
         {suggested && !module.enabled ? <p className="tn-muted">Costuma ajudar quem atende alunos fixos.</p> : null}
       </div>
       <div className="tn-actions">
@@ -94,11 +108,15 @@ export function MoreFeaturesPage() {
       {scope.status === "ready" ? (
         <>
           {!scope.canManage ? <StatusBanner tone="info">Só quem é dono do negócio liga e desliga recursos.</StatusBanner> : null}
-          <Card aria-labelledby="features-title">
-            <ul className="tn-id-features" aria-label="Recursos opcionais">
-              {features.map((m) => <Feature key={m.id} module={m} suggested={m.id === suggested} />)}
-            </ul>
-          </Card>
+          {features.length === 0 ? (
+            <StatusBanner tone="info">Nenhum recurso opcional disponível para o seu negócio agora.</StatusBanner>
+          ) : (
+            <Card aria-labelledby="features-title">
+              <ul className="tn-id-features" aria-label="Recursos opcionais">
+                {features.map((m) => <Feature key={m.id} module={m} suggested={m.id === suggested} />)}
+              </ul>
+            </Card>
+          )}
         </>
       ) : null}
     </div>

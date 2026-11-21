@@ -80,5 +80,16 @@ describe("demonstração de Metas e conteúdo (mesmas regras do banco)", () => {
     const digest = DigestListOutput.parse(await port.digests()).digests[0]!;
     expect(digest.body).toMatch(/^Resumo da semana de 12\/10 a 18\/10\./);
   });
-});
 
+  it("Por quê? sem rede: a frase fixa por regra da versão atual, sem selo do assistente; insight desconhecido → NOT_FOUND", async () => {
+    const port = createDemoPort();
+    const all = InsightListOutput.parse(await port.insights("all"));
+    const idle = all.insights.find((i) => i.rule_code === "idle_slot")!;
+    expect(await port.explain!(idle.id)).toEqual({ insight_id: idle.id, version: idle.version, source: "fixed",
+      text: "A faixa de sábado das 9h às 14h ficou vazia em 5 das 5 semanas, de 14/09 a 18/10. Uma regra de preço só para ela pode atrair quem tem horário flexível. Prepare a proposta e decida em Preços." });
+    expect(await code(port.explain!("e3000000-0000-4000-8000-999999999999"))).toBe("NOT_FOUND/-");
+    // O número de hoje da regra insuficiente (só a demonstração sabe) acompanha a lista, fora do contrato.
+    expect(all.rules.find((r) => r.code === "lapsed_customers")).toMatchObject({ status: "insufficient", reason: "few_returning_customers" });
+    expect((await port.insights("all")).rules.find((r) => r.code === "lapsed_customers")).toMatchObject({ current: 4 });
+  });
+});
