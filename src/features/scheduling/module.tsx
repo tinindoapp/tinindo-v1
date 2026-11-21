@@ -1,11 +1,10 @@
 // Módulo Agenda · dono: P04 (tasks/P04.md). Só esta pasta pertence ao módulo;
 // src/app/modules.ts é do integrador.
+// Manifesto (P53): as telas ficam em routes.tsx e são carregadas sob demanda.
 import type { ModuleDefinition } from "../../app/module-types.ts";
-import { AgendaPage } from "./AgendaPage.tsx";
-import { BookingDetailPage } from "./BookingDetailPage.tsx";
-import { NewBookingPage, ReschedulePage } from "./BookingFlowPage.tsx";
-import { HoursPage } from "./HoursPage.tsx";
-import { SchedulingLayout } from "./SchedulingLayout.tsx";
+import { screen } from "../../app/lazy-route.ts";
+
+const routes = () => import("./routes.tsx");
 
 export const schedulingModule: ModuleDefinition = {
   id: "scheduling",
@@ -16,13 +15,13 @@ export const schedulingModule: ModuleDefinition = {
   navLabel: "Agenda",
   routes: [
     {
-      element: <SchedulingLayout />,
+      lazy: screen(routes, (m) => m.SchedulingLayout),
       children: [
-        { index: true, element: <AgendaPage /> },
-        { path: "novo", element: <NewBookingPage /> },
-        { path: "horarios", element: <HoursPage /> },
-        { path: "atendimento/:bookingId", element: <BookingDetailPage /> },
-        { path: "atendimento/:bookingId/reagendar", element: <ReschedulePage /> },
+        { index: true, lazy: screen(routes, (m) => m.AgendaPage) },
+        { path: "novo", lazy: screen(routes, (m) => m.NewBookingPage) },
+        { path: "horarios", lazy: screen(routes, (m) => m.HoursPage) },
+        { path: "atendimento/:bookingId", lazy: screen(routes, (m) => m.BookingDetailPage) },
+        { path: "atendimento/:bookingId/reagendar", lazy: screen(routes, (m) => m.ReschedulePage) },
       ],
     },
   ],

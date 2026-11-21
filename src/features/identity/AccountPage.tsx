@@ -77,6 +77,14 @@ export function AccountPage() {
         </div>
       </Card>
 
+      <Card aria-labelledby="privacy-title">
+        <h2 id="privacy-title">Seus dados</h2>
+        <p className="tn-muted">Baixe uma cópia dos dados do negócio ou de um cliente, ou peça a eliminação.</p>
+        <div className="tn-actions">
+          <Link to="/app/privacidade">Abrir Seus dados</Link>
+        </div>
+      </Card>
+
       {/* Outro negócio é raro: fica no fim, sem destaque (E13). */}
       {active ? (
         <p className="tn-muted">

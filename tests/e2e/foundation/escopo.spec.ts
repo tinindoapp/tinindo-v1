@@ -5,7 +5,7 @@ import { noHorizontalScroll, openFromNav } from "../qa/helpers.ts";
 // guardados (nenhum link; a rota direta explica e oferece saída). Roda na demonstração, como o participante do piloto
 // vê (sem a chave "todos" dos e2e dos outros módulos), no celular de 375 px e no desktop.
 
-const PILOT_MENU = ["Hoje", "Agenda", "Horários", "Lista de espera", "Preços", "Clientes", "Serviços", "Relacionamento", "Retorno", "Caixa", "Assistente", "Configuração", "Perfil", "Conta"];
+const PILOT_MENU = ["Hoje", "Agenda", "Horários", "Lista de espera", "Preços", "Clientes", "Serviços", "Relacionamento", "Retorno", "Caixa", "Assistente", "Configuração", "Perfil", "Conta", "Seus dados"];
 const STORED = ["mensagens", "pagamentos", "notas", "site", "campanhas", "avaliacoes", "domicilio", "diretorio", "equipe", "materiais", "contas"];
 
 test.beforeEach(async ({ page, isMobile }) => {

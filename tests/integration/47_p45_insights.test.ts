@@ -16,6 +16,8 @@ describe("P45 · insights proativos pelos handlers", () => {
   it("0 · negócio com 200 dias: 6 concluídos sem cobrança e terça 14–16 vazia nas 5 semanas", async () => {
     await sql("insert into public.tenants (id, name, profession, timezone, created_at) values ($1, 'Barbearia P45', 'barber', 'America/Sao_Paulo', now() - interval '200 days')", [TENANT]);
     await sql("insert into public.tenant_memberships (tenant_id, user_id, role) values ($1, $2, 'owner')", [TENANT, U.ownerA]);
+    // Recado #142: insights são do módulo Metas e sugestões (por ativação); o dono deste negócio o ligou.
+    await sql("select app.module_admin_set($1, 'growth-advice', true)", [TENANT]);
     await sql("insert into public.resources (id, tenant_id, name) values ($1, $2, 'Profissional')", [RES, TENANT]);
     await sql("insert into public.provider_services (id, tenant_id, name, duration_min, base_price_cents, min_price_cents, active) values ($1, $2, 'Corte', 30, 6000, 4500, true)", [SVC, TENANT]);
     await sql("insert into public.availability_rules (tenant_id, resource_id, weekday, local_start, local_end) values ($1, $2, 1, '09:00', '11:00'), ($1, $2, 2, '14:00', '16:00')", [TENANT, RES]);

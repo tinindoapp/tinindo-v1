@@ -46,7 +46,7 @@ Só lê. Pode rodar a qualquer hora, sem publicar.
 | Bundle | O JavaScript não aponta para `kitdsdyydgutnbiwjblw.supabase.co` |
 | Rota interna | `/app/agenda` recarregada não dá 200 |
 | Migrations | Falta aplicar alguma, ou o ambiente tem uma que o repositório não tem |
-| Escopo do piloto | `app.module_catalog()` não tem 27 módulos com 10 no primeiro dia (P51) |
+| Escopo do piloto | `app.module_catalog()` não tem 28 módulos com 11 no primeiro dia (P51 + Seus dados, P57) |
 | Rotinas | Alguma linha ligada do `job_ticks` com 3 ou mais falhas seguidas |
 | Funções | Alguma função do navegador não sobe ou recusa a origem do app (CORS) |
 | Cron | Algum dos 4 agendamentos não rodou com sucesso em até 2 minutos |

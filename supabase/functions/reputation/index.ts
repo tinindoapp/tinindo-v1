@@ -3,6 +3,7 @@
 // verificação de identidade são do backend (service_role) e não têm rota aqui. Nenhuma chave secreta aqui.
 import { createClient } from "@supabase/supabase-js";
 import { createReputationHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -29,4 +30,4 @@ const handler = createReputationHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));

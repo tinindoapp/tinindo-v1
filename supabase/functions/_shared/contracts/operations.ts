@@ -27,6 +27,7 @@ import * as accounts from "./finance-advanced.ts";
 import * as field from "./field-service.ts";
 import * as setup from "./setup.ts";
 import * as scope from "./scope.ts";
+import * as privacy from "./privacy.ts";
 import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
@@ -58,7 +59,8 @@ export type ModuleId =
   | "materials"
   | "finance-advanced"
   | "field-service"
-  | "setup";
+  | "setup"
+  | "privacy";
 
 export interface OperationSpec {
   module: ModuleId;
@@ -816,6 +818,13 @@ export const OPERATIONS = {
   "setup.module_set": { module: "setup", owner: "P51", kind: "command", idempotent: true, input: scope.SetupModuleSetInput, output: scope.SetupModuleSetOutput },
   // Rota própria no handler (não é "uma RPC"): regras primeiro e o modelo de linguagem do P46 só para o que faltar.
   "setup.describe": { module: "setup", owner: "P50", kind: "query", idempotent: false, input: setup.SetupDescribeInput, output: setup.SetupDescribeOutput },
+  // P57 (D26): exportar e eliminar dados (função `privacy`; recado #137).
+  "privacy.exports": { module: "privacy", owner: "P57", kind: "query", idempotent: false, input: privacy.PrivacyExportsListInput, output: privacy.PrivacyExportsListOutput },
+  "privacy.export": { module: "privacy", owner: "P57", kind: "command", idempotent: true, input: privacy.PrivacyExportInput, output: privacy.PrivacyExportOutput },
+  "privacy.export_link": { module: "privacy", owner: "P57", kind: "query", idempotent: false, input: privacy.PrivacyExportLinkInput, output: privacy.PrivacyExportOutput },
+  "privacy.erasures": { module: "privacy", owner: "P57", kind: "query", idempotent: false, input: privacy.PrivacyErasuresListInput, output: privacy.PrivacyErasuresListOutput },
+  "privacy.erase": { module: "privacy", owner: "P57", kind: "command", idempotent: true, input: privacy.PrivacyEraseInput, output: privacy.PrivacyEraseOutput },
+  "privacy.erase_cancel": { module: "privacy", owner: "P57", kind: "command", idempotent: true, input: privacy.PrivacyEraseCancelInput, output: privacy.PrivacyEraseOutput },
 } as const satisfies Record<string, OperationSpec>;
 
 export type OperationName = keyof typeof OPERATIONS;

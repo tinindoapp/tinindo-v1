@@ -4,7 +4,7 @@ import { createContext, type FormEvent, useContext, useEffect, useState } from "
 import type { SalesQuote } from "@contracts";
 import { Button, Card, ChoiceCard, ConfirmAction, Field, Help, PageHeader, ShareActions, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { Icon } from "../../components/ui/icons.tsx";
-import { withBusinessSlug } from "./public-kit.tsx";
+import { withBusinessSlug } from "../../components/public/public-kit.tsx";
 import { type QuoteDetail, type QuoteDraft, type QuoteMaterialCost, type SalesBase, type SalesPort } from "./port.ts";
 import {
   centsToInput,

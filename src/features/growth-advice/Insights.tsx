@@ -1,7 +1,7 @@
 // Insights proativos (P45): cartão "Para você esta semana" da Home (até 3, com "Ver" e "Agora não"), a lista completa
 // em Metas e sugestões e o resumo semanal. A tela não calcula nada: mostra o que o motor do servidor decidiu, sempre
 // com período, número e denominador. "Preparar" cria uma PROPOSTA no fluxo dono (aprovação lá); nada executa aqui.
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useScope } from "../../app/scope.tsx";
 import { ActionButton, Card, Section, StatusBanner, toast } from "../../components/ui/index.tsx";
@@ -85,7 +85,11 @@ export function InsightsCard({ port, limit = 3 }: { port: GrowthAdvicePort; limi
 }
 
 /** Lista completa em Metas e sugestões: abertos com a ação, os já decididos com o acompanhamento e o que o motor olhou. */
-export function InsightsSection({ port, focusId }: { port: GrowthAdvicePort; focusId: string | null }) {
+/**
+ * Sugestões calculadas sobre os números do negócio. `inCard` (Metas, D12 b): sem cartão próprio, dentro do cartão único
+ * "Sugestões" da tela, com título de terceiro nível.
+ */
+export function InsightsSection({ port, focusId, inCard = false }: { port: GrowthAdvicePort; focusId: string | null; inCard?: boolean }) {
   const [data, setData] = useState<InsightList | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [nonce, setNonce] = useState(0);
@@ -106,9 +110,12 @@ export function InsightsSection({ port, focusId }: { port: GrowthAdvicePort; foc
   const scope = useScope();
   const open = data?.insights.filter((i) => i.state === "open" && scope.canOpen(i.action.route)) ?? [];
   const closed = data?.insights.filter((i) => i.state !== "open") ?? [];
+  const Wrap = inCard ? InCard : Card;
   return (
-    <Card aria-labelledby="ga-insights-title">
-      <h2 id="ga-insights-title">Sugestões para você</h2>
+    <Wrap aria-labelledby="ga-insights-title">
+      {inCard
+        ? <h3 id="ga-insights-title" className="tn-ga-subtitle">Sobre os seus números</h3>
+        : <h2 id="ga-insights-title">Sugestões para você</h2>}
       <p className="tn-muted">Uma conta por dia sobre os seus números, com regras fixas. Cada sugestão mostra o período, quantos de quantos, e onde agir. Nada muda sem você aprovar na tela do fluxo.</p>
       {error ? <StatusBanner tone="danger">{explainInsight(error)}</StatusBanner> : null}
       {data && open.length === 0 ? <p className="tn-muted">Nenhuma sugestão aberta: as regras só falam quando há dado suficiente.</p> : null}
@@ -156,7 +163,7 @@ export function InsightsSection({ port, focusId }: { port: GrowthAdvicePort; foc
           </ul>
         </details>
       ) : null}
-    </Card>
+    </Wrap>
   );
 }
 
@@ -183,4 +190,9 @@ export function WeeklyDigestCard({ port, compact = false }: { port: GrowthAdvice
       {compact && scope.canOpen("/app/metas") ? <p><Link to="/app/metas">Ver sugestões em Metas e sugestões</Link></p> : null}
     </Card>
   );
+}
+
+/** Parte de um cartão maior (Metas): mesma estrutura de seção, sem a caixa do cartão. */
+function InCard({ children, ...rest }: { children: ReactNode; "aria-labelledby"?: string }) {
+  return <section className="tn-ga-part" {...rest}>{children}</section>;
 }

@@ -4,6 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createPspProvider, createSimulatedPaymentProvider } from "../_shared/domain/payments/providers.ts";
 import { createPaymentsHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -29,6 +30,8 @@ const handler = createPaymentsHandler({
   syncSecret,
   simulatedSecret,
   publicAppUrl,
+  // D22 (a): fora da demonstração o cliente não paga cobrança simulada pelo link. Só liga com PAYMENTS_SIM_PAY=on.
+  simPayEnabled: Deno.env.get("PAYMENTS_SIM_PAY") === "on",
   providers: {
     simulated: createSimulatedPaymentProvider({ secret: simulatedSecret, store: serviceRpc }),
     psp: createPspProvider({
@@ -53,4 +56,4 @@ const handler = createPaymentsHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));

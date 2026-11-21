@@ -28,6 +28,7 @@ import { materialsModule } from "../features/materials/module.tsx";
 import { financeAdvancedModule } from "../features/finance-advanced/module.tsx";
 import { fieldServiceModule } from "../features/field-service/module.tsx";
 import { setupModule } from "../features/setup/module.tsx";
+import { privacyModule } from "../features/privacy/module.tsx";
 
 export const MODULES: readonly ModuleDefinition[] = [
   schedulingModule,
@@ -57,4 +58,5 @@ export const MODULES: readonly ModuleDefinition[] = [
   fieldServiceModule,
   setupModule,
   identityModule,
+  privacyModule,
 ];

@@ -94,7 +94,7 @@ export function BookingDetailPage() {
         ‹ Voltar para a agenda
       </Link>
       <PageHeader id="booking-title" title="Atendimento" />
-      <ScreenNotes demo={port.kind === "fixture"} timezone={ctx.timezone} at={state.data?.starts_at ?? port.now()} />
+      <ScreenNotes timezone={ctx.timezone} at={state.data?.starts_at ?? port.now()} />
       {state.error ? (
         <ErrorPanel error={state.error} operation="load" onRetry={state.reload} />
       ) : !state.data ? (

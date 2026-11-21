@@ -2,6 +2,7 @@
 // quando há login, como anon nas rotas públicas. RLS e as RPCs decidem o acesso.
 import { createClient } from "@supabase/supabase-js";
 import { createNetworkHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -26,6 +27,8 @@ const rpc = async (accessToken: string | null, fn: string, args: Record<string, 
 const handler = createNetworkHandler({
   allowedOrigins,
   publicAppUrl,
+  // P57: segredo do ambiente (homologação e produção); sem ele o hash da origem usa pimenta vazia.
+  originPepper: Deno.env.get("ORIGIN_PEPPER") ?? "",
   photoBaseUrl: `${url.replace(/\/$/, "")}/storage/v1/object/public/profile-photos`,
   rpc,
   // Motor de agenda (P03), como anon: só horários livres de perfil publicado, sem tenant nem reservas.
@@ -42,4 +45,4 @@ const handler = createNetworkHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));

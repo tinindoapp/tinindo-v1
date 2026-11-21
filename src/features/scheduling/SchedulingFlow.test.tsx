@@ -36,11 +36,11 @@ const SLOW = { timeout: 5000 };
 const toaster = () => document.querySelector<HTMLElement>(".tn-toaster")!;
 
 describe("agenda (demonstração sobre fixtures)", () => {
-  it("dia mostra atendimentos no fuso do negócio, ocupação e aviso de dados de exemplo", async () => {
+  it("dia mostra atendimentos no fuso do negócio e a ocupação; a demonstração fica só na faixa do topo (D11 b)", async () => {
     renderAt("/app/agenda");
     const list = await screen.findByRole("list", { name: /Linha do tempo/ }, SLOW);
     expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent("09:00–09:30");
-    expect(screen.getByText(/Dados de exemplo\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Dados de exemplo\./)).not.toBeInTheDocument();
     // Ocupação compacta acima da lista; detalhes recolhidos em "Ver números do dia".
     expect(screen.getByText(/% ocupado/)).toBeInTheDocument();
     expect(screen.getByText("Ver números do dia")).toBeInTheDocument();
@@ -187,7 +187,7 @@ describe("agenda (demonstração sobre fixtures)", () => {
     renderAt(`/app/agenda/atendimento/${FIRST}`);
     fireEvent.click(await screen.findByRole("button", { name: "Faltou" }, SLOW));
     expect(await within(toaster()).findByText(/Falta registrada/)).toBeInTheDocument();
-    expect(await screen.findByText("Faltou", { selector: ".tn-sched-badge" })).toBeInTheDocument();
+    expect(await screen.findByText("Faltou", { selector: ".tn-sched-badge .tn-badge" })).toBeInTheDocument();
     fireEvent.click(within(toaster()).getByRole("button", { name: "Desfazer" }));
     expect(await within(toaster()).findByText("Falta desfeita. O atendimento voltou a ficar confirmado.")).toBeInTheDocument();
     expect(await screen.findByText("Confirmado", undefined, SLOW)).toBeInTheDocument();
@@ -232,6 +232,14 @@ describe("agenda (demonstração sobre fixtures)", () => {
     expect(first).toHaveAttribute("aria-invalid", "true");
     await waitFor(() => expect(first).toHaveFocus());
     expect(router.state.location.pathname).toBe("/app/agenda/novo");
+  });
+
+  it("vindo da ficha do cliente (?cliente=<id>): o cliente já começa marcado", async () => {
+    renderAt(`/app/agenda/novo?data=2026-10-20&cliente=${ANA}`);
+    const customer = await screen.findByRole("group", { name: "Cliente" }, SLOW);
+    const checked = within(customer).getAllByRole("radio").filter((r) => (r as HTMLInputElement).checked);
+    expect(checked).toHaveLength(1);
+    expect(checked[0]!.closest("label") ?? checked[0]!.parentElement).toHaveTextContent(/Ana/);
   });
 
   it("agenda: Dia/Semana é escolha única e as setas de data são botões de ícone com nome", async () => {
@@ -319,14 +327,12 @@ describe("horários (demonstração)", () => {
 });
 
 describe("onda 3 da auditoria de UX (itens 19, 28, 29, 30, 32 e 34)", () => {
-  it("avisos da tela numa linha, com a explicação em \"Como funciona\"; o fuso só aparece se o aparelho estiver noutro", async () => {
+  it("aparelho no fuso do negócio: nenhuma linha de aviso na tela (D11 b: a demonstração fica na faixa do topo)", async () => {
     const spy = vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(180); // aparelho em -03:00
     renderAt("/app/agenda");
     await screen.findByRole("list", { name: /Linha do tempo/ }, SLOW);
-    const line = screen.getByText(/As mudanças valem só nesta aba/);
-    expect(line).toHaveTextContent("Dados de exemplo. As mudanças valem só nesta aba.");
+    expect(screen.queryByText(/As mudanças valem só nesta aba/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Horários de Brasília/)).not.toBeInTheDocument();
-    expect(screen.getByText("Como funciona").closest("details")).not.toHaveAttribute("open");
     spy.mockRestore();
   });
 
@@ -334,7 +340,8 @@ describe("onda 3 da auditoria de UX (itens 19, 28, 29, 30, 32 e 34)", () => {
     const spy = vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(-540); // Tóquio
     renderAt("/app/agenda");
     await screen.findByRole("list", { name: /Linha do tempo/ }, SLOW);
-    expect(screen.getByText(/As mudanças valem só nesta aba/)).toHaveTextContent("Horários de Brasília (UTC−03:00)");
+    expect(screen.getByText(/Horários de Brasília/)).toHaveTextContent("Horários de Brasília (UTC−03:00)");
+    expect(screen.getByText("Como funciona").closest("details")).not.toHaveAttribute("open");
     spy.mockRestore();
   });
 

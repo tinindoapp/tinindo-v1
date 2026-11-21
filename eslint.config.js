@@ -72,16 +72,6 @@ const LEGACY_CLOCK = [
 // P53 (R4): um cliente de API por sessão (src/app/session.tsx). Módulo usa useApi/usePort de src/app/api.tsx e só
 // importa o TIPO do cliente. Estes arquivos ainda criam o próprio cliente: são de áreas que não entraram no P53 (recado).
 const LEGACY_CLIENT = [
-  "src/features/agent/module.tsx",
-  "src/features/crm/module.tsx",
-  "src/features/finance/module.tsx",
-  "src/features/lifecycle/module.tsx",
-  "src/features/messaging/unread.ts",
-  // P57 entrou na main antes do P53 e cria o próprio cliente; a main ficou com lint vermelho. Fica aqui até a migração
-  // (anotado no handoff da Agenda do personal).
-  "src/features/privacy/module.tsx",
-  "src/features/sales/owner-slug.ts",
-  "src/features/sales/public-kit.tsx",
 ];
 
 const APP_CODE = ["src/features/**/*.{ts,tsx}", "src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"];

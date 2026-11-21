@@ -229,7 +229,7 @@ test.describe("UAT barbeiro", () => {
     await expect(page.getByRole("heading", { name: /quarta-feira, 21 de outubro/ })).toBeVisible();
     const timeline = page.getByRole("list", { name: /Linha do tempo de quarta-feira/ });
     await expect(timeline).toContainText("Cancelado");
-    await expect(page.getByText(/As mudanças valem só nesta aba/)).toBeVisible();
+    await expect(page.getByText(/Horários de Brasília/)).toBeVisible();
   });
 
   test("10b · pergunta ao assistente “o que tenho amanhã?” e recebe período, fonte e cobertura", async ({ page }) => {

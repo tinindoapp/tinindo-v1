@@ -30,6 +30,8 @@ create function pg_temp.mk(n integer, p_service boolean default true) returns uu
 begin
   insert into public.tenants (id, name, profession, timezone, created_at) values (pg_temp.t(n), format('Negócio %s', n), 'barber', 'America/Sao_Paulo', now() - interval '200 days');
   insert into public.tenant_memberships (tenant_id, user_id, role) values (pg_temp.t(n), (select owner_a from ids), 'owner');
+  -- Recado #142: insights são do módulo Metas e sugestões (por ativação); o dono destes negócios o ligou.
+  perform app.module_admin_set(pg_temp.t(n), 'growth-advice', true);
   insert into public.resources (id, tenant_id, name) values (pg_temp.res(n), pg_temp.t(n), 'Profissional');
   if p_service then
     insert into public.provider_services (id, tenant_id, name, duration_min, base_price_cents, min_price_cents, estimated_cost_cents, fee_bps, active)

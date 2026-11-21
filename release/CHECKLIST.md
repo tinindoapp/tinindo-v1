@@ -8,6 +8,7 @@ Duas listas: o que é **obrigatório agora**, para o UAT com o cabeleireiro e o 
 
 - [ ] `main` verde no CI, nos cinco checks obrigatórios (`docs/09`, "Checks obrigatórios do CI").
 - [ ] `npm run publicar -- homolog --conferir` sem parada.
+- [ ] `PAYMENTS_SIM_PAY` ausente no ambiente das funções (D22: o link não paga cobrança simulada fora da demonstração; `on` só de propósito).
 
 ### Publicar e conferir
 

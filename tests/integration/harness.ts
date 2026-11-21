@@ -11,6 +11,7 @@ import { createCrmHandler } from "../../supabase/functions/crm/handler.ts";
 import { createFinanceHandler } from "../../supabase/functions/finance/handler.ts";
 import { createIdentityHandler } from "../../supabase/functions/identity/handler.ts";
 import { createJobsHandler, JOBS_SECRET_HEADER } from "../../supabase/functions/jobs/handler.ts";
+import { createPrivacyHandler } from "../../supabase/functions/privacy/handler.ts";
 import { createLifecycleHandler } from "../../supabase/functions/lifecycle/handler.ts";
 import { createRecurrenceHandler } from "../../supabase/functions/recurrence/handler.ts";
 import { createReferralsHandler } from "../../supabase/functions/referrals/handler.ts";
@@ -167,8 +168,13 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
       await rpc("worker", "channel_sim_deliver", { p_phone_e164: phone, p_from_account: from, p_body: body, p_provider_message_id: id });
     } }) } }),
   payments: createPaymentsHandler({ ...deps, rpc: userRpc, anonRpc: (fn, args) => rpc(null, fn, args), serviceRpc: (fn, args) => rpc("worker", fn, args),
-    syncSecret: SYNC_SECRET, simulatedSecret: SIM_SECRET, publicAppUrl: PUBLIC_APP_URL,
+    syncSecret: SYNC_SECRET, simulatedSecret: SIM_SECRET, publicAppUrl: PUBLIC_APP_URL, simPayEnabled: true,
     providers: { simulated: createSimulatedPaymentProvider({ secret: SIM_SECRET, store: (fn, args) => rpc("worker", fn, args) }) } }),
+  // P57: o Storage de verdade fica no 50_p57_privacidade (simulado sobre storage.objects); aqui só a sonda de rotas.
+  privacy: createPrivacyHandler({ ...deps, rpc: userRpc, storage: {
+    upload: async () => { throw new Error("storage fora do harness"); },
+    signedUrl: async () => { throw new Error("storage fora do harness"); },
+  } }),
   jobs: createJobsHandler({ secret: JOBS_SECRET, runJobs: async (batch) => {
     const r = await rpc("worker", "jobs_run", { p_batch: batch });
     return { data: r.data, error: r.error };
@@ -184,6 +190,8 @@ export interface CallOptions {
   key?: string | true;
   method?: "GET" | "POST";
   query?: Record<string, string>;
+  /** Cabeçalhos extras (ex.: cf-connecting-ip no limite por origem do P57). */
+  headers?: Record<string, string>;
 }
 export interface CallResult { status: number; data: unknown; error: z.infer<typeof ErrorEnvelope>["error"] | null; requestId: string | null }
 
@@ -197,7 +205,7 @@ export async function call(module: string, op: string, opts: CallOptions = {}): 
   const method = opts.method ?? (opts.body === undefined && (module === "context" || op === "customers" || op === "services" || op === "profile.get" || op === "public.profile" || op === "referral.list") ? "GET" : "POST");
   const url = new URL(`http://edge/functions/v1/${module}${op ? `/${op}` : ""}`);
   for (const [k, v] of Object.entries(opts.query ?? {})) url.searchParams.set(k, v);
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...opts.headers };
   if (opts.as !== null && opts.as !== undefined) headers.Authorization = `Bearer ${opts.as}`;
   if (opts.tenant) headers[TENANT_HEADER] = opts.tenant;
   if (opts.key) headers[IDEMPOTENCY_HEADER] = opts.key === true ? newKey() : opts.key;

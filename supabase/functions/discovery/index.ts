@@ -2,6 +2,7 @@
 // índice de cidades e páginas: chave pública sem JWT (anon), só pelas RPCs de projeção fixa. Nenhuma chave secreta aqui.
 import { createClient } from "@supabase/supabase-js";
 import { createDiscoveryHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -29,4 +30,4 @@ const handler = createDiscoveryHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));

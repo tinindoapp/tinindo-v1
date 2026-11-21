@@ -1,29 +1,18 @@
 // Peças visuais do módulo de agenda. Estado nunca só por cor: ícone + texto.
 import { createContext, type ReactNode, useContext } from "react";
 import type { Booking, TimeRange } from "@contracts";
-import { Button, Help, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, Help, StatusBadge as KitStatusBadge, StatusBanner } from "../../components/ui/index.tsx";
 import { DEMO_CANCELLATION_POLICY } from "./demoData.ts";
 import { listStatus, STATUS_LABEL, STATUS_TONE } from "./agenda.ts";
 import { explainError, type ErrorExplanation } from "./errors.ts";
 import { deviceZoneDiffers, formatUtcOffset, friendlyZone } from "./time.ts";
 
-const ICON_PATH: Record<string, string> = {
-  success: "M4.5 8.2l2.2 2.2 4.8-4.9",
-  warning: "M8 4.5v4M8 11v.5",
-  info: "M8 7.5v4M8 5v.5",
-  danger: "M5.5 5.5l5 5M10.5 5.5l-5 5",
-  neutral: "M5 8h6",
-};
-
+/** Selo de estado do atendimento: o selo do kit com o mapa da D15 (concluído verde, confirmado neutro), o mesmo da Hoje. */
 export function StatusBadge({ status }: { status: Booking["status"] }) {
-  const tone = STATUS_TONE[status];
+  // `tn-sched-badge` fica como invólucro sem caixa (display: contents): é o seletor dos e2e da Agenda e da homologação.
   return (
-    <span className="tn-sched-badge" data-tone={tone}>
-      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-        <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <path d={ICON_PATH[tone]} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
-      {STATUS_LABEL[status]}
+    <span className="tn-sched-badge">
+      <KitStatusBadge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</KitStatusBadge>
     </span>
   );
 }
@@ -34,42 +23,25 @@ export function ListStatusBadge({ status }: { status: Booking["status"] }) {
 }
 
 /**
- * Avisos da tela numa linha só (auditoria de UX, itens 19 e 34): "Dados de exemplo" na demonstração e o fuso, só quando o
- * aparelho está noutro fuso ("Horários de Brasília"). A explicação longa fica recolhida em "Como funciona".
- * A faixa global "Demonstração" do shell continua; esta linha diz o que vale nesta tela.
+ * Aviso de fuso da tela (auditoria de UX, item 34): só quando o aparelho está noutro fuso ("Horários de Brasília"), com a
+ * explicação recolhida em "Como funciona". D11 (b): a demonstração é dita só pela faixa fixa do topo do shell, sem linha
+ * "Dados de exemplo" em cada tela.
  */
-export function ScreenNotes({ demo, timezone, at }: { demo: boolean; timezone: string; at: string | Date }) {
-  const otherZone = deviceZoneDiffers(at, timezone);
-  if (!demo && !otherZone) return null;
+export function ScreenNotes({ timezone, at }: { timezone: string; at: string | Date }) {
+  if (!deviceZoneDiffers(at, timezone)) return null;
   const zone = friendlyZone(at, timezone);
   return (
     <div className="tn-sched-notes">
       <p className="tn-sched-notes__line">
-        {demo ? (
-          <>
-            <strong>Dados de exemplo.</strong> As mudanças valem só nesta aba.
-          </>
-        ) : null}
-        {demo && otherZone ? " · " : null}
-        {otherZone ? (
-          <span className="tn-num">
-            Horários {zone} ({formatUtcOffset(at, timezone)})
-          </span>
-        ) : null}
+        <span className="tn-num">
+          Horários {zone} ({formatUtcOffset(at, timezone)})
+        </span>
       </p>
       <Help>
-        {demo ? (
-          <p>
-            Esta é uma demonstração sem servidor: a tela ainda não guarda nem altera dados no servidor. O que você muda vale
-            só nesta aba e volta ao exemplo inicial quando a página é recarregada.
-          </p>
-        ) : null}
-        {otherZone ? (
-          <p>
-            Os horários seguem o fuso do negócio ({zone.replace(/^d[aeo]s? (fuso de )?/, "")}), não o do seu aparelho, que
-            está em outro fuso.
-          </p>
-        ) : null}
+        <p>
+          Os horários seguem o fuso do negócio ({zone.replace(/^d[aeo]s? (fuso de )?/, "")}), não o do seu aparelho, que
+          está em outro fuso.
+        </p>
       </Help>
     </div>
   );

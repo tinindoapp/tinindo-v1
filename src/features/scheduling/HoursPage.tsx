@@ -55,7 +55,7 @@ export function HoursPage() {
   return (
     <section aria-labelledby="hours-title" className="tn-sched">
       <PageHeader id="hours-title" title="Horários de atendimento" />
-      <ScreenNotes demo={port.kind === "fixture"} timezone={ctx.timezone} at={port.now()} />
+      <ScreenNotes timezone={ctx.timezone} at={port.now()} />
       {settings.error ? (
         <ErrorPanel error={settings.error} operation="load" onRetry={settings.reload} />
       ) : !settings.data ? (
