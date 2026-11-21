@@ -66,7 +66,10 @@ async function assistente(page: Page) {
 
 async function pagamentos(page: Page) {
   await page.goto("/app/pagamentos");
-  const options = await page.getByLabel("Quem está devendo").locator("option").allInnerTexts();
+  // A tela vem sob demanda (P53): espera a lista ter as cobranças antes de somar (recado #147).
+  const list = page.getByLabel("Quem está devendo").locator("option");
+  await expect(list.filter({ hasText: "R$" }).first()).toBeAttached();
+  const options = await list.allInnerTexts();
   const cents = options.map((o) => BRL.exec(o)).filter(Boolean).map((m) => Number(m![0].replace(/[^\d]/g, "")));
   const total = cents.reduce((s, c) => s + c, 0);
   return { open: `R$ ${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(total / 100)}` };
