@@ -20,7 +20,7 @@ import { INSIGHT_EXPLAIN, InsightExplainInput, InsightExplainOutput } from "../_
 import { mapDbError } from "../_shared/http/errors.ts";
 import { corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
 import { createRpcHandler, type Route, route, type RpcHandlerDeps } from "../_shared/http/rpc-handler.ts";
-import { type Llm, noneLlm } from "../_shared/llm/index.ts";
+import { type Llm, type LlmUsage, noneLlm, withUsage } from "../_shared/llm/index.ts";
 import { explainInsight } from "../_shared/llm/tasks/explain.ts";
 
 export interface GrowthAdviceDeps extends RpcHandlerDeps {
@@ -116,7 +116,19 @@ export function createGrowthAdviceHandler(deps: GrowthAdviceDeps) {
     const fixed = fixedExplanation(row.rule_code, row.evidence);
     if (!llm.enabled) return reply(fixed, "fixed");
 
-    // 3 · portão e franquia do assistente; a chave é da versão: abrir de novo a mesma versão não debita outra vez.
+    // 3 · teto mensal de tokens do negócio (T11): acima dele (ou sem conseguir consultar), frase fixa, sem débito.
+    try {
+      const allow = await deps.rpc(token, "agent_llm_allowance", { p_tenant_id: tenantId });
+      if (allow.error || (allow.data as { allowed?: unknown } | null)?.allowed !== true) {
+        meta.llm_budget = allow.error ? "error" : "exceeded";
+        return reply(fixed, "fixed");
+      }
+    } catch {
+      meta.llm_budget = "error";
+      return reply(fixed, "fixed");
+    }
+
+    // 4 · portão e franquia do assistente; a chave é da versão: abrir de novo a mesma versão não debita outra vez.
     try {
       const start = await deps.rpc(token, "agent_run_start", { p_tenant_id: tenantId, p_idem_key: `explain-${row.insight_id}-v${row.version}` });
       const role = (start.data as { role?: unknown } | null)?.role;
@@ -125,12 +137,26 @@ export function createGrowthAdviceHandler(deps: GrowthAdviceDeps) {
         return reply(fixed, "fixed");
       }
       // Para o modelo: só o título da regra e os números da evidência (nada de cliente, id ou rota).
-      const sentence = await explainInsight(llm, { title: row.rule_title, facts: explainFacts(row.rule_code, row.evidence) });
+      const used: LlmUsage[] = [];
+      let sentence: string | null;
+      try {
+        sentence = await explainInsight(withUsage(llm, (u) => used.push(u)), { title: row.rule_title, facts: explainFacts(row.rule_code, row.evidence) });
+      } finally {
+        // T11: cada tentativa ao modelo somada no negócio (só números). Falha ao gravar só aparece no log técnico.
+        let failed = 0;
+        for (const u of used) {
+          const r = await deps.rpc(token, "agent_llm_record", {
+            p_tenant_id: tenantId, p_task: u.task, p_input_tokens: u.input_tokens, p_output_tokens: u.output_tokens, p_cost_usd: u.cost_usd,
+          }).catch(() => ({ error: true }));
+          if (r.error) failed++;
+        }
+        if (failed > 0) meta.llm_usage_unrecorded = failed;
+      }
       if (sentence === null || !acceptableTone(sentence)) {
         meta.assistant_skipped = sentence === null ? "INVALID" : "TONE";
         return reply(fixed, "fixed");
       }
-      // 4 · guarda para a versão; se outra aba gravou antes, vale a que já estava.
+      // 5 · guarda para a versão; se outra aba gravou antes, vale a que já estava.
       const saved = await deps.rpc(token, "insight_explanation_save", {
         p_tenant_id: tenantId, p_insight_id: row.insight_id, p_version: row.version, p_text: sentence,
       });

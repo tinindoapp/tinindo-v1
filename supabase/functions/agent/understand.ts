@@ -7,6 +7,8 @@
 // 3. O modelo devolve só intenção e argumentos (schema fechado, sem ações proibidas). Isso vira uma frase canônica e o
 //    MESMO motor roda sobre ela: mesmas ferramentas, mesma desambiguação, mesmas propostas e aprovações.
 // 4. Se o motor não cair na família esperada da intenção, ou se o modelo falhar, vale a resposta determinística.
+// T11: antes de chamar o modelo, `allow` (teto mensal de tokens do negócio). Acima do teto, a pergunta segue como com
+// `LLM_PROVIDER=none`: a resposta determinística, sem modelo e sem leitura extra.
 import { runAgent } from "../_shared/domain/agent/engine.ts";
 import { localParts } from "../_shared/domain/agent/time.ts";
 import type { AgentContext, AgentData, Directory, EngineResult } from "../_shared/domain/agent/types.ts";
@@ -16,13 +18,19 @@ import { ANY_FAMILY, INTENT_FAMILIES, INTENT_SYSTEM, intentInput, LlmIntent, ren
 
 export interface Understood {
   result: EngineResult;
-  /** "none" = só o motor; "used" = a leitura do modelo virou a resposta; "discarded" = o modelo foi chamado e não serviu. */
-  llm: "none" | "used" | "discarded";
+  /**
+   * "none" = só o motor; "used" = a leitura do modelo virou a resposta; "discarded" = o modelo foi chamado e não serviu;
+   * "over_limit" = o motor não entendeu, mas o negócio passou do teto de tokens do mês (o modelo não foi chamado).
+   */
+  llm: "none" | "used" | "discarded" | "over_limit";
 }
 
-export async function understand(text: string, ctx: AgentContext, data: AgentData, llm: Llm): Promise<Understood> {
+export async function understand(
+  text: string, ctx: AgentContext, data: AgentData, llm: Llm, allow?: () => Promise<boolean>,
+): Promise<Understood> {
   const first = await runAgent(text, ctx, data);
   if (!llm.enabled || first.intent !== "unknown") return { result: first, llm: "none" };
+  if (allow && !(await allow())) return { result: first, llm: "over_limit" };
 
   // Diretório lido uma vez por pergunta (rótulos dos nomes + motor).
   let dir: Promise<Directory> | null = null;

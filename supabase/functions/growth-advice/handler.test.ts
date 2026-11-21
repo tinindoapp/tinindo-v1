@@ -70,13 +70,18 @@ describe("Edge Function growth-advice", () => {
     const FIXED = "De 21/08 a 20/10, 5 de 12 atendimentos de quarta tiveram falta. Um lembrete no dia anterior costuma ajudar quem esquece. Ajuste os lembretes em Relacionamento.";
     const MODEL = "De 21/08 a 20/10, 5 de 12 atendimentos de quarta tiveram falta: um lembrete no dia anterior pode ajudar.";
     /** Banco de mentira: uma frase por versão, como a tabela insight_explanations (on conflict do nothing). */
-    function world(opts: { version?: number; quota?: boolean; role?: string } = {}) {
+    function world(opts: { version?: number; quota?: boolean; role?: string; tokens?: boolean } = {}) {
       const stored = new Map<number, string>();
       let version = opts.version ?? 3;
       const rpc = vi.fn<GrowthAdviceDeps["rpc"]>(async (_t, fn, a) => {
         switch (fn) {
           case "insight_explanation_get":
             return { data: { insight_id: INSIGHT, rule_code: "no_show_concentration", rule_title: "Faltas concentradas", state: "open", version, evidence, text: stored.get(version) ?? null }, error: null };
+          // T11: teto mensal de tokens do negócio e gravação do uso.
+          case "agent_llm_allowance":
+            return { data: { allowed: opts.tokens !== false, used_tokens: 0, limit_tokens: 400000 }, error: null };
+          case "agent_llm_record":
+            return { data: null, error: null };
           case "agent_run_start":
             return opts.quota === false
               ? { data: null, error: { code: "PT429", message: "QUOTA_EXCEEDED" } }
@@ -98,6 +103,18 @@ describe("Edge Function growth-advice", () => {
       const llm: Llm = { enabled: true, extract: extract as Llm["extract"] };
       return Object.assign(llm, { extract });
     };
+
+    it("acima do teto de tokens do mês (T11): frase fixa, sem débito nem modelo", async () => {
+      const w = world({ tokens: false });
+      const llm = llmSaying("qualquer frase");
+      const handler = createGrowthAdviceHandler({ rpc: w.rpc, allowedOrigins: [], llm });
+      const res = await handler(new Request("http://edge/functions/v1/growth-advice/insight.explain", {
+        method: "POST", body: JSON.stringify({ insight_id: INSIGHT }), headers: { Authorization: "Bearer jwt", "X-Tinindo-Tenant": FX.tenants.A },
+      }));
+      expect((await res.json()).data).toMatchObject({ source: "fixed" });
+      expect(llm.extract).not.toHaveBeenCalled();
+      expect(w.rpc.mock.calls.map((c) => c[1])).not.toContain("agent_run_start");
+    });
     const explain = (h: ReturnType<typeof createGrowthAdviceHandler>, body: unknown = { insight_id: INSIGHT }) =>
       h(post("insight.explain", body, owner)).then(async (r) => ({ status: r.status, body: InsightExplainOutput.parse(((await r.json()) as { data: unknown }).data) }));
     const calls = (rpc: ReturnType<typeof world>["rpc"], fn: string) => rpc.mock.calls.filter((c) => c[1] === fn).length;
