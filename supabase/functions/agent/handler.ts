@@ -28,6 +28,7 @@ import {
   IdempotencyKey,
   TENANT_HEADER,
 } from "../_shared/contracts/index.ts";
+import { AssistEventInput, AssistEventOutput } from "../_shared/domain/agent/events.ts";
 import { FormDraftInput, FormDraftOutput } from "../_shared/domain/agent/forms.ts";
 import type { Window } from "../_shared/domain/agent/time.ts";
 import {
@@ -57,7 +58,7 @@ export interface AgentDeps extends RpcHandlerDeps {
 }
 
 /** Rotas do assistente fora do registro de contratos (schemas em _shared/domain/agent; registro: recado ao integrador). */
-export const AGENT_ASSIST_ROUTES = ["assist.form_draft"] as const;
+export const AGENT_ASSIST_ROUTES = ["assist.form_draft", "assist.event"] as const;
 
 export const AGENT_ACTION_ROUTES: Record<string, Route> = {
   "action.approve": route({
@@ -99,14 +100,15 @@ export function createAgentHandler(deps: AgentDeps) {
 
   return async (req: Request): Promise<Response> => {
     const name = /\/agent\/([a-z_.]+)\/?$/.exec(new URL(req.url).pathname)?.[1] ?? "";
-    if (name !== "agent.ask" && name !== "agent.draft" && name !== "assist.form_draft") return actions(req);
+    if (name !== "agent.ask" && name !== "agent.draft" && name !== "assist.form_draft" && name !== "assist.event") return actions(req);
     const started = clock.now().getTime();
     const requestId = requestIdFrom(req);
     const cors = corsHeaders(req, deps.allowedOrigins);
     const meta: Record<string, unknown> = {};
     const res = name === "agent.ask"
       ? await ask(req, requestId, cors, meta)
-      : name === "agent.draft" ? await draft(req, requestId, cors, meta) : await formDraft(req, requestId, cors, meta);
+      : name === "agent.draft" ? await draft(req, requestId, cors, meta)
+      : name === "assist.form_draft" ? await formDraft(req, requestId, cors, meta) : await assistEvent(req, requestId, cors, meta);
     deps.log?.({ fn: "agent", route: name, request_id: requestId, status: res.status, ms: clock.now().getTime() - started, ...meta });
     return res;
   };
@@ -343,6 +345,32 @@ export function createAgentHandler(deps: AgentDeps) {
         return ok(FormDraftOutput.parse({ available: true, form, draft: null, filled: [], notes: [{ field: null, text: "Não consegui ler agora. Preencha o formulário ou tente de novo." }] }), requestId, clock, 200, cors);
       }
       return ok(FormDraftOutput.parse({ available: true, form, ...built }), requestId, clock, 200, cors);
+    } catch (e) {
+      if (e instanceof RpcFailure) return rpcFailure(e, requestId, cors);
+      return fail("PROVIDER_UNAVAILABLE", requestId, { extra: cors });
+    }
+  }
+
+  /**
+   * T15: grava um gesto do assistente na tela (sem conteúdo). Não passa pelo portão nem pela franquia: não chama modelo
+   * e vale também com `LLM_PROVIDER=none` (a faixa aparece sem provedor). O banco confere o vínculo e o teto por dia.
+   */
+  async function assistEvent(req: Request, requestId: string, cors: Record<string, string>, meta: Record<string, unknown>) {
+    const pre = await preamble(req, requestId, cors);
+    if (pre instanceof Response) return pre;
+    const { token, tenantId, json } = pre;
+    const input = AssistEventInput.safeParse(json);
+    if (!input.success) {
+      const path = input.error.issues[0]?.path.map(String).join(".");
+      return fail("VALIDATION_ERROR", requestId, { field: path || undefined, extra: cors });
+    }
+    meta.event = input.data.event;
+    meta.surface = input.data.surface;
+    try {
+      const r = (await rpcCaller(token, tenantId)("assist_event_record", {
+        p_event: `assist.${input.data.event}.v1`, p_surface: input.data.surface, p_filled: input.data.filled,
+      })) as { recorded?: unknown } | null;
+      return ok(AssistEventOutput.parse({ recorded: r?.recorded === true }), requestId, clock, 200, cors);
     } catch (e) {
       if (e instanceof RpcFailure) return rpcFailure(e, requestId, cors);
       return fail("PROVIDER_UNAVAILABLE", requestId, { extra: cors });

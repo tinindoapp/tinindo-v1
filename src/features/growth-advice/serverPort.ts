@@ -1,5 +1,6 @@
 // Portas reais de Metas e sugestões: Edge Function `growth-advice` (P22, P45).
 import { AdviceDecideOutput, AdviceListOutput, ContentListOutput, ContentPublishOutput, DigestListOutput, GoalListOutput, GoalOutput, InsightCommandOutput, InsightListOutput } from "@contracts";
+import { AssistEventOutput } from "../../../supabase/functions/_shared/domain/agent/events.ts";
 import { INSIGHT_EXPLAIN } from "../../../supabase/functions/_shared/domain/agent/insight-explain.ts";
 import type { createApiClient } from "../../lib/api/client.ts";
 import type { GrowthAdvicePort } from "./port.ts";
@@ -55,8 +56,12 @@ export function createServerPort(call: Call, tenantId: string): GrowthAdvicePort
  * fora de createServerPort para a porta continuar batendo, método a método, com o registro de contratos.
  */
 export function createServerExplain(call: Call, tenantId: string): NonNullable<GrowthAdvicePort["explain"]> {
-  return async (insight_id) =>
-    (await call(op(INSIGHT_EXPLAIN.name), INSIGHT_EXPLAIN.output, { method: "POST", tenantId, body: { insight_id } })).data;
+  return async (insight_id) => {
+    const data = (await call(op(INSIGHT_EXPLAIN.name), INSIGHT_EXPLAIN.output, { method: "POST", tenantId, body: { insight_id } })).data;
+    // T15: medição sem conteúdo (a explicação foi mostrada). Sem esperar nem falhar: medir nunca atrapalha a tela.
+    void call("/agent/assist.event", AssistEventOutput, { method: "POST", tenantId, body: { event: "shown", surface: "explain" } }).catch(() => undefined);
+    return data;
+  };
 }
 
 /** Porta completa de Metas e sugestões (com o "Por quê?"). */
