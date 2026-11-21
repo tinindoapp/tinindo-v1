@@ -64,8 +64,8 @@ update public.tenants set timezone = 'America/Sao_Paulo' where id = (select tena
 
 -- ------------------------------------------------------------------ anon e sem vínculo
 set local role anon;
-select is(pg_temp.err(format($$ select public.agent_llm_record(%L, 'intent', 1, 1, 0) $$, (select tenant_a from ids))),
-  '42501/permission denied for function agent_llm_record/-', 'anon não grava');
+select is(split_part(pg_temp.err(format($$ select public.agent_llm_record(%L, 'intent', 1, 1, 0) $$, (select tenant_a from ids))), '/', 1),
+  '42501', 'anon não grava');
 reset role;
 select pg_temp.login_as((select outsider from ids));
 set local role authenticated;
@@ -93,8 +93,9 @@ select is(pg_temp.err(format($$ select public.agent_llm_record(%L, 'intent', -1,
   'PT400/VALIDATION_ERROR/input_tokens', 'tokens negativos: recusados');
 select is(pg_temp.err(format($$ select public.agent_llm_record(%L, 'intent', 1, 1, -0.5) $$, (select tenant_a from ids))),
   'PT400/VALIDATION_ERROR/cost_usd', 'custo negativo: recusado');
-select is(pg_temp.err(format($$ insert into public.agent_llm_usage (tenant_id, month, task) values (%L, '2026-11-01', 'intent') $$,
-  (select tenant_a from ids))), '42501/permission denied for table agent_llm_usage/-', 'dono não escreve direto na tabela');
+-- Só o código: a partir do Postgres 17 a mensagem de permissão traz uma dica ("Grant the required privileges…").
+select is(split_part(pg_temp.err(format($$ insert into public.agent_llm_usage (tenant_id, month, task) values (%L, '2026-11-01', 'intent') $$,
+  (select tenant_a from ids))), '/', 1), '42501', 'dono não escreve direto na tabela');
 
 -- ------------------------------------------------------------------ teto: abaixo e acima
 select is(public.agent_llm_allowance((select tenant_a from ids)),
