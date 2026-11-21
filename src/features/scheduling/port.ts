@@ -11,6 +11,7 @@ import type {
   BookingCreateInput,
   BookingCreateSeriesInput,
   BookingCreateSeriesOutput,
+  BookingLinkCustomerInput,
   BookingNoShowInput,
   BookingRescheduleInput,
   PricingQuoteInput,
@@ -95,6 +96,8 @@ export interface SchedulingPort {
   confirm(input: z.input<typeof BookingConfirmInput>, idempotencyKey: string): Promise<Booking>;
   /** Confirmado → falta (depois do início); com `revert`, volta a confirmado. Motivo obrigatório. */
   noShow(input: z.input<typeof BookingNoShowInput>, idempotencyKey: string): Promise<Booking>;
+  /** Atendimento sem cliente (pedido pelo link) passa a apontar para um cliente do negócio (recado #160). */
+  linkCustomer(input: z.input<typeof BookingLinkCustomerInput>, idempotencyKey: string): Promise<Booking>;
   /**
    * Entradas da lista de espera (P06), só para dizer quantas pessoas aceitam um horário que ficou livre.
    * Quem decide a oferta é a tela da lista de espera.

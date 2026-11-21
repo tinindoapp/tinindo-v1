@@ -155,6 +155,10 @@ export function createServerPort(call: Call, tenantId: string): SchedulingPort {
       const { data } = await call(scheduling("booking.no_show"), BookingOutput, post(input, key));
       return data.booking;
     },
+    async linkCustomer(input, key) {
+      const { data } = await call(scheduling("booking.link_customer"), BookingOutput, post(input, key));
+      return data.booking;
+    },
     async waitlistEntries() {
       const { data } = await call("/waitlist/waitlist.list", WaitlistListOutput, post({}));
       return data.entries;

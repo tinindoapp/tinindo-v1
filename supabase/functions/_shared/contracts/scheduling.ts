@@ -101,6 +101,13 @@ export const BookingConfirmInput = z.object({
   expected_version: Version,
 });
 
+/** Liga um atendimento ainda sem cliente (ex.: pedido pelo link público) a um cliente ativo do negócio (recado #160). */
+export const BookingLinkCustomerInput = z.object({
+  booking_id: Uuid,
+  expected_version: Version,
+  customer_id: Uuid,
+});
+
 /** confirmed → no_show (depois do início) ou, com `revert`, no_show → confirmed. Motivo obrigatório. */
 export const BookingNoShowInput = z.object({
   booking_id: Uuid,
