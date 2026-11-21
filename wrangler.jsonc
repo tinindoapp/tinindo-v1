@@ -10,7 +10,8 @@
     "binding": "ASSETS",
     // App de página única: rotas como /app/agenda devolvem index.html em vez de 404.
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/p/*", "/s/*"]
+    // Páginas do cliente final passam pelo Worker para a prévia do link (worker/og.ts). Manter igual ao homolog.
+    "run_worker_first": ["/p/*", "/s/*", "/pagar", "/pagar/*", "/orcamento", "/orcamento/*", "/avaliar", "/avaliar/*", "/reserva", "/reserva/*", "/avaliacoes/*", "/oferta"]
   },
   // Previews por PR (`npx wrangler preview` nos builds de branch). Bloco vazio = mesmas configurações.
   "previews": {}
