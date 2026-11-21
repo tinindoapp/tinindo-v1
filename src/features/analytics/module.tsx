@@ -22,6 +22,8 @@ export const analyticsModule: ModuleDefinition = {
   routes: [
     { index: true, lazy: screen(routes, (m) => m.ResultLayout) },
     { path: "custo", lazy: screen(routes, (m) => m.CostLayout) },
+    // P32 bloco 4: "Sua semana" e "Seu mês".
+    { path: "relatorio", lazy: screen(routes, (m) => m.ReportLayout) },
     { path: "piloto", lazy: screen(pilotRoutes, (m) => m.PilotLayout) },
   ],
 };

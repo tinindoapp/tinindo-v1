@@ -2,7 +2,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { OPERATIONS } from "@contracts";
-import { USAGE_ROUTES } from "../../../supabase/functions/analytics/usage.ts";
+import { REPORT_ROUTES } from "../../../supabase/functions/analytics/report.ts";
+import { USAGE_ROUTES as USAGE_ONLY } from "../../../supabase/functions/analytics/usage.ts";
+
+const USAGE_ROUTES = { ...USAGE_ONLY, ...REPORT_ROUTES };
 
 const dir = new URL("../../../supabase/migrations/", import.meta.url);
 const sql = readdirSync(dir).filter((f) => /^\d{14}_p32_.*\.sql$/.test(f)).sort().map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
