@@ -32,7 +32,7 @@ const CODE = /^[A-Z][A-Z0-9_]{1,39}$/;
  * aqui; se faltar, a tela aparece com ":id" no lugar do trecho, nunca com o texto.
  */
 export const SCREEN_SEGMENTS: ReadonlySet<string> = new Set([
-  "agenda","app","assinaturas","assistente","atendimento","avaliacoes","avaliar","caixa","campanhas","clientes","configurar","conta","contas","convite","criar-conta","custo","diretorio","domicilio","entrar","equipe","horarios","importar","indicacoes","indicar","lista-de-espera","materiais","mensagens","metas","notas","nova-senha","novo","novo-negocio","oferta","operacao","orcamento","orcamentos","p","pagamentos","pagar","perfil","precos","previa","privacidade","reagendar","recuperar-senha","recursos","relacionamento","reserva","reservas","resultado","retorno","s","saude","servicos","servicos-tinindo","simulador","site","vincular", "piloto",
+  "agenda","app","assinaturas","assistente","atendimento","avaliacoes","avaliar","caixa","campanhas","clientes","configurar","conta","contas","convite","criar-conta","custo","diretorio","domicilio","entrar","equipe","horarios","importar","indicacoes","indicar","lista-de-espera","materiais","mensagens","metas","notas","nova-senha","novo","novo-negocio","oferta","operacao","orcamento","orcamentos","p","pagamentos","pagar","perfil","precos","previa","privacidade","reagendar","recuperar-senha","recursos","relacionamento","reserva","reservas","resultado","retorno","s","saude","servicos","servicos-tinindo","simulador","site","vincular", "piloto", "relatorio",
 ]);
 
 /** Tela: só rotas do app (/app…), com cada trecho do vocabulário fechado ou ":id". Fora de /app, null. */

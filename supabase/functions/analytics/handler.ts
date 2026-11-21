@@ -11,6 +11,7 @@ import {
   CostToServeOutput,
 } from "../_shared/contracts/index.ts";
 import { createRpcHandler, type Route, route, type RpcHandlerDeps } from "../_shared/http/rpc-handler.ts";
+import { REPORT_ROUTES } from "./report.ts";
 import { USAGE_ROUTES } from "./usage.ts";
 
 export type AnalyticsDeps = RpcHandlerDeps;
@@ -36,6 +37,6 @@ export const ANALYTICS_ROUTES: Record<string, Route> = {
   }),
 };
 
-// Rotas de uso do P32 (fora do registro v1 até o integrador registrar; ver usage.ts).
+// Rotas de uso e do relatório do P32 (fora do registro v1 até o integrador registrar; ver usage.ts e report.ts).
 export const createAnalyticsHandler = (deps: AnalyticsDeps) =>
-  createRpcHandler("analytics", { ...ANALYTICS_ROUTES, ...USAGE_ROUTES }, deps);
+  createRpcHandler("analytics", { ...ANALYTICS_ROUTES, ...USAGE_ROUTES, ...REPORT_ROUTES }, deps);
