@@ -15,7 +15,7 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 | Com RLS ligada | 140 |
 | Políticas (todas de leitura) | 100 |
 | FKs | 277 (135 compostas) |
-| Funções em `public` / `app` | 310 / 310 |
+| Funções em `public` / `app` | 310 / 319 |
 | Rotinas periódicas (`job_ticks`) | 11 |
 
 ## Rotinas periódicas
@@ -505,6 +505,7 @@ Mensagens do canal. Estados de saída são distintos e só o webhook do provedor
 | `created_at` | timestamp with time zone |
 | `updated_at` | timestamp with time zone |
 | `version` | integer |
+| `next_attempt_at` | timestamp with time zone ? |
 
 - **Chaves e unicidade:** PK (id); única (tenant_id, id)
 - **Referências:** (tenant_id, contact_id) → `channel_contacts`; (template_code) → `channel_templates`; (tenant_id) → `tenants`
@@ -539,6 +540,11 @@ Modelos de mensagem (utility). Aprovação por provedor é decisão de backend.
 | `params` | integer |
 | `approved_providers` | text[] |
 | `created_at` | timestamp with time zone |
+| `meta_name` | text ? |
+| `meta_category` | text ? |
+| `meta_language` | text |
+| `meta_body` | text ? |
+| `meta_params` | integer[] ? |
 
 - **Chaves e unicidade:** PK (code)
 - **Referências:** —
@@ -561,6 +567,8 @@ Backend-only. Sem acesso pela Data API.
 | `dispatch_status` | text |
 | `used_at` | timestamp with time zone ? |
 | `created_at` | timestamp with time zone |
+| `send_to` | text ? |
+| `failure_reason` | text ? |
 
 - **Chaves e unicidade:** PK (id)
 - **Referências:** (tenant_id, connection_id) → `channel_connections`
@@ -578,6 +586,9 @@ Backend-only. Sem payload: só a chave do evento e o desfecho.
 | `kind` | text |
 | `outcome` | text |
 | `received_at` | timestamp with time zone |
+| `provider_message_id` | text ? |
+| `status` | text ? |
+| `reason` | text ? |
 
 - **Chaves e unicidade:** PK (provider, external_event_id)
 - **Referências:** —

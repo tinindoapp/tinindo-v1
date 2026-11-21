@@ -5,13 +5,21 @@ import { ChannelMessageStatus, EventType, OPERATIONS, type OperationName } from 
 import { MESSAGING_ROUTES } from "../../../supabase/functions/messaging/handler.ts";
 
 const dir = new URL("../../../supabase/migrations/", import.meta.url);
-const sql = readdirSync(dir).filter((f) => /^\d{14}_p12_.*\.sql$/.test(f)).map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
-function sqlParams(fn: string): string[] {
-  const m = new RegExp(`create function public\\.${fn}\\(([\\s\\S]*?)\\)\\s*returns`, "m").exec(sql);
-  if (!m) throw new Error(`função ${fn} não encontrada`);
-  return (m[1] ?? "").split(",").map((p) => p.trim().split(/\s+/)[0] ?? "").filter(Boolean);
+// Todas as migrations do canal (P12 e as que redefinem funções channel_*, como a do WhatsApp oficial), em ordem.
+const sql = readdirSync(dir).filter((f) => /^\d{14}_(p12_|whatsapp_).*\.sql$/.test(f)).sort().map((f) => readFileSync(new URL(f, dir), "utf8")).join("\n");
+/** Última definição da função (create ou create or replace), como o banco fica depois de todas as migrations. */
+function lastDef(fn: string): string {
+  const re = new RegExp(`create (?:or replace )?function public\\.${fn}\\(`, "g");
+  let at = -1;
+  for (let m = re.exec(sql); m; m = re.exec(sql)) at = m.index;
+  if (at < 0) throw new Error(`função ${fn} não encontrada`);
+  return sql.slice(at);
 }
-const defOf = (fn: string) => sql.slice(sql.indexOf(`create function public.${fn}(`)).split(/\nend \$\$;/)[0]!;
+function sqlParams(fn: string): string[] {
+  const m = /\(([\s\S]*?)\)\s*returns/m.exec(lastDef(fn));
+  return (m?.[1] ?? "").split(",").map((p) => p.trim().split(/\s+/)[0] ?? "").filter(Boolean);
+}
+const defOf = (fn: string) => lastDef(fn).split(/\nend \$\$;/)[0]!;
 const ops = (Object.keys(OPERATIONS) as OperationName[]).filter((n) => OPERATIONS[n].module === "messaging");
 
 describe("messaging · registro ↔ função ↔ SQL", () => {

@@ -4,7 +4,8 @@
 //  * channel.webhook/<provider>: GET = desafio de verificação (API oficial); POST = assinatura sobre o corpo bruto →
 //    normalização → channel_webhook_ingest (deduplica no banco). Assinatura inválida = 401 e nada é lido.
 //  * channel.dispatch: segredo no header → reserva a fila → provedor.send → resultado; depois consulta de status dos
-//    desconhecidos (nunca reenvio). Provedor não configurado = 503 explícito.
+//    desconhecidos (nunca reenvio). Limite do provedor (429 e códigos de limite) = 'retry': volta para a fila do banco
+//    com espera crescente; o resto da rodada daquele número (ou par, ou conta) volta sem chamar ('requeue').
 //  * sim.inbound (dono, só conexão simulada): monta um webhook simulado ASSINADO e o entrega ao mesmo caminho.
 // Log técnico sem telefone, texto, token ou tenant.
 import type { z } from "zod";
@@ -37,7 +38,7 @@ import {
   SimPhoneOutput,
   TENANT_HEADER,
 } from "../_shared/contracts/index.ts";
-import { hmacSha256Hex, type OutboundItem, type Provider, sameHex } from "../_shared/domain/messaging/providers.ts";
+import { hmacSha256Hex, type OutboundItem, type Provider, sameHex, type SendResult } from "../_shared/domain/messaging/providers.ts";
 import { mapDbError } from "../_shared/http/errors.ts";
 import { activeInfo, type MessagingProviderName, type ProviderChoice, withProvider, withProviderInfo } from "../_shared/providers/selection.ts";
 import { corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
@@ -63,7 +64,8 @@ export const MESSAGING_ROUTES: Record<string, Route> = {
   "channel.status": route({ rpc: "channel_status", input: ChannelStatusInput, output: ChannelStatusOutput, command: false, args: () => ({}) }),
   "channel.connect": route({
     rpc: "channel_connect", input: ChannelConnectInput, output: ChannelConnectionOutput, command: true,
-    args: (i) => ({ p_provider: i.provider, p_phone_e164: i.phone_e164, p_external_account_id: i.external_account_id ?? null }),
+    args: (i) => ({ p_provider: i.provider, p_phone_e164: i.phone_e164, p_external_account_id: i.external_account_id ?? null,
+      p_verify_to_e164: i.verify_to_e164 ?? null }),
   }),
   "channel.verify": route({ rpc: "channel_verify", input: ChannelVerifyInput, output: ChannelConnectionOutput, command: true, args: (i) => ({ p_code: i.code }) }),
   "channel.disconnect": route({ rpc: "channel_disconnect", input: ChannelDisconnectInput, output: ChannelConnectionOutput, command: true, args: () => ({}) }),
@@ -112,11 +114,46 @@ export function createMessagingHandler(deps: MessagingDeps) {
 
   /**
    * O número nasce no provedor ativo (segredo MESSAGING_PROVIDER), qualquer que seja o `provider` do corpo. Provedor
-   * real sem os segredos: 503 antes de gravar qualquer coisa.
+   * real sem os segredos: 503 antes de gravar qualquer coisa. Na Meta, antes do banco: phone_number_id e o WhatsApp
+   * pessoal que recebe o código são obrigatórios, e a Graph precisa reconhecer o phone_number_id com o MESMO número.
    */
   async function connect(req: Request, cors: Record<string, string>): Promise<Response> {
+    const requestId = requestIdFrom(req);
     if (!info().configured) {
-      return fail("PROVIDER_UNAVAILABLE", requestIdFrom(req), { message: "O WhatsApp oficial não está configurado neste ambiente.", extra: cors });
+      return fail("PROVIDER_UNAVAILABLE", requestId, { message: "O WhatsApp oficial não está configurado neste ambiente.", extra: cors });
+    }
+    const provider = deps.providers[choice.active];
+    if (choice.active === "whatsapp_cloud" && req.method === "POST" && provider?.lookup) {
+      const body = ChannelConnectInput.safeParse(await req.clone().json().catch(() => null));
+      // Corpo inválido segue para o rpc-handler, que responde com o campo certo.
+      if (body.success) {
+        const i = body.data;
+        if (!i.external_account_id || !/^[0-9]{5,30}$/.test(i.external_account_id)) {
+          return fail("VALIDATION_ERROR", requestId, { field: "external_account_id", message: "Informe o ID do número na Meta (phone_number_id), só números.", extra: cors });
+        }
+        if (!i.verify_to_e164 || i.verify_to_e164 === i.phone_e164) {
+          return fail("VALIDATION_ERROR", requestId, { field: "verify_to_e164", message: "Informe o seu WhatsApp pessoal para receber o código (diferente do número do negócio).", extra: cors });
+        }
+        // Só o dono chega à Graph: o banco decide (channel_status com o JWT do dono).
+        const auth = req.headers.get("Authorization") ?? "";
+        const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+        const tenantId = req.headers.get(TENANT_HEADER);
+        if (token && isUuid(tenantId)) {
+          const status = await deps.rpc(token, "channel_status", { p_tenant_id: tenantId }).catch(() => null);
+          if (!status) return fail("PROVIDER_UNAVAILABLE", requestId, { extra: cors });
+          if (status.error) return fail(mapDbError(status.error).code, requestId, { extra: cors });
+          const found = await provider.lookup(i.external_account_id).catch(() => ({ outcome: "unavailable" as const }));
+          if (found.outcome === "unavailable") {
+            return fail("PROVIDER_UNAVAILABLE", requestId, { message: "A Meta não respondeu agora. Nada foi gravado; tente de novo em instantes.", extra: cors });
+          }
+          if (found.outcome === "not_found") {
+            return fail("POLICY_REJECTED", requestId, { field: "external_account_id", message: "A Meta não reconhece este ID de número para a Tinindo.", extra: cors });
+          }
+          if (found.display_phone_number.replace(/\D+/g, "") !== i.phone_e164.replace(/\D+/g, "")) {
+            return fail("POLICY_REJECTED", requestId, { field: "display_phone_number", message: "O ID informado é de outro número na Meta.", extra: cors });
+          }
+        }
+      }
     }
     return owner(await withProvider(req, choice.active));
   }
@@ -135,13 +172,15 @@ export function createMessagingHandler(deps: MessagingDeps) {
       return fail("FORBIDDEN", requestId);
     }
     if (req.method !== "POST") return fail("VALIDATION_ERROR", requestId, { message: "Use POST." });
-    const raw = await req.text().catch(() => "");
-    if (new TextEncoder().encode(raw).byteLength > MAX_WEBHOOK_BYTES) return fail("VALIDATION_ERROR", requestId, { message: "Corpo grande demais." });
-    // A assinatura é conferida sobre o corpo BRUTO, antes de qualquer parse.
-    if (!(await provider.verifySignature(raw, req.headers.get(SIGNATURE_HEADER)))) return fail("AUTH_REQUIRED", requestId);
+    const declared = Number(req.headers.get("Content-Length") ?? "0");
+    if (declared > MAX_WEBHOOK_BYTES) return fail("VALIDATION_ERROR", requestId, { message: "Corpo grande demais." });
+    const bytes = new Uint8Array(await req.arrayBuffer().catch(() => new ArrayBuffer(0)));
+    if (bytes.byteLength > MAX_WEBHOOK_BYTES) return fail("VALIDATION_ERROR", requestId, { message: "Corpo grande demais." });
+    // A assinatura é conferida sobre os BYTES como chegaram, antes de qualquer parse.
+    if (!(await provider.verifySignature(bytes, req.headers.get(SIGNATURE_HEADER)))) return fail("AUTH_REQUIRED", requestId);
     let json: unknown;
     try {
-      json = JSON.parse(raw);
+      json = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     } catch {
       return fail("VALIDATION_ERROR", requestId, { message: "JSON inválido." });
     }
@@ -164,7 +203,7 @@ export function createMessagingHandler(deps: MessagingDeps) {
     if (req.method !== "POST") return fail("VALIDATION_ERROR", requestId, { message: "Use POST." });
     const given = req.headers.get(DISPATCH_SECRET_HEADER) ?? "";
     if (!sameHex(await hmacSha256Hex("k", given), await hmacSha256Hex("k", deps.dispatchSecret))) return fail("AUTH_REQUIRED", requestId);
-    const result = { provider_configured: true, sent: 0, failed: 0, unknown: 0, reconciled: 0 };
+    const result = { provider_configured: true, sent: 0, failed: 0, unknown: 0, retried: 0, reconciled: 0 };
     let claim: RpcResult;
     try {
       claim = await deps.serviceRpc("channel_dispatch_claim", { p_batch: 50 });
@@ -173,23 +212,37 @@ export function createMessagingHandler(deps: MessagingDeps) {
     }
     if (claim.error) return fail(mapDbError(claim.error).code, requestId);
     const items = ((claim.data as { items?: OutboundItem[] } | null)?.items ?? []);
+    // Limite batido nesta rodada: o resto do número (ou do par número→cliente, ou da conta) não chama o provedor.
+    const limited = { account: new Set<string>(), number: new Set<string>(), pair: new Set<string>() };
+    const pairKey = (i: OutboundItem) => `${i.provider}|${i.external_account_id}|${i.to}`;
+    const numberKey = (i: OutboundItem) => `${i.provider}|${i.external_account_id}`;
     for (const item of items) {
       const provider = deps.providers[item.provider];
-      let outcome: { outcome: string; provider_message_id?: string; reason?: string };
+      let outcome: SendResult | { outcome: "requeue"; reason: string };
       if (!provider?.configured) {
         result.provider_configured = false;
         outcome = { outcome: "failed", reason: "provider_not_configured" };
+      } else if (limited.account.has(item.provider) || limited.number.has(numberKey(item)) || limited.pair.has(pairKey(item))) {
+        outcome = { outcome: "requeue", reason: "rate_limited_round" };
       } else {
         try {
           outcome = await provider.send(item);
         } catch {
           outcome = { outcome: "delivery_unknown" };
         }
+        if (outcome.outcome === "retry") {
+          if (outcome.scope === "account") limited.account.add(item.provider);
+          else if (outcome.scope === "number") limited.number.add(numberKey(item));
+          else limited.pair.add(pairKey(item));
+        }
       }
       await deps.serviceRpc("channel_dispatch_result", { p_ref: item.ref, p_outcome: outcome.outcome,
-        p_provider_message_id: outcome.provider_message_id ?? null, p_reason: outcome.reason ?? null }).catch(() => undefined);
+        p_provider_message_id: outcome.outcome === "sent" ? outcome.provider_message_id : null,
+        p_reason: "reason" in outcome ? outcome.reason : null,
+        p_retry_after_s: outcome.outcome === "retry" ? (outcome.retry_after_s ?? null) : null }).catch(() => undefined);
       if (outcome.outcome === "sent") result.sent++;
       else if (outcome.outcome === "failed") result.failed++;
+      else if (outcome.outcome === "retry" || outcome.outcome === "requeue") result.retried++;
       else result.unknown++;
     }
     // Desconhecidos antigos: consulta de status, nunca reenvio.

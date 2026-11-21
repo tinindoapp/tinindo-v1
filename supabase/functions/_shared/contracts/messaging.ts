@@ -16,6 +16,8 @@ export const ChannelConnection = z.object({
   version: z.int().min(1),
   /** true = provedor fictício: toda tela mostra "simulação". */
   simulated: z.boolean(),
+  /** phone_number_id na Meta (não é segredo); no simulado, o próprio número. Opcional para tolerar servidor antigo. */
+  external_account_id: z.string().optional(),
 });
 export type ChannelConnection = z.infer<typeof ChannelConnection>;
 
@@ -31,8 +33,19 @@ export const ChannelTemplate = z.object({
 export const ChannelStatusInput = z.object({});
 /** Provedor que o servidor usa para número novo (segredo MESSAGING_PROVIDER). Sem segredo nenhum: só o estado. */
 export const ChannelActiveProvider = z.object({ active: ChannelProvider, real: z.boolean(), configured: z.boolean() });
+/** Envio do código de verificação do número que aguarda o código (estado real do despacho). */
+export const ChannelVerificationState = z.object({
+  status: z.enum(["queued", "sending", "sent", "failed", "delivery_unknown"]),
+  /** Só com status 'failed': ex. template_not_approved, window_closed, recipient_is_sender. */
+  failure_reason: z.string().nullable(),
+  expires_at: IsoDateTime,
+  /** Para onde o código vai: o próprio número (simulado) ou o WhatsApp pessoal do dono (Meta). */
+  send_to_e164: PhoneE164,
+});
 export const ChannelStatusOutput = z.object({
   connection: ChannelConnection.nullable(),
+  /** Só com número aguardando o código. Opcional para tolerar servidor antigo. */
+  verification: ChannelVerificationState.nullable().optional(),
   /** Opcional para tolerar servidor antigo. */
   provider: ChannelActiveProvider.optional(),
   queued: z.int().min(0),
@@ -44,8 +57,10 @@ export const ChannelConnectInput = z.object({
   /** Ignorado pelo servidor: o número nasce no provedor ativo (MESSAGING_PROVIDER). Mantido para clientes antigos. */
   provider: ChannelProvider.optional(),
   phone_e164: PhoneE164,
-  /** phone_number_id na API oficial; vazio no simulado. */
+  /** phone_number_id na API oficial (obrigatório com a Meta, só dígitos); vazio no simulado. */
   external_account_id: z.string().trim().max(80).nullable().optional(),
+  /** Com a Meta: o WhatsApp PESSOAL do dono, que recebe o código (a Meta não entrega do número para ele mesmo). */
+  verify_to_e164: PhoneE164.nullable().optional(),
 });
 export const ChannelConnectionOutput = z.object({ connection: ChannelConnection });
 export const ChannelVerifyInput = z.object({ code: z.string().regex(/^[0-9]{6}$/) });
@@ -85,6 +100,10 @@ export const ChannelMessage = z.object({
   delivered_at: IsoDateTime.nullable(),
   read_at: IsoDateTime.nullable(),
   failed_at: IsoDateTime.nullable(),
+  /** Na fila esperando nova tentativa por limite do provedor: a partir de quando sai. Opcional para servidor antigo. */
+  next_attempt_at: IsoDateTime.nullable().optional(),
+  /** Motivo da espera (ex.: throughput_limit, pair_rate_limit). */
+  retry_reason: z.string().nullable().optional(),
 });
 export type ChannelMessage = z.infer<typeof ChannelMessage>;
 
@@ -135,5 +154,7 @@ export const DispatchOutput = z.object({
   sent: z.int().min(0),
   failed: z.int().min(0),
   unknown: z.int().min(0),
+  /** Voltaram para a fila por limite do provedor (com espera crescente e teto de tentativas). */
+  retried: z.int().min(0),
   reconciled: z.int().min(0),
 });

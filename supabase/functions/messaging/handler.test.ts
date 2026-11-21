@@ -151,3 +151,103 @@ describe("messaging · dono e simulador", () => {
     expect(ErrorEnvelope.parse(await res.json()).error.field).toBe("code");
   });
 });
+
+describe("messaging · WhatsApp oficial (Meta)", () => {
+  const owner = { Authorization: "Bearer jwt", "X-Tinindo-Tenant": FX.tenants.A, "Idempotency-Key": "chave-conectar-meta-01", "Content-Type": "application/json" };
+  const metaChoice = messagingChoice((k) => ({ MESSAGING_PROVIDER: "meta", WHATSAPP_ACCESS_TOKEN: "t", WHATSAPP_APP_SECRET: "s", WHATSAPP_VERIFY_TOKEN: "v" } as Record<string, string>)[k]);
+  const metaProvider = (lookup: Provider["lookup"], send: Provider["send"] = vi.fn()): Provider =>
+    ({ name: "whatsapp_cloud", configured: true, send, status: vi.fn(async () => null), verifySignature: vi.fn(async () => true), normalize: () => [], lookup });
+  const connectBody = { phone_e164: "+5511999990001", external_account_id: "1029384756", verify_to_e164: "+5511988887777" };
+  const connect = (handler: (r: Request) => Promise<Response>, body: unknown) =>
+    handler(new Request(`${base}/channel.connect`, { method: "POST", headers: owner, body: JSON.stringify(body) }));
+  const created = { status_code: 201, body: { connection: { id: FX.tenants.A, provider: "whatsapp_cloud", phone_e164: "+5511999990001", status: "pending_verification", verified_at: null, version: 1, simulated: false } } };
+  const rpcOk = () => vi.fn(async (_t: string, fn: string) => ({ data: fn === "channel_status" ? { connection: null } : created, error: null }));
+  const dispatch = (handler: (r: Request) => Promise<Response>) =>
+    handler(new Request(`${base}/channel.dispatch`, { method: "POST", headers: { [DISPATCH_SECRET_HEADER]: DISPATCH } }));
+
+  it("conectar: a Graph confirma que o ID é do mesmo número; o banco recebe o ID e o WhatsApp pessoal do código", async () => {
+    const lookup = vi.fn(async () => ({ outcome: "found" as const, display_phone_number: "+55 11 99999-0001", verified_name: "Barbearia", quality_rating: "GREEN" }));
+    const rpc = rpcOk();
+    const { handler } = setup({ choice: metaChoice, rpc, providers: { whatsapp_cloud: metaProvider(lookup) } });
+    const res = await connect(handler, connectBody);
+    expect(res.status).toBe(201);
+    expect(lookup).toHaveBeenCalledWith("1029384756");
+    expect(rpc).toHaveBeenCalledWith("jwt", "channel_connect", expect.objectContaining({ p_provider: "whatsapp_cloud", p_external_account_id: "1029384756", p_verify_to_e164: "+5511988887777" }));
+  });
+
+  it("conectar: sem ID, sem WhatsApp pessoal ou com o mesmo número = campo certo, sem Graph e sem banco", async () => {
+    const lookup = vi.fn();
+    const rpc = rpcOk();
+    const { handler } = setup({ choice: metaChoice, rpc, providers: { whatsapp_cloud: metaProvider(lookup) } });
+    const field = async (b: unknown) => ErrorEnvelope.parse(await (await connect(handler, b)).json()).error.field;
+    expect(await field({ ...connectBody, external_account_id: null })).toBe("external_account_id");
+    expect(await field({ ...connectBody, external_account_id: "abc123" })).toBe("external_account_id");
+    expect(await field({ ...connectBody, verify_to_e164: null })).toBe("verify_to_e164");
+    expect(await field({ ...connectBody, verify_to_e164: connectBody.phone_e164 })).toBe("verify_to_e164");
+    expect(lookup).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("conectar: ID que a Meta não reconhece, ID de outro número ou Graph fora do ar = nada gravado", async () => {
+    const cases = [
+      [{ outcome: "not_found", reason: "graph_400_100" }, "POLICY_REJECTED", "external_account_id"],
+      [{ outcome: "found", display_phone_number: "+55 21 98888-0000", verified_name: null, quality_rating: null }, "POLICY_REJECTED", "display_phone_number"],
+      [{ outcome: "unavailable" }, "PROVIDER_UNAVAILABLE", undefined],
+    ] as const;
+    for (const [found, code, fieldName] of cases) {
+      const rpc = rpcOk();
+      const { handler } = setup({ choice: metaChoice, rpc, providers: { whatsapp_cloud: metaProvider(vi.fn(async () => found)) } });
+      const err = ErrorEnvelope.parse(await (await connect(handler, connectBody)).json()).error;
+      expect([err.code, err.field]).toEqual([code, fieldName]);
+      expect(rpc.mock.calls.map((c) => c[1])).toEqual(["channel_status"]);
+    }
+  });
+
+  it("conectar: quem não é dono não chega à Graph", async () => {
+    const lookup = vi.fn();
+    const rpc = vi.fn(async () => ({ data: null, error: { code: "PT403", message: "FORBIDDEN" } }));
+    const { handler } = setup({ choice: metaChoice, rpc, providers: { whatsapp_cloud: metaProvider(lookup) } });
+    expect((await connect(handler, connectBody)).status).toBe(403);
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it("despacho: limite do número volta à fila; o resto do mesmo número nesta rodada volta sem chamar a Meta; outro número segue", async () => {
+    const mk = (ref: string, account: string, to: string) => ({ ref, provider: "whatsapp_cloud", external_account_id: account, to, body: "x", kind: "text", template_code: null, template_params: null });
+    const items = [mk("msg:1", "111", "+5511900000001"), mk("msg:2", "111", "+5511900000002"), mk("msg:3", "222", "+5511900000003"),
+      mk("msg:4", "222", "+5511900000004"), mk("msg:5", "222", "+5511900000004")];
+    const send = vi.fn(async (i: { ref: string }) => {
+      if (i.ref === "msg:1") return { outcome: "retry" as const, reason: "throughput_limit", scope: "number" as const, retry_after_s: 30 };
+      if (i.ref === "msg:4") return { outcome: "retry" as const, reason: "pair_rate_limit", scope: "pair" as const };
+      return { outcome: "sent" as const, provider_message_id: `wamid.${i.ref}` };
+    });
+    const serviceRpc = vi.fn(async (fn: string, _args?: Record<string, unknown>) => ({ data: fn === "channel_dispatch_claim" ? { items } : { items: [] }, error: null }));
+    const { handler } = setup({ serviceRpc, providers: { whatsapp_cloud: metaProvider(vi.fn(), send as Provider["send"]) } });
+    expect(await (await dispatch(handler)).json()).toMatchObject({ data: { sent: 1, failed: 0, unknown: 0, retried: 4 } });
+    expect(send.mock.calls.map((c) => c[0].ref)).toEqual(["msg:1", "msg:3", "msg:4"]);
+    const results = serviceRpc.mock.calls.filter((c) => c[0] === "channel_dispatch_result").map((c) => c[1] as Record<string, unknown>);
+    expect(results.map((r) => [r.p_ref, r.p_outcome, r.p_reason, r.p_retry_after_s])).toEqual([
+      ["msg:1", "retry", "throughput_limit", 30], ["msg:2", "requeue", "rate_limited_round", null], ["msg:3", "sent", null, null],
+      ["msg:4", "retry", "pair_rate_limit", null], ["msg:5", "requeue", "rate_limited_round", null]]);
+  });
+
+  it("despacho: limite da conta segura todo o resto da rodada", async () => {
+    const items = ["a", "b", "c"].map((r, n) => ({ ref: `msg:${r}`, provider: "whatsapp_cloud", external_account_id: String(100 + n), to: `+551190000000${n}`, body: "x", kind: "text", template_code: null, template_params: null }));
+    const send = vi.fn(async () => ({ outcome: "retry" as const, reason: "account_rate_limit", scope: "account" as const }));
+    const serviceRpc = vi.fn(async (fn: string, _args?: Record<string, unknown>) => ({ data: fn === "channel_dispatch_claim" ? { items } : { items: [] }, error: null }));
+    const { handler } = setup({ serviceRpc, providers: { whatsapp_cloud: metaProvider(vi.fn(), send) } });
+    await dispatch(handler);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("webhook: corpo com acento assinado sobre os bytes; corpo que não é UTF-8 válido ou grande demais é recusado", async () => {
+    const { handler, serviceRpc } = setup();
+    const rawAcc = JSON.stringify({ events: [{ external_event_id: "e-acento", kind: "inbound", external_account_id: "+5511999990001", phone_e164: "+5511988887777", text: "ação ✓" }] });
+    const sig = `sha256=${await hmacSha256Hex(SIM_SECRET, rawAcc)}`;
+    expect((await handler(new Request(`${base}/channel.webhook/simulated`, { method: "POST", body: rawAcc, headers: { [SIGNATURE_HEADER]: sig } }))).status).toBe(200);
+    expect(serviceRpc).toHaveBeenCalledWith("channel_webhook_ingest", expect.objectContaining({ p_events: [expect.objectContaining({ text: "ação ✓" })] }));
+    const bad = new Uint8Array([0x7b, 0xff, 0xfe, 0x7d]);
+    const badSig = `sha256=${await hmacSha256Hex(SIM_SECRET, bad)}`;
+    expect((await handler(new Request(`${base}/channel.webhook/simulated`, { method: "POST", body: bad, headers: { [SIGNATURE_HEADER]: badSig } }))).status).toBe(400);
+    expect((await handler(new Request(`${base}/channel.webhook/simulated`, { method: "POST", body: "x".repeat(300 * 1024), headers: { [SIGNATURE_HEADER]: sig } }))).status).toBe(400);
+  });
+});

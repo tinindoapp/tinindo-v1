@@ -26,44 +26,10 @@ describe("provedor simulado", () => {
   });
 });
 
-describe("WhatsApp Cloud API", () => {
-  const wa = createWhatsAppProvider({ accessToken: "tok", appSecret: "app-secret", graphUrl: "https://graph.test/v21.0", fetch: vi.fn() });
-
-  it("normaliza mensagens de texto e status; ignora mídia e formato inesperado", () => {
-    const events = wa.normalize({ object: "whatsapp_business_account", entry: [{ changes: [{ value: {
-      metadata: { phone_number_id: "123" },
-      contacts: [{ wa_id: "5511988887777", profile: { name: "Ana" } }],
-      messages: [{ id: "wamid.1", from: "5511988887777", type: "text", text: { body: "oi" } }, { id: "wamid.2", from: "5511988887777", type: "image" }],
-      statuses: [{ id: "wamid.out", status: "delivered", recipient_id: "5511988887777" }, { id: "wamid.out", status: "deleted" }],
-    } }] }] });
-    expect(events).toEqual([
-      { external_event_id: "msg:wamid.1", kind: "inbound", external_account_id: "123", phone_e164: "+5511988887777", text: "oi", profile_name: "Ana" },
-      { external_event_id: "st:wamid.out:delivered", kind: "status", external_account_id: "123", provider_message_id: "wamid.out", status: "delivered", reason: undefined },
-    ]);
-    expect(wa.normalize({ entry: "x" })).toEqual([]);
-  });
-
-  it("sem segredos não está configurado; envio vira desconhecido, nunca sucesso", async () => {
-    const off = createWhatsAppProvider({ accessToken: null, appSecret: null });
-    expect(off.configured).toBe(false);
-    expect(await off.send({ ...item, provider: "whatsapp_cloud" })).toEqual({ outcome: "delivery_unknown" });
-    expect(await off.verifySignature("{}", "sha256=00")).toBe(false);
-  });
-
-  it("5xx e timeout = desconhecido; 4xx = falha com código; 200 = enviado com o id do provedor", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response("{}", { status: 503 }))
-      .mockRejectedValueOnce(new Error("timeout"))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 131026 } }), { status: 400 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ messages: [{ id: "wamid.x" }] }), { status: 200 }));
-    const p = createWhatsAppProvider({ accessToken: "tok", appSecret: "s", fetch: fetchMock });
-    const i = { ...item, provider: "whatsapp_cloud" as const, external_account_id: "123" };
-    expect(await p.send(i)).toEqual({ outcome: "delivery_unknown" });
-    expect(await p.send(i)).toEqual({ outcome: "delivery_unknown" });
-    expect(await p.send(i)).toEqual({ outcome: "failed", reason: "graph_400_131026" });
-    expect(await p.send(i)).toEqual({ outcome: "sent", provider_message_id: "wamid.x" });
-    const body = JSON.parse((fetchMock.mock.calls[3] as [string, RequestInit])[1].body as string);
-    expect(body).toMatchObject({ messaging_product: "whatsapp", to: "5511988887777", type: "text" });
-    expect(await p.status("wamid.x", "msg:1")).toBeNull();
+describe("reexportação do adaptador da Meta", () => {
+  it("createWhatsAppProvider continua importável daqui (o adaptador mora em _shared/providers/meta.ts)", () => {
+    const wa = createWhatsAppProvider({ accessToken: "tok", appSecret: "app-secret", fetch: vi.fn() });
+    expect(wa.name).toBe("whatsapp_cloud");
+    expect(wa.configured).toBe(true);
   });
 });
