@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ErrorEnvelope } from "../_shared/contracts/index.ts";
 import { FX } from "../_shared/contracts/fixtures.ts";
 import { createSimulatedProvider, hmacSha256Hex, type Provider } from "../_shared/domain/messaging/providers.ts";
+import { messagingChoice } from "../_shared/providers/selection.ts";
 import { createMessagingHandler, DISPATCH_SECRET_HEADER, type MessagingDeps, SIGNATURE_HEADER } from "./handler.ts";
 
 const SIM_SECRET = "segredo-do-simulador-0000000001";
@@ -103,11 +104,28 @@ describe("messaging · despacho", () => {
 describe("messaging · dono e simulador", () => {
   const owner = { Authorization: "Bearer jwt", "X-Tinindo-Tenant": FX.tenants.A, "Idempotency-Key": "chave-simulador-00001", "Content-Type": "application/json" };
 
-  it("conectar o provedor oficial sem segredos: 503 antes do banco", async () => {
-    const { handler, rpc } = setup();
-    const res = await handler(new Request(`${base}/channel.connect`, { method: "POST", headers: owner, body: JSON.stringify({ provider: "whatsapp_cloud", phone_e164: "+5511999990001" }) }));
+  it("MESSAGING_PROVIDER=meta sem segredos: conectar responde 503 antes do banco", async () => {
+    const choice = messagingChoice((k) => ({ MESSAGING_PROVIDER: "meta" } as Record<string, string>)[k]);
+    const { handler, rpc } = setup({ choice });
+    const res = await handler(new Request(`${base}/channel.connect`, { method: "POST", headers: owner, body: JSON.stringify({ phone_e164: "+5511999990001" }) }));
     expect(res.status).toBe(503);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("o número nasce no provedor do segredo: o `provider` do corpo é ignorado", async () => {
+    const { handler, rpc } = setup();
+    await handler(new Request(`${base}/channel.connect`, { method: "POST", headers: owner, body: JSON.stringify({ provider: "whatsapp_cloud", phone_e164: "+5511999990001" }) }));
+    // (a resposta do mock não é uma conexão completa; aqui só importa o que foi ao banco)
+    expect(rpc).toHaveBeenCalledWith("jwt", "channel_connect", expect.objectContaining({ p_provider: "simulated" }));
+  });
+
+  it("channel.status leva o provedor ativo e se está configurado, sem segredo nenhum", async () => {
+    const choice = messagingChoice((k) => ({ MESSAGING_PROVIDER: "meta", WHATSAPP_ACCESS_TOKEN: "tok-secreto" } as Record<string, string>)[k]);
+    const { handler } = setup({ choice, rpc: vi.fn(async () => ({ data: { connection: null, queued: 0, unknown: 0, templates: [] }, error: null })) });
+    const res = await handler(new Request(`${base}/channel.status`, { method: "POST", headers: owner, body: "{}" }));
+    const text = await res.text();
+    expect(JSON.parse(text).data.provider).toEqual({ active: "whatsapp_cloud", real: true, configured: false });
+    expect(text).not.toContain("tok-secreto");
   });
 
   it("sim.inbound monta o webhook assinado e passa pelo mesmo caminho; a chave vira o id do evento", async () => {

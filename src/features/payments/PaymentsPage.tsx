@@ -6,7 +6,7 @@ import { Link } from "react-router";
 import { Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type Tone } from "../../components/ui/index.tsx";
 import { CHARGE_STATUS, DIFF_LABEL, explain, FAILURE_REASON, formatCents, formatDateTime, formatDay, PROVIDER_LABEL, REFUND_STATUS, todayIn, unknownNote } from "./labels.ts";
 import { CodeDetails, CopyButton, ShareCharge } from "./Share.tsx";
-import { type ChargesList, type PaymentCharge, type PaymentProvider, type PaymentsPort, type Receivable, type Reconciliation } from "./port.ts";
+import { type ChargesList, type PaymentCharge, type PaymentsPort, type Receivable, type Reconciliation } from "./port.ts";
 import { useCommand, useIdempotencyKey } from "../../lib/idempotency.ts";
 import { plural } from "../../lib/text/plural.ts";
 import { withBusinessSlug } from "../../components/public/public-kit.tsx";
@@ -19,11 +19,15 @@ function PayLink({ url, children }: { url: string; children: ReactNode }) {
   if (u.origin === window.location.origin) return <Link to={{ pathname: u.pathname, hash: u.hash }}>{children}</Link>;
   return <a href={url}>{children}</a>;
 }
+type PaymentActive = NonNullable<ChargesList["provider"]>;
+/** Servidor antigo (sem `provider` na lista): o simulado, como antes. */
+const SIMULATED_ACTIVE: PaymentActive = { active: "simulated", real: false, configured: true };
 type Created = { description: string; amount_cents: number; pix_code: string | null; url: string };
 
-function ChargeForm({ port, receivables, onDone }: { port: PaymentsPort; receivables: Receivable[]; onDone: (created?: Created) => void }) {
+/** O servidor decide o provedor pelo segredo PSP_PROVIDER; a tela só mostra qual é. */
+function ChargeForm({ port, receivables, active, onDone }: { port: PaymentsPort; receivables: Receivable[]; active: PaymentActive; onDone: (created?: Created) => void }) {
   const [receivableId, setReceivableId] = useState(receivables[0]?.id ?? "");
-  const [provider, setProvider] = useState<PaymentProvider>("simulated");
+  const provider = active.active;
   // Mesmo recebível e mesmo meio depois de uma falha: mesma chave (o servidor não cria duas cobranças).
   const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
@@ -60,11 +64,11 @@ function ChargeForm({ port, receivables, onDone }: { port: PaymentsPort; receiva
       <Field as="select" label="Quem está devendo" value={chosen?.id ?? ""} onChange={(e) => setReceivableId(e.target.value)} disabled={receivables.length === 0}>
         {receivables.map((r) => <option key={r.id} value={r.id}>{r.description} · {formatCents(r.open_cents)}</option>)}
       </Field>
-      <Field as="select" label="Como receber" value={provider} onChange={(e) => setProvider(e.target.value as PaymentProvider)}>
-        <option value="simulated">{PROVIDER_LABEL.simulated}</option>
-        <option value="psp">{PROVIDER_LABEL.psp}</option>
-      </Field>
-      <Button type="submit" loading={busy}>Gerar cobrança Pix</Button>
+      <p className="tn-muted">Como receber: {PROVIDER_LABEL[provider]}</p>
+      {active.real && !active.configured ? (
+        <StatusBanner tone="warning">O Pix pelo banco ainda não está ligado neste ambiente. Fale com o suporte.</StatusBanner>
+      ) : null}
+      <Button type="submit" loading={busy} disabled={active.real && !active.configured}>Gerar cobrança Pix</Button>
       {error ? <StatusBanner tone="danger">{error}</StatusBanner> : null}
     </form>
   );
@@ -166,7 +170,7 @@ export function PaymentsPage({ port, timezone, business }: {
     setRecBusy(true);
     setRecError(null);
     try {
-      const r = await command({ reconcile: day }, (key) => port.reconcile("simulated", day, key));
+      const r = await command({ reconcile: day }, (key) => port.reconcile(list?.provider?.active ?? "simulated", day, key));
       if (r.differences.length === 0) notify("success", `Conferência de ${formatDay(day)}: extrato e caixa batem (${formatCents(r.report_paid_cents)}).`);
       else notify("warning", `Conferência de ${formatDay(day)}: ${plural(r.differences.length, "diferença listada", "diferenças listadas")} abaixo. Nada foi corrigido automaticamente.`);
       done();
@@ -197,7 +201,7 @@ export function PaymentsPage({ port, timezone, business }: {
       <Card aria-labelledby="pay-new-title">
         <h2 id="pay-new-title">Cobrar</h2>
         {receivables && receivables.length === 0 ? <p className="tn-muted">Ninguém está devendo agora. Registre a cobrança no Caixa primeiro.</p> : null}
-        {receivables && receivables.length > 0 ? <ChargeForm key={receivables.map((r) => r.id).join(",")} port={port} receivables={receivables} onDone={done} /> : null}
+        {receivables && receivables.length > 0 ? <ChargeForm key={receivables.map((r) => r.id).join(",")} port={port} receivables={receivables} active={list?.provider ?? SIMULATED_ACTIVE} onDone={done} /> : null}
         {port.sync ? <div className="tn-actions"><Button variant="secondary" loading={syncing} onClick={() => void sync()}>Consultar o banco (simulação)</Button></div> : null}
       </Card>
 

@@ -13,9 +13,13 @@ import { plural, pluralWord } from "../../lib/text/plural.ts";
 
 /** Depois de uma ação: o aviso de sucesso sai no toast e a tela recarrega. Erro de formulário fica no formulário. */
 type Done = (message: string) => void;
+type ChannelActive = NonNullable<ChannelStatus["provider"]>;
+/** Servidor antigo (sem `provider` no estado): o simulado, como antes. */
+const SIMULATED_ACTIVE: ChannelActive = { active: "simulated", real: false, configured: true };
 
-function ConnectForm({ port, onDone }: { port: MessagingPort; onDone: Done }) {
-  const [provider, setProvider] = useState<ChannelProvider>("simulated");
+/** O servidor decide o provedor pelo segredo MESSAGING_PROVIDER; a tela só mostra qual é. */
+function ConnectForm({ port, active, onDone }: { port: MessagingPort; active: ChannelActive; onDone: Done }) {
+  const provider: ChannelProvider = active.active;
   const [phone, setPhone] = useState("+5511999990001");
   const idem = useIdempotencyKey();
   const [busy, setBusy] = useState(false);
@@ -39,10 +43,10 @@ function ConnectForm({ port, onDone }: { port: MessagingPort; onDone: Done }) {
   }
   return (
     <form ref={formRef} className="tn-msg-form" aria-label="Conectar número" onSubmit={(e) => void submit(e)} noValidate>
-      <Field as="select" label="Provedor" value={provider} onChange={(e) => setProvider(e.target.value as ChannelProvider)}>
-        <option value="simulated">{PROVIDER_LABEL.simulated}</option>
-        <option value="whatsapp_cloud">{PROVIDER_LABEL.whatsapp_cloud}</option>
-      </Field>
+      <p className="tn-muted">Provedor: {PROVIDER_LABEL[provider]}</p>
+      {active.real && !active.configured ? (
+        <StatusBanner tone="warning">O WhatsApp oficial ainda não está ligado neste ambiente. Fale com o suporte.</StatusBanner>
+      ) : null}
       <Field label="Número do negócio (formato internacional)" inputMode="tel" value={phone} error={errors.phone} onChange={(e) => setPhone(e.target.value)} />
       <Button type="submit" loading={busy} loadingText="Conectando…">Conectar</Button>
       {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
@@ -335,7 +339,7 @@ export function InboxPage({ port, extra }: { port: MessagingPort; timezone?: str
             <li>Um código de 6 números chega pelo próprio canal, nesse número.</li>
             <li>Digite o código aqui para concluir.</li>
           </ol>
-          <ConnectForm port={port} onDone={actions.done} />
+          <ConnectForm port={port} active={status.provider ?? SIMULATED_ACTIVE} onDone={actions.done} />
           <SetupHint to="/app/configurar" action="Ver os passos">
             Passo opcional de “Deixe seu negócio pronto”: sem provedor contratado, conecte o número simulado para testar o fluxo.
           </SetupHint>

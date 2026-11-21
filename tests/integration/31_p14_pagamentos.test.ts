@@ -41,7 +41,8 @@ describe("P14 · pagamento conectado (PSP simulado)", () => {
     expect(again.charge).toMatchObject({ id: chargeId, status: "pending", external_id: c.charge.external_id });
     expect(tokenOf(again.pay_url)).toBe(token);
     await fails("payments", "payment.charge_create", { ...owner, key: true, body: { receivable_id: r.id, provider: "simulated" } }, "POLICY_REJECTED", "charge");
-    await fails("payments", "payment.charge_create", { ...owner, key: true, body: { receivable_id: r.id, provider: "psp" } }, "PROVIDER_UNAVAILABLE");
+    // O `provider` do corpo é ignorado (o servidor usa PSP_PROVIDER, aqui o simulado): cai na mesma regra acima.
+    await fails("payments", "payment.charge_create", { ...owner, key: true, body: { receivable_id: r.id, provider: "psp" } }, "POLICY_REJECTED", "charge");
   });
 
   it("2 · link público mostra a cobrança; token errado não existe", async () => {

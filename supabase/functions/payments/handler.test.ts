@@ -1,3 +1,4 @@
+import { paymentChoice } from "../_shared/providers/selection.ts";
 import { describe, expect, it, vi } from "vitest";
 import { ErrorEnvelope } from "../_shared/contracts/index.ts";
 import { FX } from "../_shared/contracts/fixtures.ts";
@@ -55,10 +56,10 @@ describe("payments · criação", () => {
     expect(JSON.stringify(log.mock.calls)).not.toMatch(/tttt|6000|Corte/);
   });
 
-  it("PSP real sem credenciais: 503 antes do banco; PSP fictício sem livro: desconhecido, nunca pago", async () => {
-    const psp: PaymentProviderPort = { name: "psp", configured: false, createCharge: vi.fn(), status: vi.fn(), cancel: vi.fn(), refund: vi.fn(), report: vi.fn(), verifySignature: vi.fn(), normalize: () => [] };
-    const { handler, rpc } = setup({ providers: { psp } });
-    const res = await handler(new Request(`${base}/payment.charge_create`, { method: "POST", headers: owner, body: JSON.stringify({ receivable_id: CHARGE.receivable_id, provider: "psp" }) }));
+  it("PSP_PROVIDER=asaas sem credenciais: 503 antes do banco; PSP fictício sem livro: desconhecido, nunca pago", async () => {
+    const choice = paymentChoice((k) => ({ PSP_PROVIDER: "asaas" } as Record<string, string>)[k]);
+    const { handler, rpc } = setup({ choice });
+    const res = await handler(new Request(`${base}/payment.charge_create`, { method: "POST", headers: owner, body: JSON.stringify({ receivable_id: CHARGE.receivable_id }) }));
     expect(res.status).toBe(503);
     expect(rpc).not.toHaveBeenCalled();
     const broken = setup({ serviceRpc: vi.fn(async (fn: string) => fn === "payment_charge_result" ? { data: { charge: { ...CHARGE, status: "unknown" } }, error: null } : { data: null, error: { code: "x" } }) });
@@ -141,5 +142,13 @@ describe("payments · link público e simulador", () => {
       expect(anonRpc).not.toHaveBeenCalled();
       expect(serviceRpc).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("payments · provedor escolhido pelo segredo", () => {
+  it("a cobrança nasce no provedor ativo: o `provider` do corpo é ignorado", async () => {
+    const { handler, rpc } = setup();
+    await handler(new Request(`${base}/payment.charge_create`, { method: "POST", headers: owner, body: JSON.stringify({ receivable_id: CHARGE.receivable_id, provider: "psp" }) }));
+    expect(rpc).toHaveBeenCalledWith("jwt", "payment_charge_create", expect.objectContaining({ p_provider: "simulated" }));
   });
 });

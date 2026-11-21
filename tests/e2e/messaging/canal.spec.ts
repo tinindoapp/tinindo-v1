@@ -10,12 +10,10 @@ test("canal: número verificado pelo código entregue no canal, cliente escreve,
   // Sem conexão: estado vazio guiado.
   await expect(page.getByRole("heading", { name: "Conecte o número do seu negócio" })).toBeVisible();
 
-  // Provedor oficial sem segredos: recusa explícita, nada gravado.
+  // O provedor é do servidor (segredo MESSAGING_PROVIDER): a tela só mostra qual é, sem escolha.
   const connect = page.getByRole("form", { name: "Conectar número" });
-  await connect.getByLabel("Provedor").selectOption("whatsapp_cloud");
-  await connect.getByRole("button", { name: "Conectar" }).click();
-  await expect(page.getByText("O provedor oficial não está configurado neste ambiente.")).toBeVisible();
-  await connect.getByLabel("Provedor").selectOption("simulated");
+  await expect(connect.getByText("Provedor: Simulado (sem envio real)")).toBeVisible();
+  await expect(connect.getByLabel("Provedor")).toHaveCount(0);
   await connectSimulated(page);
 
   // A cliente escreve pelo simulador (mesmo webhook, assinado) e é reconhecida pelo telefone.
