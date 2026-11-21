@@ -44,7 +44,7 @@ async function post(handler: (r: Request) => Promise<Response>, op: string, body
   return { status: res.status, json: (await res.json()) as { data?: unknown; error?: { code: string } } };
 }
 
-interface Row { task: string; month: string; calls: number; input_tokens: number; output_tokens: number; cost_usd: number; unpriced_calls: number }
+type Row = { task: string; month: string; calls: number; input_tokens: number; output_tokens: number; cost_usd: number; unpriced_calls: number };
 const usage = (tenant: string) => sql<Row>(
   `select task, month::text as month, calls, input_tokens, output_tokens, cost_usd, unpriced_calls
    from public.agent_llm_usage where tenant_id = $1 order by task`, [tenant]);
