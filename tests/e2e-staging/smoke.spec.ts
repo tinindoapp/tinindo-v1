@@ -28,7 +28,12 @@ test.describe("homologação · build publicado", () => {
     // A faixa "Demonstração · homologação" fica dentro do app (AppShell), não na tela de entrada; a prova de que é a
     // homologação e não a demo sem servidor é o bundle apontar para o Supabase de homologação.
     if (stepNeeds(["STAGING_SUPABASE_URL"], "conferir que o bundle aponta para o Supabase de homologação")) {
+      // Desde o P53 as telas e o cliente do Supabase vêm sob demanda: além do que /entrar carregou, segue os
+      // pedaços citados nesses arquivos (um nível, como o mapa de pré-carga do Vite) antes de procurar o endereço.
+      const seen = new Set(scripts);
       const bodies = await Promise.all(scripts.map(async (u) => (await request.get(u)).text()));
+      const chunks = new Set(bodies.flatMap((b) => [...b.matchAll(/assets\/[\w.-]+\.js/g)].map((m) => new URL(`/${m[0]}`, page.url()).href)));
+      for (const u of chunks) if (!seen.has(u)) { seen.add(u); bodies.push(await (await request.get(u)).text()); }
       expect(bodies.some((b) => b.includes(new URL(env.supabaseUrl!).host)), "bundle aponta para o Supabase de homologação").toBe(true);
     }
     await expect(page.getByRole("heading", { name: "Entrar", level: 1 })).toBeVisible();
@@ -120,7 +125,8 @@ test.describe("homologação · conta técnica", () => {
       const [, done, total] = /(\d+) de (\d+)/.exec((await line.textContent()) ?? "") ?? [];
       expect(Number(done), "passos feitos não passam do total").toBeLessThanOrEqual(Number(total));
       test.info().annotations.push({ type: "configuração", description: `Hoje mostra ${done} de ${total}` });
-      await line.getByRole("link", { name: "Deixe seu negócio pronto" }).click();
+      // P54: o título virou cartão com o próximo passo; a lista inteira abre em "Ver os N passos".
+      await page.getByRole("region", { name: /^Deixe seu negócio pronto · / }).getByRole("link", { name: /^Ver os \d+ passos$/ }).click();
     } else {
       test.info().annotations.push({ type: "configuração", description: "linha fora da Hoje: todos os passos feitos ou dispensados" });
       await page.goto("/app/configurar");
