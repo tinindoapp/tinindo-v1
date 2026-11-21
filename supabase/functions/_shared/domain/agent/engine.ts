@@ -128,7 +128,17 @@ const FREE_RE = /\b(horarios?|vagas?|espacos?|tempo) (livres?|disponive\w*|vagos
 /** "por que…", "por quê…", "me explica…": pergunta de explicação, nunca comando nem consulta de agenda. */
 const WHY_RE = /\b(por que|porque|pq|explica\w*|me explique)\b/;
 const NOSHOW_RE = /\b(faltas?|faltou|faltaram|faltando|furou|furaram|furo|no.?show|nao (vem|veio|vieram|apareceu|aparecem|aparece))\b/;
-const PRICE_WHY_RE = /\b(precos?|cobrando|cobro|cobra|caro|barato|valor|piso|minimo|desconto)\b/;
+const PRICE_WHY_RE = /\b(precos?|cobrando|cobro|cobra|caro|barato|valor|piso|minimo|desconto|custa|custando|custo)\b/;
+/** "Por que …?" sobre o tema de uma regra de sugestão (P45): explica com a evidência dela, ou diz o que falta. */
+const RULE_WHY: [RegExp, string][] = [
+  [/\b(sem (cobranca|pagamento)|nao (cobr\w*|pag\w*)|sem cobrar)\b/, "uncharged_bookings"],
+  [/\b(lista de espera|fila de espera)\b/, "waitlist_opening"],
+  [/\bpacotes?\b/, "package_expiring"],
+  [/\b(sumi\w*|nao (volt\w*|retorn\w*)|parou de vir|pararam de vir)\b/, "lapsed_customers"],
+  [/\b(ocios\w*|vazios?|vazias?|parad[oa]s?)\b/, "idle_slot"],
+  [/\b(margem|materia(l|is))\b/, "low_margin_service"],
+  [/\b(fechamento|fechando o mes|mes fechando)\b/, "month_closing"],
+];
 const INSIGHT_RE = /\b(sugest\w*|insights?|isso|essa (dica|sugestao)|esse (aviso|alerta))\b/;
 /** Pedido de configurar algo do negócio (não é remarcar nem agendar). */
 const SETUP_VERB_RE = /\b(configurar|configuro|configura|configure|configuracao|configuracoes|ajust\w*|alter\w*|defin\w*|mudar|muda|trocar|ligar|liga|desligar|deslig\w*|como (eu )?(faco|faz) para|onde (eu )?(mudo|ajusto|configuro|coloco|vejo))\b/;
@@ -345,6 +355,8 @@ export async function runAgent(input: string, ctx: AgentContext, data: AgentData
     //      Antes, "por que tenho faltas na quarta?" caía na agenda de quarta (resposta errada com confiança).
     if (WHY_RE.test(n)) {
       if (NOSHOW_RE.test(n)) return await explainInsightFlow("no_show_concentration");
+      const rule = RULE_WHY.find(([re]) => re.test(n))?.[1];
+      if (rule) return await explainInsightFlow(rule);
       if (PRICE_WHY_RE.test(n)) return await whyPriceFlow();
       if (INSIGHT_RE.test(n) || ctx.ui?.insight_id) return await explainInsightFlow(null);
       return out("unknown", "consulted",
@@ -705,6 +717,11 @@ export async function runAgent(input: string, ctx: AgentContext, data: AgentData
     if (status?.status === "insufficient") {
       return out("explain_insight", "consulted",
         `Ainda não dá para dizer: ${status.reason ?? "faltam atendimentos registrados para a conta"}. Isso não quer dizer que não há o problema; só que os dados ainda não bastam.`,
+        { sources: [source] });
+    }
+    if (status?.status === "quiet" && rule !== "no_show_concentration") {
+      return out("explain_insight", "consulted",
+        `Na última conta, "${status.title}" não apareceu nos seus registros. A lista completa e o que a conta olhou ficam em Metas e sugestões (/app/metas).`,
         { sources: [source] });
     }
     if (rule === "no_show_concentration") {

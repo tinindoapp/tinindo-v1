@@ -144,3 +144,51 @@ O pacote não está no quadro do `coord.py` (o quadro vai até P46); não houve 
   - "Por quê?" em Metas: `shown` em `explain`, pela porta do servidor e sem esperar.
   - A demonstração não mede.
 - **Por que tabela e não outbox:** os tipos `assist.*.v1` precisam entrar no catálogo `EventType` (contratos) e no `docs/01`, os dois fora da área. O recado pede o registro e a leitura no P18.
+
+## Item 6 · Avaliação (T16): SETUP-*, EXPLAIN-* e injeção nos rascunhos
+
+- **Suíte** `tests/agent-evals/assist-cases.json`, com 31 casos:
+  - SETUP-01 a 07 no chat: lembretes, horários, assinatura, nota fiscal, o que falta e a frase suspeita usada ou descartada;
+  - SETUP-10 a 13 no "Faz comigo": os 4 formulários;
+  - EXPLAIN-01 a 08 no chat: faltas na quarta, `ui_context` do negócio e de fora, preço, insuficiente, horário vazio, regra sem sugestão e "por que" sem tema;
+  - EXPLAIN-10 a 12 no "Por quê?": frase do modelo, número inventado e frase guardada;
+  - INJ-01 a 09: id e versão pedidos pelo texto, link, preço de mercado, telefone, e-mail, CEP e endereço, teto absurdo, marcador redigido, janelas sobrepostas, link na explicação e ordem de envio.
+- **Executor** `supabase/functions/agent/assist-evals.test.ts` (projeto `unit`, ambiente node). Cada caso roda em cinco modos:
+  - `none`;
+  - leitura roteirizada;
+  - os três adaptadores reais contra o servidor falso do P46 (`tests/contracts/llm/fake-provider.ts`, sem rede).
+  - São 155 execuções e uma conferência de coerência da suíte.
+- **Regras conferidas em todos os casos:**
+  - com `none`, o modelo não é chamado; o "Faz comigo" diz que está desligado, sem portão e sem débito;
+  - nenhum corpo de pedido ao modelo leva telefone, e-mail ou CEP;
+  - nenhum rascunho traz id, versão ou tenant;
+  - o chat nunca propõe ação nestes casos.
+- **O que a suíte achou e foi corrigido:**
+  - "por que o corte custa 60?" não era entendido: faltava "custa/custo" no motor;
+  - "por que tenho atendimento sem cobrança?" e "por que meu sábado fica vazio?" não tinham tema. Agora cada regra do P45 tem palavras próprias (`RULE_WHY`), e regra quieta ganhou frase própria;
+  - frase do modelo com link, e-mail ou marcador redigido passava no "Por quê?". Agora vale a frase fixa (`explainInsight`).
+- **Fora da área:** os executores do P08 e do P46 (`tests/contracts/agent/`) seguem como estão. A suíte nova roda no `test:unit`, que o CI já roda.
+
+## PRs e recados
+
+- **PRs:**
+  - item 1: #158;
+  - item 2: #163;
+  - item 4: #167;
+  - item 3: #170;
+  - item 5: #173;
+  - item 6: este PR.
+- **Recados** (etiqueta `para-felipe`, publicados às 03:51 UTC):
+  - #180: telas de destino do "Faz comigo" e do "Usar este texto", com `src/app/assist.ts`, que precisa de aval;
+  - #174: registro de `assist.form_draft`, `insight.explain` e `assist.event` em `OPERATIONS` e no doc03;
+  - #175: `setup.describe` no teto de tokens e parágrafo no `release/LLM.md`;
+  - #176: rótulo "Assistente atende" em Mensagens (T14);
+  - #177: eventos `assist.*.v1` no `EventType`, no `docs/01` e no P18;
+  - #178: tom salvo `tenants.voice` (T7);
+  - #179: decisões sobre a exportação de privacidade das tabelas novas e a versão do insight que sobe todo dia.
+- **Não entrou** (fora da área, cada item tem recado):
+  - T7;
+  - T14;
+  - as telas de destino;
+  - o registro das rotas;
+  - o teto no `setup.describe`.
