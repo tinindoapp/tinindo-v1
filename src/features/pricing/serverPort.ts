@@ -12,6 +12,8 @@ import type { createApiClient } from "../../lib/api/client.ts";
 import type { PricingPort } from "./port.ts";
 
 type Call = ReturnType<typeof createApiClient>;
+/** Até 1.000 serviços (10 páginas de 100), como as outras portas que paginam o catálogo (recado #169, item 4). */
+const MAX_PAGES = 10;
 
 export function createServerPort(call: Call, tenantId: string): PricingPort {
   const post = (body: unknown, idempotencyKey?: string) => ({ method: "POST" as const, tenantId, body, idempotencyKey });
@@ -23,7 +25,16 @@ export function createServerPort(call: Call, tenantId: string): PricingPort {
       return (await call("/context", ContextResponse, { tenantId })).data.timezone;
     },
     async services() {
-      return (await call(`/crm/${CRM_ROUTES.listServices}?limit=100`, ServiceListOutput, { tenantId })).data.items;
+      const items: ServiceListOutput["items"] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const qs: string = new URLSearchParams({ limit: "100", ...(cursor ? { cursor } : {}) }).toString();
+        const { data }: { data: ServiceListOutput } = await call(`/crm/${CRM_ROUTES.listServices}?${qs}`, ServiceListOutput, { tenantId });
+        items.push(...data.items);
+        cursor = data.next_cursor;
+        if (!cursor) break;
+      }
+      return items;
     },
     async list() {
       return (await call(op("pricing.list_rules"), PricingListRulesOutput, post({}))).data;

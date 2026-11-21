@@ -13,7 +13,9 @@ function sqlParams(fn: string): string[] {
   return (m[1] ?? "").split(",").map((p) => p.trim().split(/\s+/)[0] ?? "").filter(Boolean);
 }
 const defOf = (fn: string) => sql.slice(sql.indexOf(`create function public.${fn}(`)).split(/\nend \$\$;/)[0]!;
-const ops = (Object.keys(OPERATIONS) as OperationName[]).filter((n) => OPERATIONS[n].module === "growth-advice");
+// insight.explain tem rota própria na função (não é uma RPC); registrada no recado #174.
+const OWN_ROUTES: readonly OperationName[] = ["insight.explain"];
+const ops = (Object.keys(OPERATIONS) as OperationName[]).filter((n) => OPERATIONS[n].module === "growth-advice" && !OWN_ROUTES.includes(n));
 
 describe("growth-advice · registro ↔ função ↔ SQL", () => {
   it("toda operação do módulo tem rota", () => {

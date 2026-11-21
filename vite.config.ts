@@ -89,7 +89,14 @@ export default defineConfig(({ mode }) => ({
   },
   server: { port: 5173, strictPort: true },
   preview: { port: 4173, strictPort: true },
-  build: { sourcemap: true },
+  build: {
+    sourcemap: true,
+    rollupOptions: {
+      // Os contratos só declaram schemas e constantes, sem efeito ao importar. Dizer isso ao Rollup deixa o barril
+      // @contracts levar só os módulos usados: o pacote público não carrega mais os contratos do dono (recado #159).
+      treeshake: { moduleSideEffects: (id) => !id.includes("/supabase/functions/_shared/contracts/") },
+    },
+  },
   test: {
     // Ordem alfabética dos arquivos em todos os projetos: a integração depende dela (banco compartilhado).
     sequence: { sequencer: AlphabeticalSequencer },

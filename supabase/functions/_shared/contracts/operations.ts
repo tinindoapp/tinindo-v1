@@ -31,6 +31,10 @@ import * as privacy from "./privacy.ts";
 import * as resources from "./resources.ts";
 import * as scheduling from "./scheduling.ts";
 import * as waitlist from "./waitlist.ts";
+// Rotas do assistente (parte 2) com schema no domínio (recado #174).
+import { AssistEventInput, AssistEventOutput } from "../domain/agent/events.ts";
+import { FormDraftInput, FormDraftOutput } from "../domain/agent/forms.ts";
+import { InsightExplainInput, InsightExplainOutput } from "../domain/agent/insight-explain.ts";
 
 export type ModuleId =
   | "identity"
@@ -156,6 +160,10 @@ export const OPERATIONS = {
   "booking.confirm": {
     module: "scheduling", owner: "P03", kind: "command", idempotent: true,
     input: scheduling.BookingConfirmInput, output: scheduling.BookingOutput,
+  },
+  "booking.link_customer": {
+    module: "scheduling", owner: "P03", kind: "command", idempotent: true,
+    input: scheduling.BookingLinkCustomerInput, output: scheduling.BookingOutput,
   },
   "booking.no_show": {
     module: "scheduling", owner: "P03", kind: "command", idempotent: true,
@@ -332,6 +340,13 @@ export const OPERATIONS = {
   "agent.draft": {
     module: "agent", owner: "P46", kind: "query", idempotent: false,
     input: agent.AgentDraftInput, output: agent.AgentDraftOutput,
+  },
+  // Assistente parte 2 (recado #174): não gravam dado do negócio. form_draft e explain passam pelo portão agent_run_start
+  // só com provedor ligado; assist.event grava só a medição, sem conteúdo.
+  "assist.form_draft": { module: "agent", owner: "P46", kind: "query", idempotent: false, input: FormDraftInput, output: FormDraftOutput },
+  "assist.event": { module: "agent", owner: "P46", kind: "query", idempotent: false, input: AssistEventInput, output: AssistEventOutput },
+  "insight.explain": {
+    module: "growth-advice", owner: "P46", kind: "query", idempotent: false, input: InsightExplainInput, output: InsightExplainOutput,
   },
   "action.approve": {
     module: "agent", owner: "P08", kind: "command", idempotent: true,
