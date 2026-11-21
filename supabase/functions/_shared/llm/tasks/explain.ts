@@ -24,6 +24,8 @@ export async function explainInsight(llm: Llm, ev: Evidence): Promise<string | n
   const input = JSON.stringify({ titulo: ev.title, evidencia: ev.facts });
   const r = await llm.extract({ task: "explain", system: EXPLAIN_SYSTEM, input, schema: Explanation, maxOutputTokens: 200 });
   if (!r) return null;
+  // T16: frase com link, contato ou marcador de dado redigido não serve (vale a frase fixa).
+  if (/https?:\/\/|www\.|@|\[(?:telefone|e-mail|documento|número|cep|endereço|cliente \d+)\]/iu.test(r.sentence)) return null;
   const allowed = new Set(input.match(/\d+(?:[.,]\d+)?/g) ?? []);
   return (r.sentence.match(/\d+(?:[.,]\d+)?/g) ?? []).every((n) => allowed.has(n)) ? r.sentence : null;
 }
