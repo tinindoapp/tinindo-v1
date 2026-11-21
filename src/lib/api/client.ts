@@ -1,14 +1,10 @@
 // Cliente tipado das Edge Functions. Valida o envelope v1 na volta (JSON externo não é confiável),
 // propaga tenant selecionado, request id e Idempotency-Key.
-import {
-  ErrorEnvelope,
-  type ErrorCode,
-  IDEMPOTENCY_HEADER,
-  REQUEST_ID_HEADER,
-  ResponseMeta,
-  successEnvelope,
-  TENANT_HEADER,
-} from "@contracts";
+// Importa direto dos arquivos do contrato, não do barril @contracts: o barril puxa todos os módulos para o
+// pacote público (recado #159).
+import { IDEMPOTENCY_HEADER } from "@contracts/common.ts";
+import { REQUEST_ID_HEADER, TENANT_HEADER } from "@contracts/context.ts";
+import { type ErrorCode, ErrorEnvelope, ResponseMeta, successEnvelope } from "@contracts/envelope.ts";
 import type { z } from "zod";
 
 export class ApiError extends Error {
