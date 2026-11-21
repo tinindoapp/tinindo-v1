@@ -59,6 +59,20 @@ describe("Faz comigo no Assistente", () => {
     expect(JSON.parse(screen.getByTestId("state").textContent!)).toEqual({ assistDraft: { form: "lifecycle.settings", draft: draft.draft, filled: draft.filled } });
   });
 
+  it("medição sem conteúdo (T15): faixa mostrada e rascunho aplicado com a contagem de campos", async () => {
+    const assistEvent = vi.fn(async () => undefined);
+    const formDraft = vi.fn(async (): Promise<FormDraftResult> => ({ available: true, form: "service", draft: { name: "Corte", duration_min: 30 }, filled: ["name", "duration_min"], notes: [] }));
+    page({ formDraft, assistEvent });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Faz comigo" })); });
+    fireEvent.change(screen.getByLabelText("O que você quer configurar"), { target: { value: "service" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Faz comigo" }).at(-1)!);
+    fireEvent.change(screen.getByLabelText("Diga do seu jeito"), { target: { value: "corte de meia hora" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Preencher para eu conferir" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Preencher o formulário" })); });
+    expect(assistEvent.mock.calls).toEqual([[{ event: "shown", surface: "form:service", filled: null }], [{ event: "applied", surface: "form:service", filled: 2 }]]);
+    expect(JSON.stringify(assistEvent.mock.calls)).not.toMatch(/Corte|meia hora|30/);
+  });
+
   it("formulário escolhido vai junto no pedido", async () => {
     const formDraft = vi.fn(async (form: FormDraftResult["form"]) => ({ available: true, form, draft: null, filled: [], notes: [] }) as FormDraftResult);
     page({ formDraft });

@@ -81,6 +81,42 @@ que corte). Nada a mostrar.
   - `agenda.spec` "barra de resumo": o fim da página fica depois da revisão.
 - Unidade: três casos novos do passo a passo (com `matchMedia`) e o bloqueio sem motivo com atalhos.
 
+## Grupo 2 · Configuração, Serviços, Preços (PR 2/3)
+
+Feito por subagente em worktree próprio, só nas pastas do grupo (`setup`, `pricing`, `crm/ServicesPage.tsx` e as regras de `crm.css` que só ela usa).
+
+| Tela | Altura (antes → depois) | Telas | Contraste mín. claro / escuro (antes → depois) | Falhas (claro/escuro) | Alvos < 44 | Preto que não é ação (claro) |
+|---|---|---|---|---|---|---|
+| Configuração | 2.517 → **1.165** | 2,98 → 1,38 | 2,48 → 6,12 / 3,26 → 7,62 | 4/2 → 0/0 | 0 | 5 → 0 |
+| Serviços | 844 → 844 | 1,00 | 6,12 / 9,04 | 0 | 0 | 0 |
+| Preços | 2.389 → **844** | 2,83 → 1,00 | 6,12 / 9,04 | 0 | 0 | 0 |
+
+**Configuração** (meta do doc 07 §4.9: 1.200 px):
+- **Abertura:** `PageHeader` com a ajuda recolhida; saiu o aviso de demonstração (D11 b).
+- **Passos:** uma lista, "Passos · N de M feitos":
+  - o próximo passo vem primeiro, com o único botão principal da tela;
+  - os outros pendentes ficam em linhas com uma ação compacta;
+  - os feitos ficam atrás de "Ver os feitos (N)", com selo verde "Feito" no lugar da bolinha preta.
+- **Frase e modelos:** "Descreva seu negócio" e "Modelos de serviço" viraram seções recolhíveis. Abrem na chegada enquanto falta horário ou serviço, ou pelas âncoras `#descrever` e `#modelos`.
+- **Contraste:** as 4 falhas vinham do `ChoiceCard` desligado, usado para modelos que já estão no catálogo. Agora esses modelos são uma linha de texto: "Já no catálogo: Corte, Barba."
+- **Cartão da Hoje:** o link do próximo passo virou fantasma compacto.
+
+**Serviços** (doc 11 §3.8):
+- **Lista:** linhas do kit sem cartão em volta.
+- **Uma ação por linha:** o preço é o botão e abre um campo embaixo da linha. O piso igual ao preço acompanha a mudança; piso próprio acima do novo preço é recusado e manda para Editar.
+- **Menu "⋯":** Editar e Arquivar/Reativar.
+- **Formulário:** Nome, Duração e "Preço à vista"; o resto fica em "Mais opções". Piso em branco vale o preço.
+- **Paginação:** "Carregar mais" quando o servidor devolve `next_cursor`. Antes, a segunda página sumia sem aviso.
+
+**Preços** (meta do doc 07 §4.10: 1.200 px):
+- **Ordem:** "Regras ativas" primeiro, com "Nova regra" como ação principal da abertura. A regra nova é feita num painel (folha no celular).
+- **Aprovação:** a prévia vai para "Aguardando sua aprovação", com "Aprovar e publicar" compacto.
+- **Simulador:** fica recolhido. O valor final aparece grande e base, piso e margem em linhas.
+
+**Listas cortadas:** nenhum dado destas telas tem `truncated` no contrato. `PricingListRulesOutput` precisa dele (recado #169).
+
+**Recados:** `P54-parte2/recados-grupo-configuracao.md`, juntos na issue #169.
+
 ## Testes deste PR
 
 | Comando | Resultado |

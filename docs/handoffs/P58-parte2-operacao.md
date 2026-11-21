@@ -125,7 +125,7 @@ Reserva: o P58 não está no quadro do `coord.py`, que vai até P46. Sem `claim`
 ## Fora da área (precisou mexer, por regra do CI)
 
 - `supabase/tests/database/36_job_ticks.test.sql`: a lista fechada de rotinas e as chaves do retorno do `jobs_run` ganharam `ops_watch`, como o P57 fez com as dele.
-- `supabase/tests/database/47_p58_operacao.test.sql` (novo, 44 verificações) e `tests/integration/54_p58_operacao.test.ts` (novo, 3 casos): os números 44 e 53 estavam livres.
+- `supabase/tests/database/48_p58_operacao.test.sql` (novo, 44 verificações) e `tests/integration/54_p58_operacao.test.ts` (novo, 3 casos): os números 44 e 53 estavam livres.
 - `docs/02_DICIONARIO.md`, regerado (`bash .github/workflows/db-dictionary.sh`), porque o CI confere.
 
 ## Recado (`para-felipe`)

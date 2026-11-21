@@ -54,12 +54,13 @@
 }
 .crm-import-text textarea { min-height: 8rem; font-family: var(--tn-font-mono); }
 .crm-import-file input[type="file"] { box-sizing: border-box; max-width: 100%; }
-/* Serviço (item 45): preço à direita, em destaque; ações depois. */
-.crm-item.crm-service { grid-template-columns: minmax(0, 1fr) auto auto; }
+/* Serviço (item 45; P54): preço à direita, em destaque, e é a ação da linha; editar e arquivar no "⋯". */
 .crm-price { font-size: var(--tn-text-group); font-weight: var(--tn-font-weight-semibold); white-space: nowrap; }
+.crm-price.tn-button { color: var(--tn-text); text-decoration-color: var(--tn-border-control); }
+.crm-svc-price { display: grid; gap: var(--tn-space-2); padding: 0 var(--tn-space-4) var(--tn-space-3); }
+.crm-more > summary { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); cursor: pointer; color: var(--tn-link); font-weight: var(--tn-font-weight-medium); }
+.crm-more[open] > summary { margin-bottom: var(--tn-space-2); }
 @media (max-width: 899.98px) {
-  .crm-item.crm-service { grid-template-columns: minmax(0, 1fr) auto; }
-  .crm-service .crm-item__actions { grid-column: 1 / -1; }
   .crm-item { grid-template-columns: minmax(0, 1fr); }
   .crm-item__actions { justify-content: start; }
   /* No celular, o menu "⋯" fica na ponta direita da linha de botões. */
