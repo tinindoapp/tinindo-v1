@@ -89,3 +89,50 @@ Os pacotes P34 e P35 não estão no quadro do `coord.py` (que vai até P46), ent
   - sem o toque, a próxima abertura já é a nova;
   - em 375 px com toque: convite, instruções, "Agora não" guardado e `#instalar`.
 - **A suíte e2e inteira com o service worker ligado:** 360 passaram e 34 foram pulados. O service worker não atrapalhou os outros testes.
+
+## 2 · Sem internet
+
+### O que abre sem internet (`src/app/pwa/sw-offline.ts`)
+- **Leituras guardadas:** só as da Hoje e da Agenda do dia.
+  - `GET /context` e `GET /crm/services|customers`;
+  - `scheduling/booking.list`, `booking.get`, `schedule.settings`, `schedule.day_plans` e `availability.list`;
+  - `finance/finance.summary` e `finance.uncharged`;
+  - `growth-advice/insight.list`, `setup/setup.progress` e `waitlist/waitlist.list`.
+- **Ordem:** rede primeiro. A resposta boa (2xx) fica guardada; erro do servidor não substitui a última boa.
+- **Sem rede:** devolve a cópia guardada com `X-Tinindo-Offline-At` e avisa a tela.
+- **Chave da cópia:**
+  - pessoa (o `sub` do login) + negócio (`X-Tinindo-Tenant`) + endereço sem a `apikey` + corpo do pedido;
+  - a pessoa vai no caminho da chave (`/__offline__/<pessoa>/<pedido>`), o que permite apagar por pessoa.
+- **O cache nunca serve resposta de outro negócio:**
+  - outro negócio, outra pessoa, outra janela da agenda ou pedido sem login recebem 503 `PROVIDER_UNAVAILABLE` ("Sem conexão, e este aparelho ainda não tem estes dados guardados");
+  - teste de unidade e e2e no navegador.
+- **Validade e limpeza:**
+  - **24 h:** depois disso, a cópia não aparece e sai do aparelho.
+  - **Outra pessoa entra:** na primeira resposta dela, o que era da anterior sai.
+  - **Sair da conta:** a página percebe que o login do Supabase saiu do `localStorage` (a cada 10 s e pelo evento `storage`) e pede para apagar tudo. Isso não depende da tela de sessão, que está fora da área.
+
+### Gravação sem internet
+- **Comando sem rede** (qualquer POST fora da lista): 503 na hora, no envelope v1: "Sem conexão: nada foi salvo. Tente de novo quando a internet voltar."
+- **Nenhuma fila:** nada fica guardado nem é reenviado quando a rede volta. Há teste que confere que nada é reenviado.
+- **A demonstração** não chama servidor e continua como sempre.
+
+### Aviso na tela (`offline.ts`, faixa no `PwaLayer`)
+- **Sem rede:** "Sem conexão · dados de HH:MM. Nada é salvo até a internet voltar."
+  - A hora é a dos dados guardados mais antigos que a tela mostrou, no horário do aparelho.
+  - Sem dado guardado, a faixa diz só "Sem conexão".
+  - O fundo é de aviso, opaco.
+- **Ao voltar a conexão** depois de mostrar dados guardados: "Conexão de volta. Atualizando…", e a tela recarrega sozinha em 1,5 s.
+  - Se alguém está digitando (campo com foco), a tela não recarrega e mostra o botão "Atualizar".
+
+### Testes
+- **Unitários:**
+  - `sw-offline.test.ts` (ambiente node, com Cache Storage em memória): o que entra na lista, cópia com a hora, isolamento por negócio, pessoa, janela e login, troca de pessoa, 24 h, saída da conta, erro 5xx, e comando sem rede (falha na hora, sem fila, sem reenvio);
+  - `offline.test.ts`: hora mais antiga, "dados de 14:05", recarga ao voltar, não recarrega com alguém digitando, saída da conta.
+- **e2e** `tests/e2e/pwa/sem-internet.spec.ts`:
+  - na demonstração, sem internet, a Hoje abre com o aviso, que sai quando a rede volta;
+  - com uma API falsa (`context.route`):
+    - leitura guardada abre sem rede, com o aviso "dados de HH:MM";
+    - o negócio B recebe 503;
+    - o comando falha com "nada foi salvo";
+    - nada é reenviado.
+  - O spec liga `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS` para o Playwright ver o que o service worker busca. O `playwright.config.ts` está fora da área.
