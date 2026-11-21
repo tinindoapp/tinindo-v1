@@ -4,7 +4,7 @@
 //   /rest/v1/*       só o que a jornada lê (vínculos, negócio e my_is_operator), com o papel `authenticated` e RLS
 //   /functions/v1/*  o Request segue para o handler do harness; o `sub` do JWT vira o "token" que o harness espera
 // Não é o Supabase: GoTrue, PostgREST, runtime Deno e CORS de produção ficam de fora (ver README.md desta pasta).
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { handlers, pool, rpc, runDispatch } from "../../integration/harness.ts";
 
@@ -69,17 +69,136 @@ function actorOf(req: Request): string | null {
   return auth.startsWith("Bearer ") ? verify(auth.slice(7).trim(), "acesso")?.sub ?? null : null;
 }
 
-async function auth(req: Request, url: URL): Promise<Response> {
+/**
+ * Cadastro: imita o `/auth/v1/signup` do GoTrue nos dois modos da homologação.
+ * - Confirmação DESLIGADA (o caso de hoje, "autoconfirm"): grava em auth.users já confirmado e devolve a sessão.
+ *   E-mail repetido: 422 `user_already_exists`.
+ * - Confirmação LIGADA: grava sem confirmar, devolve só o usuário (sem sessão) e "manda" o link de confirmação para a
+ *   caixa simulada (`/__teste/correio`). E-mail repetido: usuário falso, sem dizer que existe (como o GoTrue).
+ * O modo é trocado pela própria spec em `/__teste/confirmacao` (só existe neste gateway de teste).
+ */
+const signupMode = { confirmEmail: false };
+/** Caixa de e-mail simulada: e-mail → links de confirmação enviados, do mais antigo ao mais novo. */
+const mailbox = new Map<string, string[]>();
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Mínimo do GoTrue padrão (o app pede 8, com letras e números, antes de chamar). */
+const MIN_PASSWORD = 6;
+
+async function signup(req: Request, url: URL): Promise<Response> {
+  const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+  const email = String(body.email ?? "").trim().toLowerCase();
+  const password = String(body.password ?? "");
+  if (!EMAIL_RE.test(email)) return authError(400, "email_address_invalid", "Unable to validate email address: invalid format");
+  if (password.length < MIN_PASSWORD) {
+    return json(422, { code: 422, error_code: "weak_password", msg: `Password should be at least ${MIN_PASSWORD} characters.`, weak_password: { reasons: ["length"] } });
+  }
+  const confirm = signupMode.confirmEmail;
+  const token = randomBytes(24).toString("hex");
+  const client = await pool.connect();
+  let user: AuthUser | null;
+  try {
+    await client.query("begin");
+    const { rows } = await client.query<AuthUser>(
+      `insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+                               raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                               confirmation_token, recovery_token, email_change_token_new, email_change)
+       select '00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated', $1::text,
+              extensions.crypt($2::text, extensions.gen_salt('bf')), case when $3::boolean then null else now() end,
+              '{"provider":"email","providers":["email"]}', $4::jsonb, now(), now(),
+              case when $3::boolean then $5::text else '' end, '', '', ''
+       where not exists (select 1 from auth.users where lower(email) = $1::text)
+       returning id::text as id, email::text as email`,
+      [email, password, confirm, JSON.stringify(body.data ?? {}), token]);
+    user = rows[0] ?? null;
+    if (user) {
+      await client.query(
+        `insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+         values (gen_random_uuid(), $1::uuid, $1::text,
+                 jsonb_build_object('sub', $1::text, 'email', $2::text, 'email_verified', not $3::boolean), 'email', now(), now(), now())`,
+        [user.id, email, confirm]);
+    }
+    await client.query("commit");
+  } catch (e) {
+    await client.query("rollback").catch(() => undefined);
+    throw e;
+  } finally {
+    client.release();
+  }
+  if (!confirm) return user ? json(200, session(user)) : authError(422, "user_already_exists", "User already registered");
+  const pending = (u: AuthUser) => ({ ...userJson(u), email_confirmed_at: null, confirmation_sent_at: new Date().toISOString() });
+  // E-mail já cadastrado com confirmação ligada: usuário falso e nenhum e-mail sai.
+  if (!user) return json(200, pending({ id: randomUUID(), email }));
+  const link = new URL(`${url.origin}/auth/v1/verify`);
+  link.searchParams.set("token", token);
+  link.searchParams.set("type", "signup");
+  const redirect = url.searchParams.get("redirect_to");
+  if (redirect) link.searchParams.set("redirect_to", redirect);
+  mailbox.set(email, [...(mailbox.get(email) ?? []), link.toString()]);
+  return json(200, pending(user));
+}
+
+/**
+ * Link do e-mail de confirmação, como o GoTrue no fluxo implícito: confirma, abre a sessão e volta ao app com os
+ * tokens no fragmento (o supabase-js lê com detectSessionInUrl). redirect_to só para uma origem liberada.
+ */
+async function confirmEmail(url: URL, allowedOrigins: string[]): Promise<Response> {
+  const token = url.searchParams.get("token") ?? "";
+  let target: URL | null;
+  try {
+    const t = new URL(url.searchParams.get("redirect_to") ?? "");
+    target = allowedOrigins.includes(t.origin) ? t : null;
+  } catch {
+    target = null;
+  }
+  if (url.searchParams.get("type") !== "signup" || !token || !target) return authError(400, "validation_failed", "link de confirmação inválido");
+  const { rows } = await pool.query<AuthUser>(
+    `update auth.users set email_confirmed_at = now(), confirmation_token = '', updated_at = now()
+     where confirmation_token = $1 and email_confirmed_at is null returning id::text as id, email::text as email`, [token]);
+  const user = rows[0];
+  if (!user) {
+    target.hash = new URLSearchParams({ error: "access_denied", error_code: "otp_expired", error_description: "Email link is invalid or has expired" }).toString();
+  } else {
+    const s = session(user);
+    target.hash = new URLSearchParams({
+      access_token: s.access_token, expires_at: String(s.expires_at), expires_in: String(s.expires_in),
+      refresh_token: s.refresh_token, token_type: "bearer", type: "signup",
+    }).toString();
+  }
+  return new Response(null, { status: 303, headers: { Location: target.toString() } });
+}
+
+/** Controles que só a spec usa: modo do cadastro e caixa de e-mail simulada. Não existem num Supabase de verdade. */
+async function testControl(req: Request, url: URL): Promise<Response> {
+  if (url.pathname === "/__teste/confirmacao" && req.method === "POST") {
+    const body = await req.json().catch(() => ({})) as { ligada?: unknown };
+    if (typeof body.ligada !== "boolean") return json(400, { message: "ligada: true ou false" });
+    signupMode.confirmEmail = body.ligada;
+    return json(200, { ligada: signupMode.confirmEmail });
+  }
+  if (url.pathname === "/__teste/correio" && req.method === "GET") {
+    return json(200, { links: mailbox.get((url.searchParams.get("para") ?? "").toLowerCase()) ?? [] });
+  }
+  return json(404, { message: `controle de teste desconhecido ${req.method} ${url.pathname}` });
+}
+
+async function auth(req: Request, url: URL, allowedOrigins: string[]): Promise<Response> {
   const path = url.pathname.replace(/^\/auth\/v1/, "");
+  if (path === "/signup" && req.method === "POST") return signup(req, url);
+  if (path === "/verify" && req.method === "GET") return confirmEmail(url, allowedOrigins);
   if (path === "/token" && req.method === "POST") {
     const body = await req.json().catch(() => ({})) as Record<string, unknown>;
     const grant = url.searchParams.get("grant_type");
     if (grant === "password") {
-      // A senha do seed é conferida no banco (crypt), como o GoTrue faria com auth.users.
-      const { rows } = await pool.query<AuthUser>(
-        "select id::text as id, email::text as email from auth.users where email = $1 and encrypted_password = extensions.crypt($2, encrypted_password)",
-        [String(body.email ?? ""), String(body.password ?? "")]);
-      return rows[0] ? json(200, session(rows[0])) : authError(400, "invalid_credentials", "Invalid login credentials");
+      // A senha é conferida no banco (crypt), como o GoTrue faria com auth.users.
+      const { rows } = await pool.query<AuthUser & { confirmed: boolean }>(
+        `select id::text as id, email::text as email, email_confirmed_at is not null as confirmed
+         from auth.users where lower(email) = lower($1) and encrypted_password = extensions.crypt($2, encrypted_password)`,
+        [String(body.email ?? "").trim(), String(body.password ?? "")]);
+      const found = rows[0];
+      if (!found) return authError(400, "invalid_credentials", "Invalid login credentials");
+      // Cadastro com confirmação ligada e e-mail ainda não confirmado: o GoTrue não deixa entrar.
+      if (!found.confirmed) return authError(400, "email_not_confirmed", "Email not confirmed");
+      return json(200, session({ id: found.id, email: found.email }));
     }
     if (grant === "refresh_token") {
       const claims = verify(String(body.refresh_token ?? ""), "renovacao");
@@ -147,13 +266,42 @@ async function rest(req: Request, url: URL): Promise<Response> {
     // Colunas vêm da lista fechada acima (nunca do texto do pedido).
     return json(200, await readAs(actor, `select ${cols.join(", ")} from public.tenants where id = $1`, [id]));
   }
-  // src/app/session.tsx · loadIsOperator.
-  if (path === "/rpc/my_is_operator" && req.method === "POST") {
-    const r = await rpc(actor, "my_is_operator", {});
+  // src/features/identity/services.tsx · loadOnboarding (Conta, passo "antecedência para cancelar").
+  if (path === "/tenant_onboarding" && req.method === "GET") {
+    const id = /^eq\.(.+)$/.exec(q.get("tenant_id") ?? "")?.[1];
+    const known = [...q.keys()].every((k) => ["select", "tenant_id"].includes(k));
+    if (!known || !id || !UUID.test(id) || q.get("select")?.replace(/\s/g, "") !== ONBOARDING_SELECT) return notCovered(req, url);
+    return json(200, await readAs(actor, `select ${ONBOARDING_SELECT} from public.tenant_onboarding where tenant_id = $1`, [id]));
+  }
+  // src/features/identity/services.tsx · loadSetup ("Primeiros passos" da Conta): só a contagem, com HEAD.
+  const count = COUNTS[path];
+  if (count && req.method === "HEAD") {
+    const id = /^eq\.(.+)$/.exec(q.get("tenant_id") ?? "")?.[1];
+    const extra = [...q.keys()].filter((k) => k !== "select" && k !== "tenant_id");
+    const sameFilters = extra.length === Object.keys(count.filters).length && extra.every((k) => q.get(k) === count.filters[k]);
+    if (q.get("select") !== "id" || !id || !UUID.test(id) || !sameFilters || !/count=exact/.test(req.headers.get("Prefer") ?? "")) return notCovered(req, url);
+    const [row] = await readAs<{ n: number }>(actor, `select count(*)::int as n from public.${count.table} where tenant_id = $1 ${count.where}`, [id]);
+    const n = Number(row?.n ?? 0);
+    return new Response(null, { status: 200, headers: { "Content-Range": n === 0 ? "*/0" : `0-${n - 1}/${n}` } });
+  }
+  // src/app/session.tsx · loadIsOperator; src/features/identity/services.tsx · loadMyLinks e loadMyBookings (Conta).
+  const fn = /^\/rpc\/([a-z_]+)$/.exec(path)?.[1];
+  if (fn && READ_RPCS.includes(fn) && req.method === "POST") {
+    const r = await rpc(actor, fn, {});
     return r.error ? json(400, { code: r.error.code, message: r.error.message, details: null, hint: r.error.hint }) : json(200, r.data);
   }
   return notCovered(req, url);
 }
+
+const ONBOARDING_SELECT = "tenant_id,goal,cancellation_notice_hours,late_cancellation_fee_bps,completed_at,version";
+/** RPCs de leitura sem argumento que o app chama direto pelo PostgREST (a RLS e o auth.uid() decidem o que volta). */
+const READ_RPCS = ["my_is_operator", "my_customer_links", "my_bookings"];
+/** Contagens de loadSetup: tabela, filtros exatos além de tenant_id e o SQL equivalente (texto fixo, nunca do pedido). */
+const COUNTS: Record<string, { table: string; filters: Record<string, string>; where: string }> = {
+  "/provider_services": { table: "provider_services", filters: { active: "eq.true" }, where: "and active = true" },
+  "/availability_rules": { table: "availability_rules", filters: {}, where: "" },
+  "/public_profiles": { table: "public_profiles", filters: { published_at: "not.is.null" }, where: "and published_at is not null" },
+};
 
 /** Falha alta: o que a jornada não cobre responde 501 no formato de erro do PostgREST e sai no log do gateway. */
 function notCovered(req: Request, url: URL): Response {
@@ -248,7 +396,8 @@ export function startGateway(opts: GatewayOptions): Promise<Server> {
           return await send(res, json(200, { ok: true }), allow);
         }
         const request = await toRequest(req, url);
-        const out = url.pathname.startsWith("/auth/v1/") ? await auth(request, url)
+        const out = url.pathname.startsWith("/auth/v1/") ? await auth(request, url, opts.allowedOrigins)
+          : url.pathname.startsWith("/__teste/") ? await testControl(request, url)
           : url.pathname.startsWith("/rest/v1/") ? await rest(request, url)
           : url.pathname.startsWith("/functions/v1/") ? await functions(request, url)
           : json(404, { message: `gateway de teste: caminho desconhecido ${url.pathname}` });
