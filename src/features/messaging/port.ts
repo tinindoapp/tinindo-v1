@@ -23,11 +23,16 @@ export type SendInput = z.infer<typeof MessageSendInput>;
 export type SimInbound = z.infer<typeof SimInboundInput>;
 export type SimPhone = z.infer<typeof SimPhoneOutput>;
 export type { ChannelContact, ChannelMessage, ChannelProvider };
+export interface ConnectMeta {
+  external_account_id: string;
+  verify_to_e164: string;
+}
 
 export interface MessagingPort {
   readonly kind: "demo" | "server";
   status(): Promise<ChannelStatus>;
-  connect(provider: ChannelProvider, phoneE164: string, key: string): Promise<ChannelStatus["connection"]>;
+  /** `meta`: com o WhatsApp oficial, o ID do número na Meta (phone_number_id) e o WhatsApp pessoal que recebe o código. */
+  connect(provider: ChannelProvider, phoneE164: string, key: string, meta?: ConnectMeta): Promise<ChannelStatus["connection"]>;
   verify(code: string, key: string): Promise<ChannelStatus["connection"]>;
   disconnect(key: string): Promise<ChannelStatus["connection"]>;
   inbox(): Promise<Inbox>;

@@ -219,4 +219,70 @@ describe("caixa de entrada", () => {
     expect(await screen.findByText(/Confirmação de horário na fila/)).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Enviar modelo aprovado" })).not.toBeInTheDocument();
   });
+
+  it("enviada nunca aparece como entregue; a espera por limite do WhatsApp aparece com o motivo", async () => {
+    const port = await connectedWithAna();
+    const contactId = (await port.inbox()).contacts[0]!.id;
+    await port.send({ contact_id: contactId, kind: "text", text: "Quarta às 10h?" }, "s-enviada");
+    await port.dispatch!();
+    const get = port.conversation.bind(port);
+    vi.spyOn(port, "conversation").mockImplementation(async (id) => {
+      const c = await get(id);
+      const base = c.messages.at(-1)!;
+      return { ...c, messages: [...c.messages, { ...base, id: "d0000000-0000-4000-8000-0000000000ff", body: "Na espera", status: "queued" as const, sent_at: null,
+        next_attempt_at: "2026-10-21T13:05:00Z", retry_reason: "throughput_limit" }] };
+    });
+    conversation(port, contactId);
+    const thread = await screen.findByRole("list", { name: "Mensagens da conversa" });
+    const sent = within(thread).getByText("Quarta às 10h?").closest("li")!;
+    expect(sent).toHaveTextContent("Enviada");
+    expect(sent).not.toHaveTextContent(/Entregue|Lida/);
+    expect(within(thread).getByText("Na espera").closest("li")).toHaveTextContent(/Na fila · nova tentativa a partir de .+ \(limite de envios do número\)/);
+  });
+
+  it("WhatsApp oficial: passos da Meta, ID do número e WhatsApp pessoal; o pedido leva os dois ao servidor", async () => {
+    const port = createDemoPort();
+    const status = await port.status();
+    vi.spyOn(port, "status").mockResolvedValue({ ...status, provider: { active: "whatsapp_cloud", real: true, configured: true } });
+    const connect = vi.spyOn(port, "connect").mockResolvedValue(null);
+    page(port);
+    const steps = await screen.findByRole("list", { name: "Antes, na Meta" });
+    expect(steps).toHaveTextContent("ID do número de telefone");
+    const form = screen.getByRole("form", { name: "Conectar número" });
+    expect(form).toHaveTextContent("Provedor: WhatsApp (API oficial)");
+    fireEvent.click(within(form).getByRole("button", { name: "Conectar" }));
+    expect(await within(form).findByText("Informe o ID do número na Meta (phone_number_id).")).toBeInTheDocument();
+    expect(within(form).getByText("Informe o seu WhatsApp pessoal, que recebe o código.")).toBeInTheDocument();
+    fireEvent.change(within(form).getByLabelText("Número do negócio (formato internacional)"), { target: { value: "+5511999990001" } });
+    fireEvent.change(within(form).getByLabelText("ID do número na Meta (phone_number_id)"), { target: { value: "1029 3847 56" } });
+    fireEvent.change(within(form).getByLabelText("Seu WhatsApp pessoal (recebe o código)"), { target: { value: "+5511999990001" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Conectar" }));
+    expect(await within(form).findByText("Use um WhatsApp diferente do número do negócio.")).toBeInTheDocument();
+    fireEvent.change(within(form).getByLabelText("Seu WhatsApp pessoal (recebe o código)"), { target: { value: "+5511988887777" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Conectar" }));
+    await waitFor(() => expect(connect).toHaveBeenCalledTimes(1));
+    expect(connect.mock.calls[0]![0]).toBe("whatsapp_cloud");
+    expect(connect.mock.calls[0]![3]).toEqual({ external_account_id: "1029384756", verify_to_e164: "+5511988887777" });
+  });
+
+  it("WhatsApp oficial sem as chaves: avisa e não deixa conectar", async () => {
+    const port = createDemoPort();
+    const status = await port.status();
+    vi.spyOn(port, "status").mockResolvedValue({ ...status, provider: { active: "whatsapp_cloud", real: true, configured: false } });
+    page(port);
+    expect(await screen.findByText(/ainda não está ligado neste ambiente/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Conectar" })).toBeDisabled();
+  });
+
+  it("aguardando o código: estado real do envio (na fila, enviado ou por que não saiu)", async () => {
+    const port = createDemoPort();
+    await port.connect("simulated", DEMO_BUSINESS_PHONE, "c1");
+    const { unmount } = page(port);
+    expect(await screen.findByText(/Código para \(11\) 99999-0001: na fila para sair/)).toBeInTheDocument();
+    unmount();
+    const status = await port.status();
+    vi.spyOn(port, "status").mockResolvedValue({ ...status, verification: { ...status.verification!, status: "failed", failure_reason: "template_not_approved" } });
+    page(port);
+    expect(await screen.findByText(/O código não saiu para \(11\) 99999-0001: modelo não aprovado no WhatsApp/)).toBeInTheDocument();
+  });
 });
