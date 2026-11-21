@@ -11,11 +11,11 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 133 |
-| Com RLS ligada | 133 |
-| Políticas (todas de leitura) | 97 |
-| FKs | 273 (134 compostas) |
-| Funções em `public` / `app` | 298 / 303 |
+| Tabelas em `public` | 134 |
+| Com RLS ligada | 134 |
+| Políticas (todas de leitura) | 98 |
+| FKs | 275 (135 compostas) |
+| Funções em `public` / `app` | 300 / 303 |
 | Rotinas periódicas (`job_ticks`) | 10 |
 
 ## Rotinas periódicas
@@ -1174,6 +1174,23 @@ Resumo semanal do dono por modelo fixo. Um por negócio e semana.
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id, week_start)
 - **Referências:** (tenant_id) → `tenants`
 - **Leitura:** `insight_digests_owner_select` (authenticated)
+- **Só acrescenta:** não
+
+### `insight_explanations`
+
+Frase "Por quê?" de um insight (P45), escrita pelo modelo (P46, tarefa EXPLAIN) quando o dono abre a sugestão. Uma por versão; só a RPC grava.
+
+| Coluna | Tipo |
+|---|---|
+| `tenant_id` | uuid |
+| `insight_id` | uuid |
+| `version` | integer |
+| `text` | text |
+| `created_at` | timestamp with time zone |
+
+- **Chaves e unicidade:** PK (tenant_id, insight_id, version)
+- **Referências:** (tenant_id, insight_id) → `insights` (cascade); (tenant_id) → `tenants`
+- **Leitura:** `insight_explanations_owner_select` (authenticated)
 - **Só acrescenta:** não
 
 ### `insight_rules`
