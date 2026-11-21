@@ -58,7 +58,7 @@ Pedido: o que cada plano libera, de verdade (D3 a), no lugar da D3 b do piloto. 
 | Teste | — | 14 dias |
 | Carência no atraso | — | 7 dias |
 | Preço travado | — | 12 meses a partir da adesão |
-| Janela de adesão | — | 28/10/2026 a 30/06/2027 |
+| Janela de adesão | — | aberta desde a publicação até 30/06/2027 |
 
 ### Decisões tomadas aqui (bloco 1)
 

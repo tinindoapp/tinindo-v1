@@ -72,7 +72,7 @@
         "trial_days": 14,
         "grace_days": 7,
         "price_lock_months": 12,
-        "available_from": "2026-10-28T00:00:00Z",
+        "available_from": null,
         "available_until": "2027-06-30T23:59:59Z"
       },
       "a_confirmar_pelo_felipe": [
