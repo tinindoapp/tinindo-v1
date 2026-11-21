@@ -198,9 +198,10 @@ async function jornada(page: Page, browser: Browser, request: APIRequestContext,
     await page.getByRole("region", { name: "Lista de serviços" }).getByRole("button", { name: "Cadastrar serviço" }).click();
     await page.getByLabel("Nome", { exact: true }).fill(cenario.servico);
     await page.getByLabel("Duração (min)").fill(cenario.duracao);
+    await page.getByLabel("Preço à vista (R$)").fill(cenario.preco);
+    // P54 parte 2: intervalos, piso, custo e taxa ficam em "Mais opções"; piso em branco vale o preço.
+    await page.getByText("Mais opções", { exact: true }).click();
     await page.getByLabel("Intervalo depois (min)").fill(cenario.intervalo);
-    await page.getByLabel("Preço base (R$)").fill(cenario.preco);
-    await page.getByLabel("Piso (R$)").fill(cenario.preco);
     await page.getByRole("button", { name: "Salvar", exact: true }).click();
     const lista = page.getByRole("region", { name: "Lista de serviços" });
     await expect(lista.getByRole("listitem").filter({ hasText: cenario.servico })).toContainText(money(cenario.preco));
