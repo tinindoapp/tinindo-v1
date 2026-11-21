@@ -11,12 +11,12 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 140 |
-| Com RLS ligada | 140 |
+| Tabelas em `public` | 143 |
+| Com RLS ligada | 143 |
 | Políticas (todas de leitura) | 100 |
-| FKs | 277 (135 compostas) |
-| Funções em `public` / `app` | 310 / 310 |
-| Rotinas periódicas (`job_ticks`) | 11 |
+| FKs | 280 (135 compostas) |
+| Funções em `public` / `app` | 313 / 312 |
+| Rotinas periódicas (`job_ticks`) | 12 |
 
 ## Rotinas periódicas
 
@@ -35,6 +35,7 @@ Uma linha por rotina em `public.job_ticks`; `public.jobs_run` roda cada uma isol
 | `retention` | `app.retention_tick` | depois da fila | 30 | 500 | sim |
 | `privacy_erasure` | `app.privacy_erasure_tick` | depois da fila | 40 | 5 | sim |
 | `ops_watch` | `app.ops_watch_tick` | depois da fila | 90 | 500 | sim |
+| `usage_retention` | `app.usage_tick` | depois da fila | 95 | 1000 | sim |
 
 ## Tabelas
 
@@ -3054,6 +3055,59 @@ Negócio assinante. Moeda BRL e timezone IANA no piloto.
 - **Chaves e unicidade:** PK (id)
 - **Referências:** —
 - **Leitura:** `tenants_select_member` (authenticated)
+- **Só acrescenta:** não
+
+### `usage_batches`
+
+P32: lotes de uso já recebidos (dedupe). Retenção usage_batches.
+
+| Coluna | Tipo |
+|---|---|
+| `tenant_id` | uuid |
+| `batch_id` | uuid |
+| `recorded` | integer |
+| `created_at` | timestamp with time zone |
+
+- **Chaves e unicidade:** PK (tenant_id, batch_id)
+- **Referências:** (tenant_id) → `tenants` (cascade)
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `usage_events`
+
+P32: uso do app por negócio, sem dado pessoal (rota sem id, operação, resultado, código). Retenção usage_events.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | bigint |
+| `tenant_id` | uuid |
+| `kind` | text |
+| `name` | text |
+| `outcome` | text ? |
+| `code` | text ? |
+| `occurred_at` | timestamp with time zone |
+| `recorded_at` | timestamp with time zone |
+
+- **Chaves e unicidade:** PK (id)
+- **Referências:** (tenant_id) → `tenants` (cascade)
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `usage_settings`
+
+P32: o negócio liga ou desliga a medição de uso do app.
+
+| Coluna | Tipo |
+|---|---|
+| `tenant_id` | uuid |
+| `enabled` | boolean |
+| `version` | integer |
+| `updated_at` | timestamp with time zone |
+| `updated_by` | uuid ? |
+
+- **Chaves e unicidade:** PK (tenant_id)
+- **Referências:** (tenant_id) → `tenants` (cascade)
+- **Leitura:** nenhuma política (só as RPCs leem)
 - **Só acrescenta:** não
 
 ### `waitlist_candidates`

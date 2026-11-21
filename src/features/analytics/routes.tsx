@@ -11,10 +11,13 @@ import { createDemoCostPort, createDemoPort } from "./demoPort.ts";
 import type { AnalyticsPort, CostPort } from "./port.ts";
 import { ResultPage } from "./ResultPage.tsx";
 import { createServerCostPort, createServerPort } from "./serverPort.ts";
+import { UsageSettingsCard } from "./UsageSettingsCard.tsx";
+import { createDemoUsagePort, createServerUsagePort, type UsagePort } from "./usagePort.ts";
 
 export function ResultLayout() {
   const { tenantId } = useSession();
   const port = usePort<AnalyticsPort>({ demo: createDemoPort, server: createServerPort });
+  const usage = usePort<UsagePort>({ demo: createDemoUsagePort, server: createServerUsagePort });
   if (!port) {
     return (
       <div className="tn-page-intro">
@@ -23,7 +26,12 @@ export function ResultLayout() {
       </div>
     );
   }
-  return <ResultPage key={`${port.kind}:${tenantId ?? ""}`} port={port} />;
+  return (
+    <>
+      <ResultPage key={`${port.kind}:${tenantId ?? ""}`} port={port} />
+      <UsageSettingsCard key={`usage:${port.kind}:${tenantId ?? ""}`} port={usage!} />
+    </>
+  );
 }
 
 const demoNow = () => new Date(Date.parse("2026-10-20T12:00:00Z"));
