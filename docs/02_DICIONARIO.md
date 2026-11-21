@@ -11,11 +11,11 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 134 |
-| Com RLS ligada | 134 |
-| Políticas (todas de leitura) | 98 |
-| FKs | 275 (135 compostas) |
-| Funções em `public` / `app` | 300 / 303 |
+| Tabelas em `public` | 135 |
+| Com RLS ligada | 135 |
+| Políticas (todas de leitura) | 99 |
+| FKs | 276 (135 compostas) |
+| Funções em `public` / `app` | 302 / 306 |
 | Rotinas periódicas (`job_ticks`) | 10 |
 
 ## Rotinas periódicas
@@ -117,6 +117,27 @@ Aprovação do dono vinculada a hash e versão. Append-only; uso único via reci
 - **Leitura:** `agent_approvals_select_owner` (authenticated)
 - **Só acrescenta:** não
 
+### `agent_llm_usage`
+
+T11: uso da camada de linguagem por negócio, mês (fuso do negócio) e tarefa. Só números; sem texto, usuário ou conteúdo.
+
+| Coluna | Tipo |
+|---|---|
+| `tenant_id` | uuid |
+| `month` | date |
+| `task` | text |
+| `calls` | integer |
+| `input_tokens` | bigint |
+| `output_tokens` | bigint |
+| `cost_usd` | numeric(12,6) |
+| `unpriced_calls` | integer |
+| `updated_at` | timestamp with time zone |
+
+- **Chaves e unicidade:** PK (tenant_id, month, task)
+- **Referências:** (tenant_id) → `tenants`
+- **Leitura:** `agent_llm_usage_select_owner` (authenticated)
+- **Só acrescenta:** não
+
 ### `agent_proposals`
 
 Ação proposta pelo assistente. Só vira efeito com aprovação e execução do dono.
@@ -156,6 +177,7 @@ Franquia mensal de perguntas ao assistente por negócio. Débito atômico em age
 | `updated_at` | timestamp with time zone |
 | `bonus` | integer |
 | `bonus_period_start` | date ? |
+| `llm_monthly_tokens` | bigint |
 
 - **Chaves e unicidade:** PK (tenant_id)
 - **Referências:** (tenant_id) → `tenants`

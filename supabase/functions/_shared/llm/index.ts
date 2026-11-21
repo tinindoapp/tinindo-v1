@@ -5,7 +5,8 @@ import { createLlm, type LlmDeps, type Route } from "./client.ts";
 import { type EnvGetter, type ProviderConfig, readLlmConfig } from "./config.ts";
 import type { Adapter, Llm } from "./types.ts";
 
-export type { ExtractRequest, Llm, LlmLogEntry, LlmTask } from "./types.ts";
+export type { ExtractRequest, Llm, LlmLogEntry, LlmTask, LlmUsage } from "./types.ts";
+export { withUsage } from "./usage.ts";
 export { noneLlm } from "./adapters/none.ts";
 export { createLlm } from "./client.ts";
 export { readLlmConfig } from "./config.ts";
