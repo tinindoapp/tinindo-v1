@@ -4,6 +4,8 @@
 // Atualização: o navegador confere o sw.js a cada abertura, e o app a cada 30 minutos com a tela visível. A versão nova
 // baixa tudo e assume sozinha (sw.ts); a página aberta continua com o código dela e mostra "Nova versão disponível".
 // "Atualizar" recarrega no código novo. Sem o toque, a próxima abertura já é a versão nova.
+import { applyOfflineMessage, wireOffline } from "./offline.ts";
+import { SW_MESSAGE } from "./sw-logic.ts";
 import { createPwaStore, type PwaStore } from "./store.ts";
 import type { DeferredPrompt } from "./install.ts";
 
@@ -58,14 +60,52 @@ export async function registerPwa(): Promise<void> {
   });
   window.addEventListener("appinstalled", () => pwaStore.set({ installPrompt: null, standalone: true }));
 
+  wireOffline({ store: pwaStore, win: window, doc: document, reload: () => window.location.reload(), later: (fn, ms) => void setTimeout(fn, ms) });
   let apply = () => window.location.reload();
   if ("serviceWorker" in navigator) {
     try {
+      navigator.serviceWorker.addEventListener("message", (e) => applyOfflineMessage(pwaStore, e.data));
       apply = (await wireServiceWorker({ container: navigator.serviceWorker, store: pwaStore, reload: () => window.location.reload() })).apply;
+      watchSignOut(() => navigator.serviceWorker.controller?.postMessage({ type: SW_MESSAGE.clearOffline }));
     } catch {
       /* registro recusado (modo privado, http): segue sem */
     }
   }
   const { mountPwaLayer } = await import("./PwaLayer.tsx");
   mountPwaLayer(pwaStore, () => apply());
+}
+
+/** Login do Supabase guardado neste aparelho (chave `sb-<projeto>-auth-token`). */
+export function hasStoredLogin(storage: Pick<Storage, "length" | "key"> | null): boolean {
+  try {
+    if (!storage) return false;
+    for (let i = 0; i < storage.length; i++) if (/^sb-.+-auth-token$/.test(storage.key(i) ?? "")) return true;
+  } catch {
+    /* sem acesso: trata como sem login */
+  }
+  return false;
+}
+
+/**
+ * Saiu da conta: o que estava guardado para uso sem internet sai do aparelho. Confere a cada 10 s e quando outra aba
+ * muda o login (evento storage), sem depender da tela de sessão.
+ */
+export function watchSignOut(onSignOut: () => void, storage: Storage | null = safeLocalStorage(), every = (fn: () => void) => void setInterval(fn, 10_000)) {
+  let had = hasStoredLogin(storage);
+  const check = () => {
+    const has = hasStoredLogin(storage);
+    if (had && !has) onSignOut();
+    had = has;
+  };
+  every(check);
+  window.addEventListener("storage", check);
+  return check;
+}
+
+function safeLocalStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }

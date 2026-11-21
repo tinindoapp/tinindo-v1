@@ -6,6 +6,7 @@
 // mostra "Nova versão disponível"; "Atualizar" recarrega no código novo. Sem o toque, a próxima abertura já é a nova:
 // ninguém fica preso numa versão velha, e ninguém perde o que está digitando por uma troca no meio.
 import { cacheNames, cachesToDelete, classify, SW_MESSAGE } from "./sw-logic.ts";
+import { clearOffline, handleApi } from "./sw-offline.ts";
 
 declare const __SW_VERSION__: string;
 declare const __PRECACHE__: string[];
@@ -16,6 +17,7 @@ interface ExtendableEvent extends Event {
 }
 interface FetchEvent extends ExtendableEvent {
   request: Request;
+  clientId: string;
   respondWith(r: Response | Promise<Response>): void;
 }
 interface MessageEventLike extends ExtendableEvent {
@@ -23,7 +25,7 @@ interface MessageEventLike extends ExtendableEvent {
 }
 interface SwScope {
   location: Location;
-  clients: { claim(): Promise<void> };
+  clients: { claim(): Promise<void>; get(id: string): Promise<{ postMessage(m: unknown): void } | undefined> };
   skipWaiting(): Promise<void>;
   addEventListener(type: "install" | "activate", fn: (e: ExtendableEvent) => void): void;
   addEventListener(type: "fetch", fn: (e: FetchEvent) => void): void;
@@ -57,6 +59,7 @@ sw.addEventListener("activate", (event) => {
 sw.addEventListener("message", (event) => {
   const data = event.data as { type?: string } | null;
   if (data?.type === SW_MESSAGE.skipWaiting) event.waitUntil(sw.skipWaiting());
+  if (data?.type === SW_MESSAGE.clearOffline) event.waitUntil(clearOffline(caches));
 });
 
 sw.addEventListener("fetch", (event) => {
@@ -64,7 +67,20 @@ sw.addEventListener("fetch", (event) => {
   const kind = classify({ url: req.url, method: req.method, mode: req.mode, origin: sw.location.origin }, PRECACHE);
   if (kind === "navigation") event.respondWith(navigation(req));
   else if (kind === "asset" || kind === "precached") event.respondWith(fromCache(req));
-  // "api" e "passthrough": a rede, sem passar por aqui.
+  else if (kind === "api") {
+    // Item 2 (sem internet): leituras da Hoje e da Agenda com a última resposta; comandos só pela rede, nunca em fila.
+    const clientId = event.clientId;
+    event.respondWith(handleApi(req, {
+      fetch: (r) => fetch(r),
+      caches,
+      origin: sw.location.origin,
+      now: () => Date.now(),
+      notify: (msg) => {
+        if (clientId) void sw.clients.get(clientId).then((c) => c?.postMessage(msg));
+      },
+    }));
+  }
+  // "passthrough": a rede, sem passar por aqui.
 });
 
 /** Rede primeiro (a tela sempre abre na versão no ar); sem rede, a casca guardada. */
