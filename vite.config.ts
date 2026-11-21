@@ -6,6 +6,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import { BaseSequencer, type TestSpecification } from "vitest/node";
 import { absolutizeOgImage } from "./worker/og-default.ts";
 import { headersFile } from "./worker/security-headers.ts";
+import { precacheList, swVersion } from "./src/app/pwa/sw-logic.ts";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -71,6 +72,52 @@ function securityHeadersFile(mode: string): Plugin {
   };
 }
 
+/**
+ * P34 · service worker do app instalável. Depois do build principal, monta `src/app/pwa/sw.ts` como um script único
+ * (IIFE, sem import: funciona em todo navegador com service worker) em dist/sw.js, com a versão do build e a lista
+ * de arquivos para guardar na instalação (sw-logic.ts, `precacheList`).
+ */
+function serviceWorkerFile(): Plugin {
+  let files: string[] = [];
+  let outDir = "dist";
+  return {
+    name: "tinindo-service-worker",
+    apply: "build",
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    // writeBundle (e não generateBundle): a lista final, depois de o Vite tirar os pedaços que eram só CSS.
+    writeBundle(_options, bundle) {
+      files = Object.keys(bundle);
+    },
+    async closeBundle() {
+      const { readdirSync, statSync } = await import("node:fs");
+      const { join, relative } = await import("node:path");
+      const pub = r("./public");
+      const walk = (dir: string): string[] =>
+        readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : [relative(pub, join(dir, n))]));
+      const precache = precacheList(files, walk(pub));
+      const { build } = await import("vite");
+      await build({
+        configFile: false,
+        logLevel: "warn",
+        resolve: { alias: { "@contracts": r("./supabase/functions/_shared/contracts") } },
+        define: {
+          __SW_VERSION__: JSON.stringify(swVersion(BUILD.built_at, BUILD.commit)),
+          __PRECACHE__: JSON.stringify(precache),
+        },
+        build: {
+          outDir,
+          emptyOutDir: false,
+          sourcemap: false,
+          copyPublicDir: false,
+          lib: { entry: r("./src/app/pwa/sw.ts"), formats: ["iife"], name: "tinindoSw", fileName: () => "sw.js" },
+        },
+      });
+    },
+  };
+}
+
 /** Integração: arquivos em ordem alfabética (00 segurança → 1x UATs → 20 fase 2), sempre a mesma, num banco só. */
 class AlphabeticalSequencer extends BaseSequencer {
   override async sort(files: TestSpecification[]): Promise<TestSpecification[]> {
@@ -79,7 +126,7 @@ class AlphabeticalSequencer extends BaseSequencer {
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), versionFile(), ogConfigFile(mode), absoluteOgImage(loadEnv(mode, process.cwd(), "VITE_").VITE_PUBLIC_ORIGIN), securityHeadersFile(mode)],
+  plugins: [react(), versionFile(), ogConfigFile(mode), absoluteOgImage(loadEnv(mode, process.cwd(), "VITE_").VITE_PUBLIC_ORIGIN), securityHeadersFile(mode), serviceWorkerFile()],
   define: { __TININDO_BUILD__: JSON.stringify(BUILD) },
   resolve: {
     alias: {
