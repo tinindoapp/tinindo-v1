@@ -51,6 +51,8 @@ export const PublicProfile = z.object({
   whatsapp_e164: PhoneE164.nullable().optional(),
   /** P55 (D21): endereço ou domicílio, horário de funcionamento e política. Ausente em servidor antigo. */
   details: ProfileDetails.optional(),
+  /** Recado #161: há Site (P17) publicado para o negócio. Ausente em servidor antigo: a página pede o Site do mesmo jeito. */
+  has_site: z.boolean().optional(),
 });
 
 export const ReferralKind = z.enum(["customer_recommends_professional", "professional_invites_peer"]);

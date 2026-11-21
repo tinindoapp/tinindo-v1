@@ -36,8 +36,13 @@ async function readSite(slug: string): Promise<PublicSite | null> {
   return call("/presence/presence.public_site", PublicSiteOutput, { method: "POST", body: { slug } }).then((r) => r.data, () => null);
 }
 
-async function load(api: NetworkApi, slug: string, site$: Promise<PublicSite | null>): Promise<Load> {
-  const [profile, site] = await Promise.all([api.getPublicProfile(slug).catch(() => null), site$]);
+/**
+ * Perfil primeiro; o Site só quando o perfil diz que há um publicado (`has_site`, recado #161). Sem a informação
+ * (servidor antigo) ou sem perfil, pede o Site como antes. O Site que veio pela navegação (/s) dispensa a leitura.
+ */
+async function load(api: NetworkApi, slug: string, readSite$: () => Promise<PublicSite | null>): Promise<Load> {
+  const profile = await api.getPublicProfile(slug).catch(() => null);
+  const site = profile?.has_site === false ? null : await readSite$();
   if (profile) return { slug, kind: "ok", profile, site: site ? extrasOf(site.site) : null };
   if (site) return { slug, kind: "ok", profile: profileFromSite(site), site: extrasOf(site.site) };
   return { slug, kind: "missing" };
@@ -61,8 +66,8 @@ export function PublicProfilePage() {
   const [state, setState] = useState<Load | null>(null);
   useEffect(() => {
     let alive = true;
-    const site$ = carriedSite ? Promise.resolve(carriedSite) : (readSiteOverride ?? readSite)(slug);
-    void load(api, slug, site$).then((s) => alive && setState(s));
+    const readSite$ = carriedSite ? () => Promise.resolve(carriedSite) : () => (readSiteOverride ?? readSite)(slug);
+    void load(api, slug, readSite$).then((s) => alive && setState(s));
     return () => {
       alive = false;
     };

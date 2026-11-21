@@ -406,13 +406,8 @@ async function jornada(page: Page, browser: Browser, request: APIRequestContext,
  * Respostas de erro conhecidas, que não travam a jornada: cada uma fica anotada no relatório (com o motivo) em vez de
  * reprovar. Qualquer outra resposta de erro reprova. Tirar daqui quando a causa for corrigida.
  */
-const CONHECIDAS: { padrao: RegExp; motivo: string }[] = [
-  {
-    padrao: /^404 POST \/functions\/v1\/presence\/presence\.public_site$/,
-    motivo: "esperado: a página pública (src/features/network/public/ProfilePage.tsx) pergunta pelo Site do P17 a todo perfil; " +
-      "sem Site publicado o servidor responde 404 e a página segue com o perfil do P09",
-  },
-];
+// Vazia desde o recado #161: a página pública só pede o Site do P17 quando o perfil diz que há um (has_site).
+const CONHECIDAS: { padrao: RegExp; motivo: string }[] = [];
 function inesperadas(falhas: string[]): string[] {
   const resto: string[] = [];
   for (const f of falhas) {

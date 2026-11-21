@@ -125,6 +125,8 @@ interface ProfileRow {
   /** Leitura pública: já filtrados pelas chaves no banco. */
   photo?: { path: string; alt: string } | null;
   whatsapp_e164?: string | null;
+  /** Recado #161: há Site (P17) publicado; a página pública só pede o Site quando há. */
+  has_site?: boolean;
 }
 
 export const photoUrl = (base: string, path: string) => `${base.replace(/\/$/, "")}/${path}`;
@@ -369,6 +371,7 @@ export function createNetworkHandler(deps: NetworkDeps) {
           photo: row.photo && deps.photoBaseUrl ? { url: photoUrl(deps.photoBaseUrl, row.photo.path), alt: row.photo.alt } : null,
           whatsapp_e164: row.whatsapp_e164 ?? null,
           ...(row.details ? { details: row.details } : {}),
+          ...(typeof row.has_site === "boolean" ? { has_site: row.has_site } : {}),
         });
       }
 
