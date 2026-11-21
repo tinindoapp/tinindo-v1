@@ -49,3 +49,7 @@
   .tn-pwa-bar { animation: tn-pwa-in 180ms ease-out; }
   @keyframes tn-pwa-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 }
+
+/* Avisos no celular (item 3): cada tipo é uma linha de 44 px com a explicação embaixo. */
+.tn-push-pref { display: flex; gap: var(--tn-space-3); align-items: flex-start; min-height: 44px; padding: var(--tn-space-2) 0; }
+.tn-push-pref input { width: 22px; height: 22px; margin-top: 2px; flex: none; }

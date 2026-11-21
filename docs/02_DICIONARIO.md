@@ -11,12 +11,12 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 144 |
-| Com RLS ligada | 144 |
-| Políticas (todas de leitura) | 100 |
-| FKs | 281 (135 compostas) |
-| Funções em `public` / `app` | 315 / 314 |
-| Rotinas periódicas (`job_ticks`) | 12 |
+| Tabelas em `public` | 147 |
+| Com RLS ligada | 147 |
+| Políticas (todas de leitura) | 101 |
+| FKs | 283 (136 compostas) |
+| Funções em `public` / `app` | 322 / 321 |
+| Rotinas periódicas (`job_ticks`) | 13 |
 
 ## Rotinas periódicas
 
@@ -34,6 +34,7 @@ Uma linha por rotina em `public.job_ticks`; `public.jobs_run` roda cada uma isol
 | `insights` | `app.gi_tick` | depois da fila | 20 | 20 | sim |
 | `retention` | `app.retention_tick` | depois da fila | 30 | 500 | sim |
 | `privacy_erasure` | `app.privacy_erasure_tick` | depois da fila | 40 | 5 | sim |
+| `push` | `app.push_tick` | depois da fila | 50 | 200 | sim |
 | `ops_watch` | `app.ops_watch_tick` | depois da fila | 90 | 500 | sim |
 | `usage_retention` | `app.usage_tick` | depois da fila | 95 | 1000 | sim |
 
@@ -2288,6 +2289,72 @@ Projeção pública opt-in do negócio. Nunca copia dados do CRM. Leitura públi
 - **Chaves e unicidade:** PK (id); única (tenant_id, id); única (tenant_id)
 - **Referências:** (tenant_id) → `tenants`
 - **Leitura:** `public_profiles_select_owner` (authenticated)
+- **Só acrescenta:** não
+
+### `push_cursor`
+
+| Coluna | Tipo |
+|---|---|
+| `id` | boolean |
+| `last_occurred_at` | timestamp with time zone |
+| `last_event_id` | uuid |
+
+- **Chaves e unicidade:** PK (id)
+- **Referências:** —
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `push_deliveries`
+
+Fila dos avisos no celular (P34). Só o backend (service role) lê e escreve.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | uuid |
+| `tenant_id` | uuid |
+| `subscription_id` | uuid |
+| `kind` | text |
+| `dedupe_key` | text |
+| `title` | text |
+| `body` | text |
+| `url` | text |
+| `status` | text |
+| `attempts` | integer |
+| `next_attempt_at` | timestamp with time zone |
+| `leased_until` | timestamp with time zone ? |
+| `created_at` | timestamp with time zone |
+| `sent_at` | timestamp with time zone ? |
+| `last_status` | integer ? |
+
+- **Chaves e unicidade:** PK (id); única (subscription_id, dedupe_key)
+- **Referências:** (tenant_id, subscription_id) → `push_subscriptions` (cascade)
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `push_subscriptions`
+
+Avisos no celular (P34): uma linha por aparelho. Só a própria pessoa lê; escrita só pelas RPCs.
+
+| Coluna | Tipo |
+|---|---|
+| `id` | uuid |
+| `tenant_id` | uuid |
+| `user_id` | uuid |
+| `endpoint` | text |
+| `p256dh` | text |
+| `auth_secret` | text |
+| `device_label` | text ? |
+| `notify_booking_new` | boolean |
+| `notify_booking_cancelled` | boolean |
+| `notify_reminder_30` | boolean |
+| `notify_daily_summary` | boolean |
+| `created_at` | timestamp with time zone |
+| `updated_at` | timestamp with time zone |
+| `last_sent_at` | timestamp with time zone ? |
+
+- **Chaves e unicidade:** PK (id); única (endpoint); única (tenant_id, id)
+- **Referências:** (tenant_id) → `tenants` (cascade)
+- **Leitura:** `push_subscriptions_own` (authenticated)
 - **Só acrescenta:** não
 
 ### `receivables`

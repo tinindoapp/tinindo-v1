@@ -136,3 +136,80 @@ Os pacotes P34 e P35 não estão no quadro do `coord.py` (que vai até P46), ent
     - o comando falha com "nada foi salvo";
     - nada é reenviado.
   - O spec liga `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS` para o Playwright ver o que o service worker busca. O `playwright.config.ts` está fora da área.
+
+## 3 · Notificações no celular (Web Push)
+
+### Banco (migration `*_p34_push.sql`, pgTAP 51 com 28 asserções)
+- **`push_subscriptions`:** uma linha por aparelho, e o `endpoint` é único.
+  - Guarda as chaves `p256dh` e `auth` do navegador, o nome do aparelho ("Celular Android") e os quatro tipos de aviso.
+  - Por padrão: reserva nova, cancelamento e lembrete ligados; resumo do dia desligado.
+  - RLS: só a própria pessoa lê, e só no negócio de que é membro. Escrita só pelas RPCs.
+- **`push_deliveries`:** a fila.
+  - Chave única `(subscription_id, dedupe_key)`: o mesmo aviso sai uma vez por aparelho.
+  - Destino só `/app…`, sem `..`.
+  - Só o backend lê e escreve.
+- **Envio pela fila que já existe:** a rotina `push` (`app.push_tick`) entra no registro `job_ticks` do P56 (`after_outbox`, posição 50) e roda isolada a cada `jobs_run`.
+  - **Reserva nova pelo link:** `booking.confirmed.v1` com `source = public_link`.
+  - **Cancelamento:** `booking.cancelled.v1`. Os aparelhos de quem cancelou ficam de fora; o autor sai da auditoria do mesmo cancelamento, pelo mesmo `request_id` ou pela mesma transação.
+  - **Lembrete de 30 min:** atendimentos confirmados que começam entre 25 e 35 min. Entra uma vez por atendimento e horário.
+  - **Resumo do dia:** das 7h às 7h30 no fuso do negócio, uma vez por dia, só com atendimento marcado.
+  - **Cursor do outbox:** relê 15 minutos para trás. O `occurred_at` é a hora em que a transação começou, então uma transação longa grava um evento "no passado". A chave única impede duplicar.
+  - **Quem recebe:** só quem ainda é membro ativo do negócio.
+- **Teste de outro pacote atualizado:** `36_job_ticks.test.sql` (P56/P32) confere a lista exata das rotinas, e a rotina `push` entrou nela.
+  - **Limpeza:** entregas com mais de 30 dias saem.
+- **Texto:** "Corte · Ana · qui 06/03, 14:00". Só o primeiro nome (do cadastro ou do nome informado no link). Sem sobrenome, telefone, e-mail nem valor; o pgTAP confere.
+- **RPCs:**
+  - do aparelho: `push_subscribe`, `push_prefs_save`, `push_unsubscribe`, `push_device` e `push_test` (um teste por minuto);
+  - só da chave de serviço: `push_claim` (lote com prazo de 2 min e `skip locked`; outra rodada não pega o mesmo) e `push_report`.
+- **Resultado do envio:**
+  - `sent`;
+  - `gone` (404/410 do serviço de push): a assinatura sai;
+  - `failed`: tenta de novo com espera crescente, até 5 vezes.
+
+### Edge Function `push`
+- **`webpush.ts`:** Web Push só com WebCrypto, sem dependência nova.
+  - Corpo cifrado aes128gcm (RFC 8291) e JWT VAPID ES256 (RFC 8292).
+  - O teste decifra de forma independente e confere a assinatura com a chave pública.
+- **Rotas:**
+  - `push.config` responde `available` e a chave pública;
+  - `push.subscribe`, `push.prefs`, `push.unsubscribe`, `push.device` e `push.test` vão com o JWT da pessoa;
+  - `push.dispatch` exige o segredo dos jobs (`X-Tinindo-Jobs-Secret`, o mesmo `JOBS_SECRET`) e usa a chave de serviço só para `push_claim` e `push_report`.
+- **Só serviços de push conhecidos:** Google, Mozilla, Apple e Microsoft, com https e sem porta. O endereço vem do navegador e o servidor faz um POST nele; sem a lista, a função poderia chamar qualquer endereço.
+  - A conferência vale ao assinar e de novo no envio.
+- **Validade no serviço de push:** 30 min para o lembrete, 4 h para o resumo e 24 h para o resto.
+- **Chaves VAPID só por segredo:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`. **Nenhuma foi configurada.** Sem elas, o push fica desligado: `available: false`, assinar responde 503 com explicação e `push.dispatch` não pega a fila.
+
+### Tela e service worker
+- **No service worker:**
+  - o evento `push` mostra o aviso com o ícone da marca e uma etiqueta por tipo e conteúdo (o repetido substitui em vez de empilhar);
+  - tocar abre ou traz para a frente o app na tela do aviso, sempre dentro do `/app`.
+- **"Avisos no celular"** (`src/app/pwa/PushSettings.tsx`): os quatro tipos com explicação.
+  - **Ligar:** pede a permissão do navegador e assina com as escolhas.
+  - **Cada tipo** liga e desliga na hora; se falhar ao salvar, volta como estava.
+  - **Também:** "Enviar um teste" e "Desligar neste aparelho", que cancela no servidor e no navegador.
+  - **Mensagens claras para:** demonstração (nada é enviado), ambiente sem VAPID, permissão bloqueada, e iPhone fora do app instalado (no iOS 16.4+, os avisos só chegam pelo app na tela de início).
+- **O painel fica no módulo novo `calendar`** ("Calendário e avisos", `/app/calendario`).
+  - O registro em `src/app/modules.ts`, o id `calendar` no `ModuleId`/`MODULE_LEVELS` dos contratos e no banco, e o trecho "calendario" no vocabulário da telemetria (`src/lib/telemetry`, conferido por `usage.test.ts`) estão fora da área e vão no recado #203.
+  - Por isso, o próprio `module.tsx` também vai no recado, com o código pronto: o teste da telemetria lê todo `module.tsx` em `src/features` e falharia sem o vocabulário. A tela (`routes.tsx` → `CalendarLayout`) já está aqui.
+  - Até o registro, a tela não é alcançável. Por isso o e2e dela vai pronto no recado; os testes de componente cobrem a tela.
+
+### Testes
+- pgTAP 51: assinar só no próprio negócio e com https; B não vê nem muda o aparelho de A; reserva pelo link vira um aviso, e a do dono, nenhum; só o primeiro nome; não duplica; tipo desligado; quem cancelou não recebe; lembrete uma vez; lote com prazo sem repetição; enviado uma vez; falha volta com espera; 410 apaga a assinatura e a fila dela; rotina registrada.
+- Unitários:
+  - `webpush.test.ts`: decifrar, outro aparelho não abre, sal novo, JWT, chaves e status;
+  - `handler.test.ts`: config, assinar sem VAPID, lista de serviços, dispatch com segredo, uma vez por item, endereço fora da lista nunca chamado;
+  - `sw-push.test.ts`;
+  - `PushSettings.test.tsx`;
+  - `CalendarPage.test.tsx`.
+
+### Limite do teste no navegador (aviso no celular)
+- **Tentado:** um e2e que entrega o push pelo DevTools (`ServiceWorker.deliverPushMessage`) e confere a notificação.
+- **Por que saiu:**
+  - no Chromium sem tela, a permissão de notificação é recusada;
+  - no Chromium completo, sem assinatura real num serviço de push, o evento não chega;
+  - a única forma que funcionou exige `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS`. Ligada dentro de um spec, ela vale para o processo inteiro do Playwright e derrubou o navegador em outros testes no CI ("Target page, context or browser has been closed").
+- **O que cobre o aviso:**
+  - os unitários do conteúdo e do destino (`sw-push.test.ts`);
+  - a cifra e o envio (`webpush.test.ts`, `handler.test.ts`);
+  - a fila (pgTAP 51).
+- **Falta:** a prova num celular de verdade, com as chaves VAPID, depois do recado dos segredos.

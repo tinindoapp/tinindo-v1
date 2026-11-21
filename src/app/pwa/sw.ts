@@ -7,6 +7,7 @@
 // ninguém fica preso numa versão velha, e ninguém perde o que está digitando por uma troca no meio.
 import { cacheNames, cachesToDelete, classify, SW_MESSAGE } from "./sw-logic.ts";
 import { clearOffline, handleApi } from "./sw-offline.ts";
+import { notificationFrom, safeAppUrl } from "./sw-push.ts";
 
 declare const __SW_VERSION__: string;
 declare const __PRECACHE__: string[];
@@ -23,13 +24,32 @@ interface FetchEvent extends ExtendableEvent {
 interface MessageEventLike extends ExtendableEvent {
   data: unknown;
 }
+interface PushEventLike extends ExtendableEvent {
+  data: { json(): unknown } | null;
+}
+interface NotificationEventLike extends ExtendableEvent {
+  notification: { data: unknown; close(): void };
+}
+interface WindowClientLike {
+  url: string;
+  focus(): Promise<unknown>;
+  navigate(url: string): Promise<unknown>;
+}
 interface SwScope {
   location: Location;
-  clients: { claim(): Promise<void>; get(id: string): Promise<{ postMessage(m: unknown): void } | undefined> };
+  clients: {
+    claim(): Promise<void>;
+    get(id: string): Promise<{ postMessage(m: unknown): void } | undefined>;
+    matchAll(o: { type: "window"; includeUncontrolled: boolean }): Promise<WindowClientLike[]>;
+    openWindow(url: string): Promise<unknown>;
+  };
+  registration: { showNotification(title: string, options: Record<string, unknown>): Promise<void> };
   skipWaiting(): Promise<void>;
   addEventListener(type: "install" | "activate", fn: (e: ExtendableEvent) => void): void;
   addEventListener(type: "fetch", fn: (e: FetchEvent) => void): void;
   addEventListener(type: "message", fn: (e: MessageEventLike) => void): void;
+  addEventListener(type: "push", fn: (e: PushEventLike) => void): void;
+  addEventListener(type: "notificationclick", fn: (e: NotificationEventLike) => void): void;
 }
 
 const sw = self as unknown as SwScope;
@@ -104,3 +124,31 @@ async function fromCache(req: Request): Promise<Response> {
   }
   return res;
 }
+
+// Item 3 · avisos no celular. O conteúdo chega cifrado só para este aparelho (função `push`) e tem só serviço, primeiro
+// nome e hora. Tocar no aviso abre (ou traz para a frente) o app na tela do aviso, sempre dentro do /app.
+sw.addEventListener("push", (event) => {
+  let raw: unknown;
+  try {
+    raw = event.data?.json() ?? null;
+  } catch {
+    raw = null;
+  }
+  const n = notificationFrom(raw);
+  event.waitUntil(sw.registration.showNotification(n.title, n.options));
+});
+
+sw.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = safeAppUrl((event.notification.data as { url?: unknown } | null)?.url);
+  event.waitUntil((async () => {
+    const wins = await sw.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const app = wins.find((w) => new URL(w.url).pathname.startsWith("/app"));
+    if (app) {
+      await app.navigate(url).catch(() => undefined);
+      await app.focus();
+      return;
+    }
+    await sw.clients.openWindow(url);
+  })());
+});

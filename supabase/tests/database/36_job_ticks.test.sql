@@ -22,8 +22,8 @@ select ok(not has_function_privilege('authenticated', 'app.jobs_run_ticks(text)'
 select ok(not has_function_privilege('anon', 'public.jobs_run(integer)', 'execute'), 'anon não chama o worker');
 select is(
   (select array_agg(j.name order by j.phase desc, j.position) from public.job_ticks j),
-  array['expired_offers', 'expired_holds', 'recurrence', 'referrals', 'campaigns', 'advice', 'lifecycle', 'insights', 'retention', 'privacy_erasure', 'ops_watch', 'usage_retention'],
-  'as oito rotinas de antes, na mesma ordem (seis antes da fila, duas depois), mais retenção e eliminação do P57 e o alerta do P58 e a retenção do uso (P32) no fim');
+  array['expired_offers', 'expired_holds', 'recurrence', 'referrals', 'campaigns', 'advice', 'lifecycle', 'insights', 'retention', 'privacy_erasure', 'push', 'ops_watch', 'usage_retention'],
+  'as oito rotinas de antes, na mesma ordem (seis antes da fila, duas depois), mais retenção e eliminação do P57, os avisos no celular (P34), o alerta do P58 e a retenção do uso (P32) no fim');
 select is(
   (select count(*)::int from public.job_ticks j where not exists (
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -40,8 +40,8 @@ select throws_ok($$ insert into public.job_ticks (name, fn, phase, position) val
 insert into r select 'ok', public.jobs_run(100);
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(pg_temp.got('ok')) k),
-  array['advice', 'campaigns', 'dead', 'done', 'expired_holds', 'expired_offers', 'insights', 'lifecycle', 'ops_watch', 'privacy_erasure', 'recurrence', 'referrals', 'retention', 'retried', 'tick_errors', 'usage_retention'],
-  'retorno com as chaves de sempre mais tick_errors (e as rotinas do P57, do P58 e do P32)');
+  array['advice', 'campaigns', 'dead', 'done', 'expired_holds', 'expired_offers', 'insights', 'lifecycle', 'ops_watch', 'privacy_erasure', 'push', 'recurrence', 'referrals', 'retention', 'retried', 'tick_errors', 'usage_retention'],
+  'retorno com as chaves de sempre mais tick_errors (e as rotinas do P57, do P34, do P58 e do P32)');
 select is(pg_temp.got('ok')->'tick_errors', '{}'::jsonb, 'sem falha: tick_errors vazio');
 
 -- Cenário: um hold vencido e um evento pendente esperando a rodada; três rotinas de teste, uma que falha no começo de
