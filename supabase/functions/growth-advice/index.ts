@@ -2,6 +2,7 @@
 // as RPCs do P22 (dono) (security definer + app.is_member) decidem o acesso. O acompanhamento das sugestões é do worker `jobs`; a publicação passa pelo escopo do perfil (P09). Nenhuma chave secreta aqui.
 import { createClient } from "@supabase/supabase-js";
 import { createGrowthAdviceHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -25,4 +26,4 @@ const handler = createGrowthAdviceHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));

@@ -2,6 +2,7 @@
 // as RPCs do P19 (dono) (security definer + app.is_member) decidem o acesso. O envio é do P13/P12 e o fechamento do worker `jobs`. Nenhuma chave secreta aqui.
 import { createClient } from "@supabase/supabase-js";
 import { createCampaignsHandler } from "./handler.ts";
+import { withBuild } from "../_shared/http/build.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -25,4 +26,4 @@ const handler = createCampaignsHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));
