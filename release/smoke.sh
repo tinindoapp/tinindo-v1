@@ -88,8 +88,8 @@ if [[ $SEM_BANCO -eq 1 ]]; then
   pulou "consultas ao banco (sem acesso)"
 else
   if r=$(db_json "select count(*)::int as n, count(*) filter (where level = 'pilot')::int as piloto from app.module_catalog()" 2>/dev/null); then
-    python3 -c 'import json,sys; r=json.loads(sys.argv[1])[0]; sys.exit(0 if (r["n"], r["piloto"]) == (27, 10) else 1)' "$r" \
-      && ok "escopo do piloto: 27 módulos, 10 no primeiro dia (P51)" || ruim "catálogo de módulos diferente do esperado: $r"
+    python3 -c 'import json,sys; r=json.loads(sys.argv[1])[0]; sys.exit(0 if (r["n"], r["piloto"]) == (28, 11) else 1)' "$r" \
+      && ok "escopo do piloto: 28 módulos, 11 no primeiro dia (P51 + Seus dados, P57)" || ruim "catálogo de módulos diferente do esperado: $r"
   else ruim "app.module_catalog() não existe (migration do P51 não aplicada?)"; fi
   if r=$(db_json "select name, consecutive_failures, left(coalesce(last_error, ''), 120) as erro from public.job_ticks where enabled and consecutive_failures >= 3" 2>/dev/null); then
     if [[ "$r" == "[]" ]]; then ok "nenhuma rotina do job_ticks falhando em sequência"; else ruim "rotinas falhando: $r"; fi

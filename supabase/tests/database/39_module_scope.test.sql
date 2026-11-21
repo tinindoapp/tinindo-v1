@@ -36,8 +36,8 @@ insert into public.tenant_memberships (tenant_id, user_id, role) select tenant_a
 
 -- ------------------------------------------------------------------ catálogo, estrutura e grants
 select is((select string_agg(level || '=' || n, ',' order by level) from (select level, count(*) n from app.module_catalog() group by level) x),
-  'activation=6,pilot=10,stored=11', 'catálogo: 10 do piloto, 6 por ativação, 11 guardados');
-select is((select count(distinct module)::int from app.module_catalog()), 27, '27 módulos, sem repetição');
+  'activation=6,pilot=11,stored=11', 'catálogo: 11 do piloto (10 + privacy), 6 por ativação, 11 guardados');
+select is((select count(distinct module)::int from app.module_catalog()), 28, '28 módulos (27 + privacy), sem repetição');
 select is((select string_agg(module, ',' order by ord) from app.module_catalog() where level = 'activation'),
   'recurrence,sales,growth-advice,analytics,referrals,service-ops', 'os seis por ativação');
 select ok((select relrowsecurity from pg_class where oid = 'public.tenant_modules'::regclass), 'RLS ligada em tenant_modules');
@@ -61,9 +61,9 @@ set local role authenticated;
 insert into r select 's0', public.setup_scope((select tenant_a from ids));
 select is(pg_temp.got('s0')->>'profession', 'barber', 'escopo traz a profissão');
 select is(pg_temp.got('s0')->'plan'->>'code', 'free', 'sem assinatura registrada: plano Grátis');
-select is((select count(*)::int from jsonb_array_elements(pg_temp.got('s0')->'modules')), 27, 'escopo lista os 27 módulos');
+select is((select count(*)::int from jsonb_array_elements(pg_temp.got('s0')->'modules')), 28, 'escopo lista os 28 módulos');
 select is((select string_agg(m->>'module', ',' order by o) from jsonb_array_elements(pg_temp.got('s0')->'modules') with ordinality x(m, o) where (m->>'enabled')::boolean),
-  'scheduling,crm,finance,identity,setup,network,lifecycle,pricing,waitlist,agent', 'sem chave nenhuma: só os 10 do piloto ligados');
+  'scheduling,crm,finance,identity,setup,network,lifecycle,pricing,waitlist,agent,privacy', 'sem chave nenhuma: só os 11 do piloto ligados');
 select is(pg_temp.mod(pg_temp.got('s0'), 'sales')->>'level', 'activation', 'Orçamentos é por ativação');
 select is(pg_temp.mod(pg_temp.got('s0'), 'messaging')->>'level', 'stored', 'Mensagens está guardado');
 
