@@ -50,6 +50,8 @@ O app abre na **configuração guiada**: na Hoje, "Deixe seu negócio pronto · 
 | Primeiro cliente (só primeiro nome) | | | |
 | **Total** | | | |
 
+Quando quem opera liga Mensagens (`preparar:uat`), entra o passo "Conectar e verificar seu número" e a contagem passa a **N de 8**: avisar a pessoa que é esperado e anotar se ela estranhou. Quem reserva pelo link ainda não vira cliente cadastrado (recado aberto), então o passo "Primeiro cliente" continua pendente depois do passo 4 do roteiro.
+
 Conferir: a contagem chega a 7 de 7 ou só faltam opcionais, e a linha some da Hoje quando tudo está feito ou dispensado. Em Conta, o cartão "Primeiros passos" leva à mesma lista (não tem contagem própria).
 
 Também observar, sem cronometrar: a pessoa entende as frases de Conta › "Mais recursos" (cada módulo diz para que serve e o que acontece ao ligar) e acha "Seus dados" em Conta.

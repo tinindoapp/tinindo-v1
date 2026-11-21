@@ -24,7 +24,7 @@ const WHAT: Partial<Record<ModuleId, string>> = {
  * passo, para a pessoa não ligar sem saber o que vem depois.
  */
 const ON_START: Partial<Record<ModuleId, string>> = {
-  recurrence: "Comece criando um plano (sessões por mês e preço) e depois escolha o aluno.",
+  recurrence: "Comece criando um plano (sessões por mês e preço) e depois escolha o cliente.",
   sales: "Comece com um orçamento para um cliente já cadastrado.",
   "growth-advice": "Com poucos atendimentos, as sugestões aparecem depois da primeira semana.",
   analytics: "Os números enchem conforme você registra atendimentos e recebimentos.",

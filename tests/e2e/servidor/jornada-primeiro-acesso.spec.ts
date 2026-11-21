@@ -118,7 +118,7 @@ test.describe("primeiro acesso com gravação real", () => {
         await page.getByLabel("E-mail").fill(email);
         await page.getByLabel("Senha", { exact: true }).fill(SENHA);
         await page.getByRole("button", { name: "Entrar", exact: true }).click();
-        await expect(page.getByRole("alert")).toContainText("Falta confirmar o e-mail. Abra o link que enviamos e entre de novo.");
+        await expect(page.getByRole("alert")).toContainText("Falta confirmar o e-mail. Abra o link que enviamos ou peça outro abaixo.");
         await expect(page).toHaveURL(/\/entrar$/);
       });
       await test.step("abrir o link do e-mail (caixa simulada do gateway) entra e cai no Criar meu negócio", async () => {
@@ -395,11 +395,6 @@ async function jornada(page: Page, browser: Browser, request: APIRequestContext,
  * reprovar. Qualquer outra resposta de erro reprova. Tirar daqui quando a causa for corrigida.
  */
 const CONHECIDAS: { padrao: RegExp; motivo: string }[] = [
-  {
-    padrao: /^403 POST \/functions\/v1\/growth-advice\/digest\.list$/,
-    motivo: "defeito: o resumo semanal (src/app/OwnerDigest.tsx) chama growth-advice/digest.list na caixa de Mensagens mesmo com " +
-      "\"Metas e sugestões\" desligado, que é o padrão de um negócio novo (P51); o servidor responde 403 e o cartão some",
-  },
   {
     padrao: /^404 POST \/functions\/v1\/presence\/presence\.public_site$/,
     motivo: "esperado: a página pública (src/features/network/public/ProfilePage.tsx) pergunta pelo Site do P17 a todo perfil; " +

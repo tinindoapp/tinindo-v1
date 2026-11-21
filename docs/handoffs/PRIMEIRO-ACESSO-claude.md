@@ -8,7 +8,19 @@ Pacote: um profissional novo, do cadastro ao primeiro recebimento, sem demonstra
 
 ### 1. Jornada com servidor de um negócio que nasce do zero
 
-<!-- JORNADA -->
+`tests/e2e/servidor/jornada-primeiro-acesso.spec.ts`, no job que já roda `bash tests/e2e/servidor/run.sh` no CI, contra o Postgres do runner e os handlers de produção.
+
+- **Desktop, cabeleireira** ("Corte feminino", 45 min + 10, R$ 80) e **375 px, personal** ("Sessão individual", 60 min, R$ 120). Cada uma:
+  1. cria a conta em `/criar-conta` (confirmação desligada, o caso da homologação hoje);
+  2. cria o negócio (nome, profissão, termos) e cai na Home com "Deixe seu negócio pronto · 0 de 7";
+  3. configura pela Home (horários → 1 de 7, serviço → 2 de 7) e por `/app/configurar` (antecedência, perfil → "Seu link público já recebe reservas");
+  4. liga Mensagens por `app.module_admin_set` (o que o `preparar:uat` faz) e conecta o número simulado pela tela;
+  5. numa aba anônima, pede pelo `/p/<slug>`, lê o código em Mensagens › Simulador e confirma; a reserva aparece na Agenda;
+  6. leva a reserva para ontem (único outro preparo por SQL), Atendido › "Recebi R$ X no Pix", confere no Caixa;
+  7. abre Retorno; confere no banco cada registro e que nada nasceu em outro negócio.
+- **Confirmação ligada** (desktop): a tela diz para abrir o link, `/app` volta a `/entrar`, entrar sem confirmar mostra "Falta confirmar o e-mail…", o link da caixa simulada entra e abre o "Criar meu negócio".
+- O gateway de teste (`tests/e2e/servidor/gateway.ts`) passou a imitar `/auth/v1/signup`, `/verify` (com e sem confirmação, e-mail repetido como o GoTrue), `email_not_confirmed` no login, uma caixa de correio (`/__teste/correio`) e as leituras da Conta para conta nova. Qualquer 4xx/5xx fora da lista `CONHECIDAS` reprova.
+- **Corrigido na área ao rodar:** o resumo semanal da caixa de Mensagens (`src/app/OwnerDigest.tsx`) chamava `growth-advice/digest.list` com "Metas e sugestões" desligado (padrão no piloto) e levava 403; agora só monta com o módulo ligado.
 
 ### 2. Conta: cadastro, confirmação, "Esqueci minha senha" e troca de senha
 
@@ -57,11 +69,22 @@ Pacote: um profissional novo, do cadastro ao primeiro recebimento, sem demonstra
 
 ## Recados (fora da área)
 
-<!-- RECADOS -->
+- **#160** · quem reserva pelo link não vira cliente (A11): Retorno fica vazio e "Primeiro cliente" segue pendente. A spec fixa o comportamento de hoje; trocar quando corrigir.
+- **#161** · rótulo da profissão em dois jeitos (`setup/labels.ts`) e `/p` chamando o Site guardado (404 em `presence.public_site`, na lista `CONHECIDAS`).
+- Anotado sem recado: com Mensagens ligado, a contagem vira "N de 8" (passo do número, `src/lib/setup/steps.ts`); é do P51 e o roteiro do UAT avisa. O "aluno(a)" só no campo de cancelamento da Conta é o substantivo do preset do personal; ficou.
 
 ## Testes e resultados (local)
 
-<!-- TESTES -->
+| Comando | Resultado |
+|---|---|
+| `npm run lint` | ok |
+| `npm run typecheck` | ok |
+| `npm run test:unit` | 1089+ ok |
+| `npm run test:contracts` | 846 ok, 38 pulados |
+| `npm run test:integration` | 163 ok |
+| `npm run db:test:local` e `db:test:concurrency` | ok |
+| `npx playwright test` (desktop e Pixel 7) | 320 ok, 34 pulados (antes, 3 × 2 falhas da folha dos termos e da Conta, atualizadas de propósito em `tests/e2e/identity/cadastro.spec.ts`) |
+| `bash tests/e2e/servidor/run.sh` | 5 ok (P59 e primeiro acesso nos dois projetos, confirmação ligada no desktop), sem 403 |
 
 ## Contratos, migrations, flags
 
