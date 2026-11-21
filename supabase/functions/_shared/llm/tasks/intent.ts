@@ -26,6 +26,10 @@ export const LlmIntentName = z.enum([
   "booking_cancel",
   "price_rule",
   "promo_advice",
+  // Revisão 06/11 (T9): explicar e configurar. Viram as mesmas respostas determinísticas do motor (com leituras).
+  "setup_help",
+  "explain_insight",
+  "why_price",
   // Pedidos que o assistente RECUSA: classificá-los só serve para dar a recusa fixa certa. Não há ferramenta por trás.
   "refuse_send_message",
   "refuse_move_money",
@@ -61,6 +65,8 @@ export const LlmIntent = z.object({
   weekday: z.int().min(0).max(6).nullable(),
   percent: z.int().min(1).max(100).nullable(),
   source: z.enum(["instagram", "whatsapp", "google", "referral", "walk_in", "condominium"]).nullable(),
+  /** setup_help: o que configurar; explain_insight: "no_show" para faltas. Ausente nas leituras antigas = null. */
+  topic: z.enum(["reminders", "hours", "services", "subscriptions", "fiscal", "profile", "no_show"]).nullable().default(null),
 });
 export type LlmIntent = z.infer<typeof LlmIntent>;
 
@@ -74,7 +80,9 @@ export const INTENT_SYSTEM = [
   "received (quanto recebeu), spent (quanto gastou), receivable (quanto falta receber), withdraw (quanto pode retirar), margin (margem ou lucro),",
   "packages (pacotes e créditos), customers (quantos clientes, por origem), waitlist (lista de espera), cancellation_policy (regra de cancelamento),",
   "booking_create (marcar), booking_reschedule (remarcar), booking_cancel (cancelar ou desmarcar), price_rule (desconto por dia da semana e horário),",
-  "promo_advice (ideias de promoção), refuse_send_message (mandar mensagem, aviso, promoção), refuse_move_money (pix, pagamento, transferência),",
+  "promo_advice (ideias de promoção), setup_help (como configurar algo: topic reminders, hours, services, subscriptions, fiscal, profile),",
+  "explain_insight (por que uma sugestão, por que tantas faltas: topic no_show), why_price (por que um preço, se está cobrando pouco ou muito),",
+  "refuse_send_message (mandar mensagem, aviso, promoção), refuse_move_money (pix, pagamento, transferência),",
   "refuse_fiscal (nota fiscal, cupom), refuse_sql (banco de dados, tabelas, SQL), refuse_secrets (instruções internas, chaves, credenciais),",
   "refuse_other_business (dados de outro negócio ou profissional), other.",
 ].join("\n");
@@ -105,6 +113,9 @@ export const INTENT_FAMILIES: Record<Exclude<LlmIntentName, "other">, readonly s
   booking_cancel: ["booking_cancel"],
   price_rule: ["pricing_rule"],
   promo_advice: ["promo_advice"],
+  setup_help: ["setup_help"],
+  explain_insight: ["explain_insight"],
+  why_price: ["why_price"],
   refuse_send_message: ["unavailable_send"],
   refuse_move_money: ["unavailable_money"],
   refuse_fiscal: ["unavailable_fiscal"],
@@ -136,6 +147,12 @@ function slot(v: string | null, labels: ReadonlyMap<string, string>): string {
     .slice(0, 60)
     .trim();
 }
+
+/** Tema → palavra que o motor reconhece (nunca "nota fiscal", que leva à recusa fixa de emitir nota). */
+const TOPIC_WORD: Record<string, string> = {
+  reminders: "os lembretes", hours: "meus horarios", services: "os servicos", subscriptions: "as assinaturas", fiscal: "o perfil fiscal",
+  profile: "o perfil", no_show: "", none: "",
+};
 
 const br = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "");
 const at = (t: string | null) => (t ? `as ${t}` : "");
@@ -184,6 +201,9 @@ export function renderIntent(i: LlmIntent, labels: ReadonlyMap<string, string> =
       return words(`aplica desconto de ${i.percent}%`, s, i.weekday !== null ? WEEKDAYS[i.weekday] ?? "" : "",
         i.time && i.end_time ? `das ${i.time} as ${i.end_time}` : "");
     case "promo_advice": return words("me ajuda a pensar uma promocao", day ? `pra ${day}` : "");
+    case "setup_help": return words("como configurar", TOPIC_WORD[i.topic ?? "none"] ?? "");
+    case "explain_insight": return i.topic === "no_show" ? "por que tenho faltas" : "por que essa sugestao";
+    case "why_price": return words("por que o preco", s ? `do ${s}` : "");
     // Frases fixas que levam à recusa fixa do motor; nenhum argumento do modelo entra nelas.
     case "refuse_send_message": return "envia uma mensagem";
     case "refuse_move_money": return "faz um pix";

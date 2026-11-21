@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { toStep } from "../scheduling/flow.ts";
 import { bookFromAgenda, expectDemoLabel, noHorizontalScroll, openCaixaHistory, openFromNav, PENDING } from "./helpers.ts";
 
 // UAT · Barbeiro (docs/10): cria corte de 30min; importa cinco clientes; agenda um; abre link público;
@@ -72,14 +73,19 @@ test.describe("UAT barbeiro", () => {
     await page.goto("/app");
     await openFromNav(page, "Agenda");
     await page.getByRole("link", { name: "Novo agendamento" }).click();
+    await toStep(page, "Serviço");
     await page.getByRole("radio", { name: /Corte/ }).check();
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "13:00", exact: true }).click();
+    await toStep(page, "Cliente");
     await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Ana" }).check();
+    await toStep(page, "Revisão");
     // Regra emulada do P05: terça 13h–17h, 15% de desconto, nunca abaixo do piso (R$ 45,00).
     await expect(page.getByText("R$ 51,00", { exact: true })).toBeVisible();
     await expect(page.getByText(/Desconto de horário aprovado/)).toBeVisible();
     await expect(page.getByText(/regra v\d/)).toHaveCount(0);
-    await expect(page.getByText("Ver o valor não segura o horário", { exact: false })).toBeVisible();
+    // P54 (parte 2; doc 11 §3.4): a revisão do novo agendamento não repete a validade do valor nem a política.
+    await expect(page.getByText("Ver o valor não segura o horário", { exact: false })).toHaveCount(0);
     await page.getByRole("button", { name: "Confirmar agendamento" }).click();
     await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
     await expect(page.getByText(/terça-feira, 20 de outubro, 13:00–13:30/)).toBeVisible();

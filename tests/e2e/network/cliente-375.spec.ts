@@ -55,3 +55,48 @@ test("375 px: links sem token válido mostram 'não encontrado' com saída", asy
     await noHorizontalScroll(page);
   }
 });
+
+// P55 parte 2, itens 5 e 6: vitrine do perfil e reserva inteira com toque em 375 px.
+test("375 px com toque: vitrine (local, horário, política, avaliações) e reserva até a confirmação", async ({ page }) => {
+  await page.goto("/app/perfil");
+  await page.getByLabel("Endereço do perfil").fill("barbearia-toque");
+  await page.getByLabel("Bairro ou região").fill("Centro");
+  await page.getByRole("button", { name: "Publicar perfil" }).tap();
+  await page.getByRole("heading", { name: "Onde, quando e cancelamento", level: 2 }).tap();
+  const form = page.getByRole("form", { name: "Endereço, horário e política" });
+  await form.getByText("Em domicílio").tap();
+  await form.getByLabel(/Horário de funcionamento/).fill("Ter a sáb, 9h às 19h");
+  await form.getByLabel("Política de cancelamento (opcional)").fill("Cancele com 2 horas.");
+  await form.getByRole("button", { name: "Salvar" }).tap();
+  await expect(page.getByText("Endereço, horário e política salvos.")).toBeVisible();
+  await page.getByRole("link", { name: "Abrir perfil público" }).tap();
+
+  const facts = page.getByRole("list", { name: "Informações" });
+  await expect(facts).toContainText("Atende em domicílio");
+  await expect(facts).toContainText("Ter a sáb, 9h às 19h");
+  await expect(page.getByText("Cancelamento: Cancele com 2 horas.")).toBeVisible();
+  // Avaliações em destaque, lidas da lista pública do módulo Avaliações (demonstração: as de exemplo).
+  const highlights = page.getByRole("region", { name: "O que os clientes dizem" });
+  await expect(highlights).toBeVisible();
+  await expect(highlights.getByRole("listitem").first()).toContainText("atendimento verificado");
+  const all = highlights.getByRole("link", { name: /^Ver a/ });
+  expect((await all.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  // O selo de avaliações e os destaques contam o mesmo número.
+  const count = /Ver as (\d+) avaliações/.exec((await all.textContent()) ?? "")?.[1];
+  if (count) await expect(page.getByRole("list", { name: "Reputação" })).toContainText(`${count} avaliações de clientes`);
+  // Serviço com duração (e "a partir de" quando o dono liga os preços).
+  await expect(page.getByRole("radio", { name: /min/ }).first()).toBeAttached();
+  await noHorizontalScroll(page);
+
+  await page.getByRole("button", { name: "Escolher dia e hora" }).tap();
+  await page.getByRole("list", { name: "Horários livres" }).getByRole("button").first().tap();
+  await page.getByLabel("Seu nome").fill("Cliente Toque");
+  await page.getByLabel("WhatsApp com DDD").fill("11977770375");
+  await page.getByLabel("Bairro do atendimento").fill("Moema");
+  await page.getByRole("button", { name: "Pedir este horário" }).tap();
+  const code = /O código seria (\d{6})/.exec((await page.getByText(/nenhuma mensagem é enviada/).textContent()) ?? "")![1]!;
+  await page.getByLabel("Código recebido").fill(code);
+  await page.getByRole("button", { name: "Confirmar horário" }).tap();
+  await expect(page.getByRole("heading", { name: "Horário confirmado" })).toBeVisible();
+  await noHorizontalScroll(page);
+});

@@ -1,12 +1,16 @@
 // Insights proativos (P45): cartão "Para você esta semana" da Home (até 3, com "Ver" e "Agora não"), a lista completa
 // em Metas e sugestões e o resumo semanal. A tela não calcula nada: mostra o que o motor do servidor decidiu, sempre
 // com período, número e denominador. "Preparar" cria uma PROPOSTA no fluxo dono (aprovação lá); nada executa aqui.
+// "Por quê?" (T3 da revisão de 04/11): em Metas e sugestões, cada sugestão aberta explica a conta numa frase, buscada
+// só quando o dono abre (uma chamada; o servidor guarda a frase do assistente por versão). Sem resposta, vale a frase
+// fixa por regra, calculada aqui com a mesma evidência. Regra sem dado suficiente explica o que falta.
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useScope } from "../../app/scope.tsx";
-import { ActionButton, Card, Section, StatusBanner, toast } from "../../components/ui/index.tsx";
+import { ActionButton, Button, Card, Section, StatusBadge, StatusBanner, toast } from "../../components/ui/index.tsx";
+import { fixedExplanation, insufficientExplanation } from "../../../supabase/functions/_shared/domain/agent/explain-fixed.ts";
 import { actResultText, ddmm, explainInsight, INSIGHT_RULE_LABEL, INSIGHT_STATE, insightEvidence, OUTCOME, RULE_REASON, RULE_STATUS } from "./labels.ts";
-import { type Digests, type GrowthAdvicePort, type Insight, type InsightList } from "./port.ts";
+import { type Digests, type GrowthAdvicePort, type Insight, type InsightExplanation, type InsightList, type InsightRule } from "./port.ts";
 import { useCommand } from "../../lib/idempotency.ts";
 
 /** Onde a ação acontece (nome da tela, nunca o código do pacote). */
@@ -40,6 +44,55 @@ function useInsightActions(port: GrowthAdvicePort, reload: () => void) {
 
 function Evidence({ i }: { i: Insight }) {
   return <p className="tn-muted tn-ga-evidence">{insightEvidence(i)}</p>;
+}
+
+/**
+ * "Por quê?": abre e fecha a explicação da sugestão. Uma chamada por versão do insight, só ao abrir; "Carregando…"
+ * enquanto espera; selo "escrito pelo assistente" quando a frase veio do modelo; sem selo na frase fixa.
+ */
+function Why({ explain, i }: { explain: NonNullable<GrowthAdvicePort["explain"]>; i: Insight }) {
+  const [open, setOpen] = useState(false);
+  const [got, setGot] = useState<Pick<InsightExplanation, "text" | "source" | "version"> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const panel = `insight-why-${i.id}`;
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (!next || loading || got?.version === i.version) return;
+    setLoading(true);
+    explain(i.id).then(
+      (r) => setGot(r),
+      // A rota não devolve erro por falta de modelo; se a rede falhar, a frase fixa sai daqui mesmo, com a mesma evidência.
+      () => setGot({ text: fixedExplanation(i.rule_code, i.evidence), source: "fixed", version: i.version }),
+    ).finally(() => setLoading(false));
+  };
+  return (
+    <div className="tn-ga-why">
+      <Button variant="ghost" size="compact" aria-expanded={open} aria-controls={panel} onClick={toggle}>
+        Por quê?<span className="tn-visually-hidden"> {i.title}</span>
+      </Button>
+      <div id={panel} className="tn-ga-why__text" aria-live="polite">
+        {!open ? null : loading || !got ? <p role="status" className="tn-muted">Carregando…</p> : (
+          <p>
+            {got.text}
+            {got.source === "assistant" ? <> <StatusBadge tone="neutral">escrito pelo assistente</StatusBadge></> : null}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Uma regra de "O que a conta olhou". Sem dado suficiente: a frase do que falta (insuficiente não é zero). */
+function RuleLine({ r }: { r: InsightRule }) {
+  const why = r.status === "insufficient" ? insufficientExplanation(r.reason, r.current) : null;
+  return (
+    <li>
+      <strong>{INSIGHT_RULE_LABEL[r.code]}</strong>: {r.status ? RULE_STATUS[r.status] : "ainda não calculado"}
+      {r.reason && RULE_REASON[r.reason] ? ` (${RULE_REASON[r.reason]})` : ""}
+      {why ? <p className="tn-muted tn-ga-why__text">{why}</p> : null}
+    </li>
+  );
 }
 
 /**
@@ -126,6 +179,7 @@ export function InsightsSection({ port, focusId, inCard = false }: { port: Growt
             <h3>{i.title}</h3>
             <p>{i.body}</p>
             <Evidence i={i} />
+            {port.explain ? <Why explain={port.explain} i={i} /> : null}
             <p className="tn-muted">Acontece em {FLOW_SCREEN[i.action.flow]}{i.action.kind === "proposal" ? ", como proposta para você aprovar." : "."}</p>
             <div className="tn-actions">
               {i.action.kind === "proposal"
@@ -154,12 +208,7 @@ export function InsightsSection({ port, focusId, inCard = false }: { port: Growt
         <details className="tn-help">
           <summary>O que a conta olhou{data.run ? ` (${ddmm(data.run.run_date)})` : ""}</summary>
           <ul className="tn-ga-list" aria-label="Regras e dados">
-            {data.rules.map((r) => (
-              <li key={r.code}>
-                <strong>{INSIGHT_RULE_LABEL[r.code]}</strong>: {r.status ? RULE_STATUS[r.status] : "ainda não calculado"}
-                {r.reason && RULE_REASON[r.reason] ? ` (${RULE_REASON[r.reason]})` : ""}
-              </li>
-            ))}
+            {data.rules.map((r: InsightRule) => <RuleLine key={r.code} r={r} />)}
           </ul>
         </details>
       ) : null}

@@ -7,8 +7,10 @@ test("foto do perfil e chaves: preparo no aparelho e o que o público vê", asyn
   await page.getByLabel("Endereço do perfil").fill("barbearia-foto");
   await page.getByLabel("Bairro ou região").fill("Centro");
   await page.getByRole("button", { name: "Publicar perfil" }).click();
-  const media = page.getByRole("region", { name: "Foto e contato" });
-  await expect(media.getByRole("checkbox", { name: /Mostrar foto/ })).toBeDisabled();
+  // No ar, a seção nasce recolhida (P54); sem foto, "Mostrar foto" não aparece.
+  await page.getByRole("heading", { name: "Foto e contato", level: 2 }).click();
+  const media = page.getByRole("group", { name: "Foto e contato" });
+  await expect(media.getByRole("checkbox", { name: /Mostrar foto/ })).toHaveCount(0);
 
   // Foto de câmera em paisagem (1600 × 1200, JPEG): o app recorta em quadrado e converte.
   const jpeg = await page.evaluate(async () => {

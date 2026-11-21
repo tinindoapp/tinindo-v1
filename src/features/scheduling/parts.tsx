@@ -1,7 +1,7 @@
 // Peças visuais do módulo de agenda. Estado nunca só por cor: ícone + texto.
 import { createContext, type ReactNode, useContext } from "react";
 import type { Booking, TimeRange } from "@contracts";
-import { Button, Help, StatusBadge as KitStatusBadge, StatusBanner } from "../../components/ui/index.tsx";
+import { Button, StatusBadge as KitStatusBadge, StatusBanner } from "../../components/ui/index.tsx";
 import { DEMO_CANCELLATION_POLICY } from "./demoData.ts";
 import { listStatus, STATUS_LABEL, STATUS_TONE } from "./agenda.ts";
 import { explainError, type ErrorExplanation } from "./errors.ts";
@@ -23,28 +23,12 @@ export function ListStatusBadge({ status }: { status: Booking["status"] }) {
 }
 
 /**
- * Aviso de fuso da tela (auditoria de UX, item 34): só quando o aparelho está noutro fuso ("Horários de Brasília"), com a
- * explicação recolhida em "Como funciona". D11 (b): a demonstração é dita só pela faixa fixa do topo do shell, sem linha
- * "Dados de exemplo" em cada tela.
+ * P54 (parte 2): o fuso vira a linha de apoio da abertura da tela, só quando o aparelho está noutro fuso
+ * ("Horários de Brasília (UTC−03:00)"). null quando o aparelho já está no fuso do negócio.
  */
-export function ScreenNotes({ timezone, at }: { timezone: string; at: string | Date }) {
+export function zoneLine(timezone: string, at: string | Date): string | null {
   if (!deviceZoneDiffers(at, timezone)) return null;
-  const zone = friendlyZone(at, timezone);
-  return (
-    <div className="tn-sched-notes">
-      <p className="tn-sched-notes__line">
-        <span className="tn-num">
-          Horários {zone} ({formatUtcOffset(at, timezone)})
-        </span>
-      </p>
-      <Help>
-        <p>
-          Os horários seguem o fuso do negócio ({zone.replace(/^d[aeo]s? (fuso de )?/, "")}), não o do seu aparelho, que
-          está em outro fuso.
-        </p>
-      </Help>
-    </div>
-  );
+  return `Horários ${friendlyZone(at, timezone)} (${formatUtcOffset(at, timezone)})`;
 }
 
 export function PolicyNote({ demo }: { demo: boolean }) {

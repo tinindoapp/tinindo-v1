@@ -21,7 +21,7 @@ async function attention(): Promise<OpsHealth> {
       { code: "watch_stale", minutes: 7 },
     ],
     ticks: h.ticks.map((t) => (t.name === "referrals" ? { ...t, consecutive_failures: 3, last_error: "relation x does not exist", last_failed_at: T.toISOString() } : t)),
-    release: { environment: "homolog", kind: "revert", sha: "abcdef1234567890abcdef1234567890abcdef12", migrations_until: "20261121025035_p58_operacao", functions: 29, published_at: T.toISOString() },
+    release: { environment: "homolog", kind: "revert", sha: "abcdef1234567890abcdef1234567890abcdef12", migrations_until: "20261121034614_p58_operacao", functions: 29, published_at: T.toISOString() },
   };
 }
 

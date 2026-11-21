@@ -4,7 +4,7 @@
 import type { Window } from "./time.ts";
 
 /** Ferramentas de leitura e de proposta. Mesma lista fechada do contrato `AgentTool`. */
-export type ReadTool = "agenda.read" | "finance.summary";
+export type ReadTool = "agenda.read" | "finance.summary" | "setup.read" | "insights.read" | "waitlist.read" | "lifecycle.read";
 export type ProposalTool = "booking.create" | "booking.reschedule" | "booking.cancel" | "pricing.propose_rule";
 
 export interface Service {
@@ -98,17 +98,61 @@ export interface Finance {
   as_of: string;
 }
 
-/** Leituras disponíveis ao motor. Cada chamada conta como uma chamada de ferramenta. */
+/** Passos da configuração guiada (P44), como `setup.progress` devolve (só o que o motor usa). */
+export interface SetupRead {
+  progress: {
+    steps: { step: string; title: string; required: boolean; done: boolean; dismissed?: boolean; link: string | null; why?: string | null }[];
+    done_count: number;
+    ready?: boolean;
+  };
+  as_of: string;
+}
+
+/** Sugestões abertas (P45) com a evidência calculada e o estado de cada regra na última rodada. */
+export interface InsightsRead {
+  insights: { id: string; rule_code: string; title: string; body: string; evidence: Record<string, unknown>; version: number; route: string | null }[];
+  rules: { code: string; title: string; status: string | null; reason: string | null }[];
+  as_of: string;
+}
+
+/** Lista de espera (P06) sem nomes nem recados. */
+export interface WaitlistRead {
+  by_service: { service_id: string; active: number; offered: number }[];
+  open_offers: { service_id: string; starts_at: string; expires_at: string; status: string }[];
+  as_of: string;
+}
+
+/** Régua de lembretes (P13) como está hoje. */
+export interface LifecycleRead {
+  settings: { enabled: boolean; confirmation: boolean; reminder_hours: number[]; quote_followup_days: number; receivable_reminder: boolean; reactivation_days: number; daily_budget: number };
+  as_of: string;
+}
+
+/**
+ * Leituras disponíveis ao motor. Cada chamada conta como uma chamada de ferramenta.
+ * As quatro últimas (revisão 06/11, T8) são opcionais: sem elas (demonstração antiga, mundos de avaliação) o motor
+ * responde com o que tem e diz onde ver o resto.
+ */
 export interface AgentData {
   directory(): Promise<Directory>;
   agenda(window: Window): Promise<Agenda>;
   finance(window: Window): Promise<Finance>;
+  setup?(): Promise<SetupRead>;
+  insights?(): Promise<InsightsRead>;
+  waitlist?(): Promise<WaitlistRead>;
+  lifecycle?(): Promise<LifecycleRead>;
 }
 
 export interface AgentContext {
   tenant: { id: string; name: string; timezone: string };
   role: "owner" | "staff";
   now: Date;
+  /**
+   * `ui_context` do pedido (T10): ids do que está na tela (`insight_id`, `customer_id`, `booking_id`, `service_id`).
+   * Só ajuda a resolver "essa sugestão", "esse cliente"; nunca muda negócio nem papel, e todo id é conferido contra o
+   * que as ferramentas do próprio negócio devolvem.
+   */
+  ui?: Readonly<Record<string, string>>;
 }
 
 export type AgentState = "consulted" | "recommendation" | "pending_approval" | "executed" | "failed";

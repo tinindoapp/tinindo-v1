@@ -1,17 +1,15 @@
-// Folha com os termos de uso e a política de privacidade (auditoria de UX, E8).
-// Os textos de docs/legal são rascunho marcado "NÃO PUBLICAR" (docs/legal/PENDENCIAS.md): não entram no app nem no
-// pacote publicado. Até a versão final existir, a folha diz que o texto está em revisão e qual versão o aceite registra.
-// Nada de texto jurídico é escrito aqui. Folha local: o integrador unifica com a folha do sistema depois.
+// Folha com os termos de uso e a política de privacidade (auditoria de UX, E8; issue #87).
+// O texto vem de docs/legal (src/features/identity/legal.ts), carregado só quando a folha abre. Enquanto o documento
+// estiver como "rascunho", a folha diz isso numa faixa e mostra a versão que o aceite registra. Nada de texto jurídico
+// é escrito no código. Folha local: o integrador unifica com a folha do sistema depois.
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button, StatusBanner } from "../../components/ui/index.tsx";
 import "./identity.css";
 
-export type LegalDoc = "terms" | "privacy";
+import { type Block, inlineParts, LEGAL, type LegalDoc, parseLegal } from "./legal.ts";
 
-export const LEGAL_TITLE: Record<LegalDoc, string> = {
-  terms: "Termos de uso",
-  privacy: "Política de privacidade",
-};
+export type { LegalDoc };
+export const LEGAL_TITLE: Record<LegalDoc, string> = { terms: LEGAL.terms.title, privacy: LEGAL.privacy.title };
 
 
 /**
@@ -71,16 +69,51 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
   );
 }
 
-const WHAT: Record<LegalDoc, string> = { terms: "dos Termos de uso", privacy: "da Política de privacidade" };
+function Inline({ text }: { text: string }) {
+  return (
+    <>
+      {inlineParts(text).map((part, i) =>
+        part.strong ? <strong key={i}>{part.text}</strong> : part.pending ? <mark key={i} className="tn-id-legal__pending">{part.text}</mark> : <span key={i}>{part.text}</span>,
+      )}
+    </>
+  );
+}
 
 function LegalText({ doc }: { doc: LegalDoc }) {
+  const meta = LEGAL[doc];
+  const [blocks, setBlocks] = useState<Block[] | null | "error">(null);
+  useEffect(() => {
+    let alive = true;
+    meta.load().then((md) => alive && setBlocks(parseLegal(md)), () => alive && setBlocks("error"));
+    return () => {
+      alive = false;
+    };
+  }, [meta]);
   return (
-    <div className="tn-stack">
-      <StatusBanner tone="info">
-        <strong>Texto em revisão.</strong> A versão final {WHAT[doc]} está em revisão jurídica e vai aparecer aqui quando for
-        publicada.
-      </StatusBanner>
-      <p>Nesta fase de piloto, o aceite registra a versão do piloto, combinada com a Tinindo ao entrar no teste.</p>
+    <div className="tn-stack tn-id-legal">
+      {meta.status === "rascunho" ? (
+        <StatusBanner tone="warning">
+          <strong>Rascunho em revisão jurídica.</strong> Este ainda não é o texto final. Os trechos marcados dependem de
+          decisão e vão mudar antes de o cadastro abrir para fora do piloto.
+        </StatusBanner>
+      ) : null}
+      <p className="tn-muted">
+        Versão que o aceite registra: <span className="tn-num">{meta.version}</span>
+        {meta.publishedAt ? <> · publicada em {meta.publishedAt}</> : null}. O aceite fica guardado com a data quando você cria o negócio.
+      </p>
+      {blocks === null ? <p role="status">Carregando o texto…</p> : null}
+      {blocks === "error" ? <StatusBanner tone="danger">Não foi possível abrir o texto agora. Tente de novo em instantes.</StatusBanner> : null}
+      {Array.isArray(blocks)
+        ? blocks.map((b, i) =>
+            b.kind === "h" ? (
+              b.level === 1 ? null : b.level === 2 ? <h3 key={i}><Inline text={b.text} /></h3> : <h4 key={i}><Inline text={b.text} /></h4>
+            ) : b.kind === "p" ? (
+              <p key={i}><Inline text={b.text} /></p>
+            ) : (
+              <ul key={i}>{b.items.map((it, j) => <li key={j}><Inline text={it} /></li>)}</ul>
+            ),
+          )
+        : null}
     </div>
   );
 }
@@ -90,7 +123,7 @@ export function LegalSheet({ doc, onClose }: { doc: LegalDoc | null; onClose: ()
   const [last, setLast] = useState<LegalDoc>(doc ?? "terms");
   if (doc && doc !== last) setLast(doc);
   return (
-    <Sheet open={doc !== null} title={LEGAL_TITLE[doc ?? last]} onClose={onClose}>
+    <Sheet open={doc !== null} title={LEGAL[doc ?? last].title} onClose={onClose}>
       <LegalText key={doc ?? last} doc={doc ?? last} />
     </Sheet>
   );

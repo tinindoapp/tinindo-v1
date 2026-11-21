@@ -1,12 +1,13 @@
 // Campos opcionais do perfil (P55, D21): onde atende (endereço ou domicílio), horário de funcionamento e política de
 // cancelamento curta. O cliente vê na página e antes de confirmar a reserva (D23). Em branco = não aparece.
 import { type FormEvent, useState } from "react";
-import { Button, Card, ChoiceCard, Field, StatusBanner, toast } from "../../components/ui/index.tsx";
+import { Button, ChoiceCard, Field, Section, StatusBanner, toast } from "../../components/ui/index.tsx";
 import type { NetworkApi, OwnerProfile } from "./api.ts";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { errorMessage } from "./useNetworkApi.ts";
 
-export function ProfileDetailsEditor({ api, profile, onSaved }: { api: NetworkApi; profile: OwnerProfile; onSaved: () => Promise<void> }) {
+/** `collapsed`: com o perfil no ar, a seção nasce recolhida (P54: duas alturas de celular); sem ele, aberta e sem dobra. */
+export function ProfileDetailsEditor({ api, profile, onSaved, collapsed }: { api: NetworkApi; profile: OwnerProfile; onSaved: () => Promise<void>; collapsed?: boolean }) {
   const d = profile.details;
   const [where, setWhere] = useState<"address" | "home" | "none">(d?.address ? "address" : d?.home_service ? "home" : "none");
   const [address, setAddress] = useState(d?.address ?? "");
@@ -44,8 +45,7 @@ export function ProfileDetailsEditor({ api, profile, onSaved }: { api: NetworkAp
   }
 
   return (
-    <Card aria-labelledby="detalhes-titulo">
-      <h2 id="detalhes-titulo">Onde, quando e cancelamento</h2>
+    <Section id="detalhes-titulo" title="Onde, quando e cancelamento" collapsed={collapsed}>
       <p className="tn-muted">Opcional. O cliente vê na sua página e antes de confirmar o horário.</p>
       <form className="tn-stack" aria-label="Endereço, horário e política" onSubmit={(e) => void save(e)} noValidate>
         <fieldset className="tn-net-fieldset">
@@ -66,6 +66,6 @@ export function ProfileDetailsEditor({ api, profile, onSaved }: { api: NetworkAp
           <Button type="submit" loading={busy} loadingText="Salvando…">Salvar</Button>
         </div>
       </form>
-    </Card>
+    </Section>
   );
 }

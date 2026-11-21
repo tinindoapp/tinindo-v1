@@ -123,7 +123,7 @@ select ok((select count(*) = 1 from public.retention_runs where category = 'ops_
 
 -- ------------------------------------------------------------------ release
 insert into public.ops_releases (environment, kind, sha, migrations_until, functions)
-values ('homolog', 'publish', repeat('a', 40), '20261121025035_p58_operacao', 29);
+values ('homolog', 'publish', repeat('a', 40), '20261121034614_p58_operacao', 29);
 select is((select app.ops_health_snapshot() -> 'release' ->> 'sha'), repeat('a', 40), 'versão publicada na leitura');
 
 select * from finish();

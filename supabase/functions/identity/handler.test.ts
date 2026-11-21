@@ -52,6 +52,14 @@ async function errorOf(res: Response) {
 }
 
 describe("Edge Function identity · borda HTTP", () => {
+  it("business.create sem as versões atuais dos termos e da política → 400 sem chamar o banco (#87)", async () => {
+    const rpc = vi.fn();
+    const res = await setup(rpc).handler(post("business.create", { ...business, accepted_policy_versions: ["v1"] }));
+    expect(res.status).toBe(400);
+    expect((await errorOf(res)).field).toBe("accepted_policy_versions");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("operação desconhecida → 404 sem chamar o banco", async () => {
     const rpc = vi.fn();
     const res = await setup(rpc).handler(post("tenant.drop", {}));

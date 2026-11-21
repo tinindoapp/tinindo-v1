@@ -2,17 +2,20 @@
 // A cotação não segura o horário; só a confirmação reserva. Conflitos (409) são explicados e
 // os horários livres são recarregados sem perder o que já foi escolhido.
 // "Repetir toda semana" (D8 a) troca a escolha de um horário pela repetição: ver BookingSeries.tsx.
+// P54 (parte 2; doc 11 §3.4): no celular, o novo agendamento mostra um passo por vez (Cliente → Serviço → Horário →
+// Revisão), com "Continuar" no pé e os passos no topo para voltar. Vindo de um horário livre da Agenda, depois do
+// cliente vai direto à revisão. A revisão mostra só Cliente, Serviço, Quando e Valor. No largo, tudo numa tela.
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import type { Booking, ProviderService, Quote, TimeRange } from "@contracts";
-import { Button, ChoiceCard, Field, focusFirstInvalid, IconButton, PageHeader, StatusBanner, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, ChoiceCard, Field, focusFirstInvalid, IconButton, PageHeader, StatusBanner, useCompact, useFormErrors } from "../../components/ui/index.tsx";
 import { plural } from "../../lib/text/plural.ts";
 import { type CustomerRef, newIdempotencyKey } from "./port.ts";
 import { canReschedule, formatCents, formatMinutes, formatPhoneBR, formatRange, phoneToE164, serviceName, whatsAppDigits } from "./agenda.ts";
 import { SeriesDone, type SeriesResult, SeriesSection } from "./BookingSeries.tsx";
 import { isErrorLike } from "./errors.ts";
 import { addDays, dayWindow, formatDayLong, isCivilDate, localParts } from "./time.ts";
-import { ErrorPanel, PolicyNote, ScreenNotes } from "./parts.tsx";
+import { ErrorPanel, PolicyNote, zoneLine } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
 
 export function NewBookingPage() {
@@ -23,8 +26,7 @@ export function NewBookingPage() {
       <Link to=".." relative="path" className="tn-sched-back">
         ‹ Voltar para a agenda
       </Link>
-      <PageHeader id="flow-title" title="Novo agendamento" />
-      <ScreenNotes timezone={ctx.timezone} at={port.now()} />
+      <PageHeader id="flow-title" title="Novo agendamento" subtitle={zoneLine(ctx.timezone, port.now()) ?? undefined} />
       <BookingFlow mode="create" />
     </section>
   );
@@ -42,8 +44,7 @@ export function ReschedulePage() {
       <Link to=".." relative="path" className="tn-sched-back">
         ‹ Voltar para o atendimento
       </Link>
-      <PageHeader id="flow-title" title="Reagendar atendimento" />
-      <ScreenNotes timezone={ctx.timezone} at={port.now()} />
+      <PageHeader id="flow-title" title="Reagendar atendimento" subtitle={zoneLine(ctx.timezone, port.now()) ?? undefined} />
       {booking.error ? (
         <ErrorPanel error={booking.error} operation="load" onRetry={booking.reload} />
       ) : !booking.data ? (
@@ -63,6 +64,15 @@ type FlowProps = { mode: "create" } | { mode: "reschedule"; booking: Booking; re
 
 /** Valor do seletor de cliente para "Sem cadastro": o atendimento fica sem cliente vinculado (customer_id null). */
 const NO_CUSTOMER = "sem-cadastro";
+
+/** Passos do novo agendamento no celular (um por vez). */
+type Step = "cliente" | "servico" | "horario" | "revisao";
+const STEPS: { id: Step; label: string }[] = [
+  { id: "cliente", label: "Cliente" },
+  { id: "servico", label: "Serviço" },
+  { id: "horario", label: "Horário" },
+  { id: "revisao", label: "Revisão" },
+];
 
 function BookingFlow(props: FlowProps) {
   const port = usePort();
@@ -94,6 +104,19 @@ function BookingFlow(props: FlowProps) {
   // Repetição semanal: só no novo agendamento. Depois de confirmada, a tela mostra o que foi criado e o que ficou de fora.
   const [repeat, setRepeat] = useState(false);
   const [seriesDone, setSeriesDone] = useState<SeriesResult | null>(null);
+  // Um passo por vez só no celular e só no novo agendamento (reagendar fica como está).
+  const compact = useCompact();
+  const stepped = compact && props.mode === "create";
+  const [step, setStep] = useState<Step>(() => (customerId ? (preferred ? "revisao" : "servico") : "cliente"));
+  const stepTop = useRef<HTMLDivElement>(null);
+  const go = (next: Step) => {
+    setStep(next);
+    // Novo passo começa no topo, com o foco no título do passo (leitor de tela anuncia onde está).
+    requestAnimationFrame(() => {
+      stepTop.current?.scrollIntoView?.({ block: "start" });
+      stepTop.current?.querySelector<HTMLElement>("[data-step-title]")?.focus();
+    });
+  };
   // Validação no envio: o foco vai para o primeiro campo com erro (item 15 da auditoria).
   const flowRef = useRef<HTMLDivElement>(null);
   const [focusTick, setFocusTick] = useState(0);
@@ -136,6 +159,7 @@ function BookingFlow(props: FlowProps) {
     if (noCustomer) setCustomerError("Escolha o cliente, cadastre um novo ou marque Sem cadastro.");
     if (!slot) setSlotError(slotList.length ? "Escolha um horário." : "Nenhum horário livre neste dia: escolha outro dia.");
     if (noCustomer || !slot) {
+      if (stepped) setStep(noCustomer ? "cliente" : "horario");
       setFocusTick((t) => t + 1);
       return;
     }
@@ -175,6 +199,7 @@ function BookingFlow(props: FlowProps) {
         setPicked(null);
         setPreferred(null);
         slots.reload();
+        if (stepped) setStep("horario");
       } else if (code === "STALE_VERSION" && props.mode === "reschedule") {
         props.reloadBooking();
       } else if (code === "POLICY_REJECTED") {
@@ -200,20 +225,15 @@ function BookingFlow(props: FlowProps) {
       : null;
   const summary = [service?.name, slot ? localParts(slot.starts_at, tz).time : "escolha o horário", price].filter(Boolean).join(" · ");
 
-  return (
-    <div className="tn-sched-flow" ref={flowRef}>
+  const failurePanel = (
+    <>
       {failure ? (
         <ErrorPanel error={failure} operation={op} onRetry={quote.data !== undefined ? () => void confirm(quote.data ?? null) : undefined} />
       ) : null}
-
-      {props.mode === "reschedule" ? (
-        <p className="tn-sched-current">
-          Horário atual: <strong className="tn-num">{formatDayLong(localParts(props.booking.starts_at, tz).date)}, {formatRange(props.booking, tz)}</strong> ·{" "}
-          {serviceName(services, props.booking.service_id)}
-        </p>
-      ) : (
-        <>
-          {/* Ordem do novo agendamento (auditoria de UX, item 29): cliente → serviço → horário. */}
+    </>
+  );
+  const customerStep = (
+    <>
           <CustomerPicker
             customers={customers}
             value={customerId}
@@ -223,6 +243,10 @@ function BookingFlow(props: FlowProps) {
               setCustomerError(undefined);
             }}
           />
+    </>
+  );
+  const serviceStep = (
+    <>
           <fieldset className="tn-sched-fieldset">
             <legend>Serviço</legend>
             <div className="tn-sched-options">
@@ -242,9 +266,10 @@ function BookingFlow(props: FlowProps) {
               ))}
             </div>
           </fieldset>
-        </>
-      )}
-
+    </>
+  );
+  const timeStep = (
+    <>
       <fieldset className="tn-sched-fieldset">
         <legend>{props.mode === "create" ? "Dia e horário" : "Novo dia e horário"}</legend>
         <div className="tn-sched-dateline">
@@ -295,7 +320,6 @@ function BookingFlow(props: FlowProps) {
           </>
         )}
       </fieldset>
-
       {repeat && service && resourceId ? (
         <SeriesSection
           service={service}
@@ -306,13 +330,17 @@ function BookingFlow(props: FlowProps) {
           resolveCustomer={() => {
             if (customerId) return { id: customerId === NO_CUSTOMER ? null : customerId };
             setCustomerError("Escolha o cliente, cadastre um novo ou marque Sem cadastro.");
+            if (stepped) setStep("cliente");
             setFocusTick((t) => t + 1);
             return null;
           }}
           onDone={setSeriesDone}
         />
       ) : null}
-
+    </>
+  );
+  const reviewStep = (
+    <>
       {!repeat && slot && service ? (
         <section className="tn-sched-review" aria-labelledby="review-title">
           <h2 id="review-title">Revise e confirme</h2>
@@ -348,16 +376,25 @@ function BookingFlow(props: FlowProps) {
                   )}
                 </dd>
               </dl>
-              <p className="tn-muted">
-                {quote.data ? `Valor válido até ${localParts(quote.data.expires_at, tz).time}. ` : ""}
-                Ver o valor não segura o horário: ele só fica reservado quando você confirmar.
-              </p>
-              <PolicyNote demo={port.kind === "fixture"} />
+              {/* Doc 11 §3.4: no novo agendamento, a revisão fica só com Cliente, Serviço, Quando e Valor (a validade do valor
+                  e a política são do reagendamento, que fica como estava). */}
+              {props.mode === "reschedule" ? (
+                <>
+                  <p className="tn-muted">
+                    {quote.data ? `Valor válido até ${localParts(quote.data.expires_at, tz).time}. ` : ""}
+                    Ver o valor não segura o horário: ele só fica reservado quando você confirmar.
+                  </p>
+                  <PolicyNote demo={port.kind === "fixture"} />
+                </>
+              ) : null}
             </>
           )}
         </section>
       ) : null}
-
+    </>
+  );
+  const confirmBar = (
+    <>
       {/*
         Barra de resumo presa ao pé da tela (item 29): "Confirmar · Corte · 13:00 · R$ 51,00". É sticky dentro do fluxo,
         não fixa: no fim da página volta ao lugar e não cobre o conteúdo; no celular para acima da barra de abas. O aviso
@@ -374,6 +411,89 @@ function BookingFlow(props: FlowProps) {
           </p>
         </div>
       )}
+    </>
+  );
+
+  if (stepped) {
+    const index = STEPS.findIndex((x) => x.id === step);
+    const current = STEPS[index]!;
+    // "Continuar": cliente → serviço (ou direto à revisão quando veio de um horário livre) → horário → revisão.
+    const next = () => {
+      if (step === "cliente") {
+        if (!customerId) {
+          setCustomerError("Escolha o cliente, cadastre um novo ou marque Sem cadastro.");
+          setFocusTick((t) => t + 1);
+          return;
+        }
+        go(preferred && slot ? "revisao" : "servico");
+      } else if (step === "servico") go("horario");
+      else if (step === "horario") {
+        if (!slot) {
+          setSlotError(slotList.length ? "Escolha um horário." : "Nenhum horário livre neste dia: escolha outro dia.");
+          setFocusTick((t) => t + 1);
+          return;
+        }
+        go("revisao");
+      }
+    };
+    return (
+      <div className="tn-sched-flow" data-stepped="true" ref={flowRef}>
+        <div ref={stepTop} className="tn-sched-steps-top">
+          <ol className="tn-sched-steps" aria-label="Passos do agendamento">
+            {STEPS.map((x, i) => (
+              <li key={x.id}>
+                <button type="button" className="tn-sched-steps__item" aria-current={x.id === step ? "step" : undefined}
+                  data-done={i < index || undefined} onClick={() => go(x.id)}>
+                  <span className="tn-num" aria-hidden="true">{i + 1}</span> {x.label}
+                </button>
+              </li>
+            ))}
+          </ol>
+          <p className="tn-caps" data-step-title tabIndex={-1}>
+            Passo {index + 1} de {STEPS.length} · {current.label}
+          </p>
+        </div>
+        {failurePanel}
+        {/* Os passos fora da vez ficam montados e escondidos: voltar a um passo mantém o que foi preenchido nele
+            (busca de cliente, repetição semanal). */}
+        <div hidden={step !== "cliente"}>{customerStep}</div>
+        <div hidden={step !== "servico"}>{serviceStep}</div>
+        <div hidden={step !== "horario"}>{timeStep}</div>
+        {step === "revisao" ? (
+          !repeat && !slot ? (
+            <div className="tn-sched-review">
+              <p>Falta escolher o horário.</p>
+              <Button variant="secondary" onClick={() => go("horario")}>Escolher o horário</Button>
+            </div>
+          ) : reviewStep
+        ) : null}
+        {step === "revisao" ? confirmBar : repeat && step === "horario" ? null : (
+          <div className="tn-sched-confirmbar" role="region" aria-label="Resumo do agendamento">
+            <Button onClick={next}>Continuar</Button>
+            <p className="tn-sched-confirmbar__summary tn-num" aria-live="polite">{[customerId ? customerLabel : null, summary].filter(Boolean).join(" · ")}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="tn-sched-flow" ref={flowRef}>
+      {failurePanel}
+      {props.mode === "reschedule" ? (
+        <p className="tn-sched-current">
+          Horário atual: <strong className="tn-num">{formatDayLong(localParts(props.booking.starts_at, tz).date)}, {formatRange(props.booking, tz)}</strong> ·{" "}
+          {serviceName(services, props.booking.service_id)}
+        </p>
+      ) : (
+        <>
+          {customerStep}
+          {serviceStep}
+        </>
+      )}
+      {timeStep}
+      {reviewStep}
+      {confirmBar}
     </div>
   );
 }

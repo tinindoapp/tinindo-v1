@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { toStep } from "./flow.ts";
 import { openFromNav } from "../qa/helpers.ts";
 
 // "Repetir toda semana" (decisão D8 a) em demonstração offline: a emulação segue a mesma regra de booking.create_series.
@@ -30,6 +31,7 @@ test("personal: aluno fixo terça e quinta às 7h por 8 semanas vira 16 atendime
   await novo.getByLabel("Nome").fill("Aluno Fixo Rafael");
   await novo.getByRole("button", { name: "Cadastrar e escolher" }).click();
   await expect(page.getByText("Aluno Fixo Rafael foi cadastrado e escolhido.")).toBeVisible();
+  await toStep(page, "Horário");
 
   // Hoje é terça 20/10, 09:00: a terça das 07:00 já passou, então a primeira data é a quinta 22/10.
   await page.getByRole("checkbox", { name: /Repetir toda semana/ }).check();
@@ -110,6 +112,7 @@ test.describe("celular de 375 px", () => {
 
   test("prévia com conflito marcado, alvos de 44 px e nenhuma rolagem lateral", async ({ page }) => {
     await page.goto("/app/agenda/novo?data=2026-10-21");
+    await toStep(page, "Horário");
     await page.getByRole("checkbox", { name: /Repetir toda semana/ }).check();
     const form = page.getByRole("form", { name: "Repetir toda semana" });
     await form.getByRole("checkbox", { name: "Quarta" }).uncheck();
@@ -141,7 +144,9 @@ test.describe("celular de 375 px", () => {
     await expect(dates.getByRole("listitem")).toHaveCount(3);
     await noHorizontalScroll(page);
 
+    await toStep(page, "Cliente");
     await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Bruno" }).check();
+    await toStep(page, "Horário");
     await form.getByRole("button", { name: "Confirmar repetição" }).click();
     const done = page.getByRole("region", { name: "2 agendamentos criados" });
     await expect(done).toContainText("1 data ficou de fora");

@@ -15,6 +15,7 @@ import {
   type OnboardingSaveInput,
 } from "@contracts";
 import { appEnv } from "../../app/env.ts";
+import { ACCEPTED_VERSIONS } from "./legal.ts";
 import type { ApiCall } from "../../app/api.tsx";
 import { useSession } from "../../app/session.tsx";
 import { customerBookings } from "../../lib/demo/journey.ts";
@@ -63,7 +64,7 @@ export interface IdentityServices {
 /** Erro amigável vindo do Supabase Auth (mensagens próprias; não ecoa texto do servidor). */
 export class AuthFlowError extends Error {
   /** `email_unavailable`: o cadastro recusou o e-mail (já usado ou não aceito). A tela não diz qual dos dois. */
-  constructor(readonly kind: "weak_password" | "rate_limited" | "email_unavailable" | "failed") {
+  constructor(readonly kind: "weak_password" | "same_password" | "session_ended" | "rate_limited" | "email_unavailable" | "failed") {
     super(kind);
     this.name = "AuthFlowError";
   }
@@ -72,6 +73,8 @@ export class AuthFlowError extends Error {
 function authError(error: { status?: number; code?: string } | null): AuthFlowError | null {
   if (!error) return null;
   if (error.code === "weak_password") return new AuthFlowError("weak_password");
+  if (error.code === "same_password") return new AuthFlowError("same_password");
+  if (error.code === "session_not_found" || error.code === "session_expired" || error.status === 401) return new AuthFlowError("session_ended");
   if (error.status === 429 || error.code === "over_email_send_rate_limit") return new AuthFlowError("rate_limited");
   if (error.code === "user_already_exists" || error.code === "email_exists" || error.code === "email_address_invalid") {
     return new AuthFlowError("email_unavailable");
@@ -183,7 +186,9 @@ export function createDefaultServices(
       const { data, error } = await client.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: appUrl("/app/conta/novo-negocio") },
+        // Versões vistas no cadastro, nos dados da conta (indicativo: a pessoa pode editar os próprios metadados). O
+        // registro que vale é public.policy_acceptances, gravado pelo servidor ao criar o negócio.
+        options: { emailRedirectTo: appUrl("/app/conta/novo-negocio"), data: { accepted_policy_versions: ACCEPTED_VERSIONS } },
       });
       const failure = authError(error);
       if (failure) throw failure;

@@ -5,8 +5,9 @@ test("site e Google: rascunho, prévia só pública, publicar a prévia, página
   await page.goto("/app");
   await openFromNav(page, "Site e Google");
   await expect(page.getByRole("heading", { name: "Site e Google", level: 1 })).toBeVisible();
-  await expect(page.getByText("Sem promessa de posição.")).toBeVisible();
-  await expect(page.getByText("o DNS é simulado")).toBeVisible();
+  await expect(page.getByText("Sem promessa de posição no Google.")).toBeVisible();
+  // P54 (D11 b): sem aviso de demonstração na abertura; o botão do DNS simulado diz que é demonstração.
+  await expect(page.getByText("o DNS é simulado")).toHaveCount(0);
 
   const form = page.getByRole("form", { name: "Conteúdo do site" });
   // E14: cada opção é uma linha inteira tocável de 44 px; tocar no texto marca.
@@ -33,7 +34,9 @@ test("site e Google: rascunho, prévia só pública, publicar a prévia, página
   await expect(page.getByText("No ar · versão 1")).toBeVisible();
   await expect(page.getByText("Esta prévia é exatamente o que está no ar.")).toBeVisible();
 
-  // Domínio do cliente: sem o registro não verifica; com o registro (simulado) verifica.
+  // Domínio do cliente: sem o registro não verifica; com o registro (simulado) verifica. Sem domínio, a seção nasce
+  // recolhida (P54).
+  await page.getByRole("heading", { name: "Domínio", level: 2 }).click();
   const domain = page.getByRole("form", { name: "Ligar domínio" });
   await domain.getByLabel("Seu domínio").fill("MinhaBarbearia.com.br");
   await domain.getByRole("button", { name: "Ligar domínio" }).click();
@@ -46,6 +49,7 @@ test("site e Google: rascunho, prévia só pública, publicar a prévia, página
   await expect(page.getByText(/minhabarbearia\.com\.br · verificado em/)).toBeVisible();
 
   // Google: só registra com a declaração (o botão avisa o que falta embaixo do campo); revogar fica disponível.
+  await page.getByRole("heading", { name: "Perfil da Empresa no Google", level: 2 }).click();
   const google = page.getByRole("form", { name: "Conceder acesso ao Google" });
   await google.getByLabel("Nome do perfil no Google").fill("Barbearia Exemplo A");
   await google.getByRole("button", { name: "Registrar acesso" }).click();
@@ -61,6 +65,7 @@ test("site e Google: rascunho, prévia só pública, publicar a prévia, página
   await page.getByRole("button", { name: "Voltar" }).click();
   await expect(page.getByText(/Acesso concedido ao perfil/)).toBeVisible();
 
+  await page.getByRole("heading", { name: "Entregas", level: 2 }).click();
   const deliveries = page.getByRole("list", { name: "Entregas" });
   await expect(deliveries).toContainText("Site publicado");
   await expect(deliveries).toContainText("Domínio verificado");

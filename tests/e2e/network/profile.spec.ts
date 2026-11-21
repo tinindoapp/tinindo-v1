@@ -14,7 +14,8 @@ test("dono publica o perfil, vê a prévia e gera convite sem envio automático"
   await page.goto("/app");
   await openFromNav(page, "Perfil");
   await expect(page.getByRole("heading", { name: "Seu perfil público" })).toBeVisible();
-  await expect(page.getByText("Demonstração: nada é salvo")).toBeVisible();
+  // P54 (D11 b): sem aviso de ambiente na abertura.
+  await expect(page.getByText("Demonstração: nada é salvo")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Convidar um colega" })).toHaveCount(0);
 
   await page.getByLabel("Endereço do perfil").fill("Barbearia do Centro");
@@ -43,6 +44,8 @@ test("dono publica o perfil, vê a prévia e gera convite sem envio automático"
   await noHorizontalScroll(page);
 
   await page.getByRole("link", { name: "Voltar ao perfil" }).click();
+  // No ar, as seções de edição nascem recolhidas (P54).
+  await page.getByRole("heading", { name: "Convidar um colega", level: 2 }).click();
   await page.getByLabel("Nome do colega (só você vê)").fill("Colega Exemplo");
   await page.getByRole("button", { name: "Gerar link de convite" }).click();
   const link = await page.getByLabel("Link para compartilhar").inputValue();
@@ -59,6 +62,7 @@ test("dono tira o perfil do ar e a prévia deixa de mostrá-lo", async ({ page }
   await page.getByLabel("Endereço do perfil").fill("perfil-temporario");
   await page.getByLabel("Bairro ou região").fill("Zona Sul");
   await page.getByRole("button", { name: "Publicar perfil" }).click();
+  await page.getByRole("heading", { name: "Endereço e o que aparece", level: 2 }).click();
   await page.getByRole("button", { name: "Tirar do ar" }).click();
   await expect(page.getByText(/Perfil removido do ar/)).toBeVisible();
   await page.goto("/app/perfil/previa");

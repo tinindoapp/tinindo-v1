@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FX } from "@contracts/fixtures.ts";
 import { dismissToast, Toaster } from "../../components/ui/index.tsx";
 import { createApiClient } from "../../lib/api/client.ts";
+import { SessionProvider } from "../../app/session.tsx";
 import { createDemoPort, resetPrivacyDemo } from "./demoPort.ts";
 import type { PrivacyPort } from "./port.ts";
 import { PrivacyPage } from "./PrivacyPage.tsx";
@@ -12,7 +13,7 @@ import { createServerPort } from "./serverPort.ts";
 beforeEach(() => resetPrivacyDemo());
 afterEach(() => act(() => dismissToast()));
 
-const renderPage = (port: PrivacyPort) => render(<MemoryRouter><PrivacyPage port={port} /><Toaster /></MemoryRouter>);
+const renderPage = (port: PrivacyPort) => render(<SessionProvider client={null}><MemoryRouter><PrivacyPage port={port} /><Toaster /></MemoryRouter></SessionProvider>);
 const click = async (el: HTMLElement) => act(async () => { fireEvent.click(el); });
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } });
 

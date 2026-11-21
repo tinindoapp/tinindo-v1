@@ -12,6 +12,7 @@ import type { BookConfirmed, BookRequest, NetworkApi, PublicProfileData, PublicS
 import { buildIcs } from "./ics.ts";
 import { BusinessHeader, businessOf } from "../../components/public/public-kit.tsx";
 import { errorMessage, formatPhoneBr } from "./public/labels.ts";
+import { ReviewHighlights, useReviewList } from "./public/ReviewHighlights.tsx";
 
 /** Dia da demonstração (fixtures do piloto). Com servidor, o visitante escolhe a partir de hoje. */
 const DEMO_DAY = "2026-10-20";
@@ -44,7 +45,8 @@ function pendingSummary(e: unknown): PendingSummary | null {
 }
 /** Botão do WhatsApp do perfil: abre a conversa com o número do negócio e uma mensagem pronta (a pessoa envia). */
 export const WHATSAPP_GREETING = "Olá! Vi seu perfil na Tinindo.";
-export const whatsappLink = (e164: string) => `https://wa.me/${e164.replace(/\D/g, "")}?text=${encodeURIComponent(WHATSAPP_GREETING)}`;
+// Mesmo link do kit (P53, defeito 1): E.164 curto (menos de 10 dígitos) abre o WhatsApp sem número, com o texto.
+export const whatsappLink = (e164: string) => whatsappHref(e164, WHATSAPP_GREETING);
 
 /** Quantos dias a fileira de chips mostra a partir de hoje. */
 export const DAYS_AHEAD = 14;
@@ -106,7 +108,10 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
   const booking = !!profile.fields.booking_link;
   // Do passo 2 em diante o cabeçalho recolhe e o resto da página sai da frente (auditoria 14, achado 07).
   const [reserving, setReserving] = useState(false);
-  const reviews = profile.reputation.reviews_count;
+  // A lista pública das avaliações (módulo Avaliações, pela API) é a fonte do número e dos destaques; sem ela, vale o
+  // número que o perfil traz.
+  const reviewList = useReviewList(profile.slug);
+  const reviews = reviewList?.summary.reviews_count ?? profile.reputation.reviews_count;
   const about = [site?.headline, profile.fields.bio, profile.fields.services_summary].filter((t): t is string => !!t);
   return (
     <>
@@ -181,7 +186,7 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
                       <span>
                         {s.name} <small className="tn-muted">{s.duration_min} min</small>
                       </span>
-                      {s.price_cents != null ? <strong className="tn-num">{formatCents(s.price_cents)}</strong> : null}
+                      {s.price_cents != null ? <strong className="tn-num">a partir de {formatCents(s.price_cents)}</strong> : null}
                     </li>
                   ))}
                 </ul>
@@ -203,6 +208,7 @@ export function PublicProfileView({ profile, api, site = null, as: Tag = "div" }
               </details>
             ) : null}
             {profile.details?.cancellation_policy ? <p className="tn-net-policy"><strong>Cancelamento:</strong> {profile.details.cancellation_policy}</p> : null}
+            <ReviewHighlights slug={profile.slug} list={reviewList} />
             <p className="tn-muted tn-net-legal">
               Informações publicadas pelo próprio profissional. A Tinindo não garante habilidade nem resultado.
             </p>

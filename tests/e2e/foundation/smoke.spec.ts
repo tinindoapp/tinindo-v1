@@ -25,6 +25,8 @@ test("rota inexistente mostra página amigável", async ({ page }) => {
 
 test("alvos de toque da navegação têm pelo menos 44px (abas, menu e barra lateral)", async ({ page }) => {
   await page.goto("/app");
+  // O app completo chega num pedaço próprio depois do main.tsx (P55, pacote público): espera a tela pronta.
+  await expect(page.locator("h1").first()).toBeVisible();
   const principal = page.getByRole("navigation", { name: "Principal" });
   const mobile = !(await principal.isVisible());
   if (mobile) {

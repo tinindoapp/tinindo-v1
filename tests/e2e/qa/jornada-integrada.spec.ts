@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { toStep } from "../scheduling/flow.ts";
 import { caixaSummaryValue, expectDemoLabel, noHorizontalScroll, openCaixaHistory } from "./helpers.ts";
 
 // Auditoria da demonstração (docs/qa/AUDITORIA-DEMO-2026-10-25.md): o MESMO atendimento atravessa os módulos na aba.
@@ -106,16 +107,24 @@ test.describe("regressões da auditoria", () => {
     await page.goto("/app/agenda");
     // Voltar no meio do fluxo: nada é criado.
     await page.getByRole("link", { name: "Novo agendamento" }).click();
+    await toStep(page, "Serviço");
     await page.getByRole("radio", { name: /Barba/ }).check();
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "Próximo dia" }).click(); // quarta, 21/10
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "11:00", exact: true }).click();
     await page.getByRole("link", { name: /Voltar para a agenda/ }).click();
 
     await page.getByRole("link", { name: "Novo agendamento" }).click();
+    await toStep(page, "Serviço");
     await page.getByRole("radio", { name: /Barba/ }).check();
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "Próximo dia" }).click();
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "10:30", exact: true }).click();
+    await toStep(page, "Cliente");
     await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Bruno" }).check();
+    await toStep(page, "Revisão");
     await page.getByRole("button", { name: "Confirmar agendamento" }).dblclick();
     await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
 
@@ -155,9 +164,13 @@ test.describe("regressões da auditoria", () => {
 test("minhas reservas: a cliente vê o que o dono agenda e conclui na mesma aba, sem ações de alterar", async ({ page }) => {
   await page.goto("/app/agenda");
   await page.getByRole("link", { name: "Novo agendamento" }).click();
+  await toStep(page, "Serviço");
   await page.getByRole("radio", { name: /Corte/ }).check();
+  await toStep(page, "Horário");
   await page.getByRole("button", { name: "13:00", exact: true }).click();
+  await toStep(page, "Cliente");
   await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Ana" }).check();
+  await toStep(page, "Revisão");
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
 

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { toStep } from "./flow.ts";
 import { openFromNav } from "../qa/helpers.ts";
 
 test("horários: bloqueio criado aparece na lista e some dos horários livres", async ({ page }) => {
@@ -21,6 +22,7 @@ test("horários: bloqueio criado aparece na lista e some dos horários livres", 
   // Navegação dentro do app: a emulação guarda o estado só enquanto a página não recarrega.
   await openFromNav(page, "Agenda");
   await page.getByRole("link", { name: "Novo agendamento" }).click();
+  await toStep(page, "Horário");
   await page.getByRole("button", { name: "Próximo dia" }).click();
   const slots = page.getByRole("group", { name: "Horários livres" });
   await expect(slots.getByRole("button", { name: "16:00" })).toBeVisible();
