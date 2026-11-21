@@ -18,7 +18,7 @@
             <td style="padding:32px 28px;">
               <p style="margin:0 0 24px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#4A4A46;">Tinindo</p>
               <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:600;">Confirme seu e-mail</h1>
-              <p style="margin:0 0 24px;font-size:16px;line-height:1.5;">Você criou uma conta na Tinindo com o e-mail {{ .Email }}. Para começar a usar, confirme que este endereço é seu.</p>
+              <p style="margin:0 0 24px;font-size:16px;line-height:1.5;">Você criou uma conta na Tinindo com o e-mail {{ .Email }}. Para começar a usar, confirme que este endereço é seu. O link vale por 1 hora e só funciona uma vez.</p>
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="border-radius:8px;background:#111111;">
@@ -27,7 +27,7 @@
                 </tr>
               </table>
               <p style="margin:24px 0 0;font-size:14px;line-height:1.5;color:#4A4A46;">Se o botão não abrir, copie este endereço no navegador:<br><a href="{{ .ConfirmationURL }}" style="color:#111111;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
-              <p style="margin:24px 0 0;font-size:14px;line-height:1.5;color:#4A4A46;">Não foi você? Pode ignorar esta mensagem. Nenhuma conta será ativada sem a confirmação.</p>
+              <p style="margin:24px 0 0;font-size:14px;line-height:1.5;color:#4A4A46;">Se o link vencer, entre com o e-mail e a senha e toque em “Reenviar o link de confirmação”. Não foi você? Pode ignorar esta mensagem: nenhuma conta é ativada sem a confirmação.</p>
             </td>
           </tr>
         </table>

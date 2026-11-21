@@ -6,6 +6,7 @@ import { MODULES } from "./modules.ts";
 import { unreadLabel, useUnreadMessages } from "../features/messaging/unread.ts";
 import { activeTo, buildNavigation, HOME, type NavSection, sectionFor } from "./navigation.ts";
 import { ScopeProvider, useScope, visibleModules } from "./scope.tsx";
+import { authLinkError, signInHref } from "./return-to.ts";
 import { useSession } from "./session.tsx";
 import "./shell.css";
 import { InboxExtraProvider } from "../features/messaging/module.tsx";
@@ -108,7 +109,8 @@ export function AppShell() {
 function Shell() {
   const session = useSession();
   const { state } = session;
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
   const scope = useScope();
   // P51: menu, sub-abas e barra só com os módulos que aparecem para o negócio (piloto + o que o dono ligou).
   const sections = useMemo(() => buildNavigation(visibleModules(MODULES, scope)), [scope]);
@@ -157,7 +159,15 @@ function Shell() {
       </p>
     );
   }
-  if (state.status === "signed_out") return <Navigate to="/entrar" replace />;
+  if (state.status === "signed_out") {
+    // Volta ao destino depois de entrar; quem tocou em Sair não volta para a tela anterior (aparelho dividido).
+    const here = `${pathname}${location.search}`;
+    const linkError = authLinkError(location.hash);
+    const reason = linkError ? "link" : session.ended === "expired" ? "sessao" : session.ended === "user" ? "saiu" : undefined;
+    return <Navigate to={signInHref(session.ended === "user" ? null : here, reason)} replace />;
+  }
+
+  if (session.recovering && pathname !== "/app/conta/nova-senha") return <Navigate to="/app/conta/nova-senha" replace />;
 
   const memberships = state.memberships;
   const current = sectionFor(sections, pathname);

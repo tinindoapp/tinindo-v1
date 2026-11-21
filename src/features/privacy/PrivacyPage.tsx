@@ -1,7 +1,8 @@
 // Privacidade (P57, D26): o dono baixa os dados do negócio ou de um cliente, elimina um cliente a pedido dele e pede
 // a eliminação do negócio com carência de 7 dias, cancelável. O que a tela promete é o que o banco garante: só o dono
 // faz, a exportação vale 24 h e o link 15 minutos, eliminar é anonimizar (valores e documentos fiscais ficam).
-import { useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useSession } from "../../app/session.tsx";
 import { Button, Card, ConfirmAction, Field, PageHeader, StatusBanner, toast } from "../../components/ui/index.tsx";
 import { explainError } from "../../lib/errors.ts";
 import { useCommand } from "../../lib/idempotency.ts";
@@ -9,21 +10,25 @@ import { formatDateTime } from "../../lib/time.ts";
 import type { CustomerOption, PrivacyErasure, PrivacyExport, PrivacyExportOutput, PrivacyPort } from "./port.ts";
 import "./privacy.css";
 
-const TZ = "America/Sao_Paulo";
+// Datas no fuso do negócio (primeiro acesso: o negócio novo pode não ser de Brasília); São Paulo só enquanto carrega.
+const TimeZone = createContext("America/Sao_Paulo");
 const CONFIRM_WORD = "ELIMINAR";
 const explain = (err: unknown) => explainError(err, {
   FORBIDDEN: "Só o dono do negócio pode fazer isto.",
   QUOTA_EXCEEDED: "Você já pediu 5 exportações nas últimas 24 horas. Use um dos arquivos abaixo ou tente amanhã.",
   POLICY_REJECTED: "Isto não pode ser feito agora: confira o estado do pedido abaixo.",
 });
-const when = (iso: string | null) => (iso ? formatDateTime(iso, TZ) : "");
+function useWhen() {
+  const tz = useContext(TimeZone);
+  return (iso: string | null) => (iso ? formatDateTime(iso, tz) : "");
+}
 const SCOPE_LABEL = { business: "Todo o negócio", customer: "Um cliente" } as const;
 const EXPORT_STATUS = { generating: "Gerando", ready: "Pronto", failed: "Falhou", expired: "Vencido" } as const;
 const ERASE_STATUS = { scheduled: "Agendada", cancelled: "Cancelada", done: "Feita" } as const;
 
 function CustomerPicker({ port, value, onChange, label }: { port: PrivacyPort; value: CustomerOption | null; onChange: (c: CustomerOption | null) => void; label: string }) {
   const [q, setQ] = useState("");
-  const [options, setOptions] = useState<CustomerOption[]>([]);
+  const [options, setOptions] = useState<CustomerOption[] | null>(null);
   useEffect(() => {
     let alive = true;
     port.customers(q).then((o) => alive && setOptions(o), () => alive && setOptions([]));
@@ -31,18 +36,23 @@ function CustomerPicker({ port, value, onChange, label }: { port: PrivacyPort; v
       alive = false;
     };
   }, [port, q]);
+  // Primeiro dia: sem cliente nenhum, nada para escolher; diz isso em vez de uma busca vazia.
+  if (options !== null && options.length === 0 && !q) {
+    return <p className="tn-muted">Ainda não há clientes cadastrados. Quando houver, você escolhe um aqui.</p>;
+  }
   return (
     <div className="tn-privacy-picker">
       <Field label={`${label}: buscar`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome ou telefone" />
-      <Field as="select" label={label} value={value?.id ?? ""} onChange={(e) => onChange(options.find((o) => o.id === e.target.value) ?? null)}>
+      <Field as="select" label={label} value={value?.id ?? ""} onChange={(e) => onChange((options ?? []).find((o) => o.id === e.target.value) ?? null)}>
         <option value="">Escolha…</option>
-        {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        {(options ?? []).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
       </Field>
     </div>
   );
 }
 
 function Download({ out }: { out: PrivacyExportOutput }) {
+  const when = useWhen();
   return (
     <StatusBanner tone="success">
       Arquivo pronto. <a href={out.download.url} download rel="noopener">Baixar o arquivo (JSON)</a>. O link vale até {when(out.download.expires_at)}; o arquivo fica disponível até {when(out.export.expires_at)}.
@@ -51,6 +61,7 @@ function Download({ out }: { out: PrivacyExportOutput }) {
 }
 
 function Exports({ port }: { port: PrivacyPort }) {
+  const when = useWhen();
   const [items, setItems] = useState<PrivacyExport[] | null>(null);
   const [last, setLast] = useState<PrivacyExportOutput | null>(null);
   const [customer, setCustomer] = useState<CustomerOption | null>(null);
@@ -105,12 +116,13 @@ function Exports({ port }: { port: PrivacyPort }) {
             </li>
           ))}
         </ul>
-      ) : null}
+      ) : items ? <p className="tn-muted">Nenhum arquivo gerado ainda.</p> : null}
     </Card>
   );
 }
 
 function Erasures({ port }: { port: PrivacyPort }) {
+  const when = useWhen();
   const [items, setItems] = useState<PrivacyErasure[] | null>(null);
   const [customer, setCustomer] = useState<CustomerOption | null>(null);
   const [word, setWord] = useState("");
@@ -202,14 +214,19 @@ function Erasures({ port }: { port: PrivacyPort }) {
 }
 
 export function PrivacyPage({ port }: { port: PrivacyPort }) {
+  const { business, timezone } = useSession();
+  const staff = business.status === "ready" && business.business.role !== "owner";
   return (
-    <div className="tn-privacy">
-      <div className="tn-page-intro">
-        <PageHeader id="privacy-title" title="Seus dados" eyebrow="Privacidade" subtitle="Baixar e eliminar dados do negócio e dos clientes (LGPD)." />
-        {port.kind === "demo" ? <StatusBanner tone="info">Demonstração: os arquivos e pedidos daqui valem só nesta aba, com dados de exemplo.</StatusBanner> : null}
+    <TimeZone.Provider value={timezone ?? "America/Sao_Paulo"}>
+      <div className="tn-privacy">
+        <div className="tn-page-intro">
+          <PageHeader id="privacy-title" title="Seus dados" eyebrow="Privacidade" subtitle="Baixar e eliminar dados do negócio e dos clientes (LGPD)." />
+          {port.kind === "demo" ? <StatusBanner tone="info">Demonstração: os arquivos e pedidos daqui valem só nesta aba, com dados de exemplo.</StatusBanner> : null}
+          {staff ? <StatusBanner tone="info">Só quem é dono do negócio baixa ou elimina dados. Você pode ver o que já foi pedido.</StatusBanner> : null}
+        </div>
+        <Exports port={port} />
+        <Erasures port={port} />
       </div>
-      <Exports port={port} />
-      <Erasures port={port} />
-    </div>
+    </TimeZone.Provider>
   );
 }

@@ -50,8 +50,11 @@ for (const scheme of ["light", "dark"] as const) {
     await terms.click();
     const sheet = page.getByRole("dialog", { name: "Termos de uso" });
     await expect(sheet).toBeVisible();
-    // O rascunho de docs/legal é "NÃO PUBLICAR": a folha só diz que o texto está em revisão.
-    await expect(sheet.getByText(/Texto em revisão/)).toBeVisible();
+    // #87: o rascunho de docs/legal aparece marcado como rascunho, com a versão que o aceite grava; as notas internas
+    // do arquivo ("NÃO PUBLICAR") ficam de fora.
+    await expect(sheet.getByText(/Rascunho em revisão jurídica/)).toBeVisible();
+    await expect(sheet.getByText(/Versão que o aceite registra: termos-piloto-v0/)).toBeVisible();
+    await expect(sheet.getByRole("heading", { name: /Quem somos/ })).toBeVisible();
     await expect(sheet.getByText(/RASCUNHO|NÃO PUBLICAR/)).toHaveCount(0);
     // A folha cabe na tela e só o texto rola.
     const vbox = await sheet.boundingBox();
@@ -64,7 +67,8 @@ for (const scheme of ["light", "dark"] as const) {
 
     await page.getByRole("button", { name: "Política de privacidade" }).click();
     const privacy = page.getByRole("dialog", { name: "Política de privacidade" });
-    await expect(privacy.getByText(/Política de privacidade está em revisão/)).toBeVisible();
+    await expect(privacy.getByText(/Rascunho em revisão jurídica/)).toBeVisible();
+    await expect(privacy.getByText(/privacidade-piloto-v0/)).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(privacy).toBeHidden();
   });
@@ -82,7 +86,8 @@ test("sua conta: primeiros passos no topo, sem texto técnico, e criar outro neg
   await page.goto("/app/conta");
   const steps = page.getByRole("region", { name: /Primeiros passos/ });
   await expect(steps).toBeVisible();
-  await expect(steps.getByRole("link", { name: "Publicar seu perfil e mandar o link" })).toBeVisible();
+  // A contagem mora só na Configuração (achado A7): a Conta aponta para lá.
+  await expect(steps.getByRole("link", { name: "Ver os passos" })).toHaveAttribute("href", "/app/configurar");
   await expect(page.getByText(/O servidor confere/)).toHaveCount(0);
   const other = page.getByRole("link", { name: "Criar outro negócio" });
   await expect(other).not.toHaveClass(/tn-button/);
