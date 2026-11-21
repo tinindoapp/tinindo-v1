@@ -12,6 +12,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" />
     <!-- Instalável na tela inicial: abre em tela cheia no /app (ADR-0024). Cores = tokens papel-50 e tinta-950. -->
     <link rel="manifest" href="/manifest.webmanifest" />
+    <style>@media (prefers-color-scheme: dark) { .tn-splash { background: #111111 !important; } }</style>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Tinindo" />
@@ -33,7 +34,9 @@
     <!-- og:end -->
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Tela de abertura (P34): aparece enquanto o pacote do app baixa e some quando o React monta (createRoot troca o
+         conteúdo do #root). Só a wordmark original da marca sobre o fundo do tema; nada que dependa de script. -->
+    <div id="root"><div class="tn-splash" style="min-height:100vh;min-height:100dvh;display:grid;place-items:center;background:#F7F7F5"><picture><source srcset="/brand/wordmark-negativo.svg" media="(prefers-color-scheme: dark)" /><img src="/brand/wordmark.svg" width="160" height="41" alt="Tinindo" style="display:block;height:auto" /></picture></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

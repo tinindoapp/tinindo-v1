@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import type { MemberRole, Profession } from "@contracts";
 import { Button, StatusBanner } from "../components/ui/index.tsx";
 import { createApiClient } from "../lib/api/client.ts";
+import { usageCall } from "../lib/telemetry/usage.ts";
 import type { ApiCall } from "../lib/api/session-client.ts";
 import { appEnv } from "./env.ts";
 import { useScope } from "./scope.tsx";
@@ -24,7 +25,10 @@ export interface ApiAccess {
 export function useApi(): ApiAccess {
   const { state, api, tenantId } = useSession();
   const demo = state.status === "offline_demo" || !appEnv.supabase || !api;
-  return { demo, call: demo ? null : api, tenantId };
+  // Ponto único de chamada: com negócio escolhido, o cliente mede tela aberta e comando concluído ou recusado, sem
+  // dado pessoal (P32, src/lib/telemetry/usage.ts). O mesmo cliente volta enquanto não mudam sessão e negócio.
+  const call = useMemo(() => (demo || !api ? null : usageCall(api, tenantId)), [demo, api, tenantId]);
+  return { demo, call, tenantId };
 }
 
 export interface PortFactories<P> {

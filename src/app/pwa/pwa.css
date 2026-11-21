@@ -1,0 +1,49 @@
+/* Faixa do app instalável (P34): fica acima da barra de abas do celular (--tn-tabbar-h, shell.css) e no canto de baixo no
+   computador. Só tokens da marca; texto e botões opacos (doc 12, "números, horários e aprovações opacos"). */
+.tn-pwa-bar {
+  position: fixed;
+  z-index: 70;
+  left: max(var(--tn-space-3), env(safe-area-inset-left));
+  right: max(var(--tn-space-3), env(safe-area-inset-right));
+  bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-3));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tn-space-2) var(--tn-space-3);
+  padding: var(--tn-space-3) var(--tn-space-4);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md);
+  background: var(--tn-surface-raised);
+  color: var(--tn-text);
+  box-shadow: var(--tn-elevation-2);
+}
+.tn-pwa-bar p { margin: 0; flex: 1 1 14rem; }
+.tn-pwa-bar__actions { display: flex; gap: var(--tn-space-2); flex-wrap: wrap; }
+.tn-pwa-bar__actions .tn-button { min-height: 44px; }
+.tn-pwa-bar + .tn-pwa-bar { bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + var(--tn-space-3) + 5.5rem); }
+@media (min-width: 900px) {
+  .tn-pwa-bar { left: auto; width: min(28rem, calc(100vw - 2 * var(--tn-space-4))); }
+}
+
+.tn-pwa-help {
+  width: min(32rem, calc(100vw - 2 * var(--tn-space-4)));
+  max-height: calc(100dvh - 2 * var(--tn-space-4));
+  overflow: auto;
+  padding: var(--tn-space-4);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-lg);
+  background: var(--tn-surface-raised);
+  color: var(--tn-text);
+}
+.tn-pwa-help::backdrop { background: rgb(0 0 0 / 0.45); }
+.tn-pwa-help h2 { margin: 0 0 var(--tn-space-2); font-size: var(--tn-text-section); }
+.tn-pwa-help h3 { margin: var(--tn-space-4) 0 var(--tn-space-2); font-size: var(--tn-text-group); }
+.tn-pwa-help ol { margin: 0 0 var(--tn-space-3); padding-left: 1.25rem; display: grid; gap: var(--tn-space-2); }
+.tn-pwa-help details { margin: var(--tn-space-2) 0; }
+.tn-pwa-help summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: var(--tn-font-weight-semibold); }
+.tn-pwa-help > .tn-button { margin-top: var(--tn-space-3); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .tn-pwa-bar { animation: tn-pwa-in 180ms ease-out; }
+  @keyframes tn-pwa-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
