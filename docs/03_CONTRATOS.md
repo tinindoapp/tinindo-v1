@@ -82,6 +82,8 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `package.list` | — | Pacotes com saldo e movimentos |
 | `agent.ask` | texto, contexto de UI opcional | Resposta referenciada ou action_proposal |
 | `agent.draft` | tipo (mensagem, apresentação, campanha), tom, rascunho do dono | Sugestão editável ou null (P46; nada é salvo nem enviado) |
+| `assist.form_draft` | form_id, texto livre do dono | Assistente parte 2 (recado #174): rascunho de campos de um formulário para o dono revisar. Não grava dado do negócio; com provedor ligado passa pelo portão `agent_run_start` |
+| `assist.event` | evento (`assist.shown`/`applied`/`dismissed`), superfície, contagem | Grava só a medição, sem conteúdo (T15); não grava dado do negócio |
 | `action.approve` | proposal, hash/version, key | Aprovação do payload; não sucesso de execução |
 | `action.execute` | approval_ref, key | Checagem atual de política, execução e recibo |
 | `profile.publish` | whitelist dos campos públicos | Perfil público sem vazamento do CRM |
@@ -189,6 +191,7 @@ Nomes abaixo são contratos lógicos. P00 define se o transporte será uma funç
 | `insight.list` | scope? (`home` · `all`) | P45 · insights do motor diário: `home` até 3 abertos por prioridade; `all` abertos, recentes e o status de cada regra (`fire` · `quiet` · `insufficient` com motivo). Cada insight traz período, número e denominador |
 | `insight.snooze` | insight_id, expected_version, key | "Agora não": silencia a regra por 30 dias e registra a dispensa (acompanhamento do P22) |
 | `insight.act` | insight_id, expected_version, key | "Ver"/"Preparar": reavalia a regra agora (mudou → 422 `stale`); cria PROPOSTA no fluxo dono (regra de preço inativa no P05; rascunhos manuais no P13) ou devolve a tela do fluxo. Nunca executa |
+| `insight.explain` | insight_id | Assistente parte 2 (recado #174): explicação em linguagem simples de um insight, com período e fonte. Não grava dado do negócio; com provedor ligado passa pelo portão `agent_run_start` |
 | `digest.list` | — | P45 · resumos semanais por modelo fixo (os 8 mais recentes) |
 | `presence.get` | — | Rascunho do site, prévia com hash (só dados públicos do perfil P09 e serviços marcados), versão publicada, histórico, domínio, acesso ao Google e entregas |
 | `site.save` | expected_version, headline?, sections, theme, service_ids, key | Salva o rascunho do site (nada vai ao ar) |
