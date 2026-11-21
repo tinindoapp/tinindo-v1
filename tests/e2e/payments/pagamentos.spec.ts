@@ -170,15 +170,17 @@ test("pagamentos: o link da cobrança abre mesmo recarregando a página; link de
   await expect(page).toHaveURL(/\/pagar\/barbearia-do-leo$/);
 });
 
-test("pagamentos: Copiar Pix dá retorno 'Copiado ✓' e avisa quando não dá para copiar", async ({ page, context }) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+test("pagamentos: Copiar Pix dá retorno 'Copiado ✓' e avisa quando não dá para copiar", async ({ page, context, browserName }) => {
+  // Chromium pede a permissão; o WebKit não tem permissão de área de transferência (o Safari libera dentro do toque).
+  if (browserName === "chromium") await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/app/pagamentos");
   await chargeFirst(page);
   const share = page.getByRole("group", { name: "Enviar a cobrança" });
   await share.getByRole("button", { name: "Copiar Pix" }).click();
   await expect(share.getByRole("button", { name: "Copiado ✓" })).toBeVisible();
   await expect(share.getByRole("status").filter({ hasText: "Pix copiado." })).toHaveCount(1);
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("SIMULADO");
+  // Ler a área de transferência fora de um toque só o Chromium deixa (com a permissão acima).
+  if (browserName === "chromium") expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("SIMULADO");
 
   await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.reject(new Error("negado")) } }));
   await share.getByRole("button", { name: "Copiar link" }).click();
