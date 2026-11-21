@@ -1,5 +1,6 @@
 // Portas reais de Metas e sugestões: Edge Function `growth-advice` (P22, P45).
 import { AdviceDecideOutput, AdviceListOutput, ContentListOutput, ContentPublishOutput, DigestListOutput, GoalListOutput, GoalOutput, InsightCommandOutput, InsightListOutput } from "@contracts";
+import { INSIGHT_EXPLAIN } from "../../../supabase/functions/_shared/domain/agent/insight-explain.ts";
 import type { createApiClient } from "../../lib/api/client.ts";
 import type { GrowthAdvicePort } from "./port.ts";
 
@@ -47,4 +48,18 @@ export function createServerPort(call: Call, tenantId: string): GrowthAdvicePort
       return (await call(op("digest.list"), DigestListOutput, post({}))).data;
     },
   };
+}
+
+/**
+ * "Por quê?" (`insight.explain`): rota própria da função, fora do registro v1 (como o `setup.describe` nasceu). Fica
+ * fora de createServerPort para a porta continuar batendo, método a método, com o registro de contratos.
+ */
+export function createServerExplain(call: Call, tenantId: string): NonNullable<GrowthAdvicePort["explain"]> {
+  return async (insight_id) =>
+    (await call(op(INSIGHT_EXPLAIN.name), INSIGHT_EXPLAIN.output, { method: "POST", tenantId, body: { insight_id } })).data;
+}
+
+/** Porta completa de Metas e sugestões (com o "Por quê?"). */
+export function createServerGrowthPort(call: Call, tenantId: string): GrowthAdvicePort {
+  return { ...createServerPort(call, tenantId), explain: createServerExplain(call, tenantId) };
 }
