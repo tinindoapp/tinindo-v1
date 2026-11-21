@@ -27,7 +27,7 @@ Recado: #190 (`release/smoke.sh` reprova `PSP_*` e não vê `ASAAS_*`/`MESSAGING
 
 ## Bloco 2 · WhatsApp oficial pela Cloud API da Meta
 
-Adaptador em `supabase/functions/_shared/providers/meta.ts` (o `_shared/domain/messaging/providers.ts` reexporta; tipos e assinatura em `_shared/domain/messaging/port.ts`). Banco em `supabase/migrations/20261121114407_whatsapp_meta.sql` (nome provisório). Tabela dos modelos no código: `_shared/providers/meta-templates.ts`; o teste de integração `57_whatsapp_meta` confere que ela é igual ao banco.
+Adaptador em `supabase/functions/_shared/providers/meta.ts` (o `_shared/domain/messaging/providers.ts` reexporta; tipos e assinatura em `_shared/domain/messaging/port.ts`). Banco em `supabase/migrations/20261121122433_whatsapp_meta.sql` (nome provisório). Tabela dos modelos no código: `_shared/providers/meta-templates.ts`; o teste de integração `57_whatsapp_meta` confere que ela é igual ao banco.
 
 ### O que mudou
 

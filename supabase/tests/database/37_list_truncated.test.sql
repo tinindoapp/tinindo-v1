@@ -27,7 +27,7 @@ select is(
   'toda função de public com "limit 200" devolve truncated (my_bookings devolve TABLE e fica para a mudança de contrato)');
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosrc ~ '''truncated'''),
-  16, 'dezesseis leituras avisam o corte (pricing_list_rules entrou no recado #169)');
+  17, 'dezessete leituras avisam o corte (pricing_list_rules no recado #169; pilot_funnel no P32)');
 
 select pg_temp.login_as((select owner_a from ids));
 set local role authenticated;

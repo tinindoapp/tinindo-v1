@@ -11,11 +11,11 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 
 | Item | Total |
 |---|---|
-| Tabelas em `public` | 143 |
-| Com RLS ligada | 143 |
+| Tabelas em `public` | 144 |
+| Com RLS ligada | 144 |
 | Políticas (todas de leitura) | 100 |
-| FKs | 280 (135 compostas) |
-| Funções em `public` / `app` | 314 / 321 |
+| FKs | 281 (135 compostas) |
+| Funções em `public` / `app` | 315 / 322 |
 | Rotinas periódicas (`job_ticks`) | 12 |
 
 ## Rotinas periódicas
@@ -3080,6 +3080,20 @@ P32: lotes de uso já recebidos (dedupe). Retenção usage_batches.
 | `created_at` | timestamp with time zone |
 
 - **Chaves e unicidade:** PK (tenant_id, batch_id)
+- **Referências:** (tenant_id) → `tenants` (cascade)
+- **Leitura:** nenhuma política (só as RPCs leem)
+- **Só acrescenta:** não
+
+### `usage_days`
+
+P32: dias (no fuso do negócio) em que o app foi usado. Só a data, sem hora nem quem.
+
+| Coluna | Tipo |
+|---|---|
+| `tenant_id` | uuid |
+| `day` | date |
+
+- **Chaves e unicidade:** PK (tenant_id, day)
 - **Referências:** (tenant_id) → `tenants` (cascade)
 - **Leitura:** nenhuma política (só as RPCs leem)
 - **Só acrescenta:** não
