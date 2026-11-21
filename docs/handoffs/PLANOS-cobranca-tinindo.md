@@ -26,7 +26,7 @@ Pedido: o que cada plano libera, de verdade (D3 a), no lugar da D3 b do piloto. 
   - janela de adesão (início e fim).
 - **`a_confirmar_pelo_felipe`**: os campos que ainda dependem do Felipe. Hoje são todos os números e todas as datas.
 
-**Migration `20261121123500_p15_planos_capacidades.sql`:**
+**Migration `20261121132339_p15_planos_capacidades.sql`:**
 
 - `offering_versions` ganha `capabilities` e `terms`.
   - As duas colunas vêm juntas e são validadas por check: exatamente as cinco capacidades, só módulos por ativação, sem repetição, inteiros de 0 a 1.000.000 e janela de adesão em ordem.
