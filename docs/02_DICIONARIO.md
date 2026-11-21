@@ -15,7 +15,7 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 | Com RLS ligada | 140 |
 | Políticas (todas de leitura) | 100 |
 | FKs | 277 (135 compostas) |
-| Funções em `public` / `app` | 310 / 310 |
+| Funções em `public` / `app` | 310 / 313 |
 | Rotinas periódicas (`job_ticks`) | 11 |
 
 ## Rotinas periódicas
@@ -1570,6 +1570,8 @@ Versão publicada de plano/serviço: preço, escopo e franquia. Imutável.
 | `sla_days` | integer ? |
 | `scope_hash` | text |
 | `published_at` | timestamp with time zone |
+| `capabilities` | jsonb ? |
+| `terms` | jsonb ? |
 
 - **Chaves e unicidade:** PK (id); única (offering_id, version_no)
 - **Referências:** (offering_id) → `platform_offerings`

@@ -136,12 +136,14 @@ select is(pg_temp.err(format($$ select app.module_admin_set(%L, 'crm', false) $$
 -- A rotina de campanhas parada sem o módulo (D4) é provada em 18_campaigns.test.sql, onde há campanha em curso.
 
 -- ------------------------------------------------------------------ D3 (b): texto dos planos sem diferença que não existe
-create function pg_temp.plan_now(p_code text) returns public.offering_versions language sql as $$
-  select v.* from public.offering_versions v join public.platform_offerings o on o.id = v.offering_id where o.code = p_code order by v.version_no desc limit 1 $$;
-select is((pg_temp.plan_now('founder')).version_no, 2, 'Completo ganhou versão nova (a anterior fica, imutável)');
-select ok((pg_temp.plan_now('founder')).included::text !~* 'ofertas de vaga|recuperação de agenda|tudo do grátis', 'Completo não promete mais o que todo negócio já tem');
-select ok((pg_temp.plan_now('founder')).description ~ 'mesmas do Grátis', 'Completo diz que no piloto as funções são as mesmas');
-select is((pg_temp.plan_now('free')).agent_questions_month, (pg_temp.plan_now('founder')).agent_questions_month, 'a franquia do assistente continua igual nos dois');
+-- A versão 2 de cada plano (este pacote, D3 b) continua publicada e imutável. A versão 3 (planos por capacidade, D3 a)
+-- é provada em 51_planos_capacidades.test.sql.
+create function pg_temp.plan_v2(p_code text) returns public.offering_versions language sql as $$
+  select v.* from public.offering_versions v join public.platform_offerings o on o.id = v.offering_id where o.code = p_code and v.version_no = 2 $$;
+select is((pg_temp.plan_v2('founder')).version_no, 2, 'Completo ganhou versão nova (a anterior fica, imutável)');
+select ok((pg_temp.plan_v2('founder')).included::text !~* 'ofertas de vaga|recuperação de agenda|tudo do grátis', 'Completo não promete mais o que todo negócio já tem');
+select ok((pg_temp.plan_v2('founder')).description ~ 'mesmas do Grátis', 'Completo diz que no piloto as funções são as mesmas');
+select is((pg_temp.plan_v2('free')).agent_questions_month, (pg_temp.plan_v2('founder')).agent_questions_month, 'a franquia do assistente continua igual nos dois');
 
 select * from finish();
 rollback;
