@@ -192,3 +192,48 @@ com a área definida no pedido. Sem `claim`, como nos pacotes P54 a P58.
 | `tests/integration/57_p32_relatorio.test.ts` | semana e mês pelo contrato; 403 para outro dono, cliente e estranho; 400 para período inválido e futuro |
 | `src/features/analytics/reportPort.test.ts`, `ReportPage.test.tsx` | regra da demonstração igual à do banco; navegação; texto compartilhado sem contato; cópia sem `share`; erro vira aviso |
 | `tests/e2e/analytics/relatorio.spec.ts` | desktop, Pixel 7 e 375 px: link do Resultado, navegação, mês, insuficiente, texto e imagem PNG |
+
+## Bloco 5 · Previsão simples e honesta
+
+### Entregue
+
+- **Migration** `…_p32_previsao.sql`: `public.forecast_week(negócio, data)`, só o dono, só leitura. Prevê a semana
+  seguinte à semana de `data` (no fuso do negócio). A semana em andamento não entra na base.
+  - **Só com pelo menos 8 semanas fechadas** desde o primeiro agendamento. Com menos, devolve `insufficient` com
+    quantas semanas há, sem nenhum número.
+  - **Ocupação esperada por dia da semana**: média das 8 últimas semanas fechadas. Conta atendimentos (feitos, faltas
+    e confirmados) e mede a ocupação como minutos ocupados sobre minutos de expediente. Mostra também o que já está
+    marcado. Dia sem expediente fica sem número.
+  - **Risco de falta por dia da semana e hora cheia do expediente**: faltas sobre (feitos + faltas) nas 8 semanas.
+    Com menos de 3 atendimentos no horário, usa a taxa geral do negócio, marcada como `overall`.
+  - **Acerto (teste temporal)**: para cada uma das 4 últimas semanas fechadas que têm 8 semanas antes dela, compara a
+    previsão daquela semana (mesma regra, sem olhar o futuro) com o que aconteceu, por dia da semana. Compara também
+    com a referência ingênua "igual à semana anterior". Devolve o erro e o acerto de cada uma (acerto = 1 − erro
+    absoluto ÷ realizado) e `beats_baseline`.
+- **Função `analytics`**: rota `forecast.get` (`forecast.ts`).
+- **Tela** `/app/resultado/previsao`, com link na tela de Resultado:
+  - ocupação por dia, com esperados e já marcados;
+  - até 5 horários de maior risco, só os com base própria, e a média geral;
+  - o acerto contra a referência. Quando a média não ganha da referência, a tela diz para usar com cautela.
+- **Nenhuma ação automática.** A tela diz isso; a função não grava nada (pgTAP confere).
+- Demonstração com a mesma regra (`computeForecast`). A base de exemplo tem cerca de 5 semanas, então mostra "dados
+  insuficientes".
+
+### Decisões
+
+- **Média simples de 8 semanas por dia da semana** como "regra + média histórica". O aceite do P32 pede que o modelo
+  supere a referência num teste temporal; por isso o acerto vem sempre ao lado da referência "igual à semana
+  anterior", em vez de prometer que a média é melhor.
+- **3 atendimentos** como base mínima por horário, abaixo disso vale a média geral. É o mesmo cuidado do bloco 4:
+  número com pouca base vira acaso.
+- **Sem gravar previsões passadas.** O acerto é recalculado a partir dos dados, com a mesma regra e sem olhar o
+  futuro de cada semana. Assim nenhuma tabela nova precisa de retenção.
+
+### Testes
+
+| Comando | Resultado |
+|---|---|
+| `supabase/tests/database/60_p32_previsao.test.sql` | 16 verificações: só o dono, futuro recusado, menos de 8 semanas sem previsão, semana prevista no fuso, ocupação e já marcados, dia sem expediente, risco por horário e média geral, 4 semanas de acerto (80% contra 60% da referência), nada gravado |
+| `tests/integration/58_p32_previsao.test.ts` | contrato com o banco real; 403 para outro dono, cliente e estranho; 400 para futuro e formato |
+| `src/features/analytics/forecastPort.test.ts`, `ForecastPage.test.tsx` | mesma regra e mesmos números do pgTAP; demonstração insuficiente; tela com ocupação, risco com base e acerto; erro vira aviso |
+| `tests/e2e/analytics/previsao.spec.ts` | desktop, Pixel 7 e 375 px: link do Resultado, "dados insuficientes" sem número, sem rolagem lateral |

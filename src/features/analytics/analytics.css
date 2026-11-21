@@ -40,3 +40,7 @@
 .tn-an-report__row dt { color: var(--tn-text-muted); }
 .tn-an-report__row dd { margin: 0; overflow-wrap: anywhere; }
 .tn-an-report__share { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); margin-top: var(--tn-space-4); }
+/* P32 · previsão simples. */
+.tn-an-forecast__days, .tn-an-forecast__risk, .tn-an-forecast__back { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
+.tn-an-forecast__day { display: grid; grid-template-columns: minmax(5rem, auto) auto 1fr; gap: var(--tn-space-2); align-items: baseline; min-width: 0; }
+.tn-an-forecast__day > :last-child { overflow-wrap: anywhere; }
