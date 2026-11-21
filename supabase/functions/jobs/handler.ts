@@ -2,6 +2,7 @@
 // Chamada pelo agendador do ambiente (Supabase Cron → HTTP) com o segredo JOBS_SECRET no header.
 // É a ÚNICA função que usa a chave de serviço, e só para chamar public.jobs_run (que já é seguro em paralelo).
 import { type Clock, fail, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
+import { type AlertSender, watchOf } from "./alert.ts";
 
 export const JOBS_SECRET_HEADER = "X-Tinindo-Jobs-Secret";
 
@@ -11,6 +12,8 @@ export interface JobsDeps {
   runJobs(batch: number): Promise<{ data: unknown; error: { message?: string | null } | null }>;
   clock?: Clock;
   log?: (entry: Record<string, unknown>) => void;
+  /** P58: aviso do "precisa de atenção" (e-mail); ausente = desligado. */
+  alert?: AlertSender | null;
 }
 
 /** Comparação em tempo constante para o segredo. */
@@ -46,6 +49,18 @@ export function createJobsHandler(deps: JobsDeps) {
     // 200 (a rodada aconteceu), mas a falha sai com nível de erro para o alerta do ambiente pegar.
     const tickErrors = tickErrorsOf(result.data);
     if (tickErrors) deps.log?.({ fn: "jobs", level: "error", request_id: requestId, status: 200, tick_errors: tickErrors });
+    // P58: a rotina ops_watch diz se a operação passou a precisar de atenção. O log sai com nível de erro sempre que
+    // houver motivo; o e-mail (desligado por padrão) só na passagem, uma vez. Falha do envio não muda a resposta.
+    const watch = watchOf(result.data);
+    if (watch?.state === "attention") {
+      deps.log?.({ fn: "jobs", level: "error", request_id: requestId, status: 200, ops_attention: watch.reasons });
+      if (watch.notify && deps.alert) {
+        await deps.alert(watch).then(
+          () => deps.log?.({ fn: "jobs", request_id: requestId, ops_alert: "sent" }),
+          () => deps.log?.({ fn: "jobs", level: "error", request_id: requestId, ops_alert: "failed" }),
+        );
+      }
+    }
     deps.log?.({ fn: "jobs", request_id: requestId, status: 200, result: result.data });
     return ok(result.data, requestId, clock);
   };

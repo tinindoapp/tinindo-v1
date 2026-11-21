@@ -1,0 +1,16 @@
+// MODELO do Worker de produção (D36 a). Copiar para a raiz como wrangler.producao.jsonc quando a conta da empresa e o
+// domínio existirem (release/PRODUCAO.md). Igual ao de homologação, mudando nome, conta e domínio.
+{
+  "name": "tinindo-producao",
+  "account_id": "PREENCHER",
+  "compatibility_date": "2026-10-12",
+  "main": "worker/index.ts",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/p/*", "/s/*", "/pagar", "/pagar/*", "/orcamento", "/orcamento/*", "/avaliar", "/avaliar/*", "/reserva", "/reserva/*", "/avaliacoes/*", "/oferta"]
+  },
+  "routes": [{ "pattern": "PREENCHER.tinindoapp.com.br", "custom_domain": true }],
+  "workers_dev": false
+}

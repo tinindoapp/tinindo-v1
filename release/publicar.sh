@@ -7,6 +7,8 @@
 #   bash release/publicar.sh homolog --conferir   só mostra o que faria (e roda as conferências de leitura)
 #   bash release/publicar.sh homolog              publica
 #   bash release/publicar.sh local                testa o script num Postgres descartável (sem funções, cron e Worker)
+#   bash release/publicar.sh producao             só existe depois de criar release/ambientes/producao.env (PRODUCAO.md);
+#                                                 exige tag vAAAA.MM.DD-N e a palavra "producao" digitada no terminal
 #
 # Ambientes em release/ambientes/<nome>.env. Passo a passo e o que fazer quando para: release/PUBLICAR.md.
 set -euo pipefail
@@ -18,7 +20,7 @@ AMB=""
 for a in "$@"; do
   case "$a" in
     --conferir) CONFERIR=1 ;;
-    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
     -*) falha "opção desconhecida: $a" ;;
     *) AMB="$a" ;;
   esac
@@ -41,6 +43,8 @@ if [[ "${EXIGE_MAIN:-0}" == 1 ]]; then
   [[ "$SHA" == "$(git rev-parse origin/main)" ]] || falha "o commit atual não é a ponta da main ($(git rev-parse --short origin/main)). Rode: git checkout main && git pull."
   msg "   ok: árvore limpa e na ponta da main"
 fi
+
+exigir_tag "$SHA"
 
 node .github/workflows/check-migrations.mjs >/dev/null || falha "a ordem das migrations do repositório está errada (rode: node .github/workflows/check-migrations.mjs)."
 msg "   ok: nomes e ordem das migrations do repositório"
@@ -73,6 +77,9 @@ else
   msg "   não conferido: este computador não está vinculado a $SUPABASE_REF (o modo --conferir não faz login)."
 fi
 
+# Última conferência antes de mexer: em produção, a palavra digitada por quem publica (P58).
+confirmar_ambiente "publicar ${SHA:0:12}"
+
 # ---------------------------------------------------------------------------------------------------------------------
 passo "2/7 · migrations (antes das funções e do Worker, docs/09)"
 mapfile -t ALVO_DB < <(db_alvo)
@@ -101,6 +108,7 @@ elif [[ $CONFERIR -eq 1 ]]; then
   msg "   faria: ALLOWED_ORIGINS e PUBLIC_APP_URL = $APP_URL"
   msg "   faria: gerar de novo ${SEGREDOS_GIRADOS[*]} (o cron do passo 5 recebe os mesmos valores)"
   msg "   faria: criar ${SEGREDOS_FIXOS[*]} só se ainda não existirem"
+  msg "   faria: BUILD_SHA = $SHA (as funções devolvem X-Tinindo-Build com ele)"
   msg "   nunca: WHATSAPP_*, PSP_*, FISCAL_PROVIDER_* (piloto só com simulados)"
 else
   existentes=$($SB secrets list --project-ref "$SUPABASE_REF" -o json 2>/dev/null | python3 -c 'import json,sys; [print(x["name"]) for x in json.load(sys.stdin)]')
@@ -110,12 +118,12 @@ else
   gen() { openssl rand -hex 32; }
   JOBS=$(gen); DISPATCH=$(gen); PAYSYNC=$(gen); FISCALSYNC=$(gen)
   pares=("ALLOWED_ORIGINS=$APP_URL" "PUBLIC_APP_URL=$APP_URL" "JOBS_SECRET=$JOBS" "MESSAGING_DISPATCH_SECRET=$DISPATCH"
-    "PAYMENTS_SYNC_SECRET=$PAYSYNC" "FISCAL_SYNC_SECRET=$FISCALSYNC")
+    "PAYMENTS_SYNC_SECRET=$PAYSYNC" "FISCAL_SYNC_SECRET=$FISCALSYNC" "BUILD_SHA=$SHA")
   # Os simulados só são criados uma vez (trocar invalidaria assinaturas já emitidas).
   for n in "${SEGREDOS_FIXOS[@]}"; do grep -qx "$n" <<<"$existentes" || pares+=("$n=$(gen)"); done
   $SB secrets set --project-ref "$SUPABASE_REF" "${pares[@]}" >/dev/null || falha "o Supabase recusou os segredos."
   unset pares
-  msg "   ok: ALLOWED_ORIGINS, PUBLIC_APP_URL e os segredos do cron (valores não exibidos)"
+  msg "   ok: ALLOWED_ORIGINS, PUBLIC_APP_URL, BUILD_SHA e os segredos do cron (valores não exibidos)"
 fi
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -201,10 +209,14 @@ print(pub[0]["api_key"] if pub else "")')
 fi
 
 # ---------------------------------------------------------------------------------------------------------------------
-passo "7/7 · smoke"
+passo "7/7 · registro da versão e smoke"
+ULTIMA_MIGRATION=$(ls supabase/migrations | tail -1 | sed 's/\.sql$//')
+N_FUNCOES=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_*' | wc -l)
 if [[ $CONFERIR -eq 1 ]]; then
+  msg "   faria: anotar em public.ops_releases (publish, $SHA, até $ULTIMA_MIGRATION)"
   msg "   faria: bash release/smoke.sh $AMBIENTE --sha $SHA --desde $INICIO"
 else
+  registrar_release publish "$SHA" "$ULTIMA_MIGRATION" "$N_FUNCOES"
   bash release/smoke.sh "$AMBIENTE" --sha "$SHA" --desde "$INICIO" || falha "o smoke reprovou (lista acima). O ambiente ficou com o commit novo; corrija para frente ou republique o anterior (release/PUBLICAR.md)."
 fi
 
@@ -214,6 +226,6 @@ if [[ $CONFERIR -eq 1 ]]; then
 else
   msg "Publicado em $NOME: $SHA"
   msg "Linha para release/RELEASES.md:"
-  msg "| — | $(date +%Y-%m-%d) | ${SHA:0:12} | $(ls supabase/migrations | tail -1 | sed 's/\.sql$//') | $(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_*' | wc -l) | $NOME | <quem publicou> | smoke ok |"
+  msg "| — | $(date +%Y-%m-%d) | ${SHA:0:12} | $ULTIMA_MIGRATION | $N_FUNCOES | $NOME | <quem publicou> | smoke ok |"
   msg "Próximo: npm run test:staging (e2e completo, cerca de 5 minutos; variáveis em tests/e2e-staging/README.md)."
 fi

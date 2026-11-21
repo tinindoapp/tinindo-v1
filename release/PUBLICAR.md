@@ -27,11 +27,11 @@ O que o `publicar` faz, em ordem, parando no primeiro erro com a mensagem do pas
 |---|---|---|
 | 1 · conferências | Árvore limpa e na ponta da `main`; nomes das migrations; o ambiente não tem migration que falta no repositório; as novas vêm depois da última aplicada | Commit fora da `main`, migration fora de ordem ou publicada de outro branch |
 | 2 · migrations | `supabase db push` só com as que faltam (antes das funções, docs/09) | Uma migration falha (o Supabase desfaz só ela) |
-| 3 · segredos | `ALLOWED_ORIGINS` e `PUBLIC_APP_URL`; gera de novo os segredos do cron; cria os dos simulados se faltarem. Valores nunca aparecem | Há `WHATSAPP_*`, `PSP_*` ou `FISCAL_PROVIDER_*` (piloto só com simulados) |
+| 3 · segredos | `ALLOWED_ORIGINS`, `PUBLIC_APP_URL` e `BUILD_SHA` (o commit, devolvido pelas funções em `X-Tinindo-Build`); gera de novo os segredos do cron; cria os dos simulados se faltarem. Valores nunca aparecem | Há `WHATSAPP_*`, `PSP_*` ou `FISCAL_PROVIDER_*` (piloto só com simulados) |
 | 4 · funções | Deploy das 29 funções | Deploy recusado |
 | 5 · cron | Quatro agendamentos por minuto (`jobs`, `dispatch`, `payment-sync`, `fiscal-sync`) com o segredo no Vault. As rotinas de cada módulo rodam dentro do `jobs`, pela tabela `job_ticks` (P56); o passo lista as ligadas | `pg_cron` ou `pg_net` desligados no projeto |
 | 6 · Worker | Build com `VITE_APP_ENV=staging`, a URL e a chave **pública** do projeto; confere que `version.json` tem o commit; `wrangler deploy` | Chave pública não encontrada, build quebrado, sem login na Cloudflare |
-| 7 · smoke | `release/smoke.sh` (abaixo) | Qualquer item reprovado |
+| 7 · registro e smoke | Anota o commit em `public.ops_releases` (P58) e roda o `release/smoke.sh` (abaixo) | Qualquer item reprovado |
 
 Ao terminar, ele imprime a linha para `release/RELEASES.md`.
 
@@ -51,6 +51,9 @@ Só lê. Pode rodar a qualquer hora, sem publicar.
 | Funções | Alguma função do navegador não sobe ou recusa a origem do app (CORS) |
 | Cron | Algum dos 4 agendamentos não rodou com sucesso em até 2 minutos |
 | Respostas ao cron | Alguma resposta diferente de 200 nos últimos 5 minutos (401 = segredo do Vault diferente do da função: publique de novo) |
+| Versão das funções | Alguma função não devolve o commit publicado em `X-Tinindo-Build` |
+| Saúde da operação (P58) | "Precisa de atenção": fila atrasada, rotina com 3 falhas seguidas, 5xx das funções acima do teto na última hora ou rotina do alerta parada. Mostra também a fila, os mortos e os erros por função |
+| Versão anotada | A última linha de `public.ops_releases` não é o commit esperado |
 
 ## Quando o smoke reprova
 
@@ -63,8 +66,28 @@ Só lê. Pode rodar a qualquer hora, sem publicar.
 | `cron: …` ou `respostas ao cron: 401` | Segredo do Vault diferente do da função. Publique de novo (gira os dois juntos) |
 | `rotinas falhando: …` | Veja `last_error` na mensagem e `release/RUNBOOK.md` (fila parada). Não desligue a rotina sem migration |
 | `migrations … sem aplicar` | O passo 2 não rodou ou falhou; publique de novo e leia a mensagem do passo 2 |
+| `precisa de atenção: …` | `release/RUNBOOK.md`, "Quando o alerta acende", em passos |
+| `funções de outra versão` | O passo 4 não terminou, ou alguém publicou funções à mão. Publique de novo |
+| `a versão anotada no banco é …` | Outra pessoa publicou ou reverteu depois; confira em `public.ops_releases` antes de seguir |
 
-Voltar ao commit anterior: `git checkout <sha anterior> && EXIGE_MAIN=0 npm run publicar -- homolog` (só nessa vez; a trava da `main` volta sozinha na próxima). Isso volta o frontend e as funções; o banco não volta (correção para frente com migration nova, `CHECKLIST.md`, seção 5).
+## Voltar atrás (`npm run reverter -- homolog <sha>`)
+
+`release/reverter.sh` publica de novo o frontend e as funções de um commit anterior, numa cópia temporária do commit, com o lockfile dele. O banco não volta: as migrations aplicadas depois daquele commit ficam, porque o banco é só aditivo. A correção de dado é para frente, com migration nova (`CHECKLIST.md`, "Reversão").
+
+Antes de mexer, o script confere três coisas:
+
+- o commit está na história da `main`;
+- todas as migrations do commit já estão aplicadas no ambiente, ou seja, ele já esteve no ar;
+- o que ficou depois dele e apaga ou renomeia algo; isso ele só aponta.
+
+No fim, anota a reversão em `public.ops_releases`, roda o smoke esperando aquele commit e mostra o tempo total.
+
+```bash
+npm run reverter -- homolog <sha anterior> --conferir   # só mostra
+npm run reverter -- homolog <sha anterior>
+```
+
+Para voltar à `main`, rode `npm run publicar -- homolog` quando a correção estiver lá.
 
 ## Depois de publicar
 

@@ -30,3 +30,7 @@
 .tn-svc-scope p { margin: 0 0 var(--tn-space-1); }
 .tn-svc-box { display: grid; gap: var(--tn-space-2); padding: var(--tn-space-3); border: 1px solid var(--tn-border); border-radius: var(--tn-radius-md); }
 @media (max-width: 30rem) { .tn-svc-form { display: grid; grid-template-columns: minmax(0, 1fr); } }
+
+/* Saúde da operação (P58). */
+.tn-ops-health__reasons { margin: var(--tn-space-2) 0; padding-left: var(--tn-space-5); display: grid; gap: var(--tn-space-1); }
+.tn-ops-health__reasons + * { margin-top: 0; }
