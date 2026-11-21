@@ -31,7 +31,7 @@ import type { CreatedNotice } from "./BookingFlowPage.tsx";
 import type { Operation } from "./errors.ts";
 import { seriesLabel, seriesMark, seriesRemaining } from "./series.ts";
 import { formatDayLong, localParts } from "./time.ts";
-import { ErrorPanel, PolicyNote, ScreenNotes, StatusBadge } from "./parts.tsx";
+import { ErrorPanel, PolicyNote, StatusBadge, zoneLine } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
 import { plural } from "../../lib/text/plural.ts";
 
@@ -93,8 +93,7 @@ export function BookingDetailPage() {
       >
         ‹ Voltar para a agenda
       </Link>
-      <PageHeader id="booking-title" title="Atendimento" />
-      <ScreenNotes timezone={ctx.timezone} at={state.data?.starts_at ?? port.now()} />
+      <PageHeader id="booking-title" title="Atendimento" subtitle={zoneLine(ctx.timezone, state.data?.starts_at ?? port.now()) ?? undefined} />
       {state.error ? (
         <ErrorPanel error={state.error} operation="load" onRetry={state.reload} />
       ) : !state.data ? (
@@ -277,6 +276,7 @@ function BookingDetail({
       : null;
 
   return (
+    <>
     <div className="tn-sched-detail">
       <div className="tn-sched-detail__head">
         <h2>{serviceName(services, booking.service_id)}</h2>
@@ -441,10 +441,12 @@ function BookingDetail({
           </ConfirmAction>
         ) : null}
       </div>
-      {booking.status === "confirmed" || booking.status === "completed" ? (
-        <SendBookingLink booking={booking} name={who} phone={contact?.phone_e164 ?? customerRef?.phone ?? null} />
-      ) : null}
     </div>
+    {/* P54 (parte 2): o link da reserva é outra seção, fora do cartão do atendimento (sem cartão dentro de cartão). */}
+    {booking.status === "confirmed" || booking.status === "completed" ? (
+      <SendBookingLink booking={booking} name={who} phone={contact?.phone_e164 ?? customerRef?.phone ?? null} />
+    ) : null}
+    </>
   );
 }
 
@@ -488,8 +490,10 @@ function SendBookingLink({ booking, name, phone }: { booking: Booking; name: str
   }
 
   return (
-    <section className="tn-sched-link" aria-labelledby="booking-link-title">
-      <h3 id="booking-link-title">Link da reserva para o cliente</h3>
+    <section className="tn-sched-link tn-section" aria-labelledby="booking-link-title">
+      <div className="tn-section__head">
+        <h2 id="booking-link-title">Link da reserva para o cliente</h2>
+      </div>
       <p className="tn-muted">
         {booking.status === "completed"
           ? "Pelo link, o cliente vê o atendimento e conta como foi, sem criar conta."

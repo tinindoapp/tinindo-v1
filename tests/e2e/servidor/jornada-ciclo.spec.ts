@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { noHorizontalScroll, openCaixaHistory, openFromNav } from "../qa/helpers.ts";
+import { toStep } from "../scheduling/flow.ts";
 import { moveBookingToPast, sql } from "./banco.ts";
 import { gatewayUrl } from "./portas.ts";
 
@@ -92,9 +93,13 @@ test("ciclo com gravação real: expediente, agendar, atender, receber e retorno
     await novo.getByRole("button", { name: "Cadastrar e escolher" }).click();
     await expect(page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: new RegExp(cliente) })).toBeChecked();
 
+    // No celular, um passo por vez (P54 parte 2); no largo, toStep não faz nada.
+    await toStep(page, "Serviço");
     await page.getByRole("radio", { name: new RegExp(`^${cenario.servico}`) }).check();
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "Próximo dia" }).click();
     await page.getByRole("group", { name: "Horários livres" }).getByRole("button", { name: "12:00", exact: true }).click();
+    await toStep(page, "Revisão");
     // O valor vem da cotação do servidor (pricing.quote), que a reserva consome.
     await expect(page.getByRole("region", { name: "Revise e confirme" })).toContainText(money(cenario.preco));
     await page.getByRole("button", { name: "Confirmar agendamento" }).click();

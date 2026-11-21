@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { toStep } from "./flow.ts";
 
 // Agenda (P04) em demonstração offline: emulação do motor (P03) sobre as fixtures do contrato v1.
 // O navegador roda em outro fuso para provar que os horários seguem o fuso do negócio.
@@ -35,12 +36,18 @@ test("hoje: horários no fuso do negócio, ocupação e a demonstração só na 
 test("cria, reagenda e cancela um atendimento", async ({ page }) => {
   await page.goto("/app/agenda");
   await page.getByRole("link", { name: "Novo agendamento" }).click();
+  await toStep(page, "Serviço");
   await page.getByRole("radio", { name: /Barba/ }).check();
+  await toStep(page, "Horário");
   await page.getByRole("button", { name: "Próximo dia" }).click(); // quarta, 21/10
   await page.getByRole("button", { name: "10:30", exact: true }).click();
+  await toStep(page, "Cliente");
   await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Bruno" }).check();
-  await expect(page.getByText("Ver o valor não segura o horário", { exact: false })).toBeVisible();
-  await expect(page.getByText(/Política de cancelamento/)).toBeVisible();
+  await toStep(page, "Revisão");
+  // P54 (parte 2; doc 11 §3.4): a revisão do novo agendamento fica só com Cliente, Serviço, Quando e Valor.
+  await expect(page.getByRole("heading", { name: "Revise e confirme" })).toBeVisible();
+  await expect(page.getByText("Ver o valor não segura o horário", { exact: false })).toHaveCount(0);
+  await expect(page.getByText(/Política de cancelamento/)).toHaveCount(0);
   await noHorizontalScroll(page);
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
 
@@ -67,8 +74,11 @@ test("cria, reagenda e cancela um atendimento", async ({ page }) => {
 
 test("conflito 409 é explicado e o horário ocupado some da lista", async ({ page }) => {
   await page.goto("/app/agenda/novo?data=2026-10-20&simular=conflito");
+  await toStep(page, "Horário");
   await page.getByRole("button", { name: "15:45" }).click();
+  await toStep(page, "Cliente");
   await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Ana" }).check();
+  await toStep(page, "Revisão");
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
 
   await expect(page.getByText("Esse horário acabou de ser ocupado")).toBeVisible();
@@ -122,10 +132,17 @@ test("novo agendamento: cliente primeiro, busca, + Novo e barra de resumo que n�
   await page.goto("/app/agenda/novo?data=2026-10-20");
   const customer = page.getByRole("group", { name: "Cliente" });
   await expect(customer).toBeVisible();
-  // Ordem: Cliente → Serviço → Dia e horário.
-  const y = async (name: string) => (await page.getByRole("group", { name, exact: true }).boundingBox())!.y;
-  expect(await y("Cliente")).toBeLessThan(await y("Serviço"));
-  expect(await y("Serviço")).toBeLessThan(await y("Dia e horário"));
+  // Ordem: Cliente → Serviço → Dia e horário. No celular, um passo por vez (P54 parte 2), na mesma ordem.
+  const steps = page.getByRole("list", { name: "Passos do agendamento" });
+  const stepped = await steps.isVisible();
+  if (stepped) {
+    await expect(steps.getByRole("button")).toHaveText([/Cliente/, /Serviço/, /Horário/, /Revisão/]);
+    await expect(steps.getByRole("button", { name: /Cliente/ })).toHaveAttribute("aria-current", "step");
+  } else {
+    const y = async (name: string) => (await page.getByRole("group", { name, exact: true }).boundingBox())!.y;
+    expect(await y("Cliente")).toBeLessThan(await y("Serviço"));
+    expect(await y("Serviço")).toBeLessThan(await y("Dia e horário"));
+  }
 
   await customer.getByLabel("Buscar cliente").fill("Dona Rosa");
   await expect(customer).toContainText("Nenhum cliente com “Dona Rosa”");
@@ -136,8 +153,11 @@ test("novo agendamento: cliente primeiro, busca, + Novo e barra de resumo que n�
   await form.getByRole("button", { name: "Cadastrar e escolher" }).click();
   await expect(customer.getByRole("radio", { name: /Dona Rosa/ })).toBeChecked();
 
+  await toStep(page, "Serviço");
   await page.getByRole("radio", { name: /Corte/ }).check();
+  await toStep(page, "Horário");
   await page.getByRole("button", { name: "13:00", exact: true }).click();
+  await toStep(page, "Revisão");
   const bar = page.getByRole("region", { name: "Resumo do agendamento" });
   await expect(bar).toContainText(/Corte · 13:00 · R\$\s51,00/);
 
@@ -149,9 +169,10 @@ test("novo agendamento: cliente primeiro, busca, + Novo e barra de resumo que n�
     expect(b.y + b.height).toBeLessThanOrEqual(t.y);
   }
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  const policy = (await page.getByText(/Política de cancelamento/).boundingBox())!;
+  // No fim da página a barra volta ao lugar, depois da revisão (o último dado, o valor, fica acima dela).
+  const value = (await page.getByRole("region", { name: "Revise e confirme" }).boundingBox())!;
   const end = (await bar.boundingBox())!;
-  expect(policy.y + policy.height).toBeLessThanOrEqual(end.y);
+  expect(value.y + value.height).toBeLessThanOrEqual(end.y + 1);
   await noHorizontalScroll(page);
 
   await bar.getByRole("button", { name: "Confirmar agendamento" }).click();
@@ -167,7 +188,9 @@ test("novo agendamento: cliente primeiro, busca, + Novo e barra de resumo que n�
 test("novo agendamento sem cadastro: o atendimento fica sem cliente vinculado", async ({ page }) => {
   await page.goto("/app/agenda/novo?data=2026-10-21");
   await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: /Sem cadastro/ }).check();
+  await toStep(page, "Horário");
   await page.getByRole("button", { name: "10:30", exact: true }).click();
+  await toStep(page, "Revisão");
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
   await expect(page.getByText("Sem cliente cadastrado")).toBeVisible();

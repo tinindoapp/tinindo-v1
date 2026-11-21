@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { toStep } from "./flow.ts";
 
 // Atendimento (auditoria de UX, itens 24, 25 e 27) na demonstração offline: hoje = terça 20/10/2026, 09:00 no fuso
 // do negócio. O estado vive na aba: os fluxos navegam pelo próprio app, sem recarregar.
@@ -85,9 +86,13 @@ test("detalhe (P48): Atendido abre Recebi, Cobrar depois e o crédito do pacote;
 
 test("cancelar: motivo, Desfazer refaz no mesmo horário e a lista de espera é oferecida", async ({ page }) => {
   await page.goto("/app/agenda/novo?data=2026-10-21");
+  await toStep(page, "Serviço");
   await page.getByRole("radio", { name: /Barba/ }).check();
+  await toStep(page, "Horário");
   await page.getByRole("button", { name: "11:00", exact: true }).click();
+  await toStep(page, "Cliente");
   await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Bruno" }).check();
+  await toStep(page, "Revisão");
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText(/quarta-feira, 21 de outubro, 11:00–11:20/)).toBeVisible();
   const firstUrl = page.url();

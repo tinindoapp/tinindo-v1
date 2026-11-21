@@ -3,12 +3,6 @@
 .tn-sched h1 { margin-bottom: 0; }
 .tn-sched-loading,
 .tn-sched-empty { color: var(--tn-text-muted); padding: var(--tn-space-4) 0; }
-/* Avisos da tela numa linha (itens 19 e 34): dados de exemplo e fuso; a explicação fica em "Como funciona". */
-.tn-sched-notes { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--tn-space-2); min-width: 0; font-size: var(--tn-text-support); color: var(--tn-text-muted); }
-.tn-sched-notes__line { margin: 0; min-width: 0; }
-.tn-sched-notes__line strong { color: var(--tn-text); }
-.tn-sched-notes .tn-help { margin: 0; }
-.tn-sched-notes .tn-help[open] { flex-basis: 100%; }
 .tn-sched-back { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); color: var(--tn-link); }
 
 .tn-sched-toolbar { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); align-items: center; }
@@ -46,9 +40,17 @@
 .tn-sched-datenav .tn-button { padding: 0 var(--tn-space-4); }
 
 .tn-sched-daytitle { font-size: var(--tn-text-section); margin: 0; }
+/* P54 (parte 2): na Agenda a abertura é do kit (título, fuso, Dia/Semana e setas no filtro). O dia e a ocupação ficam
+   juntos logo acima da lista, com pouco espaço, para o terceiro atendimento caber na primeira tela em 390×844. */
+.tn-sched--agenda { gap: var(--tn-space-3); }
+.tn-sched--agenda > .tn-page-header { margin-bottom: 0; row-gap: var(--tn-space-2); }
+.tn-sched--agenda .tn-page-header__filter { justify-content: space-between; }
+.tn-sched--agenda .tn-page-header__filter > * { flex: none; }
 .tn-sched-daytitle::first-letter { text-transform: uppercase; }
 .tn-sched-day,
 .tn-sched-week { display: grid; gap: var(--tn-space-4); min-width: 0; }
+.tn-sched--agenda :is(.tn-sched-day, .tn-sched-week) { gap: var(--tn-space-2); }
+.tn-sched--agenda .tn-sched-occline .tn-sched-meter { flex: 1 1 3rem; min-width: 2rem; }
 
 .tn-sched-review,
 .tn-sched-confirm,
@@ -361,7 +363,35 @@
 html:has(.tn-sched-confirmbar, .tn-sched-savebar) { scroll-padding-bottom: calc(var(--tn-tabbar-h) + env(safe-area-inset-bottom) + 96px); }
 
 /* Link da reserva para o cliente (P55): o link é longo e quebra em qualquer ponto, sem rolagem lateral. */
-.tn-sched-link { display: grid; gap: var(--tn-space-2); margin-top: var(--tn-space-4); padding-top: var(--tn-space-4); border-top: 1px solid var(--tn-border); min-width: 0; }
-.tn-sched-link h3 { margin: 0; font-size: var(--tn-text-group); }
+.tn-sched-link { display: grid; gap: var(--tn-space-2); min-width: 0; }
 .tn-sched-link p { margin: 0; }
 .tn-sched-notice { overflow-wrap: anywhere; }
+
+/* P54 (parte 2) · Horários: bloqueios primeiro, com atalhos de período; a lista de bloqueios é linha do kit. */
+.tn-sched--hours { gap: var(--tn-space-3); }
+.tn-sched--hours > .tn-section:first-of-type { margin-top: 0; }
+.tn-sched--hours > .tn-sched-hours.tn-section { margin-top: var(--tn-gap-section); }
+.tn-sched-hours__periods { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); margin: var(--tn-space-2) 0; }
+.tn-sched-hours__periods .tn-button[aria-pressed="true"] { background: var(--tn-selected-bg); color: var(--tn-selected-text); border-color: var(--tn-selected-border); }
+.tn-sched-hours__block { padding: var(--tn-space-2) var(--tn-space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--tn-space-2); min-height: var(--tn-row-min); }
+
+/* P54 (parte 2) · Novo agendamento no celular: um passo por vez. Os passos no topo voltam a qualquer um; o atual é
+   fundo sutil com contorno (preto só para ação). */
+.tn-sched-steps-top { display: grid; gap: var(--tn-space-2); scroll-margin-top: var(--tn-space-4); }
+.tn-sched-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--tn-space-1); }
+.tn-sched-steps__item {
+  width: 100%;
+  min-height: var(--tn-size-touch);
+  padding: 0 var(--tn-space-1);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-pill);
+  background: var(--tn-surface);
+  color: var(--tn-text);
+  font-size: var(--tn-text-support);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tn-sched-steps__item[aria-current="step"] { background: var(--tn-selected-bg); color: var(--tn-selected-text); border: 2px solid var(--tn-selected-border); font-weight: var(--tn-font-weight-semibold); }
+.tn-sched-steps__item[data-done] { color: var(--tn-text-muted); }
+.tn-sched-steps-top .tn-caps { margin: 0; }
+.tn-sched-steps-top .tn-caps:focus { outline: none; }
