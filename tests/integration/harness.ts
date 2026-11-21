@@ -36,6 +36,7 @@ import { createPricingHandler } from "../../supabase/functions/pricing/handler.t
 import { createSalesHandler } from "../../supabase/functions/sales/handler.ts";
 import { createSchedulingHandler } from "../../supabase/functions/scheduling/handler.ts";
 import { createServiceOpsHandler } from "../../supabase/functions/service-ops/handler.ts";
+import { createPilotHandler } from "../../supabase/functions/pilot/handler.ts";
 import { createWaitlistHandler } from "../../supabase/functions/waitlist/handler.ts";
 import { ErrorEnvelope, IDEMPOTENCY_HEADER, successEnvelope, TENANT_HEADER } from "@contracts";
 import { FX } from "@contracts/fixtures.ts";
@@ -147,6 +148,7 @@ export const handlers: Record<string, (req: Request) => Promise<Response>> = {
   sales: createSalesHandler({ ...deps, rpc: anyRpc }),
   "service-ops": createServiceOpsHandler({ ...deps, rpc: userRpc }),
   analytics: createAnalyticsHandler({ ...deps, rpc: userRpc }),
+  pilot: createPilotHandler({ ...deps, rpc: userRpc }),
   lifecycle: createLifecycleHandler({ ...deps, rpc: userRpc }),
   recurrence: createRecurrenceHandler({ ...deps, rpc: userRpc }),
   referrals: createReferralsHandler({ ...deps, rpc: userRpc }),
