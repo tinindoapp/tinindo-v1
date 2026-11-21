@@ -104,6 +104,17 @@ describe("network · perfil", () => {
     expect(res.headers.get("Referrer-Policy")).toBe("no-referrer");
   });
 
+  it("leitura pública repassa has_site quando o banco informa (recado #161) e omite em banco antigo", async () => {
+    const withSite = await setup(vi.fn(async () => ({ data: { ...profileRow, has_site: false }, error: null }))).handler(
+      req("public.profile", { method: "GET", query: "?slug=barbearia-a" }),
+    );
+    expect((await withSite.json()).data.has_site).toBe(false);
+    const old = await setup(vi.fn(async () => ({ data: profileRow, error: null }))).handler(
+      req("public.profile", { method: "GET", query: "?slug=barbearia-a" }),
+    );
+    expect((await old.json()).data).not.toHaveProperty("has_site");
+  });
+
   it("slug inválido na leitura pública → 404 sem consultar o banco", async () => {
     const rpc = vi.fn();
     const res = await setup(rpc).handler(req("public.profile", { method: "GET", query: "?slug=' or 1=1" }));

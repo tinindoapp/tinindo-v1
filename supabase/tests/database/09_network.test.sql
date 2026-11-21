@@ -3,7 +3,7 @@
 -- Roda depois da fundação + seed sintético (NET-01, SEC-01).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(50);
 
 create temp table ids as select
   'a0000000-0000-4000-8000-00000000000a'::uuid as owner_a,
@@ -120,7 +120,7 @@ select pg_temp.logout();
 set local role anon;
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(public.network_public_profile('barbearia-a')) k),
-  array['area', 'category', 'details', 'photo', 'public_fields', 'published_at', 'reputation', 'slug', 'values', 'whatsapp_e164'],
+  array['area', 'category', 'details', 'has_site', 'photo', 'public_fields', 'published_at', 'reputation', 'slug', 'values', 'whatsapp_e164'],
   'perfil público tem só a projeção fixa (sem tenant_id, contatos, versão nem as chaves do dono; detalhes D21 do P55)'
 );
 select is(
@@ -128,6 +128,15 @@ select is(
   '{"display_name": "Barbearia Exemplo A"}'::jsonb,
   'valores públicos só dos campos escolhidos pelo profissional'
 );
+select is(public.network_public_profile('barbearia-a') ->> 'has_site', 'false', 'sem Site publicado: has_site falso (recado #161)');
+reset role;
+insert into public.presence_sites (tenant_id, status, published_version_no)
+  select tenant_id, 'published', 1 from public.public_profiles where slug = 'barbearia-a';
+set local role anon;
+select is(public.network_public_profile('barbearia-a') ->> 'has_site', 'true', 'com Site publicado: has_site verdadeiro');
+reset role;
+delete from public.presence_sites where tenant_id = (select tenant_id from public.public_profiles where slug = 'barbearia-a');
+set local role anon;
 select is(
   public.network_public_profile('barbearia-a') -> 'reputation',
   '{"identity_verified": false, "reviews_count": 0}'::jsonb,

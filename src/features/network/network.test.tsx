@@ -9,6 +9,7 @@ import { createDemoNetworkApi, createHttpNetworkApi, resetDemoNetwork } from "./
 import { networkModule, networkPublicRoutes } from "./module.tsx";
 import { PublicProfileView } from "./PublicProfileView.tsx";
 import { publicNetworkApi } from "./public/anon.ts";
+import { setPublicSiteReader } from "./public/ProfilePage.tsx";
 
 // O jsdom não tem canvas nem createImageBitmap: o preparo da foto tem testes próprios (photo.test.ts).
 vi.mock("./photo.ts", async (original) => ({
@@ -161,6 +162,30 @@ describe("páginas públicas (demonstração)", () => {
     fireEvent.click(within(slots).getByRole("button", { name: "12:00" }));
     // Escolher o horário não reserva nada: só abre o pedido.
     expect(screen.getByRole("form", { name: "Pedir horário" })).toBeInTheDocument();
+  });
+
+  it("Site do P17 só é pedido quando o perfil diz que há um publicado (has_site, recado #161)", async () => {
+    await publishDemoProfile();
+    cleanup();
+    const reader = vi.fn(async () => null);
+    setPublicSiteReader(reader);
+    const api = publicNetworkApi();
+    const original = api.getPublicProfile.bind(api);
+    const spy = vi.spyOn(api, "getPublicProfile");
+    try {
+      spy.mockImplementation(async (slug) => ({ ...(await original(slug)), has_site: false }));
+      renderAt("/p/barbearia-exemplo");
+      expect(await screen.findByRole("heading", { name: "Barbearia Exemplo A" })).toBeInTheDocument();
+      expect(reader).not.toHaveBeenCalled();
+      cleanup();
+      spy.mockImplementation(async (slug) => ({ ...(await original(slug)), has_site: true }));
+      renderAt("/p/barbearia-exemplo");
+      expect(await screen.findByRole("heading", { name: "Barbearia Exemplo A" })).toBeInTheDocument();
+      await waitFor(() => expect(reader).toHaveBeenCalledWith("barbearia-exemplo"));
+    } finally {
+      spy.mockRestore();
+      setPublicSiteReader(null);
+    }
   });
 
   it("reserva pelo link: pedido → código → confirmação; código errado não confirma; horário some da lista", async () => {

@@ -92,7 +92,7 @@ describe("Configuração: passos, frase do negócio e modelos", () => {
     type(form.getByLabelText("Preço (R$)"), "80,00");
     await click(form.getByRole("button", { name: "Salvar expediente e serviços" }));
     const confirm = screen.getByRole("group", { name: "Salvar o rascunho?" });
-    expect(confirm).toHaveTextContent("Profissão: Cabeleireira(o).");
+    expect(confirm).toHaveTextContent("Profissão: Cabeleireiro(a).");
     // Sem a Agenda da demonstração ligada, a confirmação não promete que a Agenda muda.
     expect(confirm).toHaveTextContent("Expediente: terça a sábado, 09:00 às 12:00 e 13:00 às 18:00 (na demonstração, fica só nesta tela: a Agenda de exemplo não muda).");
     expect(confirm).toHaveTextContent("Serviços: Corte feminino (45 min, R$ 80,00). Na demonstração, os serviços ficam só nesta tela.");
