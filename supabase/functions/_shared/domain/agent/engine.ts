@@ -32,12 +32,16 @@ import {
   type Directory,
   type EngineResult,
   type Finance,
+  type InsightsRead,
+  type LifecycleRead,
   type PriceRule,
   type ProposalDraft,
   type Service,
+  type SetupRead,
   type Source,
   type ToolCall,
   ToolError,
+  type WaitlistRead,
 } from "./types.ts";
 
 export const MAX_TOOL_CALLS = 8;
@@ -65,6 +69,27 @@ class Tools {
   finance(window: Window): Promise<Finance> {
     this.use("finance.summary", { period: window, timezone: this.ctx.tenant.timezone });
     return this.data.finance(window);
+  }
+  /** Leituras da revisão 06/11 (T8). undefined = o mundo não tem essa leitura (o motor diz onde ver). */
+  setup(): Promise<SetupRead> | undefined {
+    if (!this.data.setup) return undefined;
+    this.use("setup.read", {});
+    return this.data.setup();
+  }
+  insights(): Promise<InsightsRead> | undefined {
+    if (!this.data.insights) return undefined;
+    this.use("insights.read", {});
+    return this.data.insights();
+  }
+  waitlistRead(): Promise<WaitlistRead> | undefined {
+    if (!this.data.waitlist) return undefined;
+    this.use("waitlist.read", {});
+    return this.data.waitlist();
+  }
+  lifecycle(): Promise<LifecycleRead> | undefined {
+    if (!this.data.lifecycle) return undefined;
+    this.use("lifecycle.read", {});
+    return this.data.lifecycle();
   }
   propose(tool: ProposalDraft["tool"], payload: Record<string, unknown>) {
     this.use(tool, payload);
@@ -100,6 +125,29 @@ const CUSTOMERS_RE = /\b(quantos|quais|meus|lista( de)?) clientes\b|\bclientes\b
 const NEXT_RE = /\bproxim[oa] (cliente|atendimento|horario|compromisso)\b/;
 const OCC_RE = /\bocupa(cao|da|do)\b|\blotad[oa]\b|\bcheia\b|\bvazia\b/;
 const FREE_RE = /\b(horarios?|vagas?|espacos?|tempo) (livres?|disponive\w*|vagos?)\b|\btenho horario\b|\bestou livre\b|\bhorario livre\b/;
+/** "por que…", "por quê…", "me explica…": pergunta de explicação, nunca comando nem consulta de agenda. */
+const WHY_RE = /\b(por que|porque|pq|explica\w*|me explique)\b/;
+const NOSHOW_RE = /\b(faltas?|faltou|faltaram|faltando|furou|furaram|furo|no.?show|nao (vem|veio|vieram|apareceu|aparecem|aparece))\b/;
+const PRICE_WHY_RE = /\b(precos?|cobrando|cobro|cobra|caro|barato|valor|piso|minimo|desconto)\b/;
+const INSIGHT_RE = /\b(sugest\w*|insights?|isso|essa (dica|sugestao)|esse (aviso|alerta))\b/;
+/** Pedido de configurar algo do negócio (não é remarcar nem agendar). */
+const SETUP_VERB_RE = /\b(configurar|configuro|configura|configure|configuracao|configuracoes|ajust\w*|alter\w*|defin\w*|mudar|muda|trocar|ligar|liga|desligar|deslig\w*|como (eu )?(faco|faz) para|onde (eu )?(mudo|ajusto|configuro|coloco|vejo))\b/;
+type SetupTopic = "lifecycle.settings" | "schedule.rules" | "service" | "recurrence.plan" | "fiscal" | "profile";
+const SETUP_TOPICS: [RegExp, SetupTopic][] = [
+  [/\b(lembretes?|regua|confirmac\w*|chamar de volta|reativ\w*)\b/, "lifecycle.settings"],
+  [/\b(expediente|horarios? (de atendimento|de funcionamento)|meus horarios|dias que atendo|funcionamento|horario de (abertura|trabalho)|horarios)\b/, "schedule.rules"],
+  [/\b(servicos?|catalogo|duracao)\b/, "service"],
+  [/\b(assinaturas?|planos? (mensa\w*|semana\w*|de \d+))\b/, "recurrence.plan"],
+  [/\b(nota|notas fiscais|perfil fiscal|cnpj)\b/, "fiscal"],
+  [/\b(perfil|link publico|meu link)\b/, "profile"],
+];
+type FormTopic = "lifecycle.settings" | "schedule.rules" | "service" | "recurrence.plan";
+const FORM_HELP: Record<FormTopic, { label: string; path: string; example: string }> = {
+  "lifecycle.settings": { label: "Lembretes e relacionamento", path: "/app/relacionamento", example: "lembrete no dia anterior e duas horas antes" },
+  "schedule.rules": { label: "Horários", path: "/app/agenda/horarios", example: "terça a sábado das 9 às 19, almoço de meio-dia à uma" },
+  service: { label: "Serviços", path: "/app/clientes/servicos", example: "progressiva, 2 horas e meia, 280 reais" },
+  "recurrence.plan": { label: "Assinaturas", path: "/app/assinaturas", example: "plano de 8 treinos por mês a 640" },
+};
 const AGENDA_RE = /\b(o que tenho|que tenho|minha agenda|a agenda|agenda d\w*|atendimentos?|quem vem|marcados?|compromissos?|tenho (hoje|amanha))\b/;
 const TEMPORAL_WORDS = /\b(semana|dia|mes|ano|hoje|amanha|manha|tarde|noite|segunda|terca|quarta|quinta|sexta|sabado|domingo|dessa|desta|essa|esta|proxima|passada)\b.*$/;
 
@@ -276,8 +324,10 @@ export async function runAgent(input: string, ctx: AgentContext, data: AgentData
         `Não executo SQL nem comandos no banco de dados, e não tenho acesso direto a ele. ${CAPABILITIES}`);
     }
     if (FISCAL_RE.test(n)) {
+      // Revisão 06/11 (T13): a Tinindo emite NFS-e para MEI (P16). O assistente não emite: leva à tela Notas fiscais.
       return out("unavailable_fiscal", "consulted",
-        "Ainda não emito nota fiscal: essa função está indisponível na Tinindo. Emita pelo sistema da sua prefeitura ou do seu contador.");
+        "A Tinindo emite NFS-e para MEI no padrão nacional, na tela Notas fiscais (/app/notas): lá aparece o que falta para o seu caso. "
+          + "Quem emite é você, pelo botão de lá; o assistente não emite nota. Se o seu regime não for MEI, emita pelo sistema da prefeitura ou do seu contador.");
     }
     if (MONEY_RE.test(n)) {
       return out("unavailable_money", "consulted",
@@ -290,6 +340,21 @@ export async function runAgent(input: string, ctx: AgentContext, data: AgentData
     if (CROSS_RE.test(n)) return crossTenant();
 
     const escalation = ESCALATION_RE.test(n);
+
+    // 2a · "por quê?" e "como configuro?" (revisão 06/11, T9): nunca viram comando nem consulta de agenda.
+    //      Antes, "por que tenho faltas na quarta?" caía na agenda de quarta (resposta errada com confiança).
+    if (WHY_RE.test(n)) {
+      if (NOSHOW_RE.test(n)) return await explainInsightFlow("no_show_concentration");
+      if (PRICE_WHY_RE.test(n)) return await whyPriceFlow();
+      if (INSIGHT_RE.test(n) || ctx.ui?.insight_id) return await explainInsightFlow(null);
+      return out("unknown", "consulted",
+        `Ainda não sei explicar isso. Sei explicar suas sugestões (Metas e sugestões), faltas e preços. ${CAPABILITIES}`, { clarification: true });
+    }
+    if (SETUP_VERB_RE.test(n) && !CANCEL_RE.test(n) && !RESCHEDULE_RE.test(n) && !CREATE_RE.test(n)) {
+      const topic = SETUP_TOPICS.find(([re]) => re.test(n))?.[1] ?? null;
+      // Sem tema, só o pedido de ajuda com o verbo ("me ajuda a configurar"), não "como você foi configurado".
+      if (topic || /\b(configurar|configuro|configura|configure)\b/.test(n)) return await setupHelpFlow(topic);
+    }
 
     // 2 · pedidos de alteração (viram proposta só quando inequívocos)
     if (CANCEL_RE.test(n)) return await changeFlow("cancel");
@@ -598,10 +663,115 @@ export async function runAgent(input: string, ctx: AgentContext, data: AgentData
     const dir = await tools.directory();
     if (!dir.waitlist) return out("waitlist", "consulted", "Só o dono do negócio vê a lista de espera.");
     const { active, offered } = dir.waitlist;
+    let detail = "";
+    // T8: por serviço e ofertas abertas (sem nomes nem recados), quando a leitura existe.
+    const read = await tools.waitlistRead()?.catch((e: unknown) => (e instanceof ToolError ? null : Promise.reject(e)));
+    if (read) {
+      const per = read.by_service.filter((x) => x.active > 0).map((x) => `${plural(x.active, "pessoa", "pessoas")} para ${serviceName(dir, x.service_id)}`);
+      if (per.length) detail += ` Por serviço: ${list(per)}.`;
+      const offers = read.open_offers.slice(0, 5).map((o) =>
+        `${serviceName(dir, o.service_id)} ${relDay(localParts(o.starts_at, tz).date, today)} às ${hhmm(o.starts_at, tz)} (vale até ${hhmm(o.expires_at, tz)})`);
+      if (offers.length) detail += ` Ofertas abertas: ${list(offers)}.`;
+    }
     return out("waitlist", "consulted",
-      `Na lista de espera: ${plural(active, "pessoa aguardando vaga", "pessoas aguardando vaga")}; ${offered === 0 ? "nenhuma oferta em andamento" : plural(offered, "oferta em andamento", "ofertas em andamento")}. `
+      `Na lista de espera: ${plural(active, "pessoa aguardando vaga", "pessoas aguardando vaga")}; ${offered === 0 ? "nenhuma oferta em andamento" : plural(offered, "oferta em andamento", "ofertas em andamento")}.${detail} `
         + "Para ver quem é e preparar ofertas, abra a tela Lista de espera. Recados de clientes não são lidos pelo assistente.",
-      { sources: [{ kind: "waitlist", id: null, as_of: dir.as_of }] });
+      { sources: [{ kind: "waitlist", id: null, as_of: read?.as_of ?? dir.as_of }] });
+  }
+
+  // ----------------------------------------------------------------- explicar e configurar (revisão 06/11, T9)
+
+  /**
+   * "Por que tenho faltas na quarta?", "por que essa sugestão?": explica com a evidência que a regra JÁ calculou
+   * (P45). Sem sugestão aberta, diz o que a última conta viu (quieta ou dado insuficiente, com o motivo), nunca chuta.
+   */
+  async function explainInsightFlow(rule: string | null): Promise<EngineResult> {
+    if (ctx.role !== "owner") return out("explain_insight", "consulted", "Só o dono do negócio vê as sugestões e o que a conta olhou.");
+    const read = await tools.insights();
+    if (!read) {
+      return out("explain_insight", "consulted", "Abra Metas e sugestões (/app/metas): cada sugestão mostra o período, os números e o que a conta olhou.");
+    }
+    const byUi = ctx.ui?.insight_id ? read.insights.find((i) => i.id === ctx.ui!.insight_id) : undefined;
+    const hit = byUi ?? (rule ? read.insights.find((i) => i.rule_code === rule) : read.insights[0]);
+    const source: Source = { kind: "insights", id: hit?.id ?? null, as_of: read.as_of };
+    if (hit) {
+      const ev = hit.evidence as { period_start?: string; period_end?: string };
+      const period = ev.period_start && ev.period_end ? ` A conta olhou de ${ddmm(ev.period_start)} a ${ddmm(ev.period_end)}.` : "";
+      return out("explain_insight", "recommendation",
+        `${hit.title}: ${hit.body}${period} É uma observação dos seus registros, não uma previsão. ${hit.route ? `Para agir, abra ${hit.route}.` : "Veja em Metas e sugestões (/app/metas)."}`,
+        { sources: [source] });
+    }
+    const status = rule ? read.rules.find((r) => r.code === rule) : undefined;
+    if (status?.status === "insufficient") {
+      return out("explain_insight", "consulted",
+        `Ainda não dá para dizer: ${status.reason ?? "faltam atendimentos registrados para a conta"}. Isso não quer dizer que não há o problema; só que os dados ainda não bastam.`,
+        { sources: [source] });
+    }
+    if (rule === "no_show_concentration") {
+      return out("explain_insight", "consulted",
+        "Na última conta, as faltas não estavam concentradas em nenhum dia nem cliente. Se você marca as faltas na Agenda (\"Não veio\"), a próxima conta já considera.",
+        { sources: [source] });
+    }
+    return out("explain_insight", "consulted", "Você não tem sugestão aberta agora. A lista completa e o que a conta olhou ficam em Metas e sugestões (/app/metas).",
+      { sources: [source] });
+  }
+
+  /** "Por que o corte está R$ 60?", "tô cobrando pouco?": o preço é do dono; explica base, piso e regras publicadas. */
+  async function whyPriceFlow(): Promise<EngineResult> {
+    const dir = await tools.directory();
+    const named = servicesIn(n, dir.services);
+    const svc = named[0] ?? (dir.services.length === 1 ? dir.services[0] : undefined);
+    if (!svc) {
+      const names = dir.services.slice(0, 6).map((x) => x.name);
+      return out("why_price", "consulted",
+        names.length ? `De qual serviço? ${orList(names)}.` : "Você ainda não tem serviço cadastrado. Cadastre em Serviços (/app/clientes/servicos).",
+        { clarification: names.length > 0, sources: [dirSource(dir)] });
+    }
+    const rules = dir.pricing_rules.filter((r) => r.service_id === svc.id);
+    const floor = svc.min_price_cents > 0 ? ` O piso é ${money(svc.min_price_cents)}: nenhuma regra de desconto baixa dele.` : " Este serviço não tem piso definido, então a conta não sabe até onde pode baixar.";
+    const ruleText = rules.length
+      ? ` Há ${plural(rules.length, "regra de preço publicada", "regras de preço publicadas")} para ele; o preço final depende do dia e do horário.`
+      : " Não há regra de preço publicada para ele: vale o preço base em qualquer horário.";
+    const cost = svc.estimated_cost_cents !== null ? ` O custo estimado que você informou é ${money(svc.estimated_cost_cents)}.` : "";
+    return out("why_price", "consulted",
+      `O ${svc.name} custa ${money(svc.base_price_cents)}, o preço base que você definiu.${floor}${ruleText}${cost} `
+        + "A Tinindo não usa média de mercado: quem decide o preço é você, em Serviços (/app/clientes/servicos) ou Preços (/app/precos).",
+      { sources: [dirSource(dir)] });
+  }
+
+  /** "Me ajuda a configurar os lembretes": diz onde se ajusta, como está hoje e oferece o "Faz comigo". */
+  async function setupHelpFlow(topic: SetupTopic | null): Promise<EngineResult> {
+    if (ctx.role !== "owner") return out("setup_help", "consulted", "Só o dono do negócio muda a configuração. Peça para o dono fazer este ajuste.");
+    if (topic === "fiscal") {
+      return out("setup_help", "consulted", "O perfil fiscal e a autorização de emissão ficam em Notas fiscais (/app/notas). O assistente não preenche CNPJ nem emite nota.");
+    }
+    if (topic === "profile") {
+      return out("setup_help", "consulted", "O perfil público e o link de horários ficam em Perfil (/app/perfil). Publicar é o botão de lá.");
+    }
+    if (topic) {
+      const help = FORM_HELP[topic];
+      let now = "";
+      if (topic === "lifecycle.settings") {
+        const lc = await tools.lifecycle()?.catch((e: unknown) => (e instanceof ToolError ? null : Promise.reject(e)));
+        if (lc) {
+          const s = lc.settings;
+          now = s.enabled
+            ? ` Hoje: ${s.reminder_hours.length ? `lembretes ${list(s.reminder_hours.map((h) => `${h} h`))} antes` : "sem lembretes"}${s.confirmation ? ", com confirmação ao agendar" : ""}.`
+            : " Hoje a régua está desligada.";
+        }
+      }
+      return out("setup_help", "consulted",
+        `Isso se ajusta em ${help.label} (${help.path}).${now} Se quiser, use "Faz comigo" aqui no assistente: diga, por exemplo, "${help.example}", e eu preencho o formulário para você conferir. Nada é salvo antes de você tocar em Salvar.`);
+    }
+    // Sem tema: o próximo passo da configuração guiada.
+    const st = await tools.setup()?.catch((e: unknown) => (e instanceof ToolError ? null : Promise.reject(e)));
+    if (!st) return out("setup_help", "consulted", "Abra \"Me ajuda a configurar\" aqui no assistente ou a tela Configuração (/app/configurar): os passos mostram o que falta.");
+    const next = st.progress.steps.find((x) => !x.done && !x.dismissed && x.required) ?? st.progress.steps.find((x) => !x.done && !x.dismissed);
+    const total = st.progress.steps.length;
+    if (!next) return out("setup_help", "consulted", `Seu negócio está pronto: ${st.progress.done_count} de ${total} passos feitos.`, { sources: [{ kind: "setup", id: null, as_of: st.as_of }] });
+    return out("setup_help", "recommendation",
+      `${st.progress.done_count} de ${total} passos feitos. O próximo: ${next.title}${next.link ? ` (${next.link})` : ""}.${next.why ? ` ${next.why}` : ""}`,
+      { sources: [{ kind: "setup", id: null, as_of: st.as_of }] });
   }
 
   async function policyFlow(): Promise<EngineResult> {

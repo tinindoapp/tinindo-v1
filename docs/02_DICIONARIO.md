@@ -15,7 +15,7 @@ de escrita; quem grava são as RPCs). "Só acrescenta" = gatilho que proíbe `UP
 | Com RLS ligada | 135 |
 | Políticas (todas de leitura) | 99 |
 | FKs | 276 (135 compostas) |
-| Funções em `public` / `app` | 302 / 306 |
+| Funções em `public` / `app` | 306 / 306 |
 | Rotinas periódicas (`job_ticks`) | 10 |
 
 ## Rotinas periódicas
