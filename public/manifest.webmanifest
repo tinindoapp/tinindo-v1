@@ -1,17 +1,26 @@
 {
+  "id": "/app",
   "name": "Tinindo",
   "short_name": "Tinindo",
   "description": "Agenda, clientes e dinheiro do seu negócio em ordem.",
   "lang": "pt-BR",
+  "dir": "ltr",
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#F7F7F5",
   "theme_color": "#F7F7F5",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     { "src": "/icons/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/icons/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Hoje", "short_name": "Hoje", "url": "/app", "icons": [{ "src": "/icons/app-icon-192.png", "sizes": "192x192" }] },
+    { "name": "Agenda", "short_name": "Agenda", "url": "/app/agenda", "icons": [{ "src": "/icons/app-icon-192.png", "sizes": "192x192" }] }
   ]
 }
