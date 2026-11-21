@@ -70,6 +70,7 @@ export function createLlm(primary: Route | null, fallback: Route | null, deps: L
     } catch (e) {
       result = e instanceof AdapterError ? e.kind : "error";
     }
+    const cost = estimateCostUsd(model, usage.input_tokens, usage.output_tokens);
     deps.log?.({
       fn: "llm",
       task: req.task,
@@ -77,12 +78,17 @@ export function createLlm(primary: Route | null, fallback: Route | null, deps: L
       model,
       input_tokens: usage.input_tokens,
       output_tokens: usage.output_tokens,
-      cost_usd: estimateCostUsd(model, usage.input_tokens, usage.output_tokens),
+      cost_usd: cost,
       price_table: PRICE_TABLE_VERSION,
       ms: Math.max(0, now() - started),
       result,
       fallback: isFallback,
     });
+    try {
+      req.onUsage?.({ task: req.task, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, cost_usd: cost });
+    } catch {
+      // O medidor nunca derruba a chamada.
+    }
     return value;
   }
 

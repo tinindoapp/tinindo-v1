@@ -14,8 +14,11 @@ const RUN = "e0000000-0000-4000-8000-000000000001";
 const models = Object.fromEntries((["intent", "setup", "draft", "explain"] as LlmTask[]).map((t) => [t, "claude-haiku-5-5"])) as Record<LlmTask, string>;
 type Rpc = (token: string, fn: string, args: Record<string, unknown>) => Promise<RpcResult>;
 
-function world(reply: (req: AdapterRequest) => unknown, role: "owner" | "staff" = "owner") {
+function world(reply: (req: AdapterRequest) => unknown, role: "owner" | "staff" = "owner", allowed = true) {
   const rpc = vi.fn<Rpc>(async (_t, fn) => {
+    // T11: teto mensal de tokens e gravação do uso por negócio.
+    if (fn === "agent_llm_allowance") return { data: { allowed, used_tokens: 0, limit_tokens: 400000 }, error: null };
+    if (fn === "agent_llm_record") return { data: null, error: null };
     if (fn === "agent_run_start") return { data: { run_id: RUN, role, tenant_name: "Barbearia Exemplo A", timezone: "America/Sao_Paulo" }, error: null };
     return { data: null, error: { code: "PT403", message: "FORBIDDEN" } };
   });
@@ -56,7 +59,8 @@ describe("assist.form_draft", () => {
     expect(out).toMatchObject({ available: true, form: "lifecycle.settings", draft: { reminder_hours: [24, 2], reactivation_days: 60 } });
     expect(out.filled.sort()).toEqual(["reactivation_days", "reminder_hours"]);
     expect(JSON.stringify(out)).not.toMatch(/version|_id"/);
-    expect(w.rpc.mock.calls.map((c) => c[1])).toEqual(["agent_run_start"]);
+    expect(w.rpc.mock.calls.map((c) => c[1])).toEqual(["agent_llm_allowance", "agent_run_start", "agent_llm_record"]);
+    expect(w.rpc.mock.calls[2]![2]).toMatchObject({ p_task: "setup", p_input_tokens: 10, p_output_tokens: 5 });
     expect(w.sent).toHaveLength(1);
     expect(w.sent[0]!.system).toMatch(/régua de lembretes/);
   });
@@ -80,7 +84,7 @@ describe("assist.form_draft", () => {
     const out = FormDraftOutput.parse((await res.json()).data);
     // Resposta fora da forma fechada é inválida para o zod da tarefa: sem rascunho, sem chamada além do portão.
     expect(out.draft).toBeNull();
-    expect(w.rpc.mock.calls.map((c) => c[1])).toEqual(["agent_run_start"]);
+    expect(w.rpc.mock.calls.map((c) => c[1])).toEqual(["agent_llm_allowance", "agent_run_start", "agent_llm_record"]);
   });
 
   it("modelo fora do ar: available true, sem rascunho, frase para o dono (200)", async () => {
@@ -90,6 +94,14 @@ describe("assist.form_draft", () => {
     const out = FormDraftOutput.parse((await res.json()).data);
     expect(out).toMatchObject({ available: true, draft: null });
     expect(out.notes).toHaveLength(1);
+  });
+
+  it("acima do teto de tokens do mês: igual a sem provedor, sem débito e sem modelo (T11)", async () => {
+    const w = world(() => nullLifecycle, "owner", false);
+    const out = FormDraftOutput.parse((await (await w.handler(post({ form: "lifecycle.settings", text: "lembrete no dia anterior" }))).json()).data);
+    expect(out).toMatchObject({ available: false, draft: null });
+    expect(w.rpc.mock.calls.map((c) => c[1])).toEqual(["agent_llm_allowance"]);
+    expect(w.sent).toHaveLength(0);
   });
 
   it("equipe não preenche formulário do negócio", async () => {
