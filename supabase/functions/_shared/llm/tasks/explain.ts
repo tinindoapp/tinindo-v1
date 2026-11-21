@@ -1,6 +1,7 @@
 // Tarefa EXPLAIN (P45 + P46): uma frase simples que explica um insight a partir da evidência JÁ calculada pela regra.
-// Ponto de integração: o P45 ainda não está na main. A frase não pode trazer número que não esteja na evidência;
-// sem modelo (ou se trouxer), o P45 mostra o texto do modelo fixo.
+// Ligada no "Por quê?" de Metas e sugestões (rota `insight.explain` da função `growth-advice`, com cache por versão do
+// insight em `insight_explanations`). A frase não pode trazer número que não esteja na evidência; sem modelo (ou se
+// trouxer), a rota devolve a frase fixa por regra (_shared/domain/agent/explain-fixed.ts).
 import { z } from "zod";
 import type { Llm } from "../types.ts";
 

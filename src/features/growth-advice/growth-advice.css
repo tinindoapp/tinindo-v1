@@ -14,3 +14,7 @@
 .tn-ga-digest { white-space: pre-line; margin: 0; overflow-wrap: anywhere; }
 .tn-insight[data-focus="true"] { outline: var(--tn-size-focus-ring) solid var(--tn-focus); outline-offset: 4px; border-radius: var(--tn-radius-md); }
 .tn-insights .tn-ga-evidence { margin: 0; }
+/* "Por quê?" (T3): botão discreto logo abaixo da evidência; a frase aparece embaixo, na área anunciada (aria-live). */
+.tn-ga-why { display: grid; justify-items: start; gap: var(--tn-space-1); }
+.tn-ga-why__text p, p.tn-ga-why__text { margin: var(--tn-space-1) 0 0; overflow-wrap: anywhere; }
+.tn-ga-why__text .tn-badge { vertical-align: middle; }
