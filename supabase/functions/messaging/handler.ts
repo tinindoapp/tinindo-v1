@@ -39,6 +39,7 @@ import {
 } from "../_shared/contracts/index.ts";
 import { hmacSha256Hex, type OutboundItem, type Provider, sameHex } from "../_shared/domain/messaging/providers.ts";
 import { mapDbError } from "../_shared/http/errors.ts";
+import { activeInfo, type MessagingProviderName, type ProviderChoice, withProvider, withProviderInfo } from "../_shared/providers/selection.ts";
 import { corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
 import { createRpcHandler, type Route, route, type RpcHandlerDeps, type RpcResult } from "../_shared/http/rpc-handler.ts";
 
@@ -49,6 +50,8 @@ export interface MessagingDeps extends RpcHandlerDeps {
   /** RPCs de sistema (ingestão, despacho, telefone simulado) com a chave de serviço. Nunca para rotas do dono. */
   serviceRpc(fn: string, args: Record<string, unknown>): Promise<RpcResult>;
   providers: Partial<Record<z.infer<typeof ChannelProvider>, Provider>>;
+  /** Provedor escolhido pelo segredo MESSAGING_PROVIDER (padrão simulado). Conexão nova nasce nele. */
+  choice?: ProviderChoice<MessagingProviderName>;
   dispatchSecret: string;
   /** Token do desafio GET da API oficial (hub.verify_token). */
   verifyToken: string | null;
@@ -87,6 +90,8 @@ export function createMessagingHandler(deps: MessagingDeps) {
   const clock = deps.clock ?? systemClock;
   if (deps.dispatchSecret.length < 32) throw new Error("MESSAGING_DISPATCH_SECRET precisa de pelo menos 32 caracteres");
   const owner = createRpcHandler("messaging", MESSAGING_ROUTES, deps);
+  const choice: ProviderChoice<MessagingProviderName> = deps.choice ?? { active: "simulated", real: false, missing: [], problems: [] };
+  const info = () => ({ ...activeInfo(choice), configured: choice.missing.length === 0 && !!deps.providers[choice.active]?.configured });
 
   return async (req: Request): Promise<Response> => {
     const m = ROUTE_RE.exec(new URL(req.url).pathname);
@@ -99,20 +104,21 @@ export function createMessagingHandler(deps: MessagingDeps) {
     else if (name === "channel.dispatch") res = await dispatch(req, requestId);
     else if (name === "sim.inbound") res = await simInbound(req, requestId, cors);
     else if (name === "channel.connect") res = await connect(req, cors);
+    else if (name === "channel.status") return withProviderInfo(await owner(req), info(), cors);
     else return owner(req);
     deps.log?.({ fn: "messaging", route: name, request_id: requestId, status: res.status, ms: clock.now().getTime() - started });
     return res;
   };
 
-  /** Conectar um provedor real sem segredos no ambiente: 503 antes de gravar qualquer coisa. */
+  /**
+   * O número nasce no provedor ativo (segredo MESSAGING_PROVIDER), qualquer que seja o `provider` do corpo. Provedor
+   * real sem os segredos: 503 antes de gravar qualquer coisa.
+   */
   async function connect(req: Request, cors: Record<string, string>): Promise<Response> {
-    const clone = req.clone();
-    const body = await clone.json().catch(() => null) as { provider?: unknown } | null;
-    const provider = typeof body?.provider === "string" ? deps.providers[body.provider as z.infer<typeof ChannelProvider>] : undefined;
-    if (body?.provider === "whatsapp_cloud" && !provider?.configured) {
-      return fail("PROVIDER_UNAVAILABLE", requestIdFrom(req), { message: "O provedor oficial não está configurado neste ambiente.", extra: cors });
+    if (!info().configured) {
+      return fail("PROVIDER_UNAVAILABLE", requestIdFrom(req), { message: "O WhatsApp oficial não está configurado neste ambiente.", extra: cors });
     }
-    return owner(req);
+    return owner(await withProvider(req, choice.active));
   }
 
   async function webhook(req: Request, providerName: string, requestId: string): Promise<Response> {

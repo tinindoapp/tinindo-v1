@@ -4,7 +4,8 @@
 import { z } from "zod";
 import { Cents, IsoDateTime, Uuid, truncatedFlags } from "./common.ts";
 
-export const PaymentProvider = z.enum(["simulated", "psp"]);
+/** "psp" é o esqueleto genérico do P14 (sem uso: não há segredo que o escolha); "asaas" é o Pix por parceiro. */
+export const PaymentProvider = z.enum(["simulated", "psp", "asaas"]);
 export type PaymentProvider = z.infer<typeof PaymentProvider>;
 export const ChargeStatus = z.enum(["creating", "pending", "paid", "expired", "cancelled", "failed", "unknown"]);
 export type ChargeStatus = z.infer<typeof ChargeStatus>;
@@ -52,7 +53,10 @@ export const PaymentRefund = z.object({
 });
 export type PaymentRefund = z.infer<typeof PaymentRefund>;
 
-export const ChargeCreateInput = z.object({ receivable_id: Uuid, provider: PaymentProvider });
+/** `provider` é ignorado pelo servidor: a cobrança nasce no provedor ativo (PSP_PROVIDER). Mantido para clientes antigos. */
+export const ChargeCreateInput = z.object({ receivable_id: Uuid, provider: PaymentProvider.optional() });
+/** Provedor que o servidor usa para cobrança nova (segredo PSP_PROVIDER). Sem segredo nenhum: só o estado. */
+export const PaymentActiveProvider = z.object({ active: PaymentProvider, real: z.boolean(), configured: z.boolean() });
 export const ChargeCreateOutput = z.object({
   charge: PaymentCharge,
   /** Link público de pagamento (token devolvido uma vez; só o hash fica no banco). */
@@ -66,6 +70,8 @@ export const ChargesListOutput = z.object({
   refunds: z.array(PaymentRefund).max(200),
   unknown: z.int().min(0),
   truncated: truncatedFlags("charges", "refunds"),
+  /** Opcional para tolerar servidor antigo. */
+  provider: PaymentActiveProvider.optional(),
 });
 export const RefundRequestInput = z.object({ charge_id: Uuid, reason: z.string().trim().min(1).max(280) });
 export const RefundOutput = z.object({ refund: PaymentRefund });
@@ -92,7 +98,8 @@ export const Reconciliation = z.object({
   created_at: IsoDateTime,
 });
 export type Reconciliation = z.infer<typeof Reconciliation>;
-export const ReconcileInput = z.object({ provider: PaymentProvider, day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
+/** Sem `provider`, concilia o provedor ativo. */
+export const ReconcileInput = z.object({ provider: PaymentProvider.optional(), day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
 export const ReconcileOutput = z.object({ reconciliation: Reconciliation });
 export const ReconciliationsListInput = z.object({});
 export const ReconciliationsListOutput = z.object({ reconciliations: z.array(Reconciliation).max(60) });

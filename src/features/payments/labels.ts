@@ -11,7 +11,11 @@ export const CHARGE_STATUS: Record<ChargeStatus, string> = {
   unknown: "Sem resposta do banco (consultando)",
 };
 export const REFUND_STATUS = { requested: "Estorno pedido", done: "Estornado", failed: "Estorno falhou", unknown: "Estorno sem resposta" } as const;
-export const PROVIDER_LABEL = { simulated: "Recebimento simulado (demonstração)", psp: "Pix de verdade (pelo banco)" } as const;
+export const PROVIDER_LABEL = {
+  simulated: "Recebimento simulado (demonstração)",
+  psp: "Pix de verdade (pelo banco)",
+  asaas: "Pix de verdade (Asaas)",
+} as const;
 export const DIFF_LABEL: Record<string, string> = {
   paid_without_entry: "O extrato diz pago, mas não há recebimento no caixa",
   entry_without_report: "Há recebimento no caixa que o extrato não mostra",
