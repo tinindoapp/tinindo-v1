@@ -141,3 +141,9 @@ e2e em 375 px com toque: em `tests/e2e/network/cliente-375.spec.ts`, um teste no
   - "Fechar aviso" do toast com 40 px;
   - `lib/api/client.ts` importar só os contratos que usa, para o teto do pacote público baixar.
 - Nada foi aplicado na homologação.
+
+## Atualização · CI do PR
+
+- **O que falhou.** O e2e do CI falhou em 3 testes de `tests/e2e/foundation`: `menuRoutes`, em `rotas.ts`, e o teste de alvos de toque, em `smoke.spec.ts`. Os dois liam o menu logo depois do `page.goto("/app")`.
+- **Por quê.** Com o pacote separado, o app completo chega num pedaço próprio depois do `main.tsx`; numa máquina lenta, o menu ainda não existia na hora da leitura. É o padrão que o P53 já tinha anotado ("e2e lê o DOM antes de a tela carregar").
+- **Correção.** Os dois agora esperam o menu ou o `<h1>` antes de ler. Foi só a espera; o que os testes verificam não mudou.
