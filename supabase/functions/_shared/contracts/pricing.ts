@@ -6,6 +6,7 @@ import {
   Currency,
   IsoDateTime,
   TimeRange,
+  truncatedFlags,
   Uuid,
   Version,
   WeeklyWindow,
@@ -105,5 +106,7 @@ export const PricingListRulesInput = z.object({});
 export const PricingListRulesOutput = z.object({
   rules: z.array(PricingRule).max(100),
   proposals: z.array(PricingRuleProposal).max(20),
+  /** P56 (recado #169): true quando o servidor cortou a lista no teto. Ausente em servidor antigo. */
+  truncated: truncatedFlags("rules", "proposals"),
 });
 export const PricingDeactivateRuleInput = z.object({ rule_id: Uuid, expected_version: Version });

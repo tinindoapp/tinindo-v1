@@ -19,6 +19,20 @@ function renderPage() {
 afterEach(() => act(() => dismissToast()));
 
 describe("preços", () => {
+  it("lista cortada no servidor avisa embaixo das regras (P56, recado #169)", async () => {
+    const port = createDemoPort();
+    const list = port.list.bind(port);
+    vi.spyOn(port, "list").mockImplementation(async () => ({ ...(await list()), truncated: { rules: true, proposals: false } }));
+    render(
+      <PricingPortProvider value={port}>
+        <PricingPage />
+      </PricingPortProvider>,
+    );
+    const active = await screen.findByRole("region", { name: "Regras ativas" });
+    expect(within(active).getByText("Mostrando as 100 regras mais recentes.")).toBeInTheDocument();
+    expect(screen.queryByText("Mostrando as 20 prévias mais recentes.")).not.toBeInTheDocument();
+  });
+
   it("desativar regra pede confirmação; Voltar não desativa e Sim desativa com aviso curto", async () => {
     const { deactivate } = renderPage();
     const active = await screen.findByRole("region", { name: "Regras ativas" });
