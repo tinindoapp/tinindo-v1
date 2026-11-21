@@ -1,6 +1,7 @@
 // Entrada Deno da Edge Function `privacy` (P57). Chave PÚBLICA + JWT do usuário: as RPCs decidem dono, carência e
 // trilha; o Storage grava e assina o arquivo pelas políticas do bucket `privacy-exports`. Nenhuma chave secreta aqui.
 import { createClient } from "@supabase/supabase-js";
+import { withBuild } from "../_shared/http/build.ts";
 import { BUCKET, createPrivacyHandler } from "./handler.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
@@ -39,4 +40,4 @@ const handler = createPrivacyHandler({
   log: (entry) => console.log(JSON.stringify(entry)),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuild(handler));
