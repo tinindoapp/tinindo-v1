@@ -111,3 +111,43 @@ com a área definida no pedido. Sem `claim`, como nos pacotes P54 a P58.
 | `supabase/tests/database/57_p32_funil.test.sql` | 16 verificações: só datas e contagens, sete passos na ordem, negócio novo 1 de 7, "voltou" pelo dia seguinte no fuso (mesmo dia não conta), data real do agendamento, tempo nunca negativo, só operador lê |
 | `tests/integration/56_p32_funil.test.ts` | dono recebe 403; operador vê os sete passos, sem contato nem valor |
 | `supabase/functions/pilot/handler.test.ts` e `tests/contracts/pilot/pilot-contracts.test.ts` | sem negócio, leitura, parâmetros da RPC, resposta fora do contrato vira 500 |
+
+## Bloco 3 · Painel do piloto (só a equipe Tinindo)
+
+### Entregue
+
+- **Migration** `…_p32_painel.sql`:
+  - `app.pilot_business(negócio, de, até)` e `public.pilot_panel(de, até)` (só operador ativo; período de até 92
+    dias; até 200 negócios ativos com `truncated`). Por negócio:
+    - o funil do bloco 2;
+    - uso no período: dias com uso, telas com contagem, comandos com ok/recusado/erro, os problemas (operação,
+      resultado, código, contagem, último) e as telas abertas em 30 dias;
+    - custo: assistente em US$ e chamadas (`agent_llm_usage`, por mês inteiro, dito na tela) e mensagens enviadas por
+      tipo e as que falharam (contagem; o preço é do provedor e não está no banco);
+    - atendimentos e recebimentos **em número**: agendamentos criados, feitos, faltas, cancelados, recebimentos.
+    - Nada de nome de cliente, contato, texto ou valor.
+- **Função `pilot`**: rota `pilot.panel` (contrato em `contract.ts`).
+- **Tela** `/app/resultado/piloto` (`src/features/pilot`), atrás do `OperatorGate`, fora do menu:
+  - período de 7 ou 28 dias; um cartão por negócio com o funil (tempo desde o passo anterior e desde a conta),
+    o que usou, erros e recusas, **telas do menu que nunca abriu em 30 dias** (compara as telas abertas com o caminho de
+    cada módulo do `MODULES`), custo e números;
+  - **Exportar CSV**: uma linha por negócio, com BOM para o Excel e defesa contra fórmula (célula que começa com
+    `=`, `+`, `-` ou `@` vira texto).
+  - Demonstração com três negócios de exemplo, rotulada.
+
+### Decisões
+
+- **Rota sob o Resultado (`/app/resultado/piloto`), carregada sob demanda a partir de `src/features/analytics/module.tsx`.**
+  Um módulo próprio exigiria `ModuleId`, catálogo no banco e `src/app/modules.ts`, fora da área; o custo por cliente
+  já vive em `/app/resultado/custo` do mesmo jeito. Recado #197 para virar módulo.
+- **"Nunca abriu" pela tela principal de cada módulo do menu**, em 30 dias (a retenção dos eventos).
+- **Mensagens em contagem.** O preço por mensagem de modelo é do provedor (Meta) e não está gravado; a tela diz isso.
+
+### Testes
+
+| Comando | Resultado |
+|---|---|
+| `supabase/tests/database/58_p32_painel.test.sql` | 12 verificações: só operador, período validado, seções fixas, telas e recusas, dias com uso, telas em 30 dias, números sem valor, nada de cliente ou contato |
+| `tests/integration/56_p32_funil.test.ts` | + painel da semana pela função `pilot` com o banco real; dono recebe 403 |
+| `src/features/pilot/pilot.test.tsx` | nunca abertas, duração, CSV (fórmula vira texto, aspas, sem contato), tela e aviso para quem não é da equipe |
+| `tests/e2e/analytics/painel-piloto.spec.ts` | desktop, Pixel 7 e 375 px: funil, recusas, fora do menu, download do CSV, troca de período |
