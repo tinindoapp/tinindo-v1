@@ -114,8 +114,8 @@ Uma **Ficha da sessão** por pessoa (modelo no fim deste arquivo). Copiar o mode
 | **Série do servidor:** terça e quinta numa série só, "N de 16" igual em qualquer aparelho e **"Cancelar os próximos"** | Agenda (personal, passo 3) | #143 |
 | **Link da reserva:** preço, local e regra antes de confirmar; "Reenviar código"; "Ver minha reserva"; "Mandar link da reserva" no atendimento | Página pública, Agenda | P55, #143 |
 | **Layout novo:** ação principal única por tela, números grandes com rótulo, linha do tempo na Hoje, Concluído em verde | Hoje, Clientes, Retorno, Caixa | P54 |
-| **Conta:** senha de 10 com letras e números, "Reenviar o link de confirmação", entrar volta à tela de onde veio, aviso de sessão terminada, "Sair" apaga o que estava no aparelho | Entrar, Criar conta | P60 |
-| **Termos e política** abrem no cadastro, marcados como rascunho, com a versão que o aceite registra | Criar conta, Criar negócio | P60 (#87) |
+| **Conta:** senha de 10 com letras e números, "Reenviar o link de confirmação", entrar volta à tela de onde veio, aviso de sessão terminada, "Sair" apaga o que estava no aparelho | Entrar, Criar conta | Primeiro acesso |
+| **Termos e política** abrem no cadastro, marcados como rascunho, com a versão que o aceite registra | Criar conta, Criar negócio | Primeiro acesso (#87) |
 | **Seus dados** em Conta: baixar e pedir eliminação | Conta | P57 |
 
 ## Ficha da sessão
