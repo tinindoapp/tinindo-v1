@@ -71,10 +71,13 @@ test("Mais recursos: ligar Assinaturas põe no menu e abre a tela; desligar tira
   await expect(page.getByRole("link", { name: "Abrir Mais recursos" })).toHaveAttribute("href", "/app/conta/recursos");
 });
 
-test("plano: o texto diz que no piloto os dois planos dão as mesmas funções (D3 b)", async ({ page }) => {
+// Planos e cobrança (D3 a, substitui a D3 b): o Completo diz o que libera a mais; nenhum plano promete o que o
+// piloto já dá a todos (ofertas de vaga e recuperação de agenda).
+test("plano: o texto diz o que o Completo libera a mais que o Grátis (D3 a)", async ({ page }) => {
   await page.goto("/app/conta/recursos");
   await page.getByRole("list", { name: "Recursos opcionais" }).getByRole("button", { name: "Ligar Plano e serviços" }).click();
   await page.goto("/app/servicos-tinindo");
-  await expect(page.getByText("As mesmas funções do Grátis durante o piloto").first()).toBeVisible();
+  await expect(page.getByText("Todos os recursos opcionais de Conta › Mais recursos").first()).toBeVisible();
+  await expect(page.getByText("As mesmas funções do Grátis durante o piloto")).toHaveCount(0);
   await expect(page.getByText("Ofertas de vaga e recuperação de agenda")).toHaveCount(0);
 });

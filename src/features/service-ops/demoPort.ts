@@ -8,12 +8,14 @@ import {
   ERROR_STATUS,
   type ErrorCode,
   type OfferingVersion,
+  PlanConfig,
   RETRYABLE,
   type ServiceOrderDetail,
   type ServiceOrderStatus,
 } from "@contracts";
 import { FIXED_NOW, FX, services as fixtureServices, tenantA } from "@contracts/fixtures.ts";
 import { ApiError } from "../../lib/api/client.ts";
+import planos from "../../../supabase/functions/service-ops/planos.json";
 import type { AccessLog, OpsPort, PlanCurrent, ServiceOpsPort } from "./port.ts";
 
 function fail(code: ErrorCode, field?: string): never {
@@ -27,25 +29,24 @@ const ts = () => now().toISOString();
 export const DEMO_OPERATOR = { user_id: FX.users.outsider, display_name: "Operadora Tinindo (exemplo)" };
 
 const hash = (n: number) => n.toString(16).padStart(64, "0");
+/**
+ * Planos da demonstração: os mesmos de supabase/functions/service-ops/planos.json (única fonte dos valores), na versão
+ * 3 publicada pela migration de capacidades (D3 a).
+ */
+const PLANS: OfferingVersion[] = PlanConfig.parse(planos).planos.map((p, i) => ({
+  id: `90000000-0000-4000-8000-00000000000${i + 1}`, code: p.code, kind: "plan", version_no: 3, name: p.name,
+  description: p.description, price_cents: p.price_cents, billing: "monthly", included: p.included, excluded: p.excluded,
+  agent_questions_month: p.capabilities.agent_questions_month, assisted_minutes: null, sla_days: null, scope_hash: hash(i + 1),
+  published_at: "2026-11-21T12:00:00Z", capabilities: p.capabilities, terms: p.terms,
+}));
 const CATALOG: OfferingVersion[] = [
-  { id: "90000000-0000-4000-8000-000000000001", code: "free", kind: "plan", version_no: 1, name: "Grátis",
-    // P51 (D3 b): texto igual ao do servidor; no piloto os dois planos dão as mesmas funções.
-    description: "No piloto, todos os negócios usam as mesmas funções da Tinindo, sem cobrança.", price_cents: 0, billing: "monthly",
-    included: ["Agenda, clientes e caixa registrado", "Perfil público com link de reserva", "Assistente: até 200 perguntas por mês"],
-    excluded: ["Atendimento humano", "Serviços assistidos", "Emissão fiscal"], agent_questions_month: 200, assisted_minutes: null,
-    sla_days: null, scope_hash: hash(1), published_at: "2026-10-18T12:00:00Z" },
-  { id: "90000000-0000-4000-8000-000000000002", code: "founder", kind: "plan", version_no: 1, name: "Completo (fundador)",
-    description: "Reserva o preço de fundador por 12 meses, para adesões elegíveis, quando a cobrança começar. No piloto as funções são as mesmas do Grátis e nada é cobrado.",
-    price_cents: 7900, billing: "monthly",
-    included: ["As mesmas funções do Grátis durante o piloto", "Assistente: até 200 perguntas por mês, igual ao Grátis"],
-    excluded: ["Funções a mais que o Grátis durante o piloto", "Atendimento humano ilimitado", "Serviços assistidos (contratados à parte)", "Emissão fiscal", "Marketing pago"],
-    agent_questions_month: 200, assisted_minutes: null, sla_days: null, scope_hash: hash(2), published_at: "2026-10-18T12:00:00Z" },
+  ...PLANS,
   { id: "90000000-0000-4000-8000-000000000003", code: "implantacao_exemplo", kind: "service", version_no: 1,
     name: "Implantação assistida (exemplo)", description: "Cadastro inicial de serviços, horários e clientes pela equipe Tinindo.",
     price_cents: 50000, billing: "one_time",
     included: ["Cadastro de até 20 serviços", "Horários de atendimento", "Importação de uma planilha de clientes"],
     excluded: ["Site personalizado", "Google Meu Negócio", "Emissão fiscal"], agent_questions_month: null, assisted_minutes: 120,
-    sla_days: 7, scope_hash: hash(3), published_at: "2026-10-18T12:00:00Z" },
+    sla_days: 7, scope_hash: hash(9), published_at: "2026-10-18T12:00:00Z", capabilities: null, terms: null },
 ];
 
 interface WorkLog { minutes: number; kind: "human" | "automation"; reprocess: boolean }

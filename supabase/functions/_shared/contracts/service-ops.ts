@@ -6,6 +6,60 @@ import { Cents, IsoDateTime, Uuid, Version, truncatedFlags } from "./common.ts";
 
 const Sha256Hex = z.string().regex(/^[0-9a-f]{64}$/);
 
+// ---------------------------------------------------------------------------
+// Plano por capacidade (D3 a): o que cada versão de plano libera, legível por máquina. Valores iniciais em
+// supabase/functions/service-ops/planos.json (única fonte); versão publicada é imutável.
+// ---------------------------------------------------------------------------
+
+/** Módulos "por ativação" que um plano pode liberar (o piloto vale em todo plano; o guardado é do operador). */
+export const PlanModule = z.enum(["recurrence", "sales", "growth-advice", "analytics", "referrals", "service-ops"]);
+export type PlanModule = z.infer<typeof PlanModule>;
+const Limit = z.int().min(0).max(1_000_000);
+
+export const PlanCapabilities = z.object({
+  /** Módulos por ativação liberados. Fora da lista, o servidor recusa (403, hint plan_module). */
+  modules: z.array(PlanModule).max(PlanModule.options.length),
+  /** Clientes ativos (não arquivados) no total. */
+  customers_max: Limit,
+  /** Agendamentos criados no mês (fuso do negócio), fora importação. */
+  bookings_month: Limit,
+  /** Perguntas ao assistente no mês (P08). */
+  agent_questions_month: Limit,
+  /** Lembretes e confirmações preparados no mês (P13). Passou do limite: o passo fica "pulado", com o motivo. */
+  reminders_month: Limit,
+}).strict();
+export type PlanCapabilities = z.infer<typeof PlanCapabilities>;
+export type PlanLimit = Exclude<keyof PlanCapabilities, "modules">;
+export const PLAN_LIMITS: readonly PlanLimit[] = ["customers_max", "bookings_month", "agent_questions_month", "reminders_month"];
+
+/** Condições comerciais da versão (teste, carência, preço travado e janela de adesão). */
+export const PlanTerms = z.object({
+  trial_days: z.int().min(0).max(90),
+  grace_days: z.int().min(0).max(60),
+  /** Meses com o preço fixo a partir da adesão (condição de fundador); null = sem trava. */
+  price_lock_months: z.int().min(1).max(60).nullable(),
+  /** Janela para novas adesões; null = sem limite daquele lado. */
+  available_from: IsoDateTime.nullable(),
+  available_until: IsoDateTime.nullable(),
+}).strict();
+export type PlanTerms = z.infer<typeof PlanTerms>;
+
+/** Um plano como está em planos.json (o que a migration publica). */
+export const PlanConfigEntry = z.object({
+  code: z.string().regex(/^[a-z0-9_]{3,40}$/),
+  name: z.string().min(1).max(80),
+  description: z.string().max(500),
+  price_cents: Cents,
+  included: z.array(z.string()).max(20),
+  excluded: z.array(z.string()).max(20),
+  capabilities: PlanCapabilities,
+  terms: PlanTerms,
+  /** Campos ainda sem decisão do Felipe (aparecem na tela do operador e no handoff). */
+  a_confirmar_pelo_felipe: z.array(z.string()),
+}).strict();
+export type PlanConfigEntry = z.infer<typeof PlanConfigEntry>;
+export const PlanConfig = z.object({ _leia: z.array(z.string()), planos: z.array(PlanConfigEntry).min(1) }).strict();
+
 export const OfferingVersion = z.object({
   id: Uuid,
   code: z.string(),
@@ -22,6 +76,9 @@ export const OfferingVersion = z.object({
   sla_days: z.int().nullable(),
   scope_hash: Sha256Hex,
   published_at: IsoDateTime,
+  /** Plano por capacidade (D3 a). null = versão anterior às capacidades (só a franquia do assistente vale). */
+  capabilities: PlanCapabilities.nullable().default(null),
+  terms: PlanTerms.nullable().default(null),
 });
 export type OfferingVersion = z.infer<typeof OfferingVersion>;
 
