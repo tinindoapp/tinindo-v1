@@ -7,7 +7,8 @@ import { useSession } from "../../app/session.tsx";
 import { messageFor } from "./errors.ts";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { LegalSheet, type LegalDoc } from "./LegalSheet.tsx";
-import { BRAZIL_TIMEZONES, detectTimezone, POLICY_VERSIONS, PROFESSION_PRESETS, SEGMENT_LABEL, type Segment } from "./presets.ts";
+import { ACCEPTED_VERSIONS } from "./legal.ts";
+import { BRAZIL_TIMEZONES, detectTimezone, PROFESSION_PRESETS, SEGMENT_LABEL, type Segment } from "./presets.ts";
 import { useIdentityServices } from "./services.tsx";
 
 const SEGMENTS: Segment[] = ["beleza", "personal", "outro"];
@@ -42,7 +43,8 @@ export function CreateBusinessPage() {
       name,
       profession,
       timezone,
-      accepted_policy_versions: [POLICY_VERSIONS.terms, POLICY_VERSIONS.privacy],
+      // A versão gravada é a que a folha mostrou (issue #87): src/features/identity/legal.ts.
+      accepted_policy_versions: ACCEPTED_VERSIONS,
     };
     setPending(true);
     setError(null);

@@ -95,50 +95,23 @@ export function AccountPage() {
   );
 }
 
-/** Um único "Primeiros passos" (E9/E13), no topo da Conta enquanto falta algo. Cada passo leva à tela dele. */
-function FirstSteps({ onboarded, setup }: { onboarded: boolean; setup: SetupProgress }) {
-  const steps: { label: string; done: boolean | null; to?: string; href?: string }[] = [
-    { label: "Criar o negócio", done: true },
-    { label: "Dizer o que você quer resolver primeiro", done: onboarded, href: "#onboarding-title" },
-    { label: "Cadastrar seus serviços", done: setup.services, to: "/app/clientes/servicos" },
-    { label: "Definir seus horários de atendimento", done: setup.hours, to: "/app/agenda/horarios" },
-    { label: "Publicar seu perfil e mandar o link", done: setup.profile, to: "/app/perfil" },
-  ];
-  const known = steps.every((s) => s.done !== null);
-  const doneCount = steps.filter((s) => s.done).length;
+/**
+ * Primeiros passos (achado A7 da revisão de 04/11): a lista que existia aqui contava 5 passos e contradizia o cartão
+ * "Deixe seu negócio pronto" da Hoje (8, depois 7 no piloto). A contagem agora mora num lugar só, a Configuração, lida
+ * do servidor pelos dados de verdade; a Conta só aponta para lá enquanto falta algo.
+ */
+function FirstSteps({ onboarded }: { onboarded: boolean }) {
   return (
     <Card aria-labelledby="first-steps-title">
-      <div className="tn-id-steps">
-        <h2 id="first-steps-title">
-          Primeiros passos
-          {known ? (
-            <span className="tn-num tn-muted">
-              {" "}
-              · {doneCount} de {steps.length}
-            </span>
-          ) : null}
-        </h2>
-        <ol>
-          {steps.map((s) => (
-            <li key={s.label} data-done={s.done || undefined}>
-              <span aria-hidden="true" className="tn-id-steps__mark">
-                {s.done ? "✓" : ""}
-              </span>
-              {s.done ? (
-                <span>
-                  {s.label}
-                  <span className="tn-visually-hidden"> (feito)</span>
-                </span>
-              ) : s.to ? (
-                <Link to={s.to}>{s.label}</Link>
-              ) : (
-                <a href={s.href} onClick={() => document.querySelector<HTMLElement>(s.href!)?.focus()}>
-                  {s.label}
-                </a>
-              )}
-            </li>
-          ))}
-        </ol>
+      <h2 id="first-steps-title">Primeiros passos</h2>
+      <p>Horários, serviço com preço, antecedência para cancelar e o perfil publicado: os passos ficam em Configuração, e cada um leva à tela que resolve.</p>
+      <div className="tn-actions">
+        <LinkButton to="/app/configurar">Ver os passos</LinkButton>
+        {!onboarded ? (
+          <a href="#onboarding-title" onClick={() => document.querySelector<HTMLElement>("#onboarding-title")?.focus()}>
+            Dizer o que você quer resolver primeiro
+          </a>
+        ) : null}
       </div>
     </Card>
   );
@@ -175,7 +148,7 @@ function BusinessOnboarding({ tenantId }: { tenantId: string }) {
     ready !== null && (ready.onboarding.completed_at === null || Object.values(ready.setup).some((done) => done === false));
   return (
     <>
-      {showSteps && ready ? <FirstSteps onboarded={ready.onboarding.completed_at !== null} setup={ready.setup} /> : null}
+      {showSteps && ready ? <FirstSteps onboarded={ready.onboarding.completed_at !== null} /> : null}
       <Card aria-labelledby="business-title">
         <p className="tn-caps" id="business-title">
           {state.kind === "ready" ? PROFESSION_PRESETS[state.value.business.profession].label : "Negócio"}

@@ -13,7 +13,8 @@ import { NewPasswordPage, RecoverPasswordPage, SignUpPage } from "./AuthPages.ts
 import { CreateBusinessPage } from "./CreateBusinessPage.tsx";
 import { identityModule } from "./module.tsx";
 import { MyBookingsPage } from "./MyBookingsPage.tsx";
-import { detectTimezone, POLICY_VERSIONS, PROFESSION_PRESETS } from "./presets.ts";
+import { ACCEPTED_VERSIONS } from "./legal.ts";
+import { detectTimezone, PROFESSION_PRESETS } from "./presets.ts";
 import { RedeemLinkPage } from "./RedeemLinkPage.tsx";
 import { AuthFlowError, type IdentityServices, IdentityServicesProvider } from "./services.tsx";
 
@@ -154,7 +155,7 @@ describe("criar negócio", () => {
       name: "Salão Exemplo C",
       profession: "hairdresser",
       timezone: "America/Manaus",
-      accepted_policy_versions: [POLICY_VERSIONS.terms, POLICY_VERSIONS.privacy],
+      accepted_policy_versions: ACCEPTED_VERSIONS,
     });
     expect(second?.[1]).toBe(first?.[1]);
     expect(services.refreshSession).toHaveBeenCalledTimes(1);
@@ -225,21 +226,23 @@ describe("criar conta (E7)", () => {
 });
 
 describe("criar negócio: termos e fuso (E8, E9)", () => {
-  it("links abrem a folha; o rascunho jurídico (NÃO PUBLICAR) não aparece; Fechar devolve o foco", async () => {
+  it("links abrem a folha com o texto marcado como rascunho e a versão do aceite; Fechar devolve o foco (#87)", async () => {
     renderPage(<CreateBusinessPage />, fakeServices(), "/app/conta/novo-negocio");
     const open = await screen.findByRole("button", { name: "Termos de uso" });
     open.focus();
     fireEvent.click(open);
     const dialog = await screen.findByRole("dialog", { name: "Termos de uso" });
-    expect(within(dialog).getByText(/Texto em revisão/)).toBeInTheDocument();
-    expect(within(dialog).queryByText(/RASCUNHO|NÃO PUBLICAR|a definir/)).toBeNull();
+    expect(within(dialog).getByText("Rascunho em revisão jurídica.")).toBeInTheDocument();
+    // O aviso interno "NÃO PUBLICAR" do arquivo não aparece: a faixa diz isso de forma legível.
+    expect(await within(dialog).findByRole("heading", { name: /Quem somos/ })).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent("NÃO PUBLICAR");
     fireEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(open).toHaveFocus();
 
     fireEvent.click(screen.getByRole("button", { name: "Política de privacidade" }));
     const privacy = await screen.findByRole("dialog", { name: "Política de privacidade" });
-    expect(within(privacy).getByText(/Política de privacidade está em revisão/)).toBeInTheDocument();
+    expect(within(privacy).getByText("Rascunho em revisão jurídica.")).toBeInTheDocument();
   });
 
   it("frase de saúde fica separada do aceite", async () => {
@@ -291,17 +294,15 @@ describe("criar negócio: termos e fuso (E8, E9)", () => {
 
 
 describe("Sua conta (E13)", () => {
-  it("primeiros passos no topo para quem acabou de entrar, sem texto técnico; criar outro negócio sem destaque", async () => {
+  it("primeiros passos no topo para quem acabou de entrar: aponta para a Configuração (uma contagem só, A7)", async () => {
     renderPage(<AccountPage />, fakeServices());
     const steps = await screen.findByRole("region", { name: /Primeiros passos/ });
     expect(screen.queryByText(/O servidor confere/)).not.toBeInTheDocument();
-    expect(within(steps).getByText("Criar o negócio")).toHaveTextContent("(feito)");
-    expect(within(steps).getByText(/Cadastrar seus serviços/)).toHaveTextContent("(feito)");
-    expect(within(steps).getByRole("link", { name: "Definir seus horários de atendimento" })).toHaveAttribute("href", "/app/agenda/horarios");
-    expect(within(steps).getByRole("link", { name: "Publicar seu perfil e mandar o link" })).toHaveAttribute("href", "/app/perfil");
-    // Um passo sem resposta do servidor (perfil): sem contagem, para não dizer número errado.
-    expect(steps).not.toHaveTextContent(/de 5/);
-    // A lista vem antes do formulário do objetivo.
+    // Sem lista própria nem contagem: a contagem é a da Hoje e da Configuração.
+    expect(steps).not.toHaveTextContent(/de \d/);
+    expect(within(steps).getByRole("link", { name: "Ver os passos" })).toHaveAttribute("href", "/app/configurar");
+    expect(within(steps).getByRole("link", { name: "Dizer o que você quer resolver primeiro" })).toHaveAttribute("href", "#onboarding-title");
+    // O cartão vem antes do formulário do objetivo.
     const form = screen.getByRole("form", { name: "Objetivo e política de cancelamento" });
     expect(steps.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const other = screen.getByRole("link", { name: "Criar outro negócio" });
