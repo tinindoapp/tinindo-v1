@@ -8,7 +8,9 @@
 //   - travas: dinheiro só se o valor está na frase; texto sem marcador de dado redigido; janelas sem sobreposição.
 // Puro: roda no Deno (função `agent`), no Node (testes) e no navegador (a tela valida o rascunho que recebe).
 import { z } from "zod";
-import { LifecycleSettings, LocalTime, WeeklyWindow } from "../../contracts/index.ts";
+// Arquivos do contrato, não o barril: o registro de operações (contracts/operations.ts) importa este módulo (recado #174).
+import { LocalTime, WeeklyWindow } from "../../contracts/common.ts";
+import { LifecycleSettings } from "../../contracts/lifecycle.ts";
 
 export const FORM_IDS = ["lifecycle.settings", "schedule.rules", "service", "recurrence.plan"] as const;
 export const FormId = z.enum(FORM_IDS);

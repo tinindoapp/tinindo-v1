@@ -83,7 +83,8 @@ describe("growth-advice · porta do servidor", () => {
     // "Agora não" e "Preparar" mandam o mesmo corpo para operações diferentes.
     expect(calls.snoozeInsight![0]).toMatchObject({ operation: "insight.snooze", body: { insight_id: ID, expected_version: 6 } });
     expect(calls.actInsight![0]).toMatchObject({ operation: "insight.act", body: { insight_id: ID, expected_version: 6 } });
-    // A tela de Metas e sugestões alcança todo o módulo.
-    expect(unusedOperations("growth-advice", calls)).toEqual([]);
+    // A tela de Metas e sugestões alcança todo o módulo. O "Por quê?" (insight.explain) vem por createServerExplain
+    // até a sessão do assistente passá-lo para createServerPort (recado #174, passo 3).
+    expect(unusedOperations("growth-advice", calls)).toEqual(["insight.explain"]);
   });
 });
