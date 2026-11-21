@@ -4,12 +4,16 @@ import { describe, expect, it } from "vitest";
 import { ACCEPTED_VERSIONS, inlineParts, LEGAL, parseLegal } from "./legal.ts";
 import { LegalSheet } from "./LegalSheet.tsx";
 import { POLICY_VERSIONS } from "./presets.ts";
+import identityHandler from "../../../supabase/functions/identity/handler.ts?raw";
 
 describe("textos jurídicos", () => {
   it("os dois documentos estão em rascunho, com a versão que o aceite grava", () => {
     expect(LEGAL.terms.status).toBe("rascunho");
     expect(LEGAL.privacy.status).toBe("rascunho");
     expect(ACCEPTED_VERSIONS).toEqual([POLICY_VERSIONS.terms, POLICY_VERSIONS.privacy]);
+    // A função identity recusa criar negócio sem as versões atuais: as duas listas andam juntas.
+    const server = /CURRENT_POLICY_VERSIONS = \[([^\]]+)\]/.exec(identityHandler)?.[1];
+    expect(server?.split(",").map((v) => v.trim().replace(/"/g, ""))).toEqual([...ACCEPTED_VERSIONS]);
   });
 
   it("o leitor tira o aviso NÃO PUBLICAR do topo e entende títulos, parágrafos e listas", () => {

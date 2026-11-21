@@ -16,6 +16,13 @@ export interface IdentityDeps {
   log?: (entry: Record<string, unknown>) => void;
 }
 
+/**
+ * Versões dos termos e da política que o cadastro mostra hoje (src/features/identity/legal.ts, POLICY_VERSIONS; o
+ * teste legal.test.tsx confere que as duas listas são iguais). Criar negócio exige as duas: o aceite gravado em
+ * policy_acceptances é o do texto que a pessoa viu. Trocar o texto = versão nova aqui e na tela, no mesmo PR (#87).
+ */
+export const CURRENT_POLICY_VERSIONS = ["termos-piloto-v0", "privacidade-piloto-v0"] as const;
+
 /** Corpo máximo aceito. Os comandos do P01 têm poucos campos. */
 export const MAX_BODY_BYTES = 8 * 1024;
 
@@ -134,6 +141,16 @@ export function createIdentityHandler(deps: IdentityDeps) {
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       return fail("VALIDATION_ERROR", requestId, { field: issue?.path.join(".") || undefined, extra: cors });
+    }
+    if (op === "business.create") {
+      const accepted = (parsed.data as { accepted_policy_versions: string[] }).accepted_policy_versions;
+      if (!CURRENT_POLICY_VERSIONS.every((v) => accepted.includes(v))) {
+        return fail("VALIDATION_ERROR", requestId, {
+          field: "accepted_policy_versions",
+          message: "Os termos mudaram. Recarregue a página, leia e aceite de novo.",
+          extra: cors,
+        });
+      }
     }
 
     const args = {
