@@ -117,6 +117,43 @@ Feito por subagente em worktree próprio, só nas pastas do grupo (`setup`, `pri
 
 **Recados:** `P54-parte2/recados-grupo-configuracao.md`, juntos na issue #169.
 
+## Grupo 3 · Lista de espera, Mensagens, Orçamentos, Assinaturas (PR 3/3)
+
+Feito por subagente em worktree próprio, só nas pastas do grupo (`waitlist`, `messaging`, `sales`, `recurrence`).
+
+| Tela | Altura (antes → depois) | Telas | Contraste mín. claro / escuro (depois) | Falhas | Alvos < 44 | Preto que não é ação (claro) |
+|---|---|---|---|---|---|---|
+| Lista de espera | 1.749 → **907** | 2,07 → 1,07 | 6,12 / 9,04 | 0 | 0 | 0 |
+| Mensagens | 1.519 → **1.082** | 1,80 → 1,28 | 6,12 / 9,35 | 0 | 0 | 0 |
+| Orçamentos | 844 → 844 | 1,00 | 6,12 / 9,35 | 0 | 0 | 0 |
+| Assinaturas | 890 → 844 | 1,05 → 1,00 | 6,12 / 9,04 | 0 | 0 | 0 |
+
+A conversa não aparece na tabela: a demonstração não tem conversa até conectar o número simulado, e o medidor mede a
+caixa de novo. Medida avulsa pelo caminho dos e2e de mensagens: conversa com 1 mensagem, 844 px; caixa com 2
+conversas, 861 px.
+
+**Em todas as telas do grupo:**
+- **Abertura:** `PageHeader` com título, apoio, uma ação principal e ajuda; saiu o aviso de demonstração por tela (D11 b).
+- **Seções:** do kit, com contagem; as secundárias nascem recolhidas (Ofertas sem oferta aberta, Planos, Resumo da semana).
+- **Linhas:** uma ação visível compacta e o resto no "⋯"; a confirmação abre embaixo da linha; 5 itens e "Ver todos".
+- **Estados:** com `StatusBadge` (oferta, orçamento, assinatura, não lidas); a pílula preta de não lidas saiu.
+
+**Por tela:**
+- **Lista de espera:** "Adicionar à lista" abre uma folha no celular e um painel no largo.
+- **Mensagens:** o simulador é apontado em "Como funciona", e o resumo da semana virou seção recolhida.
+
+**Listas cortadas:** o `truncated` passou pelas portas que o perdiam (`sales_quote_list`, `recurrence_list`). Agora
+aparece com `ListCutNote` nas cinco listas: espera (pedidos e ofertas), caixa de Mensagens, conversa, Orçamentos e
+Assinaturas. Cada uma tem teste de unidade.
+
+**e2e:** só seletores. `insights.spec` abre a seção "Resumo da semana" antes de ler; `canal`, `assinaturas`, `lista` e
+`uat-barbeiro` seguem as linhas novas.
+
+**Recados:** `P54-parte2/recados-grupo-mensagens.md`, juntos na issue #169.
+- **Kit:** `ActionRow` com conteúdo embaixo e `ConfirmAction` aberto pelo "⋯". As quatro cópias locais de `rows.tsx` somem com isso.
+- **Resumo da semana:** variante de seção do `WeeklyDigestCard`.
+- **Contrato:** `sales_quote_list` corta antes do filtro.
+
 ## Testes deste PR
 
 | Comando | Resultado |
