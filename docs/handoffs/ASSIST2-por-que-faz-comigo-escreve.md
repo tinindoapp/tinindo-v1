@@ -102,3 +102,31 @@ O pacote não está no quadro do `coord.py` (o quadro vai até P46); não houve 
   - a equipe também grava o uso e consulta o teto (o assistente responde à equipe), mas não lê a tabela;
   - `allowed = usado < teto`;
   - o mês do teto usa o fuso do negócio, enquanto a franquia de perguntas continua em UTC.
+
+## Item 3 · Chat que entende "por quê" e "configurar" (T8 a T10, T13, T14)
+
+- **Leituras novas (T8).** Migration `*_assist_agent_readings.sql` e pgTAP 46. As quatro são `security definer`, só leitura, `search_path` vazio, e conferem o vínculo:
+  - `agent_setup_read`: passos da configuração, sem gravar conclusões.
+  - `agent_insights_read`: sugestões abertas com a evidência e o estado de cada regra; só o dono.
+  - `agent_waitlist_read`: contagem por serviço e ofertas abertas, sem nome, telefone, janelas nem recado; só o dono.
+  - `agent_lifecycle_read`: a régua como está hoje, sem versão; só o dono.
+  - No motor elas são opcionais (`AgentData`): sem elas, a demonstração e os mundos de avaliação respondem com o que têm.
+- **Intenções novas no motor (T9a).** Entram antes das consultas, e "por quê" e "configurar" nunca viram comando nem consulta de agenda.
+  - `explain_insight`: "por que tenho faltas na quarta?" responde com a evidência da sugestão de faltas. Sem sugestão, diz o que a última conta viu ("não estavam concentradas" ou "ainda não dá para dizer: <motivo>").
+  - `why_price`: preço base, piso e regras publicadas, e de onde vem o preço (nunca média de mercado).
+  - `setup_help`: diz onde se ajusta, como a régua está hoje e oferece o "Faz comigo". Sem tema, mostra o próximo passo da configuração guiada.
+  - Equipe não recebe sugestões nem ajuda para configurar.
+  - **Resposta errada com confiança corrigida:** "por que tenho tanta falta na quarta?" caía na agenda de quarta, porque "que tenho" casava com `AGENDA_RE`.
+- **Envio ao modelo (T9b).**
+  - O modelo (`tasks/intent.ts`) ganhou `setup_help`, `explain_insight` e `why_price`, com o campo `topic` (padrão null, para que leituras antigas continuem válidas).
+  - `understand.ts` manda ao modelo também a frase com "por que", "configurar", "ajustar" ou "mudar" que o motor levou a outra família. Ficam de fora proposta, recusa e indisponível.
+  - A leitura só vale se o motor cair na família esperada. O teto de tokens do item 4 vale aqui também.
+- **`ui_context` (T10):** o `insight_id` da tela resolve "essa sugestão". Um id que o negócio não tem é ignorado.
+- **Recusa fiscal (T13):** agora leva a Notas fiscais (`/app/notas`). O assistente não emite nota.
+- **Lista de espera:** o chat responde por serviço e com as ofertas abertas, sem nomes.
+- **T14 ("Assistente atende" em Mensagens):** o rótulo fica em `src/features/messaging`, fora da área. Vai no recado com o texto da revisão.
+- **Não feito:** a recusa "outro negócio" quando o pedido cita um nome que não é cliente (T9c). Os casos "marcado" e "crédito por lá" do P46 continuam como estavam.
+- **Testes.**
+  - `engine-assist.test.ts` (13 casos): faltas na quarta; quieta e insuficiente; `ui_context`; equipe; preço; "por que" sem tema; configurar lembretes, horários e sem tema; "como você foi configurado"; lista de espera; nota fiscal.
+  - `understand.test.ts` (5 casos): frase suspeita usada, descartada e não chamada; teto; `none`.
+  - pgTAP 46 (16 asserções).
