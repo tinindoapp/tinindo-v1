@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createPspProvider, createSimulatedPaymentProvider } from "../_shared/domain/payments/providers.ts";
 import { createPaymentsHandler } from "./handler.ts";
 import { withBuild } from "../_shared/http/build.ts";
+import { paymentChoice } from "../_shared/providers/selection.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
 const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
@@ -17,6 +18,10 @@ if (!syncSecret || !simulatedSecret) throw new Error("PAYMENTS_SYNC_SECRET e PAY
 const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "http://localhost:5173,http://127.0.0.1:5173")
   .split(",").map((o) => o.trim()).filter(Boolean);
 const publicAppUrl = Deno.env.get("PUBLIC_APP_URL") ?? allowedOrigins[0] ?? "http://localhost:5173";
+
+// PSP_PROVIDER escolhe o provedor de quem nasce agora (release/WHATSAPP.md, release/PIX.md). Problemas vão para o log, sem valores.
+const choice = paymentChoice((n) => Deno.env.get(n));
+for (const problem of choice.problems) console.log(JSON.stringify({ fn: "payments", startup: problem }));
 
 const service = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const serviceRpc = async (fn: string, args: Record<string, unknown>) => {
@@ -40,6 +45,7 @@ const handler = createPaymentsHandler({
       webhookSecret: Deno.env.get("PSP_WEBHOOK_SECRET") ?? null,
     }),
   },
+  choice,
   serviceRpc,
   anonRpc: async (fn, args) => {
     const { data, error } = await anon.rpc(fn, args);

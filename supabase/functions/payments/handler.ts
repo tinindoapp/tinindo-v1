@@ -34,6 +34,7 @@ import {
 } from "../_shared/contracts/index.ts";
 import { hmacSha256Hex, sameHex } from "../_shared/domain/messaging/providers.ts";
 import { type PaymentEvent, type PaymentProviderPort, signSimulatedBody } from "../_shared/domain/payments/providers.ts";
+import { activeInfo, type PaymentProviderName, type ProviderChoice, withProvider, withProviderInfo } from "../_shared/providers/selection.ts";
 import { canonicalJson, sha256Hex } from "../_shared/http/command.ts";
 import { mapDbError } from "../_shared/http/errors.ts";
 import { corsHeaders, fail, isUuid, ok, requestIdFrom, systemClock } from "../_shared/http/respond.ts";
@@ -51,6 +52,8 @@ export interface PaymentsDeps extends RpcHandlerDeps {
   /** RPCs anônimas do link (payment_link_view). */
   anonRpc(fn: string, args: Record<string, unknown>): Promise<RpcResult>;
   providers: Partial<Record<z.infer<typeof PaymentProvider>, PaymentProviderPort>>;
+  /** Provedor escolhido pelo segredo PSP_PROVIDER (padrão simulado). Cobrança nova nasce nele. */
+  choice?: ProviderChoice<PaymentProviderName>;
   syncSecret: string;
   simulatedSecret: string;
   publicAppUrl: string;
@@ -83,6 +86,8 @@ export function createPaymentsHandler(deps: PaymentsDeps) {
   if (deps.syncSecret.length < 32) throw new Error("PAYMENTS_SYNC_SECRET precisa de pelo menos 32 caracteres");
   const owner = createRpcHandler("payments", PAYMENTS_ROUTES, deps);
   const creator = createRpcHandler("payments", CREATE_ROUTES, deps);
+  const choice: ProviderChoice<PaymentProviderName> = deps.choice ?? { active: "simulated", real: false, missing: [], problems: [] };
+  const info = () => ({ ...activeInfo(choice), configured: choice.missing.length === 0 && !!deps.providers[choice.active]?.configured });
   const json = async (res: Response) => (await res.clone().json().catch(() => null)) as { data?: unknown } | null;
   const passthrough = (res: Response, cors: Record<string, string>) =>
     new Response(res.body, { status: res.status, headers: { ...Object.fromEntries(res.headers), ...cors } });
@@ -99,6 +104,7 @@ export function createPaymentsHandler(deps: PaymentsDeps) {
     else if (name === "payment.link_view") res = await publicView(req, requestId, cors);
     else if (name === "payment.sim_pay") res = await simPay(req, requestId, cors);
     else if (name === "payment.charge_create") res = await create(req, requestId, cors);
+    else if (name === "payment.charges") return withProviderInfo(await owner(req), info(), cors);
     else if (name === "payment.charge_cancel") res = await cancel(req, cors);
     else if (name === "payment.refund") res = await refund(req, requestId, cors);
     else if (name === "payment.reconcile") res = await reconcile(req, requestId, cors);
@@ -109,11 +115,11 @@ export function createPaymentsHandler(deps: PaymentsDeps) {
 
   /** Cria no banco (creating), pede ao provedor, grava o resultado pelo backend e devolve a cobrança com o link. */
   async function create(req: Request, requestId: string, cors: Record<string, string>): Promise<Response> {
-    const peek = await req.clone().json().catch(() => null) as { provider?: unknown } | null;
-    if (peek?.provider === "psp" && !deps.providers.psp?.configured) {
+    // A cobrança nasce no provedor ativo (PSP_PROVIDER), qualquer que seja o `provider` do corpo.
+    if (!info().configured) {
       return fail("PROVIDER_UNAVAILABLE", requestId, { message: "O provedor de pagamento não está configurado neste ambiente.", extra: cors });
     }
-    const res = await creator(req);
+    const res = await creator(await withProvider(req, choice.active));
     if (!res.ok) return passthrough(res, cors);
     const body = ChargeCreateRpcBody.safeParse((await json(res))?.data);
     if (!body.success) return fail("INTERNAL_ERROR", requestId, { extra: cors });
@@ -199,15 +205,16 @@ export function createPaymentsHandler(deps: PaymentsDeps) {
     if (!key.success) return fail("VALIDATION_ERROR", requestId, { field: "idempotency_key", message: "Envie o header Idempotency-Key.", extra: cors });
     const input = ReconcileInput.safeParse(await req.json().catch(() => null));
     if (!input.success) return fail("VALIDATION_ERROR", requestId, { field: input.error.issues[0]?.path.map(String).join(".") || undefined, extra: cors });
-    const provider = deps.providers[input.data.provider];
+    const providerName = input.data.provider ?? choice.active;
+    const provider = deps.providers[providerName];
     if (!provider?.configured) return fail("PROVIDER_UNAVAILABLE", requestId, { message: "O provedor não está configurado neste ambiente.", extra: cors });
     const report = await provider.report(tenantId, input.data.day).catch(() => null);
     if (!report) return fail("PROVIDER_UNAVAILABLE", requestId, { message: "O provedor não entregou o relatório do dia. Nada foi gravado.", extra: cors });
     let r: RpcResult;
     try {
       r = await deps.rpc(token, "payment_reconcile", {
-        p_tenant_id: tenantId, p_provider: input.data.provider, p_day: input.data.day, p_report: report,
-        p_idem_key: key.data, p_request_hash: await sha256Hex(canonicalJson({ operation: "payment.reconcile", input: input.data })), p_request_id: requestId,
+        p_tenant_id: tenantId, p_provider: providerName, p_day: input.data.day, p_report: report,
+        p_idem_key: key.data, p_request_hash: await sha256Hex(canonicalJson({ operation: "payment.reconcile", input: { ...input.data, provider: providerName } })), p_request_id: requestId,
       });
     } catch {
       return fail("PROVIDER_UNAVAILABLE", requestId, { extra: cors });
