@@ -296,9 +296,10 @@ function minutesUntil(hhmm: string): number {
 async function receivedToday(page: Page): Promise<number> {
   await page.goto("/app/caixa");
   await expect(page.getByRole("heading", { name: "Caixa", level: 1 })).toBeVisible();
-  const today = page.getByRole("region", { name: "Recebido", exact: true }).locator(".tn-fin-recv__item").filter({ hasText: "Hoje" }).locator("dd");
-  await expect(today).toHaveText(/R\$/);
-  return toCents((await today.textContent()) ?? "");
+  // P54: o resumo do mês virou a lista "Números de <mês>", com "Recebido hoje dd/mm" e o valor no mesmo item.
+  const today = page.getByRole("list", { name: /^Números de / }).getByRole("listitem").filter({ hasText: /^Recebido hoje/ });
+  await expect(today).toContainText(/R\$\s?[\d.,]+/);
+  return toCents(/R\$\s?[\d.,]+/.exec((await today.textContent()) ?? "")?.[0] ?? "");
 }
 
 const toCents = (brl: string) => Number(brl.replace(/\D/g, "") || "NaN");
