@@ -5,6 +5,8 @@
 // - "Redigir um texto": o dono escreve o rascunho (mensagem, apresentação, campanha), pede uma versão no tom escolhido
 //   e edita antes de copiar. Nada é salvo nem enviado por aqui.
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { UseTextButton } from "../../components/ui/assist.tsx";
 import { Button, Field, LinkButton, StatusBanner } from "../../components/ui/index.tsx";
 import type { SetupStepCode } from "@contracts";
 import { type AgentPort, type DraftRequest, newKey } from "./port.ts";
@@ -92,7 +94,11 @@ const KIND_LABEL: Record<DraftRequest["kind"], string> = {
 };
 const TONE_LABEL: Record<NonNullable<DraftRequest["tone"]>, string> = { proximo: "Próximo", direto: "Direto", formal: "Formal" };
 
-export function DraftPanel({ port, initial }: { port: AgentPort; initial?: { kind?: DraftRequest["kind"]; text?: string } }) {
+export function DraftPanel({ port, initial }: {
+  port: AgentPort;
+  initial?: { kind?: DraftRequest["kind"]; text?: string; returnTo?: string; field?: string; max?: number };
+}) {
+  const navigate = useNavigate();
   const [kind, setKind] = useState<DraftRequest["kind"]>(initial?.kind ?? "message");
   const [tone, setTone] = useState<NonNullable<DraftRequest["tone"]>>("proximo");
   const [base, setBase] = useState(initial?.text ?? "");
@@ -148,7 +154,12 @@ export function DraftPanel({ port, initial }: { port: AgentPort; initial?: { kin
         <>
           <Field as="textarea" label="Sugestão (edite antes de usar)" rows={5} maxLength={600} value={suggestion} onChange={(e) => setSuggestion(e.target.value)} />
           <div className="tn-actions">
-            <Button onClick={() => void copy()}>Copiar texto</Button>
+            {initial?.returnTo ? (
+              // T5: a sugestão volta para o campo de onde o rascunho veio. A tela de origem preenche e mostra o selo.
+              <UseTextButton text={suggestion} max={initial.max}
+                onUse={(t) => navigate(initial.returnTo!, { state: { assistText: { field: initial.field ?? null, text: t } } })} />
+            ) : null}
+            <Button variant={initial?.returnTo ? "secondary" : "primary"} onClick={() => void copy()}>Copiar texto</Button>
             <span className="tn-muted">Revise antes de usar. Nada foi salvo nem enviado.</span>
           </div>
         </>
