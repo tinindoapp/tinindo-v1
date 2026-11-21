@@ -79,3 +79,26 @@ O pacote não está no quadro do `coord.py` (o quadro vai até P46); não houve 
   - Frases fixas: as 9 regras e o insuficiente.
   - Tela: `InsightsWhy.test.tsx`.
   - e2e: `tests/e2e/growth-advice/por-que.spec.ts` (desktop, celular e 375 px). É um spec novo em `tests/e2e/growth-advice/`; a jornada do módulo tinha de ser coberta.
+
+## Item 4 · Custo por negócio, teto de tokens (T11) e CEP e endereço na redação (T12)
+
+- **Redação.** `redactPii` troca CEP por `[cep]` (`01310-100`, `01310100`, `01.310-100`), antes da regra de telefone. Logradouro com nome, número e complemento curto vira `[endereço]`.
+  - Ficam como estão: o prefixo de zona de 5 dígitos, horários, datas, valores, durações e bairros sem logradouro.
+  - Cerca de 80 casos em `redact.test.ts`.
+- **Uso por negócio.** Migration `*_assist_llm_usage.sql` e pgTAP 45.
+  - Tabela `agent_llm_usage`: negócio, mês no fuso do negócio, tarefa, chamadas, tokens de entrada e de saída, `cost_usd` (só chamadas com preço) e `unpriced_calls`. Só o dono lê.
+  - Coluna `agent_quotas.llm_monthly_tokens`, padrão **400.000 tokens por mês**. Com Haiku 5.5: cerca de US$ 0,06 na mistura típica e no máximo US$ 0,20. As 200 perguntas da franquia usam uns 160 mil.
+  - RPCs `agent_llm_record` e `agent_llm_allowance`.
+  - O log `fn:"llm"` continua sem tenant.
+- **Camada de linguagem.** `onUsage` no pedido e `withUsage(llm, sink)` em `_shared/llm/usage.ts`. Com `none`, nenhuma RPC de uso roda.
+- **Onde o teto vale.** `agent.ask` (quando o modelo seria chamado), `agent.draft`, `assist.form_draft` (item 1) e `insight.explain` (item 2).
+  - Acima do teto, ou se a consulta falhar, o assistente segue como `none`: sem débito, sem modelo e sem erro para o usuário.
+  - Cada tentativa ao modelo é gravada; falha ao gravar só aparece como contagem no log técnico.
+- **Fora da área:**
+  - `setup.describe` (função `setup`): o código pronto vai no recado.
+  - O parágrafo de `release/LLM.md`, também no recado.
+  - A tabela nova entra na exportação de privacidade do P57, porque não está em `app.privacy_hidden_table`. São só números; o recado pergunta se deve ficar de fora.
+- **Decisões do subagente, mantidas:**
+  - a equipe também grava o uso e consulta o teto (o assistente responde à equipe), mas não lê a tabela;
+  - `allowed = usado < teto`;
+  - o mês do teto usa o fuso do negócio, enquanto a franquia de perguntas continua em UTC.
