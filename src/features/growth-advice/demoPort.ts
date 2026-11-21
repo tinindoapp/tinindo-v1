@@ -8,9 +8,10 @@ import type { z } from "zod";
 import { ApiError } from "../../lib/api/client.ts";
 import { formatCents } from "../../lib/money.ts";
 import { demoCounts, demoMetrics, demoMonthToDate } from "../../lib/demo/dataset.ts";
+import { fixedExplanation } from "../../../supabase/functions/_shared/domain/agent/explain-fixed.ts";
 import { RULES, runDemoEngine } from "./demoInsights.ts";
 import { METRIC_LABEL } from "./labels.ts";
-import type { Advice, Content, Digests, GoalList, GrowthAdvicePort, InsightCommand, InsightList } from "./port.ts";
+import type { Advice, Content, Digests, GoalList, GrowthAdvicePort, InsightCommand, InsightExplanation, InsightList, InsightRule } from "./port.ts";
 
 function fail(code: ErrorCode, field?: string): never {
   throw new ApiError(code, DEFAULT_MESSAGES[code], ERROR_STATUS[code], crypto.randomUUID(), RETRYABLE.has(code), field);
@@ -22,7 +23,7 @@ type Measure = { value: number | null; numerator: number | null; denominator: nu
 interface State {
   goals: Goal[]; decisions: Decision[]; published: Published; bioField: boolean; idem: Map<string, unknown>; seq: number; clock: number;
   /** P45: insights da rodada do motor (emulada uma vez, na primeira leitura) e o número acompanhado de cada um. */
-  insights: Insight[] | null; rules: InsightList["rules"]; measures: Map<string, Measure>;
+  insights: Insight[] | null; rules: InsightRule[]; measures: Map<string, Measure>;
 }
 let shared: State | null = null;
 const state = (): State => (shared ??= { goals: [], decisions: [], published: null, bioField: true, idem: new Map(), seq: 0, clock: Date.parse(FIXED_NOW), insights: null, rules: [], measures: new Map() });
@@ -240,6 +241,11 @@ export function createDemoPort(): GrowthAdvicePort {
     },
     async digests(): Promise<Digests> {
       return clone({ digests: [weeklyDigest()] });
+    },
+    /** "Por quê?" sem rede: a mesma frase fixa por regra que o servidor usa quando não há provedor (LLM_PROVIDER=none). */
+    async explain(insightId): Promise<InsightExplanation> {
+      const i = engine().find((x) => x.id === insightId) ?? fail("NOT_FOUND");
+      return { insight_id: i.id, version: i.version, text: fixedExplanation(i.rule_code, i.evidence), source: "fixed" };
     },
     async followUp() {
       const s = state();

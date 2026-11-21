@@ -7,7 +7,8 @@ import { FIXED_NOW } from "@contracts/fixtures.ts";
 import type { z } from "zod";
 import { DEMO_SERVICES, DEMO_TZ, DEMO_WEEKLY_HOURS, demoCounts, demoVisits } from "../../lib/demo/dataset.ts";
 
-type RuleStatus = z.infer<typeof InsightListOutput>["rules"][number];
+/** `current`: o número de agora de uma regra insuficiente, para o "Por quê?" ("Hoje são 4"). Só a demonstração sabe. */
+type RuleStatus = z.infer<typeof InsightListOutput>["rules"][number] & { current?: number };
 type Fired = Omit<Insight, "id" | "state" | "first_seen_on" | "last_seen_on" | "quiet_until" | "acted_at" | "result" | "decision" | "version" | "rule_title" | "priority" | "valid_until"> & {
   measure: { value: number | null; numerator: number; denominator: number; status: "ok" | "insufficient"; direction: "up" | "down" };
 };
@@ -118,7 +119,7 @@ function lapsed(now: number): Fired | string {
   const byCustomer = new Map<string, number[]>();
   for (const x of done) byCustomer.set(x.customer_id!, [...(byCustomer.get(x.customer_id!) ?? []), Date.parse(x.starts_at)]);
   const returning = [...byCustomer.values()].filter((t) => t.length >= 2);
-  if (returning.length < 5) return "insufficient:few_returning_customers";
+  if (returning.length < 5) return `insufficient:few_returning_customers:${returning.length}`;
   const n = returning.filter((t) => now - Math.max(...t) > 60 * DAY).length;
   if (n === 0) return "quiet:all_returning";
   return {
@@ -155,8 +156,8 @@ export function runDemoEngine(now: number = Date.parse(FIXED_NOW)): EngineResult
   for (const r of RULES) {
     const c = computed[r.code]!;
     if (typeof c === "string") {
-      const [status, reason] = c.split(":") as ["quiet" | "insufficient", string];
-      rules.push({ code: r.code, title: r.title, flow: r.flow, status, reason });
+      const [status, reason, current] = c.split(":") as ["quiet" | "insufficient", string, string | undefined];
+      rules.push({ code: r.code, title: r.title, flow: r.flow, status, reason, ...(current === undefined ? {} : { current: Number(current) }) });
     } else {
       rules.push({ code: r.code, title: r.title, flow: r.flow, status: "fire", reason: null });
       fired.push(c);
