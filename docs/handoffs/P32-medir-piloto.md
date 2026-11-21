@@ -151,3 +151,44 @@ com a área definida no pedido. Sem `claim`, como nos pacotes P54 a P58.
 | `tests/integration/56_p32_funil.test.ts` | + painel da semana pela função `pilot` com o banco real; dono recebe 403 |
 | `src/features/pilot/pilot.test.tsx` | nunca abertas, duração, CSV (fórmula vira texto, aspas, sem contato), tela e aviso para quem não é da equipe |
 | `tests/e2e/analytics/painel-piloto.spec.ts` | desktop, Pixel 7 e 375 px: funil, recusas, fora do menu, download do CSV, troca de período |
+
+## Bloco 4 · Relatório ao profissional ("Sua semana" e "Seu mês")
+
+### Entregue
+
+- **Migration** `…_p32_relatorio.sql`: `public.report_period(negócio, 'week'|'month', data)`, só o dono. Período no fuso
+  do negócio: semana de segunda a domingo, mês do calendário; período em andamento termina em "agora" (`in_progress`,
+  `until`); período futuro é recusado. Cada número tem `value`, `denominator`, `status` (`ok`/`insufficient`) e `note`:
+  - atendimentos feitos, entre os que já começaram (feitos, faltas e confirmados sem desfecho);
+  - faltas, entre os com desfecho (feitos e faltas);
+  - recebido no período, sem os estornados (mesma regra do P18);
+  - a receber: o que está em aberto agora, de qualquer data, com o número de cobranças;
+  - quem voltou: clientes atendidos no período que já tinham vindo antes, entre os atendidos no período;
+  - quem não voltou: clientes do período anterior sem atendimento feito nem marcado neste, entre os do período anterior;
+  - horário mais cheio e mais vazio por dia da semana e hora cheia do expediente; só com pelo menos 5 atendimentos
+    (`hours_status` = `insufficient`) e sem expediente cadastrado (`no_hours`).
+- **Função `analytics`**: rota `report.get` (`report.ts`).
+- **Tela** `/app/resultado/relatorio`, com link na tela de Resultado: abas Sua semana / Seu mês, anterior e seguinte
+  (não passa de hoje), cada linha com o número e a base; sem base aparece **"dados insuficientes"**, nunca 0.
+- **Compartilhar**: como texto (`navigator.share`, ou copia para a área de transferência) e como imagem PNG desenhada
+  no navegador (compartilha o arquivo ou baixa). Só números, período e nome do negócio; nenhum nome de cliente.
+- Demonstração com a mesma regra (`computeReport`) sobre a base de exemplo.
+
+### Decisões
+
+- **"A receber" é o aberto agora**, não "do período": cobrança não tem data de vencimento confiável em todos os fluxos;
+  a nota diz isso.
+- **Mínimos**: 1 de base para as proporções; 5 atendimentos para o horário mais cheio/vazio (com menos, qualquer hora
+  "ganha" por acaso).
+- **Horário por hora cheia do expediente** (`availability_rules`), contando feitos, faltas e confirmados; empate vai para
+  o dia e a hora mais cedo.
+- **Sem envio pela Tinindo**: o compartilhar usa o do aparelho; nada sai do servidor.
+
+### Testes
+
+| Comando | Resultado |
+|---|---|
+| `supabase/tests/database/59_p32_relatorio.test.sql` | 17 verificações: só o dono, tipo fechado, futuro recusado, limites no fuso, feitos e faltas com base, estorno fora, a receber, voltou/não voltou, mais cheio/vazio, insuficiente ≠ 0 |
+| `tests/integration/57_p32_relatorio.test.ts` | semana e mês pelo contrato; 403 para outro dono, cliente e estranho; 400 para período inválido e futuro |
+| `src/features/analytics/reportPort.test.ts`, `ReportPage.test.tsx` | regra da demonstração igual à do banco; navegação; texto compartilhado sem contato; cópia sem `share`; erro vira aviso |
+| `tests/e2e/analytics/relatorio.spec.ts` | desktop, Pixel 7 e 375 px: link do Resultado, navegação, mês, insuficiente, texto e imagem PNG |
