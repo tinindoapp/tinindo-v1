@@ -1,4 +1,7 @@
 // Tela principal da agenda: Hoje/dia e semana, ocupação e horários livres.
+// P54 (parte 2): abertura no padrão do kit (título, fuso como linha de apoio, Dia/Semana e as setas como filtro) e o
+// dia numa linha curta ("Hoje · ter., 20/10") com a ocupação ao lado, para o terceiro atendimento caber na primeira
+// tela do celular.
 import { Icon } from "../../components/ui/icons.tsx";
 import { Button, IconButton, PageHeader, Segmented, SetupHint } from "../../components/ui/index.tsx";
 import { Link, useSearchParams } from "react-router";
@@ -15,7 +18,7 @@ import {
 } from "./agenda.ts";
 import { seriesLabel, seriesMark } from "./series.ts";
 import { addDays, dayWindow, formatDayLong, formatDayShort, formatWeekdayDay, isCivilDate, localParts, weekStart } from "./time.ts";
-import { ErrorPanel, ListStatusBadge, ScreenNotes, useSchedulingExtensions } from "./parts.tsx";
+import { ErrorPanel, ListStatusBadge, useSchedulingExtensions, zoneLine } from "./parts.tsx";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
 import { AttendanceActions } from "./attendance.tsx";
 import { pluralWord } from "../../lib/text/plural.ts";
@@ -41,39 +44,45 @@ export function AgendaPage() {
   const first = view === "semana" ? weekStart(date) : date;
 
   return (
-    <section aria-labelledby="agenda-title" className="tn-sched">
-      <PageHeader id="agenda-title" title="Agenda" />
-      <ScreenNotes timezone={tz} at={dayWindow(first, tz).starts_at} />
-
-      <div className="tn-sched-toolbar">
-        <Segmented
-          label="Visualização"
-          hideLabel
-          value={view}
-          options={[
-            { value: "dia", label: "Dia" },
-            { value: "semana", label: "Semana" },
-          ]}
-          onChange={(v) => go({ visao: v })}
-        />
-        <div className="tn-sched-datenav" role="group" aria-label="Navegar nas datas">
-          <IconButton icon="voltar" variant="secondary" label={view === "semana" ? "Semana anterior" : "Dia anterior"}
-            onClick={() => go({ data: addDays(date, -step) })} />
-          <Button variant="secondary" onClick={() => go({ data: today })} aria-current={date === today ? "date" : undefined}>
-            Hoje
-          </Button>
-          <IconButton icon="seta" variant="secondary" label={view === "semana" ? "Próxima semana" : "Próximo dia"}
-            onClick={() => go({ data: addDays(date, step) })} />
-        </div>
-        {/* No celular vira botão flutuante redondo (só o +) acima das abas; no desktop fica na barra com o texto. Mesmo elemento. */}
-        <Link className="tn-button tn-sched-new" data-variant="primary" to={`novo?data=${date}`}>
-          <Icon name="mais" size={20} />
-          <span className="tn-sched-new__label">Novo agendamento</span>
-        </Link>
-      </div>
+    <section aria-labelledby="agenda-title" className="tn-sched tn-sched--agenda">
+      <PageHeader
+        id="agenda-title"
+        title="Agenda"
+        subtitle={zoneLine(tz, dayWindow(first, tz).starts_at) ?? undefined}
+        actions={
+          // No celular vira botão flutuante redondo (só o +) acima das abas; no desktop fica ao lado do título.
+          <Link className="tn-button tn-sched-new" data-variant="primary" to={`novo?data=${date}`}>
+            <Icon name="mais" size={20} />
+            <span className="tn-sched-new__label">Novo agendamento</span>
+          </Link>
+        }
+        filter={
+          <>
+            <Segmented
+              label="Visualização"
+              hideLabel
+              value={view}
+              options={[
+                { value: "dia", label: "Dia" },
+                { value: "semana", label: "Semana" },
+              ]}
+              onChange={(v) => go({ visao: v })}
+            />
+            <div className="tn-sched-datenav" role="group" aria-label="Navegar nas datas">
+              <IconButton icon="voltar" variant="secondary" label={view === "semana" ? "Semana anterior" : "Dia anterior"}
+                onClick={() => go({ data: addDays(date, -step) })} />
+              <Button variant="secondary" size="compact" onClick={() => go({ data: today })} aria-current={date === today ? "date" : undefined}>
+                Hoje
+              </Button>
+              <IconButton icon="seta" variant="secondary" label={view === "semana" ? "Próxima semana" : "Próximo dia"}
+                onClick={() => go({ data: addDays(date, step) })} />
+            </div>
+          </>
+        }
+      />
 
       {view === "dia" ? (
-        <DayView date={date} isToday={date === today} demo={port.kind === "fixture"} />
+        <DayView date={date} isToday={date === today} />
       ) : (
         <WeekView first={first} today={today} onPick={(d) => go({ data: d, visao: "dia" })} />
       )}
@@ -95,7 +104,7 @@ function useRange(first: string, days: number) {
   );
 }
 
-function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo: boolean }) {
+function DayView({ date, isToday }: { date: string; isToday: boolean }) {
   const port = usePort();
   const { ctx, services, customers } = useBase();
   const ext = useSchedulingExtensions();
@@ -106,13 +115,14 @@ function DayView({ date, isToday, demo }: { date: string; isToday: boolean; demo
   const series = useAsync(`series:${seriesIds.join(",")}`, () =>
     Promise.all(seriesIds.map((id) => port.series(id).catch(() => [] as Booking[]))).then((lists) => lists.flat()));
   const tz = ctx.timezone;
-  const title = `${isToday ? "Hoje · " : ""}${formatDayLong(date)}`;
+  // Linha curta ("Hoje · ter., 20/10"); o dia por extenso fica para o leitor de tela.
+  const title = `${isToday ? "Hoje · " : ""}${formatDayShort(date)}`;
 
   return (
     <div className="tn-sched-day">
-      <h2 className="tn-sched-daytitle">
-        {title}
-        {isToday && demo ? <span className="tn-muted"> (data da demonstração)</span> : null}
+      <h2 className="tn-sched-daytitle tn-num">
+        <span aria-hidden="true">{title}</span>
+        <span className="tn-visually-hidden">{isToday ? "Hoje, " : ""}{formatDayLong(date)}</span>
       </h2>
       {range.error ? (
         <ErrorPanel error={range.error} operation="load" onRetry={range.reload} />
@@ -158,8 +168,9 @@ function OccupancyLine({ plans, bookings, label, more }: { plans: DayPlan[] | nu
         <p className="tn-sched-occline__figure tn-muted">Sem expediente neste período.</p>
       ) : (
         <>
+          {/* Só o percentual na linha; minutos confirmados e livres ficam em "Ver números" (cabe numa linha em 390 px). */}
           <p className="tn-sched-occline__figure tn-num">
-            <strong>{o.percent}% ocupado</strong> · {formatMinutes(o.confirmedMinutes)} de {formatMinutes(o.sellableMinutes)}
+            <strong>{o.percent}% ocupado</strong>
           </p>
           <meter className="tn-sched-meter" min={0} max={o.sellableMinutes} value={o.confirmedMinutes} aria-label={`Ocupação ${o.percent}%`} />
         </>

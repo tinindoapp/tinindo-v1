@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { toStep } from "../scheduling/flow.ts";
 
 const soft = (page: Page, href: string) =>
   page.evaluate((to) => {
@@ -62,9 +63,13 @@ test("link de oferta desconhecido não reserva nada", async ({ page }) => {
 
 test("cancelar → oferecer à lista de espera: a vaga chega pela URL, em destaque e com o foco em Preparar oferta", async ({ page }) => {
   await page.goto("/app/agenda/novo?data=2026-10-21");
+  await toStep(page, "Cliente");
   await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: "Cliente Exemplo Bruno" }).check();
+  await toStep(page, "Serviço");
   await page.getByRole("radio", { name: /Barba/ }).check();
+  await toStep(page, "Horário");
   await page.getByRole("button", { name: "11:00", exact: true }).click();
+  await toStep(page, "Revisão");
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
   await page.getByRole("button", { name: "Cancelar atendimento" }).click();

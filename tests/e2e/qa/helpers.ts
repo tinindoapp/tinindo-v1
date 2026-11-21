@@ -1,3 +1,4 @@
+import { toStep } from "../scheduling/flow.ts";
 import { expect, type Page } from "@playwright/test";
 
 // Utilitários dos roteiros UAT (docs/10_TESTES_E_ACEITE.md) sobre a demonstração offline.
@@ -68,10 +69,14 @@ export async function bookFromAgenda(
   opts: { service: RegExp; slot: string; customer: string; nextDays?: number },
 ) {
   await page.getByRole("link", { name: "Novo agendamento" }).click();
+  await toStep(page, "Serviço");
   await page.getByRole("radio", { name: opts.service }).check();
+  await toStep(page, "Horário");
   for (let i = 0; i < (opts.nextDays ?? 0); i++) await page.getByRole("button", { name: "Próximo dia" }).click();
   await page.getByRole("button", { name: opts.slot, exact: true }).click();
+  await toStep(page, "Cliente");
   await page.getByRole("group", { name: "Cliente" }).getByRole("radio", { name: opts.customer }).check();
+  await toStep(page, "Revisão");
   await page.getByRole("button", { name: "Confirmar agendamento" }).click();
   await expect(page.getByText("Agendamento confirmado.")).toBeVisible();
 }

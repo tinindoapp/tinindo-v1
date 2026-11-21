@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { toStep } from "../scheduling/flow.ts";
 import { bookFromAgenda, noHorizontalScroll, PENDING } from "./helpers.ts";
 
 // UAT · Cabeleireira (docs/10): serviço de 90min e buffer; não cabe em intervalo de 60min; muda duração
@@ -24,7 +25,9 @@ test.describe("UAT cabeleireira", () => {
   test("1b · serviço de 90 min não é oferecido num intervalo livre de 60 min", async ({ page }) => {
     test.fixme(true, `${PENDING.crmWrite} Depende de 1a para existir um serviço de 90 min.`);
     await page.goto("/app/agenda/novo?data=2026-10-20");
+    await toStep(page, "Serviço");
     await page.getByRole("radio", { name: /Coloração/ }).check();
+    await toStep(page, "Horário");
     await expect(page.getByRole("button", { name: "14:00", exact: true })).toHaveCount(0);
   });
 
@@ -33,11 +36,15 @@ test.describe("UAT cabeleireira", () => {
     await page.goto("/app/agenda/novo?data=2026-10-20");
     const slots = page.getByRole("group", { name: "Horários livres" });
 
+    await toStep(page, "Serviço");
     await page.getByRole("radio", { name: /Corte/ }).check(); // 30 min + 10 depois
+    await toStep(page, "Horário");
     await expect(slots.getByRole("button", { name: "14:15", exact: true })).toBeVisible(); // termina 14:55
     await expect(slots.getByRole("button", { name: "14:30", exact: true })).toHaveCount(0); // 15:10 invade
 
+    await toStep(page, "Serviço");
     await page.getByRole("radio", { name: /Barba/ }).check(); // 20 min + 5 depois
+    await toStep(page, "Horário");
     await expect(slots.getByRole("button", { name: "14:30", exact: true })).toBeVisible(); // termina 14:55
     await expect(slots.getByRole("button", { name: "14:45", exact: true })).toHaveCount(0); // 15:10 invade
 
@@ -85,7 +92,9 @@ test.describe("UAT cabeleireira", () => {
     await expect(page.getByText("R$ 51,00")).toBeVisible();
 
     await page.getByRole("link", { name: "Reagendar" }).click();
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "Próximo dia" }).click(); // quarta: sem a regra de terça
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "10:30", exact: true }).click();
     await expect(page.getByText("Preço combinado hoje: R$ 51,00. Ao confirmar, passa a valer R$ 60,00.")).toBeVisible();
 
@@ -100,6 +109,7 @@ test.describe("UAT cabeleireira", () => {
     await bookFromAgenda(page, { service: /Corte/, slot: "13:00", customer: "Cliente Exemplo Ana" });
     await expect(page.getByText("R$ 51,00")).toBeVisible();
     await page.getByRole("link", { name: "Reagendar" }).click();
+    await toStep(page, "Horário");
     await page.getByRole("button", { name: "14:00", exact: true }).click();
     await expect(page.getByText(/Preço combinado hoje/)).toHaveCount(0);
     await page.getByRole("button", { name: "Confirmar reagendamento" }).click();

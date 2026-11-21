@@ -1,13 +1,15 @@
 // Expediente semanal e bloqueios pessoais (P03 · schedule.*). Sem expediente não há horário livre.
 // Bloqueio é indisponibilidade, não cliente fictício; não pode cobrir atendimento já marcado.
+// P54 (parte 2; doc 11 §3.7): "Bloqueios" vem antes do expediente, com atalhos Manhã, Tarde e Dia inteiro (pelo
+// expediente do dia) e motivo opcional; o expediente semanal segue recolhido por dia, com "Editar".
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useBlocker } from "react-router";
 import type { ScheduleSettings } from "@contracts";
-import { Button, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, CappedList, Field, PageHeader, Section, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import { useIdempotencyKey } from "../../lib/idempotency.ts";
 import { formatRange } from "./agenda.ts";
 import { isErrorLike } from "./errors.ts";
-import { ErrorPanel, ScreenNotes } from "./parts.tsx";
+import { ErrorPanel, zoneLine } from "./parts.tsx";
 import { newIdempotencyKey } from "./port.ts";
 import { useAsync, useBase, usePort } from "./SchedulingLayout.tsx";
 import { dayWindow, formatDayLong, isCivilDate, localParts, toZonedIso, zonedInstant } from "./time.ts";
@@ -53,9 +55,11 @@ export function HoursPage() {
   const settings = useAsync("settings", () => port.settings());
 
   return (
-    <section aria-labelledby="hours-title" className="tn-sched">
-      <PageHeader id="hours-title" title="Horários de atendimento" />
-      <ScreenNotes timezone={ctx.timezone} at={port.now()} />
+    <section aria-labelledby="hours-title" className="tn-sched tn-sched--hours">
+      <PageHeader id="hours-title" title="Horários de atendimento" subtitle={zoneLine(ctx.timezone, port.now()) ?? undefined}
+        help={<p>O expediente diz em que faixas você atende; o intervalo entre duas faixas do mesmo dia vira pausa. Mudar o
+          expediente não mexe nos atendimentos já marcados. Bloqueio é um compromisso seu: o período some dos horários livres
+          e só você vê o motivo.</p>} />
       {settings.error ? (
         <ErrorPanel error={settings.error} operation="load" onRetry={settings.reload} />
       ) : !settings.data ? (
@@ -64,8 +68,8 @@ export function HoursPage() {
         </p>
       ) : (
         <>
+          <Blocks resourceId={settings.data.resource_id} settings={settings.data} />
           <WeeklyHours key={settings.data.resource_version} settings={settings.data} onSaved={settings.reload} />
-          <Blocks resourceId={settings.data.resource_id} />
         </>
       )}
     </section>
@@ -194,17 +198,13 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
   }
 
   return (
-    <form ref={formRef} aria-labelledby="weekly-title" className="tn-sched-hours" onSubmit={(e) => void save(e)} noValidate>
-      <h2 id="weekly-title">Expediente semanal</h2>
-      <p className="tn-muted">
-        Faixas em que você atende. O intervalo entre duas faixas do mesmo dia vira pausa. Mudar o expediente não mexe nos
-        atendimentos já marcados.
-      </p>
-      <div className="tn-actions">
-        <Button variant="secondary" onClick={copyMonday}>
-          Usar o horário de segunda nos dias úteis
-        </Button>
+    <form ref={formRef} aria-labelledby="weekly-title" className="tn-sched-hours tn-section" onSubmit={(e) => void save(e)} noValidate>
+      <div className="tn-section__head">
+        <h2 id="weekly-title">Expediente semanal</h2>
       </div>
+      <Button variant="ghost" onClick={copyMonday}>
+        Usar o horário de segunda nos dias úteis
+      </Button>
       <ul className="tn-sched-days">
         {WEEK.map(({ day, label }) => {
           const list = draft[day] ?? [];
@@ -285,7 +285,21 @@ function WeeklyHours({ settings, onSaved }: { settings: ScheduleSettings; onSave
   );
 }
 
-function Blocks({ resourceId }: { resourceId: string }) {
+/** Atalhos do bloqueio pelo expediente do dia escolhido: manhã até 12:00, tarde a partir de 12:00, o dia todo. */
+function periods(settings: ScheduleSettings, date: string): { id: "manha" | "tarde" | "dia"; label: string; from: string; to: string }[] {
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+  const rules = settings.rules.filter((r) => r.weekday === weekday).sort((a, b) => a.local_start.localeCompare(b.local_start));
+  const start = rules[0]?.local_start ?? "08:00";
+  const end = rules[rules.length - 1]?.local_end ?? "18:00";
+  const noon = "12:00";
+  return [
+    { id: "manha", label: "Manhã", from: start < noon ? start : "08:00", to: noon },
+    { id: "tarde", label: "Tarde", from: noon, to: end > noon ? end : "18:00" },
+    { id: "dia", label: "Dia inteiro", from: start, to: end > start ? end : "18:00" },
+  ];
+}
+
+function Blocks({ resourceId, settings }: { resourceId: string; settings: ScheduleSettings }) {
   const port = usePort();
   const { ctx } = useBase();
   const tz = ctx.timezone;
@@ -310,15 +324,13 @@ function Blocks({ resourceId }: { resourceId: string }) {
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setFailure(null);
-    const ok = show({
-      to: !to || !from || to <= from ? "O fim deve ser depois do início." : null,
-      label: !label.trim() ? "Diga o motivo do bloqueio (só você vê)." : null,
-    });
+    const ok = show({ to: !to || !from || to <= from ? "O fim deve ser depois do início." : null });
     if (!ok) return;
     const payload = {
       resource_id: resourceId,
       range: { starts_at: toZonedIso(zonedInstant(date, from, tz), tz), ends_at: toZonedIso(zonedInstant(date, to, tz), tz) },
-      label: label.trim(),
+      // Motivo opcional (doc 11 §3.7): sem motivo, o bloqueio leva o nome genérico (o contrato pede um rótulo).
+      label: label.trim() || "Compromisso",
     };
     setPending(true);
     try {
@@ -364,50 +376,57 @@ function Blocks({ resourceId }: { resourceId: string }) {
     }
   }
 
+  const shortcuts = periods(settings, date);
+  const list = [...blocks.values()];
   return (
-    <section aria-labelledby="blocks-title" className="tn-sched-hours">
-      <h2 id="blocks-title">Bloqueios</h2>
-      <p className="tn-muted">Compromissos pessoais, folgas e férias. Só você vê o motivo.</p>
+    <Section id="blocks-title" title="Bloqueios" count={plans.data ? list.length : undefined}>
       <form ref={formRef} onSubmit={(e) => void create(e)} className="tn-sched-hours__form" noValidate aria-label="Novo bloqueio">
         <div className="tn-sched-hours__row">
           <Field label="Dia" id="blk-date" type="date" min={today} value={date} onChange={(e) => isCivilDate(e.target.value) && setDate(e.target.value)} />
+        </div>
+        <div className="tn-sched-hours__periods" role="group" aria-label="Período">
+          {shortcuts.map((p) => (
+            <Button key={p.id} variant="secondary" size="compact" aria-pressed={from === p.from && to === p.to}
+              onClick={() => { setFrom(p.from); setTo(p.to); }}>
+              {p.label}
+            </Button>
+          ))}
+        </div>
+        <div className="tn-sched-hours__row">
           <Field label="Das" id="blk-from" type="time" step={900} value={from} onChange={(e) => setFrom(e.target.value)} />
           <Field label="Até" id="blk-to" type="time" step={900} value={to} error={errors.to} onChange={(e) => setTo(e.target.value)} />
-          <Field label="Motivo" id="blk-label" maxLength={80} value={label} error={errors.label} onChange={(e) => setLabel(e.target.value)} />
+          <Field label="Motivo" hint="Opcional. Só você vê." id="blk-label" maxLength={80} value={label} error={errors.label} onChange={(e) => setLabel(e.target.value)} />
           <Button type="submit" loading={pending}>
             Bloquear
           </Button>
         </div>
         {failure ? <StatusBanner tone="danger">{failure}</StatusBanner> : null}
       </form>
-      <h3>Próximos {BLOCKS_AHEAD_DAYS} dias</h3>
       {plans.error ? (
         <ErrorPanel error={plans.error} operation="load" onRetry={plans.reload} />
       ) : !plans.data ? (
         <p role="status" className="tn-sched-loading">
           Carregando bloqueios…
         </p>
-      ) : blocks.size === 0 ? (
-        <p className="tn-sched-empty">Nenhum bloqueio.</p>
+      ) : list.length === 0 ? (
+        <p className="tn-muted">Nenhum bloqueio nos próximos {BLOCKS_AHEAD_DAYS} dias. Para vários dias, crie um bloqueio por dia.</p>
       ) : (
-        <ul className="tn-item-list">
-          {[...blocks.values()].map((b) => (
-            <li key={b.id} className="tn-sched-hours__row">
+        <CappedList items={list} label="Bloqueios marcados" moreLabel={(n) => `Ver todos os bloqueios (${n})`}
+          render={(b) => (
+            <li key={b.id} className="tn-sched-hours__block">
               <span>
                 <strong>{b.label}</strong>{" "}
-                <span className="tn-num">
+                <span className="tn-num tn-muted">
                   {formatDayLong(localParts(b.range.starts_at, tz).date)}, {formatRange(b.range, tz)}
                 </span>
               </span>
-              <Button variant="ghost" loading={removing === b.id} disabled={removing !== null} onClick={() => void remove(b)}>
+              <Button variant="ghost" size="compact" loading={removing === b.id} disabled={removing !== null} onClick={() => void remove(b)}>
                 Remover<span className="tn-visually-hidden"> bloqueio {b.label}</span>
               </Button>
             </li>
-          ))}
-        </ul>
+          )} />
       )}
-      <p className="tn-muted">Para bloquear vários dias, crie um bloqueio por dia.</p>
-    </section>
+    </Section>
   );
 }
 

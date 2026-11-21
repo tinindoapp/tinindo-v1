@@ -1,0 +1,253 @@
+{
+  "agenda": {
+    "antes-claro": {
+      "height": 1690,
+      "screens": 2,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 2,
+      "blackNonAction": []
+    },
+    "antes-escuro": {
+      "height": 1690,
+      "screens": 2,
+      "minRatio": 7.62,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 16,
+      "blackNonAction": [
+        "div.tn-segmented__track DiaSemana",
+        "li.tn-sched-item 09:00–09:30CorteCliente Exempl",
+        "li.tn-sched-item 09:40–10:10CorteCliente Exempl",
+        "li.tn-sched-item 10:20–10:40BarbaCliente Exempl",
+        "li.tn-sched-item 10:45–11:15CorteSem cliente ca",
+        "li.tn-sched-item 11:25–11:55CorteCliente Exempl",
+        "li.tn-sched-item 15:00–15:30CorteCliente Exempl"
+      ]
+    },
+    "depois-claro": {
+      "height": 1543,
+      "screens": 1.83,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 2,
+      "blackNonAction": []
+    },
+    "depois-escuro": {
+      "height": 1543,
+      "screens": 1.83,
+      "minRatio": 7.62,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 16,
+      "blackNonAction": [
+        "div.tn-segmented__track DiaSemana",
+        "li.tn-sched-item 09:00–09:30CorteCliente Exempl",
+        "li.tn-sched-item 09:40–10:10CorteCliente Exempl",
+        "li.tn-sched-item 10:20–10:40BarbaCliente Exempl",
+        "li.tn-sched-item 10:45–11:15CorteSem cliente ca",
+        "li.tn-sched-item 11:25–11:55CorteCliente Exempl",
+        "li.tn-sched-item 15:00–15:30CorteCliente Exempl"
+      ]
+    }
+  },
+  "agenda-semana": {
+    "antes-claro": {
+      "height": 1019,
+      "screens": 1.21,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 2,
+      "blackNonAction": []
+    },
+    "antes-escuro": {
+      "height": 1019,
+      "screens": 1.21,
+      "minRatio": 9.04,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 16,
+      "blackNonAction": [
+        "div.tn-segmented__track DiaSemana"
+      ]
+    },
+    "depois-claro": {
+      "height": 897,
+      "screens": 1.06,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 2,
+      "blackNonAction": []
+    },
+    "depois-escuro": {
+      "height": 897,
+      "screens": 1.06,
+      "minRatio": 9.04,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 16,
+      "blackNonAction": [
+        "div.tn-segmented__track DiaSemana"
+      ]
+    }
+  },
+  "novo": {
+    "antes-claro": {
+      "height": 1635,
+      "screens": 1.94,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 2,
+      "blackNonAction": []
+    },
+    "antes-escuro": {
+      "height": 1635,
+      "screens": 1.94,
+      "minRatio": 7.62,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 34,
+      "blackNonAction": [
+        "input. ",
+        "label.tn-choice Cliente Exemplo Ana",
+        "label.tn-choice Cliente Exemplo Bruno",
+        "label.tn-choice Sem cadastroO atendimento fica",
+        "label.tn-choice Barba20 min · a partir de R$ 4",
+        "input. ",
+        "label.tn-choice Repetir toda semanaMesmo horár",
+        "div.tn-sched-confirmbar Confirmar agendamentoCorte · e"
+      ]
+    },
+    "depois-claro": {
+      "height": 930,
+      "screens": 1.1,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 2,
+      "blackNonAction": []
+    },
+    "depois-escuro": {
+      "height": 930,
+      "screens": 1.1,
+      "minRatio": 9.04,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 14,
+      "blackNonAction": [
+        "input. ",
+        "label.tn-choice Cliente Exemplo Ana",
+        "label.tn-choice Cliente Exemplo Bruno",
+        "label.tn-choice Sem cadastroO atendimento fica",
+        "div.tn-sched-confirmbar ContinuarCorte · escolha o hor"
+      ]
+    }
+  },
+  "atendimento": {
+    "antes-claro": {
+      "height": 1022,
+      "screens": 1.21,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 1,
+      "blackNonAction": []
+    },
+    "antes-escuro": {
+      "height": 1022,
+      "screens": 1.21,
+      "minRatio": 7.62,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 9,
+      "blackNonAction": [
+        "div.tn-sched-detail CorteConfirmadoQuandoterça-fei"
+      ]
+    },
+    "depois-claro": {
+      "height": 980,
+      "screens": 1.16,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 1,
+      "blackNonAction": []
+    },
+    "depois-escuro": {
+      "height": 980,
+      "screens": 1.16,
+      "minRatio": 7.62,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 9,
+      "blackNonAction": [
+        "div.tn-sched-detail CorteConfirmadoQuandoterça-fei"
+      ]
+    }
+  },
+  "horarios": {
+    "antes-claro": {
+      "height": 1717,
+      "screens": 2.03,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 2,
+      "blackNonAction": []
+    },
+    "antes-escuro": {
+      "height": 1717,
+      "screens": 2.03,
+      "minRatio": 9.04,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 18,
+      "blackNonAction": [
+        "fieldset.tn-sched-fieldset tn-sched-hours__day SegundaSegunda09:00–12:00 e 13",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day TerçaTerça09:00–12:00 e 13:00–",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day QuartaQuarta09:00–12:00 e 13:0",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day QuintaQuinta09:00–12:00 e 13:0",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day SextaSexta09:00–12:00 e 13:00–",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day SábadoSábado09:00–14:00Editar ",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day DomingoDomingoFechadoEditar Do",
+        "input. ",
+        "input. ",
+        "input. "
+      ]
+    },
+    "depois-claro": {
+      "height": 1456,
+      "screens": 1.73,
+      "minRatio": 6.12,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 2,
+      "blackNonAction": []
+    },
+    "depois-escuro": {
+      "height": 1456,
+      "screens": 1.73,
+      "minRatio": 9.04,
+      "contrastFailCount": 0,
+      "smallTargetCount": 0,
+      "blackFills": 20,
+      "blackNonAction": [
+        "input. ",
+        "input. ",
+        "input. ",
+        "input. ",
+        "ul.tn-list Compromisso pessoal quinta-fei",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day SegundaSegunda09:00–12:00 e 13",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day TerçaTerça09:00–12:00 e 13:00–",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day QuartaQuarta09:00–12:00 e 13:0",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day QuintaQuinta09:00–12:00 e 13:0",
+        "fieldset.tn-sched-fieldset tn-sched-hours__day SextaSexta09:00–12:00 e 13:00–"
+      ]
+    }
+  }
+}

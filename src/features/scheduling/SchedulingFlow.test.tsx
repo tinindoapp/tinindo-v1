@@ -255,12 +255,23 @@ describe("agenda (demonstração sobre fixtures)", () => {
 });
 
 describe("horários (demonstração)", () => {
-  it("bloqueio sem motivo: erro embaixo do campo e foco nele", async () => {
+  it("P54 (parte 2): motivo opcional e atalhos de período pelo expediente do dia; bloqueios antes do expediente", async () => {
     renderAt("/app/agenda/horarios");
     const form = await screen.findByRole("form", { name: "Novo bloqueio" }, SLOW);
+    const weekly = screen.getByRole("form", { name: "Expediente semanal" });
+    expect(form.compareDocumentPosition(weekly) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.change(within(form).getByLabelText("Dia"), { target: { value: "2026-10-23" } }); // sexta: 09:00–12:00 e 13:00–19:00
+    const periods = within(within(form).getByRole("group", { name: "Período" }));
+    fireEvent.click(periods.getByRole("button", { name: "Tarde" }));
+    expect(within(form).getByLabelText("Das")).toHaveValue("12:00");
+    expect(within(form).getByLabelText("Até")).toHaveValue("19:00");
+    fireEvent.click(periods.getByRole("button", { name: "Dia inteiro" }));
+    expect(within(form).getByLabelText("Das")).toHaveValue("09:00");
+    expect(periods.getByRole("button", { name: "Dia inteiro" })).toHaveAttribute("aria-pressed", "true");
+    // Sem motivo: grava com o nome genérico.
     fireEvent.click(within(form).getByRole("button", { name: "Bloquear" }));
-    expect(await within(form).findByText("Diga o motivo do bloqueio (só você vê).")).toBeInTheDocument();
-    expect(within(form).getByLabelText("Motivo")).toHaveFocus();
+    expect(await within(toaster()).findByText(/Bloqueio criado/)).toBeInTheDocument();
+    expect(await screen.findByText("Compromisso")).toBeInTheDocument();
   });
 
   it("bloquear, remover e bloquear de novo o mesmo período cria o bloqueio de novo", async () => {
@@ -304,7 +315,7 @@ describe("horários (demonstração)", () => {
     const blockRow = async () => (await screen.findByText("Compromisso pessoal", undefined, SLOW)).closest("li")!;
     fireEvent.click(within(await blockRow()).getByRole("button", { name: /^Remover/ }));
     expect(await within(toaster()).findByText(/Bloqueio "Compromisso pessoal" removido/)).toBeInTheDocument();
-    expect(await screen.findByText("Nenhum bloqueio.", undefined, SLOW)).toBeInTheDocument();
+    expect(await screen.findByText(/Nenhum bloqueio nos próximos 60 dias/, undefined, SLOW)).toBeInTheDocument();
 
     fireEvent.click(within(toaster()).getByRole("button", { name: "Desfazer" }));
     expect(await within(toaster()).findByText(/Bloqueio "Compromisso pessoal" refeito/)).toBeInTheDocument();
@@ -341,7 +352,8 @@ describe("onda 3 da auditoria de UX (itens 19, 28, 29, 30, 32 e 34)", () => {
     renderAt("/app/agenda");
     await screen.findByRole("list", { name: /Linha do tempo/ }, SLOW);
     expect(screen.getByText(/Horários de Brasília/)).toHaveTextContent("Horários de Brasília (UTC−03:00)");
-    expect(screen.getByText("Como funciona").closest("details")).not.toHaveAttribute("open");
+    // P54 (parte 2): o fuso é a linha de apoio da abertura, sem bloco "Como funciona" acima da lista.
+    expect(screen.getByText(/Horários de Brasília/).closest(".tn-page-header")).not.toBeNull();
     spy.mockRestore();
   });
 
@@ -511,5 +523,65 @@ describe("horários: resumo por dia, copiar a segunda e aviso ao sair (item 28)"
     await screen.findByRole("group", { name: "Segunda" }, SLOW);
     act(() => void router.navigate("/app/agenda"));
     await waitFor(() => expect(router.state.location.pathname).toBe("/app/agenda"));
+  });
+});
+
+describe("P54 (parte 2): novo agendamento no celular, um passo por vez", () => {
+  const compact = (on: boolean) => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string) => ({ matches: on, media: query, addEventListener: () => {}, removeEventListener: () => {} }),
+    });
+  };
+  afterEach(() => Reflect.deleteProperty(window, "matchMedia"));
+
+  it("cliente → serviço → horário → revisão, com Continuar e os passos no topo; a revisão só traz o essencial", async () => {
+    compact(true);
+    const router = renderAt("/app/agenda/novo?data=2026-10-20");
+    const steps = within(await screen.findByRole("list", { name: "Passos do agendamento" }, SLOW));
+    expect(steps.getByRole("button", { name: /Cliente/ })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByText("Passo 1 de 4 · Cliente")).toBeInTheDocument();
+    // Um passo por vez: o serviço e os horários ainda não aparecem.
+    expect(screen.queryByRole("radio", { name: /Barba/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Horários livres" })).not.toBeInTheDocument();
+    // Continuar sem cliente: explica e fica no passo.
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByText("Escolha o cliente, cadastre um novo ou marque Sem cadastro.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /Cliente Exemplo Ana/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByText("Passo 2 de 4 · Serviço")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /Barba/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByText("Passo 3 de 4 · Horário")).toBeInTheDocument();
+    // Sem horário escolhido: pede o horário.
+    const slot = await screen.findByRole("button", { name: "16:30" }, SLOW);
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByText("Escolha um horário.")).toBeInTheDocument();
+    fireEvent.click(slot);
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByRole("heading", { name: "Revise e confirme" })).toBeInTheDocument();
+    expect(screen.queryByText(/Ver o valor não segura o horário/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Política de cancelamento/)).not.toBeInTheDocument();
+    // Voltar a um passo pelo topo mantém o que foi escolhido.
+    fireEvent.click(steps.getByRole("button", { name: /Serviço/ }));
+    expect(screen.getByRole("radio", { name: /Barba/ })).toBeChecked();
+    fireEvent.click(steps.getByRole("button", { name: /Revisão/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar agendamento" }));
+    expect(await within(toaster()).findByText("Agendamento confirmado.")).toBeInTheDocument();
+    expect(router.state.location.pathname).toMatch(/^\/app\/agenda\/atendimento\//);
+  });
+
+  it("vindo de um horário livre com o cliente da ficha: abre direto na revisão", async () => {
+    compact(true);
+    renderAt(`/app/agenda/novo?data=2026-10-20&inicio=16:30&cliente=${ANA}`);
+    expect(await screen.findByRole("heading", { name: "Revise e confirme" }, SLOW)).toBeInTheDocument();
+    expect(screen.getByText("Passo 4 de 4 · Revisão")).toBeInTheDocument();
+  });
+
+  it("no largo, tudo numa tela (sem passos)", async () => {
+    compact(false);
+    renderAt("/app/agenda/novo?data=2026-10-20");
+    await screen.findByRole("group", { name: "Horários livres" }, SLOW);
+    expect(screen.queryByRole("list", { name: "Passos do agendamento" })).not.toBeInTheDocument();
   });
 });
