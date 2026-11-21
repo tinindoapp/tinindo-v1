@@ -32,4 +32,26 @@ describe("Edge Function analytics", () => {
     expect(res.status).toBe(403);
     expect(rpc).toHaveBeenCalledWith("jwt", "analytics_cost_to_serve", { p_from: period.starts_at, p_to: period.ends_at, p_hourly_cost_cents: 6000 });
   });
+
+  it("uso: o lote vai inteiro para a RPC, sem chave; mais de 50 eventos ou evento sem horário é recusado antes do banco", async () => {
+    const rpc = vi.fn(async () => ({ data: { recorded: 1, enabled: true }, error: null }));
+    const batch_id = "c3200000-0000-4000-8000-000000000001";
+    const events = [{ kind: "screen", name: "/app/agenda", outcome: null, code: null, at: "2026-11-21T12:00:00Z" }];
+    const res = await setup(rpc)(post("usage.record", { batch_id, events }, owner));
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("jwt", "usage_record", { p_tenant_id: FX.tenants.A, p_batch_id: batch_id, p_events: events });
+    const many = Array.from({ length: 51 }, () => events[0]);
+    expect((await setup(rpc)(post("usage.record", { batch_id, events: many }, owner))).status).toBe(400);
+    expect((await setup(rpc)(post("usage.record", { batch_id, events: [{ kind: "screen", name: "/app" }] }, owner))).status).toBe(400);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("uso: desligar é comando (exige chave) e devolve a configuração", async () => {
+    const rpc = vi.fn(async () => ({ data: { status_code: 200, body: { enabled: false, version: 1, retention_days: 30 } }, error: null }));
+    const noKey = await setup(rpc)(post("usage.settings_set", { enabled: false, expected_version: 0 }, owner));
+    expect(ErrorEnvelope.parse(await noKey.json()).error.field).toBe("idempotency_key");
+    const res = await setup(rpc)(post("usage.settings_set", { enabled: false, expected_version: 0 }, { ...owner, "Idempotency-Key": "chave-uso-desligar-0001" }));
+    expect(res.status).toBe(200);
+    expect((rpc.mock.calls[0] as unknown[])[2]).toMatchObject({ p_tenant_id: FX.tenants.A, p_enabled: false, p_expected_version: 0 });
+  });
 });
