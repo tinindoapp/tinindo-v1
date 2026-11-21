@@ -10,12 +10,21 @@ export interface PwaState {
   installPrompt: DeferredPrompt | null;
   /** O app já está aberto como instalado (tela cheia, pelo ícone). */
   standalone: boolean;
+  /** O navegador diz que está sem rede. */
+  offline: boolean;
+  /** Hora (ISO) dos dados guardados mais antigos que a tela mostrou sem internet; null = a tela está com dados da rede. */
+  offlineSavedAt: string | null;
+  /** A internet voltou depois de a tela mostrar dados guardados: falta atualizar. */
+  reconnected: boolean;
 }
 
 type Listener = () => void;
 
 export function createPwaStore(initial: Partial<PwaState> = {}) {
-  let state: PwaState = { updateReady: false, updating: false, installPrompt: null, standalone: false, ...initial };
+  let state: PwaState = {
+    updateReady: false, updating: false, installPrompt: null, standalone: false, offline: false, offlineSavedAt: null, reconnected: false,
+    ...initial,
+  };
   const listeners = new Set<Listener>();
   return {
     get: () => state,

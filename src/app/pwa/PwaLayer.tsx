@@ -1,4 +1,5 @@
 // Faixa do app instalável (P34), montada numa raiz própria ao lado do app (register.ts), sem tocar no AppShell:
+// - "Sem conexão · dados de HH:MM" quando a tela mostra dados guardados, e "Conexão de volta" ao voltar (item 2);
 // - "Nova versão disponível" com "Atualizar";
 // - convite para instalar no celular (depois de um dia de uso; "Agora não" vale 30 dias) e as instruções de "Adicionar à tela de início"
 //   para iPhone e Android. As instruções abrem também pelo endereço com #instalar (link no menu, por recado).
@@ -6,6 +7,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { Button } from "../../components/ui/index.tsx";
 import { now } from "../../lib/time.ts";
+import { savedAtLabel } from "./offline.ts";
 import { dismissInstall, installDismissed, installSteps, inviteDue, type Platform, platformOf } from "./install.ts";
 import type { PwaStore } from "./store.ts";
 import "./pwa.css";
@@ -78,8 +80,26 @@ export function PwaLayer({ store, onApply }: { store: PwaStore; onApply(): void 
     if (choice.outcome === "dismissed") setHelpOpen(true);
   }
 
+  const offlineBar = state.offline || state.reconnected;
   return (
     <>
+      {offlineBar ? (
+        <div className="tn-pwa-bar" data-tone={state.offline ? "warning" : "info"} role="status" aria-live="polite">
+          {state.offline ? (
+            <p>
+              <strong>Sem conexão{state.offlineSavedAt ? ` · dados de ${savedAtLabel(state.offlineSavedAt)}` : ""}.</strong>{" "}
+              Nada é salvo até a internet voltar.
+            </p>
+          ) : (
+            <>
+              <p><strong>Conexão de volta.</strong> Atualizando os dados da tela…</p>
+              <div className="tn-pwa-bar__actions">
+                <Button size="compact" onClick={() => window.location.reload()}>Atualizar</Button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
       {state.updateReady && !updateHidden ? (
         <div className="tn-pwa-bar" role="status" aria-live="polite">
           <p><strong>Nova versão disponível.</strong> {state.updating ? "Atualizando…" : "Atualize quando terminar o que está fazendo."}</p>
@@ -89,7 +109,7 @@ export function PwaLayer({ store, onApply }: { store: PwaStore; onApply(): void 
           </div>
         </div>
       ) : null}
-      {offerInstall && !state.updateReady ? (
+      {offerInstall && !state.updateReady && !offlineBar ? (
         <aside className="tn-pwa-bar" aria-label="Instalar o app">
           <p><strong>Use a Tinindo como app.</strong> Abre pelo ícone, em tela cheia, sem procurar o endereço.</p>
           <div className="tn-pwa-bar__actions">
