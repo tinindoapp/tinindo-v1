@@ -1,0 +1,9 @@
+/* P32 · Painel do piloto (equipe Tinindo). */
+.tn-pilot__period { display: flex; flex-wrap: wrap; gap: var(--tn-space-2); }
+.tn-pilot__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-4); }
+.tn-pilot__card { border: 1px solid var(--tn-border); border-radius: var(--tn-radius-lg, 12px); padding: var(--tn-space-4); background: var(--tn-surface); min-width: 0; }
+.tn-pilot__card h2 { margin: 0; font-size: var(--tn-text-section); }
+.tn-pilot__card code { overflow-wrap: anywhere; }
+.tn-pilot__funnel { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-1); }
+.tn-pilot__funnel li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--tn-space-2); }
+.tn-pilot__funnel li:not([data-done]) { color: var(--tn-text-muted); }

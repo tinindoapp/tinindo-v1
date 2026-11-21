@@ -8,6 +8,9 @@ import { screen } from "../../app/lazy-route.ts";
 import "./analytics.css";
 
 const routes = () => import("./routes.tsx");
+// P32: o painel do piloto (src/features/pilot) entra por aqui, sob demanda, até o integrador registrar o módulo próprio
+// (recado). Só a equipe Tinindo passa do OperatorGate.
+const pilotRoutes = () => import("../pilot/routes.tsx");
 
 export const analyticsModule: ModuleDefinition = {
   id: "analytics",
@@ -19,5 +22,6 @@ export const analyticsModule: ModuleDefinition = {
   routes: [
     { index: true, lazy: screen(routes, (m) => m.ResultLayout) },
     { path: "custo", lazy: screen(routes, (m) => m.CostLayout) },
+    { path: "piloto", lazy: screen(pilotRoutes, (m) => m.PilotLayout) },
   ],
 };
