@@ -65,3 +65,17 @@ O WebKit não baixava (403 em `cdn.playwright.dev`). Criei o ambiente pessoal `t
 PLAYWRIGHT_BROWSERS_PATH=<pasta> npx playwright install webkit
 PLAYWRIGHT_BROWSERS_PATH=<pasta> npx playwright test --project=iphone
 ```
+
+## Bloco 2 · Desempenho (PR 2/6)
+
+Medidas, tetos e caminhos em `docs/qa/revisao-qualidade/02-desempenho.md`.
+
+- **Medida:** celular médio (Pixel 7) com rede "Slow 4G" do Lighthouse e CPU 4× mais lenta. A Hoje ficou visível em 3,2 s (antes 3,3 s) e interativa em 3,4 s (antes 3,5 s). O JS baixado caiu de 338 para 327 KB, o CSS de 130 para 123 KB.
+- **Teste com tetos:** `tests/e2e/desempenho/desempenho.spec.ts`, no projeto desktop do Chromium. Confere o tamanho do build (maior pedaço, total de JS e de CSS) e o que a Hoje baixa e quanto demora. Reprova ao passar do teto.
+- **Três custos atacados**, todos passando a carregar sob demanda:
+  - as rotas públicas do Perfil (`network/public-routes.tsx`);
+  - a sugestão do dia na Hoje;
+  - as ações do atendimento começado.
+
+  O teste de unidade da Hoje (`AttendanceCollect.test.tsx`) espera as ações chegarem.
+- **Fora da área:** o grosso do peso é base: react-dom, react-router, zod e o cliente Supabase inteiro (210 KB, carregado até na demonstração sem servidor). Vai como recado, com o passo a passo no documento.

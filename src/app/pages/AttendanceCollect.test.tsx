@@ -169,7 +169,8 @@ describe("Atendido no cartão da Agenda e no \"Próximo\" da Hoje (P48)", () => 
     renderAt("/app");
     const next = await screen.findByRole("region", { name: /^Próximo:/ }, SLOW);
     expect(next).toHaveAccessibleName("Próximo: 09:00 · Cliente Exemplo Ana · agora");
-    expect(within(next).getByRole("button", { name: "Faltou às 09:00" })).toBeInTheDocument();
+    // As ações do atendimento começado chegam num pedaço próprio (bloco 2 da revisão de qualidade): espera por elas.
+    expect(await within(next).findByRole("button", { name: "Faltou às 09:00" }, SLOW)).toBeInTheDocument();
     // Com as ações do atendimento à vista, "Abrir" deixa de ser o botão principal.
     expect(within(next).getByRole("link", { name: /^Abrir/ })).toHaveAttribute("data-variant", "secondary");
     fireEvent.click(within(next).getByRole("button", { name: "Atendido às 09:00" }));

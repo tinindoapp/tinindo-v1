@@ -7,7 +7,7 @@
 //   5. configuração: uma linha fina quando há atendimento no dia, o cartão inteiro quando não há;
 //   6. uma sugestão do motor diário (P45), com "Ver todas", quando o dono ligou "Metas e sugestões" (P51).
 // "Novo agendamento" é o botão "+" (flutuante no celular, como na Agenda); a grade "Ações rápidas" saiu.
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { Booking } from "@contracts";
 import { type BadgeTone, List, ListItem, PageHeader, Section, StatusBadge, StatusBanner, Summary, SummaryRows } from "../../components/ui/index.tsx";
@@ -19,9 +19,7 @@ import { createServerPort as createFinanceServerPort } from "../../features/fina
 import { createDemoPort as createAdviceDemoPort } from "../../features/growth-advice/demoPort.ts";
 import type { GrowthAdvicePort } from "../../features/growth-advice/port.ts";
 import { createServerPort as createAdviceServerPort } from "../../features/growth-advice/serverPort.ts";
-import { InsightsCard } from "../../features/growth-advice/Insights.tsx";
 import { getDemoPort as getSchedulingDemoPort, SchedulingPortProvider } from "../../features/scheduling/SchedulingLayout.tsx";
-import { AttendanceActions } from "../../features/scheduling/attendance.tsx";
 import type { SchedulingPort } from "../../features/scheduling/port.ts";
 import { createServerPort as createSchedulingServerPort } from "../../features/scheduling/serverPort.ts";
 import { SetupCard, useSetupPort } from "../../features/setup/module.tsx";
@@ -31,6 +29,12 @@ import { useApi } from "../api.tsx";
 import { useScope } from "../scope.tsx";
 import { plural } from "../../lib/text/plural.ts";
 import { receivedPeriods } from "../../lib/time.ts";
+
+// Revisão de qualidade (bloco 2, desempenho): a sugestão do dia (Metas, módulo por ativação) e as ações de um
+// atendimento já começado não entram no carregamento da Hoje. Chegam num pedaço próprio quando aparecem; até lá, o
+// lugar fica vazio, sem cartão de "carregando". Antes eram 82 KB de JS (sem compactar) e 15 KB de CSS a mais.
+const InsightsCard = lazy(() => import("../../features/growth-advice/Insights.tsx").then((m) => ({ default: m.InsightsCard })));
+const AttendanceActions = lazy(() => import("../../features/scheduling/attendance.tsx").then((m) => ({ default: m.AttendanceActions })));
 
 interface Ports {
   scheduling: SchedulingPort;
@@ -250,7 +254,7 @@ export function Home() {
           {/* 5. Configuração: uma linha quando há atendimento no dia; o cartão inteiro quando o dia está vazio. */}
           {setupPort ? <SetupCard port={setupPort} compact={day.length > 0} /> : null}
           {/* 6. Uma sugestão do motor diário (P45), com "Ver todas". Só com "Metas e sugestões" ligado (P51). */}
-          {scope.isVisible("growth-advice") ? <InsightsCard port={ports.advice} limit={1} /> : null}
+          {scope.isVisible("growth-advice") ? <Suspense fallback={null}><InsightsCard port={ports.advice} limit={1} /></Suspense> : null}
         </>
       ) : null}
 
@@ -297,7 +301,7 @@ function NextCard({ item, timezone, now, onChanged }: { item: DayItem; timezone:
         {item.agreed_price_cents !== null ? <> · <span className="tn-num">{formatSchedulingCents(item.agreed_price_cents)}</span></> : null}
         {" "}<DayStatus status={item.status} />
       </p>
-      {started ? <AttendanceActions booking={item} when={`às ${formatTime(item.starts_at, timezone)}`} onChanged={onChanged} /> : null}
+      {started ? <Suspense fallback={null}><AttendanceActions booking={item} when={`às ${formatTime(item.starts_at, timezone)}`} onChanged={onChanged} /></Suspense> : null}
       <div className="tn-actions">
         {/* Um botão principal por tela: com as ações do atendimento à vista, "Abrir" passa a secundário. */}
         <Link className="tn-button" data-variant={started ? "secondary" : "primary"} to={`/app/agenda/atendimento/${item.id}`}>
