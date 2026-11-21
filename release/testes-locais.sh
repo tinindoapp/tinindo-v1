@@ -47,7 +47,9 @@ espera 0 "Modo --conferir: nada foi alterado" "reverter --conferir não muda nad
 espera 0 "Revertido em local" "reverter para o commit anterior da main" -- bash release/reverter.sh local "$ANTERIOR"
 [[ "$(sql "select kind || ' ' || sha from public.ops_releases order by id desc limit 1")" == "revert $ANTERIOR" ]] && ok "reversão anotada em ops_releases" || nok "reversão não anotada"
 espera 1 "não existe neste repositório" "reverter recusa commit que não existe" -- bash release/reverter.sh local 0123456789abcdef0123456789abcdef01234567
-FORA=$(git commit-tree "$(git rev-parse HEAD^{tree})" -m "fora da main" </dev/null)
+# Commit solto, fora da main (no CI não há identidade de autor configurada: uma fictícia só para este objeto).
+FORA=$(GIT_AUTHOR_NAME=teste GIT_AUTHOR_EMAIL=teste@exemplo.test GIT_COMMITTER_NAME=teste GIT_COMMITTER_EMAIL=teste@exemplo.test \
+  git commit-tree "$(git rev-parse HEAD^{tree})" -m "fora da main" </dev/null)
 espera 1 "não está na história da main" "reverter recusa commit fora da main" -- bash release/reverter.sh local "$FORA"
 espera 1 "informe o commit" "reverter sem commit pede o commit" -- bash release/reverter.sh local
 # Volta a versão anotada para o commit atual (o resto dos testes e o smoke do CI esperam o HEAD).
