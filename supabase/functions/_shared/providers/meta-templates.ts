@@ -1,5 +1,5 @@
 // Modelos do app para cadastrar e aprovar na Meta (Gerenciador do WhatsApp). Mesma tabela de channel_templates
-// (migration 2026112200000X_whatsapp_meta.sql); o teste de integração confere linha a linha.
+// (migration 20261121114407_whatsapp_meta.sql); o teste de integração confere linha a linha.
 //
 // Regra: nos modelos ao cliente, {{1}} = nome do negócio e as demais variáveis seguem a ordem dos parâmetros do app.
 // Exceção: códigos (verificação do número e código da reserva) são da categoria AUTHENTICATION da Meta, que tem texto
