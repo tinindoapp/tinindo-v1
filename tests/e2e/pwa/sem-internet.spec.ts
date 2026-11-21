@@ -1,11 +1,10 @@
 // P34 · sem internet, no navegador de verdade: a tela abre com o último dado e o aviso "Sem conexão · dados de HH:MM";
 // o cache nunca serve resposta de outro negócio; comando sem rede falha na hora e nada é reenviado depois.
-// A API é falsa (context.route, que também intercepta o que o service worker busca); a demonstração não chama servidor.
+// A "Edge Function" é um servidor HTTP local de verdade (outra origem, com CORS), que o service worker alcança como
+// alcançaria o Supabase. "Sem rede" = o servidor para de responder. A demonstração não chama servidor.
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { expect, type Page, test } from "@playwright/test";
-
-// Sem isto, o Playwright não vê o que o service worker busca, e o `context.route` não alcança a API falsa. Precisa
-// valer antes de o navegador abrir; só liga eventos de rede do service worker, nada muda no app.
-process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = "1";
 
 const T_A = "10000000-0000-4000-8000-00000000000a";
 const T_B = "10000000-0000-4000-8000-00000000000b";
@@ -20,17 +19,40 @@ async function controlled(page: Page) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 }
 
+/** API falsa: responde 200 com o negócio do cabeçalho; `down` faz cair a conexão (como sem internet). */
+async function fakeApi() {
+  const state = { down: false, seen: [] as string[] };
+  const server: Server = createServer((req, res) => {
+    if (state.down) {
+      req.socket.destroy();
+      return;
+    }
+    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*", "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Expose-Headers": "*" };
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, cors).end();
+      return;
+    }
+    const tenant = String(req.headers["x-tinindo-tenant"] ?? "");
+    state.seen.push(`${req.url} ${tenant}`);
+    req.resume();
+    req.on("end", () => res.writeHead(200, { ...cors, "Content-Type": "application/json" }).end(JSON.stringify({ data: { tenant, bookings: 3 } })));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return { state, base, close: () => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }) };
+}
+
 /** Chama a "Edge Function" a partir da página, como o cliente da API faz. */
-function call(page: Page, op: string, tenant: string, body: unknown = {}) {
-  return page.evaluate(async ({ op, tenant, body, jwt }) => {
-    const r = await fetch(`/functions/v1/${op}`, {
+function call(page: Page, base: string, op: string, tenant: string, body: unknown = {}) {
+  return page.evaluate(async ({ base, op, tenant, body, jwt }) => {
+    const r = await fetch(`${base}/functions/v1/${op}`, {
       method: "POST",
       headers: { Authorization: jwt, "X-Tinindo-Tenant": tenant, "X-Request-Id": "aaaaaaaa-0000-4000-8000-000000000001", "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => null);
     if (!r) return { status: 0, offlineAt: null, json: null };
     return { status: r.status, offlineAt: r.headers.get("X-Tinindo-Offline-At"), json: await r.json().catch(() => null) };
-  }, { op, tenant, body, jwt: JWT });
+  }, { base, op, tenant, body, jwt: JWT });
 }
 
 test("demonstração sem internet: a tela abre e avisa 'Sem conexão. Nada é salvo'; ao voltar, o aviso sai", async ({ page, context }) => {
@@ -45,41 +67,38 @@ test("demonstração sem internet: a tela abre e avisa 'Sem conexão. Nada é sa
 });
 
 test("leitura guardada abre sem rede; outro negócio não recebe; comando falha na hora e nunca é reenviado", async ({ page, context }) => {
-  let down = false;
-  const seen: string[] = [];
-  await context.route("**/functions/v1/**", async (route) => {
-    if (down) return route.abort("internetdisconnected");
-    const req = route.request();
-    seen.push(`${new URL(req.url()).pathname} ${req.headers()["x-tinindo-tenant"]}`);
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ data: { tenant: req.headers()["x-tinindo-tenant"], bookings: 3 } }) });
-  });
-  await controlled(page);
+  const api = await fakeApi();
+  try {
+    await controlled(page);
+    const online = await call(page, api.base, "scheduling/booking.list", T_A, { window: "hoje" });
+    expect(online).toMatchObject({ status: 200, offlineAt: null, json: { data: { tenant: T_A } } });
 
-  const online = await call(page, "scheduling/booking.list", T_A, { window: "hoje" });
-  expect(online).toMatchObject({ status: 200, offlineAt: null, json: { data: { tenant: T_A } } });
+    api.state.down = true;
+    await context.setOffline(true);
+    const saved = await call(page, api.base, "scheduling/booking.list", T_A, { window: "hoje" });
+    expect(saved.status).toBe(200);
+    expect(saved.json).toMatchObject({ data: { tenant: T_A, bookings: 3 } });
+    expect(saved.offlineAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    await expect(page.getByRole("status").filter({ hasText: /Sem conexão · dados de \d{2}:\d{2}/ })).toBeVisible();
 
-  down = true;
-  await context.setOffline(true);
-  const saved = await call(page, "scheduling/booking.list", T_A, { window: "hoje" });
-  expect(saved.status).toBe(200);
-  expect(saved.json).toMatchObject({ data: { tenant: T_A, bookings: 3 } });
-  expect(saved.offlineAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-  await expect(page.getByRole("status").filter({ hasText: /Sem conexão · dados de \d{2}:\d{2}/ })).toBeVisible();
+    // O cache nunca serve a resposta de A para o negócio B.
+    const other = await call(page, api.base, "scheduling/booking.list", T_B, { window: "hoje" });
+    expect(other.status).toBe(503);
+    expect(other.json).toMatchObject({ error: { code: "PROVIDER_UNAVAILABLE" } });
 
-  // O cache nunca serve a resposta de A para o negócio B.
-  const other = await call(page, "scheduling/booking.list", T_B, { window: "hoje" });
-  expect(other.status).toBe(503);
-  expect(other.json).toMatchObject({ error: { code: "PROVIDER_UNAVAILABLE" } });
+    // Comando sem rede: erro na hora, com a mensagem de que nada foi salvo.
+    const cmd = await call(page, api.base, "scheduling/booking.create", T_A, { service_id: "x" });
+    expect(cmd.status).toBe(503);
+    expect(cmd.json.error.message).toContain("nada foi salvo");
 
-  // Comando sem rede: erro na hora, com a mensagem de que nada foi salvo.
-  const cmd = await call(page, "scheduling/booking.create", T_A, { service_id: "x" });
-  expect(cmd.status).toBe(503);
-  expect(cmd.json.error.message).toContain("nada foi salvo");
-
-  // Volta a rede: nada do que falhou é reenviado sozinho (nenhuma fila escondida).
-  const before = seen.length;
-  down = false;
-  await context.setOffline(false);
-  await page.waitForTimeout(2000);
-  expect(seen.slice(before).filter((s) => s.includes("booking.create"))).toEqual([]);
+    // Volta a rede: nada do que falhou é reenviado sozinho (nenhuma fila escondida).
+    const before = api.state.seen.length;
+    api.state.down = false;
+    await context.setOffline(false);
+    await page.waitForTimeout(2000);
+    expect(api.state.seen.slice(before).filter((s) => s.includes("booking.create"))).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+    await api.close();
+  }
 });
