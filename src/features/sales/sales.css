@@ -40,3 +40,12 @@
 .tn-qt-slot span { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
 .tn-qt-facts { width: 100%; padding-block: var(--tn-space-3); border-block: 1px solid var(--tn-border); }
 .tn-qt-pub .tn-pub-cta .tn-confirm { text-align: left; }
+/* Lista de orçamentos (P54): linha do kit com selo de estado, uma ação visível e o resto no "⋯"; no celular a ação desce
+   para baixo do texto em vez de espremê-lo. A confirmação abre embaixo da linha. */
+.tn-qt-entry .tn-list__row--split { flex-wrap: wrap; row-gap: var(--tn-space-1); }
+.tn-qt-entry .tn-list__row--split > .tn-list__main { flex: 1 1 13rem; }
+.tn-qt-entry .tn-list__actions { margin-left: auto; }
+.tn-qt-entry .tn-list__meta { display: grid; gap: 2px; }
+.tn-qt-entry__badge { display: flex; margin: 2px 0; }
+.tn-qt-entry__below { padding: 0 var(--tn-space-4) var(--tn-space-3); min-width: 0; }
+.tn-qt-entry__below .tn-confirm { margin: 0; }

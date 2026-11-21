@@ -3,7 +3,13 @@ import { expect, test } from "@playwright/test";
 test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova, mudar o plano não muda a assinante, cancelar preserva o saldo", async ({ page }) => {
   await page.goto("/app/assinaturas");
   await expect(page.getByRole("heading", { name: "Assinaturas", level: 1 })).toBeVisible();
+  // D11 b: sem aviso de demonstração por tela; o que a demonstração simula fica em "Como funciona".
+  await page.getByText("Como funciona").click();
   await expect(page.getByText("nada é cobrado")).toBeVisible();
+  // P54: "Planos" é secundária e nasce recolhida, com a contagem no título.
+  const plansSection = page.locator("summary", { hasText: "Planos" });
+  await expect(plansSection).toContainText("Planos · 1");
+  await plansSection.click();
   const plans = page.getByRole("list", { name: "Planos cadastrados" });
   await expect(plans).toContainText("Corte mensal");
   await expect(plans).toContainText("4 × Corte por mês · R$ 200,00 · 0 assinantes");
@@ -56,25 +62,31 @@ test("assinaturas: plano, adesão declarada com termos congelados, ciclo renova,
   await expect(page.getByText("Renovação (simulação): 0 ciclos abertos")).toBeVisible();
 
   // Cancelar no fim do ciclo volta atrás: o aviso oferece Desfazer. Depois, "Manter assinatura" também desfaz.
+  await subs.getByRole("button", { name: /^Mais ações para Ana Beatriz/ }).click();
+  await subs.getByRole("menuitem", { name: "Cancelar no fim do ciclo…" }).click();
   await subs.getByRole("button", { name: "Cancelar no fim do ciclo" }).click();
   await expect(page.getByText("não renova. Saldo e termos preservados.")).toBeVisible();
   await expect(subs).toContainText("Ativa, não renova no fim do ciclo");
   await page.getByRole("status").getByRole("button", { name: "Desfazer" }).click();
   await expect(page.getByText("volta a renovar")).toBeVisible();
   await expect(subs).not.toContainText("não renova no fim do ciclo");
+  await subs.getByRole("button", { name: /^Mais ações para Ana Beatriz/ }).click();
+  await subs.getByRole("menuitem", { name: "Cancelar no fim do ciclo…" }).click();
   await subs.getByRole("button", { name: "Cancelar no fim do ciclo" }).click();
   await expect(subs).toContainText("Ativa, não renova no fim do ciclo");
   await subs.getByRole("button", { name: "Manter assinatura" }).click();
   await expect(page.getByText("Cancelamento desfeito: a assinatura volta a renovar.")).toBeVisible();
   // Cancelar agora pede confirmação e diz a consequência; "Voltar" não muda nada.
-  await subs.getByRole("button", { name: "Cancelar agora" }).click();
+  await subs.getByRole("button", { name: /^Mais ações para Ana Beatriz/ }).click();
+  await subs.getByRole("menuitem", { name: "Cancelar agora…" }).click();
   const confirm = subs.getByRole("group", { name: /Encerrar a assinatura de Ana Beatriz/ });
   await expect(confirm).toContainText("deixa de assinar hoje");
   await expect(confirm).toContainText("continua no Caixa");
   await confirm.getByRole("button", { name: "Voltar" }).click();
   await expect(subs).toContainText("Ativa");
   await expect(subs).not.toContainText("Cancelada");
-  await subs.getByRole("button", { name: "Cancelar agora" }).click();
+  await subs.getByRole("button", { name: /^Mais ações para Ana Beatriz/ }).click();
+  await subs.getByRole("menuitem", { name: "Cancelar agora…" }).click();
   await subs.getByRole("button", { name: "Sim, encerrar agora" }).click();
   await expect(page.getByText("As sessões do ciclo atual continuam válidas")).toBeVisible();
   await expect(subs).toContainText("Cancelada");

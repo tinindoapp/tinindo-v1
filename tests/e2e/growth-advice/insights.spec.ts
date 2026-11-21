@@ -71,6 +71,8 @@ test("Home: uma sugestão com evidência e Ver todas; Ver leva à tela do fluxo 
 
 test("resumo semanal por modelo fixo só na caixa de Mensagens (D12 b); o link leva às sugestões em Metas", async ({ page }) => {
   await page.goto("/app/mensagens");
+  // P54: em Mensagens o resumo é uma seção compacta, recolhida em uma linha.
+  await page.locator("summary", { hasText: "Resumo da semana" }).click();
   const digest = page.getByRole("region", { name: "Resumo da semana · da Tinindo" });
   await expect(digest).toContainText("Resumo da semana de 12/10 a 18/10.");
   await expect(digest).toContainText("Texto automático por modelo fixo, com os números registrados no app.");

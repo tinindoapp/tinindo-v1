@@ -1,0 +1,273 @@
+{
+  "descricao": "P54 parte 2, grupo Lista de espera · Mensagens · Orçamentos · Assinaturas. 390x844, demonstração com todos os módulos, medir.cjs.",
+  "nota_conversa": "A demonstração não tem conversa até conectar o número; o medidor não acha link e mede a caixa de Mensagens de novo (antes e depois). Ver recados-grupo-mensagens.md.",
+  "telas": {
+    "espera": {
+      "antes": {
+        "claro": {
+          "url": "/app/lista-de-espera",
+          "height": 1749,
+          "screens": 2.07,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 3,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/lista-de-espera",
+          "height": 1749,
+          "screens": 2.07,
+          "minRatio": 9.04,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 19,
+          "blackNonAction": [
+            "li.tn-wl-item quarta-feira, 21/10, 10:00–10:",
+            "li.tn-wl-item Cliente Exemplo Ana · CorteQua",
+            "select. Escolha…Cliente Exemplo AnaCli",
+            "select. CorteBarba",
+            "label.tn-chip Seg",
+            "label.tn-chip Ter",
+            "label.tn-chip Qua",
+            "label.tn-chip Qui",
+            "label.tn-chip Sex",
+            "label.tn-chip Sáb"
+          ]
+        }
+      },
+      "depois": {
+        "claro": {
+          "url": "/app/lista-de-espera",
+          "height": 907,
+          "screens": 1.07,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/lista-de-espera",
+          "height": 907,
+          "screens": 1.07,
+          "minRatio": 9.04,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 8,
+          "blackNonAction": [
+            "ul.tn-list quarta-feira, 21/10, 10:00–10:",
+            "ul.tn-list Cliente Exemplo Ana · CorteQua"
+          ]
+        }
+      }
+    },
+    "mensagens": {
+      "antes": {
+        "claro": {
+          "url": "/app/mensagens",
+          "height": 1519,
+          "screens": 1.8,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/mensagens",
+          "height": 1519,
+          "screens": 1.8,
+          "minRatio": 9.04,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 6,
+          "blackNonAction": [
+            "section.tn-card Resumo da semana · da TinindoR",
+            "section.tn-card Conecte o número do seu negóci",
+            "select. Simulado (sem envio real)Whats",
+            "input. "
+          ]
+        }
+      },
+      "depois": {
+        "claro": {
+          "url": "/app/mensagens",
+          "height": 1082,
+          "screens": 1.28,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/mensagens",
+          "height": 1082,
+          "screens": 1.28,
+          "minRatio": 9.35,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 4,
+          "blackNonAction": [
+            "select. Simulado (sem envio real)Whats",
+            "input. "
+          ]
+        }
+      }
+    },
+    "conversa": {
+      "antes": {
+        "claro": {
+          "url": "/app/mensagens",
+          "height": 1519,
+          "screens": 1.8,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/mensagens",
+          "height": 1519,
+          "screens": 1.8,
+          "minRatio": 9.04,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 6,
+          "blackNonAction": [
+            "section.tn-card Resumo da semana · da TinindoR",
+            "section.tn-card Conecte o número do seu negóci",
+            "select. Simulado (sem envio real)Whats",
+            "input. "
+          ]
+        }
+      },
+      "depois": {
+        "claro": {
+          "url": "/app/mensagens",
+          "height": 1082,
+          "screens": 1.28,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/mensagens",
+          "height": 1082,
+          "screens": 1.28,
+          "minRatio": 9.35,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 4,
+          "blackNonAction": [
+            "select. Simulado (sem envio real)Whats",
+            "input. "
+          ]
+        }
+      }
+    },
+    "orcamentos": {
+      "antes": {
+        "claro": {
+          "url": "/app/orcamentos",
+          "height": 844,
+          "screens": 1,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/orcamentos",
+          "height": 844,
+          "screens": 1,
+          "minRatio": 9.04,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 6,
+          "blackNonAction": [
+            "section.tn-card Seus orçamentosNenhum orçament"
+          ]
+        }
+      },
+      "depois": {
+        "claro": {
+          "url": "/app/orcamentos",
+          "height": 844,
+          "screens": 1,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/orcamentos",
+          "height": 844,
+          "screens": 1,
+          "minRatio": 9.35,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 5,
+          "blackNonAction": []
+        }
+      }
+    },
+    "assinaturas": {
+      "antes": {
+        "claro": {
+          "url": "/app/assinaturas",
+          "height": 890,
+          "screens": 1.05,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/assinaturas",
+          "height": 890,
+          "screens": 1.05,
+          "minRatio": 9.04,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 9,
+          "blackNonAction": [
+            "section.tn-card PlanosNovo planoCorte mensal4 ",
+            "section.tn-card AssinantesNenhuma assinatura a"
+          ]
+        }
+      },
+      "depois": {
+        "claro": {
+          "url": "/app/assinaturas",
+          "height": 844,
+          "screens": 1,
+          "minRatio": 6.12,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 2,
+          "blackNonAction": []
+        },
+        "escuro": {
+          "url": "/app/assinaturas",
+          "height": 844,
+          "screens": 1,
+          "minRatio": 9.04,
+          "contrastFailCount": 0,
+          "smallTargetCount": 0,
+          "blackFills": 8,
+          "blackNonAction": [
+            "ul.tn-list Corte mensal4 × Corte por mês "
+          ]
+        }
+      }
+    }
+  }
+}

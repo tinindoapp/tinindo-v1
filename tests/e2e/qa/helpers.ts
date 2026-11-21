@@ -32,8 +32,12 @@ export async function openFromNav(page: Page, name: string) {
   // e no celular o menu seria pulado. Espera o shell (botão Menu no celular, barra lateral no desktop) antes de decidir.
   await expect(menu.or(nav).filter({ visible: true }).first()).toBeVisible();
   if (await menu.isVisible()) {
-    if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
-    await expect(menu).toHaveAttribute("aria-expanded", "true");
+    // Logo depois de um clique no menu, a tela anterior pode ainda estar carregando: quando a rota troca, a casca fecha
+    // a folha que acabou de abrir. Tenta de novo até a folha ficar aberta.
+    await expect(async () => {
+      if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
+      await expect(menu).toHaveAttribute("aria-expanded", "true", { timeout: 1000 });
+    }).toPass();
   }
   await expect(nav).toBeVisible();
   await nav.getByRole("link", { name, exact: true }).click();

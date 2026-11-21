@@ -42,6 +42,8 @@ describe("lista de espera", () => {
 
   it("adicionar sem preencher: cada erro embaixo do seu campo e foco no primeiro", async () => {
     renderPage();
+    // O formulário abre pela ação principal da abertura (P54), numa folha no celular ou num painel no desktop.
+    fireEvent.click(await screen.findByRole("button", { name: "Adicionar à lista" }));
     const form = await screen.findByRole("form", { name: "Adicionar à lista" });
     fireEvent.click(within(form).getByRole("button", { name: "Adicionar" }));
     expect(await within(form).findByText("Escolha o cliente.")).toBeInTheDocument();
@@ -87,6 +89,32 @@ describe("lista de espera", () => {
     const none = await within(slots).findByText("Ninguém da lista aceita terça-feira, 20/10, às 15:00. A vaga continua livre na agenda.");
     await waitFor(() => expect(none).toHaveFocus());
     expect(within(slots).queryByText("Vaga liberada agora")).not.toBeInTheDocument();
+  });
+
+  it("lista cortada pelo servidor: avisa embaixo da fila e das ofertas", async () => {
+    const port = createDemoPort();
+    // Uma oferta aberta, para a seção de ofertas nascer aberta e ter o que cortar.
+    const first = await port.list();
+    const cand = first.candidates[0]!;
+    await port.prepareOffer(first.entries.find((e) => e.id === cand.entry_id)!, cand.slot, "k-offer");
+    const list = port.list.bind(port);
+    vi.spyOn(port, "list").mockImplementation(async () => ({ ...(await list()), truncated: { entries: true, offers: true } }));
+    render(
+      <WaitlistPortProvider value={port}>
+        <WaitlistPage />
+      </WaitlistPortProvider>,
+    );
+    const entries = await screen.findByRole("region", { name: "Na lista" });
+    expect(await within(entries).findByText("Mostrando as 200 primeiras pessoas da fila.")).toBeInTheDocument();
+    const offers = screen.getByRole("group", { name: "Ofertas" });
+    expect(within(offers).getByText("Mostrando as 50 ofertas mais recentes.")).toBeInTheDocument();
+  });
+
+  it("sem corte do servidor, nenhum aviso de lista cortada", async () => {
+    renderPage();
+    const entries = await screen.findByRole("region", { name: "Na lista" });
+    await within(entries).findByText(/Cliente Exemplo Ana/);
+    expect(screen.queryByText(/Mostrando as/)).not.toBeInTheDocument();
   });
 
   it("sem vaga na URL a tela fica como antes", async () => {

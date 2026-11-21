@@ -58,7 +58,9 @@ describe("caixa de entrada", () => {
     const port = await connectedWithAna();
     const link = vi.spyOn(port, "link");
     conversation(port, (await port.inbox()).contacts[0]!.id);
-    fireEvent.click(await screen.findByRole("button", { name: "Desvincular do cadastro" }));
+    // P54: ação menos usada fica no "⋯" da conversa.
+    fireEvent.click(await screen.findByRole("button", { name: "Mais ações da conversa" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Desvincular do cadastro" }));
     await waitFor(() => expect(link).toHaveBeenCalledTimes(1));
     const contactId = link.mock.calls[0]![0];
     expect(link.mock.calls[0]![1]).toBeNull();
@@ -135,6 +137,44 @@ describe("caixa de entrada", () => {
     fireEvent.click(reply.getByRole("button", { name: "Enviar" }));
     await waitFor(() => expect(send).toHaveBeenCalledTimes(3));
     expect(send.mock.calls[2]![1]).not.toBe(send.mock.calls[0]![1]);
+  });
+
+  it("caixa de entrada cortada pelo servidor: avisa embaixo das conversas; sem corte, nada", async () => {
+    const port = await connectedWithAna();
+    const inbox = port.inbox.bind(port);
+    const spy = vi.spyOn(port, "inbox").mockImplementation(async () => ({ ...(await inbox()), truncated: { contacts: true } }));
+    const { unmount } = page(port);
+    const region = await screen.findByRole("region", { name: "Caixa de entrada" });
+    expect(await within(region).findByText("Mostrando as 200 conversas mais recentes.")).toBeInTheDocument();
+    unmount();
+    spy.mockRestore();
+    page(port);
+    const again = await screen.findByRole("region", { name: "Caixa de entrada" });
+    await within(again).findByText(/Ana Beatriz/);
+    expect(within(again).queryByText(/Mostrando as/)).not.toBeInTheDocument();
+  });
+
+  it("conversa cortada pelo servidor: avisa que mostra só as 200 mensagens mais recentes", async () => {
+    const port = await connectedWithAna();
+    const contactId = (await port.inbox()).contacts[0]!.id;
+    const get = port.conversation.bind(port);
+    const spy = vi.spyOn(port, "conversation").mockImplementation(async (id) => ({ ...(await get(id)), truncated: { messages: true } }));
+    const { unmount } = conversation(port, contactId);
+    expect(await screen.findByText("Mostrando as 200 mensagens mais recentes.")).toBeInTheDocument();
+    unmount();
+    spy.mockRestore();
+    conversation(port, contactId);
+    await screen.findByRole("list", { name: "Mensagens da conversa" });
+    expect(screen.queryByText(/Mostrando as/)).not.toBeInTheDocument();
+  });
+
+  it("D11 b: sem aviso de demonstração por tela; o simulador fica em “Como funciona”", async () => {
+    page(createDemoPort());
+    await screen.findByRole("heading", { name: "Conecte o número do seu negócio" });
+    expect(screen.queryByRole("status", { name: /Demonstração/ })).not.toBeInTheDocument();
+    const help = screen.getByText("Como funciona").closest("details")!;
+    expect(within(help).getByRole("link", { name: "Simulador do telefone" })).toHaveAttribute("href", "/app/mensagens/simulador");
+    expect(help).toHaveTextContent("nenhuma mensagem sai do navegador");
   });
 
   it("conversa: responder fica no rodapé e o aviso de fila sai dentro dele", async () => {

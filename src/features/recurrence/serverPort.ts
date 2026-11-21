@@ -43,7 +43,8 @@ export function createServerPort(call: Call, tenantId: string): RecurrencePort {
       return (await call(op("recurrence.plan_save"), RecurrencePlanOutput, post(input, key))).data.plan;
     },
     async subscriptions() {
-      return (await call(op("recurrence.subscriptions"), RecurrenceListOutput, post({}))).data.subscriptions;
+      const { data } = await call(op("recurrence.subscriptions"), RecurrenceListOutput, post({}));
+      return { subscriptions: data.subscriptions, truncated: data.truncated?.subscriptions ?? false };
     },
     async subscribe(plan_id, customer_id, key) {
       return (await call(op("recurrence.subscribe"), RecurrenceSubscriptionOutput, post({ plan_id, customer_id }, key))).data.subscription;
