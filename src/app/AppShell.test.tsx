@@ -66,7 +66,9 @@ describe("shell do app (demonstração sem servidor)", () => {
     expect(within(tabs).getByRole("link", { name: "Agenda" })).toHaveAttribute("aria-current", "page");
     expect(within(tabs).getByRole("link", { name: "Horários" })).not.toHaveAttribute("aria-current");
     expect(tabs).toHaveTextContent("Preços");
-    expect(screen.getByText(/ainda não guarda nem altera dados/)).toBeInTheDocument();
+    // D11 (b): a demonstração é dita só pela faixa fixa do topo, não por um aviso em cada tela.
+    expect(screen.getByRole("note")).toHaveTextContent(/Demonstração.*dados fictícios/);
+    expect(screen.queryByText(/ainda não guarda nem altera dados/)).not.toBeInTheDocument();
   });
 
   it("todo módulo registrado está em exatamente um grupo do menu", () => {

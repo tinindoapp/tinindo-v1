@@ -150,21 +150,9 @@
 }
 @media (hover: hover) { .tn-sched-linkbtn:hover { background: var(--tn-action-subtle); } }
 
-.tn-sched-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--tn-space-1);
-  padding: 2px var(--tn-space-2);
-  border-radius: var(--tn-radius-pill);
-  font-size: var(--tn-text-label);
-  font-weight: var(--tn-font-weight-medium);
-  white-space: nowrap;
-}
-.tn-sched-badge[data-tone="success"] { background: var(--tn-success-bg); color: var(--tn-success-text); }
-.tn-sched-badge[data-tone="warning"] { background: var(--tn-warning-bg); color: var(--tn-warning-text); }
-.tn-sched-badge[data-tone="info"] { background: var(--tn-info-bg); color: var(--tn-info-text); }
-.tn-sched-badge[data-tone="danger"] { background: var(--tn-danger-bg); color: var(--tn-danger-text); }
-.tn-sched-badge[data-tone="neutral"] { background: var(--tn-surface-sunken); color: var(--tn-text-muted); }
+
+/* Selo de estado: o do kit (.tn-badge, D15). O invólucro não desenha nada; só guarda o seletor dos e2e. */
+.tn-sched-badge { display: contents; }
 
 .tn-sched-weekdays { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--tn-space-2); }
 .tn-sched-weekday {

@@ -5,7 +5,7 @@
 import { useScope } from "../../app/scope.tsx";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { InsightsSection, WeeklyDigestCard } from "./Insights.tsx";
+import { InsightsSection } from "./Insights.tsx";
 import { ActionButton, Button, Card, ConfirmAction, Field, Help, PageHeader, StatusBanner, toast, type ToastInput, useFormErrors } from "../../components/ui/index.tsx";
 import { actionLabel, DECISION, DIRECTION, explain, formatDate, formatEvidence, formatTarget, METRIC_LABEL, OUTCOME, pct, PROGRESS_STATUS, RULE_LABEL } from "./labels.ts";
 import { type Advice, type Content, type Goal, type GoalList, type GoalMetricKey, type GrowthAdvicePort } from "./port.ts";
@@ -221,9 +221,9 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
           {port.kind === "demo" ? <p>“Avançar 30 dias” faz agora a medição que o sistema faria sozinho depois de 30 dias.</p> : null}
         </Help>
         {error ? <StatusBanner tone="danger">{explain(error)}</StatusBanner> : null}
-        {port.followUp ? <div className="tn-actions"><Button variant="secondary" loading={following} onClick={() => void followUp()}>Avançar 30 dias (simulação)</Button></div> : null}
       </div>
-      <InsightsSection key={`insights:${nonce}`} port={port} focusId={params.get("insight")} />
+      {/* Ordem do doc 07 (revisão de 10/11, Metas): metas do mês → uma seção de sugestões → conteúdo aprovado. D12 (b): o
+          resumo da semana fica só em Mensagens. */}
       <Card aria-labelledby="ga-goals-title">
         <h2 id="ga-goals-title">Metas do mês</h2>
         {goals ? <GoalForm key={`new:${nonce}`} port={port} metrics={goals.metrics} monthStart={goals.month_start} onDone={done} /> : null}
@@ -233,14 +233,19 @@ export function GoalsPage({ port }: { port: GrowthAdvicePort }) {
         </ul>
       </Card>
       <Card aria-labelledby="ga-advice-title">
-        <h2 id="ga-advice-title">Sugestões do mês</h2>
-        {advice ? <Suggestions advice={advice} port={port} onDone={done} /> : null}
+        <h2 id="ga-advice-title">Sugestões</h2>
+        <InsightsSection key={`insights:${nonce}`} port={port} focusId={params.get("insight")} inCard />
+        <section className="tn-ga-part" aria-labelledby="ga-month-title">
+          <h3 id="ga-month-title" className="tn-ga-subtitle">Do mês, sobre os indicadores</h3>
+          {advice ? <Suggestions advice={advice} port={port} onDone={done} /> : null}
+        </section>
       </Card>
       <Card aria-labelledby="ga-content-title">
         <h2 id="ga-content-title">Conteúdo aprovado</h2>
         {content ? <ContentSection content={content} port={port} onDone={done} /> : null}
       </Card>
-      <WeeklyDigestCard port={port} />
+      {/* Só na demonstração, no fim da tela (doc 07): faz agora a medição de 30 dias depois. */}
+      {port.followUp ? <div className="tn-actions"><Button variant="secondary" loading={following} onClick={() => void followUp()}>Avançar 30 dias (simulação)</Button></div> : null}
     </div>
   );
 }
