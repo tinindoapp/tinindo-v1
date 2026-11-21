@@ -167,6 +167,8 @@ export function routerRoutes(): string[] {
 /** Links do menu principal (o que a pessoa alcança sem digitar endereço), com a Hoje na frente. */
 export async function menuRoutes(page: Page): Promise<string[]> {
   await page.goto("/app");
+  // O app completo chega num pedaço próprio depois do main.tsx (P55, pacote público): espera o menu existir.
+  await page.locator("#tn-menu a[href^='/app']").first().waitFor({ state: "attached" });
   const hrefs = await page.locator("#tn-menu a[href^='/app']").evaluateAll((as) => as.map((a) => a.getAttribute("href")!));
   return [...new Set(["/app", ...hrefs])];
 }

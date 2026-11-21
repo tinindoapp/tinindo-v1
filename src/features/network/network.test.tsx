@@ -59,7 +59,9 @@ afterEach(() => {
 describe("perfil do dono (demonstração)", () => {
   it("onboarding progressivo: convite de colega só aparece depois do perfil no ar", async () => {
     renderAt("/app/perfil");
-    expect(await screen.findByText(/Demonstração: nada é salvo/)).toBeInTheDocument();
+    // P54 (D11 b): sem aviso de ambiente na abertura da tela.
+    expect(await screen.findByRole("heading", { level: 1, name: "Seu perfil público" })).toBeInTheDocument();
+    expect(screen.queryByText(/Demonstração: nada é salvo/)).not.toBeInTheDocument();
     // Os primeiros passos ficam numa lista só, em Conta (E9).
     expect(screen.queryByRole("region", { name: /Primeiros passos/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Convidar um colega" })).not.toBeInTheDocument();
@@ -384,11 +386,12 @@ describe("páginas públicas (demonstração)", () => {
 
   it("foto e chaves do perfil: começam desligadas; ligadas, o público vê foto, botão do WhatsApp e preço", async () => {
     await publishDemoProfile();
-    const media = screen.getByRole("region", { name: "Foto e contato" });
-    for (const name of ["Mostrar foto", "Mostrar botão do WhatsApp", "Mostrar preços"]) {
+    // No ar, a seção nasce recolhida (P54); sem foto, "Mostrar foto" não aparece.
+    const media = screen.getByRole("group", { name: "Foto e contato" });
+    for (const name of ["Mostrar botão do WhatsApp", "Mostrar preços"]) {
       expect(within(media).getByRole("checkbox", { name: new RegExp(name) })).not.toBeChecked();
     }
-    expect(within(media).getByRole("checkbox", { name: /Mostrar foto/ })).toBeDisabled();
+    expect(within(media).queryByRole("checkbox", { name: /Mostrar foto/ })).not.toBeInTheDocument();
 
     // Desligadas: nada aparece no perfil público.
     cleanup();
@@ -400,7 +403,7 @@ describe("páginas públicas (demonstração)", () => {
 
     cleanup();
     renderAt("/app/perfil");
-    const box = await screen.findByRole("region", { name: "Foto e contato" });
+    const box = await screen.findByRole("group", { name: "Foto e contato" });
     fireEvent.change(within(box).getByLabelText("Foto do negócio"), { target: { files: [new File(["x"], "foto.jpg", { type: "image/jpeg" })] } });
     const alt = await within(box).findByLabelText("Descrição da foto");
     expect((alt as HTMLInputElement).value).toMatch(/^Foto de /);
@@ -450,7 +453,7 @@ describe("páginas públicas (demonstração)", () => {
     expect(await screen.findByRole("heading", { name: "Montar perfil" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
     expect(await screen.findByText(/Perfil de volta no ar/)).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Perfil no ar" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Seu perfil está no ar!" })).toBeInTheDocument();
     cleanup();
     renderAt("/p/barbearia-exemplo");
     expect(await screen.findByRole("heading", { name: "Barbearia Exemplo A" })).toBeInTheDocument();
@@ -541,7 +544,7 @@ async function bookToCode() {
 }
 
 async function turnOnWhatsapp() {
-  const box = await screen.findByRole("region", { name: "Foto e contato" });
+  const box = await screen.findByRole("group", { name: "Foto e contato" });
   fireEvent.click(within(box).getByRole("checkbox", { name: /Mostrar botão do WhatsApp/ }));
   fireEvent.click(within(box).getByRole("button", { name: "Salvar foto e opções" }));
   await screen.findByText("Foto e opções do perfil salvas.");

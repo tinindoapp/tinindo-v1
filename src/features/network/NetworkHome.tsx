@@ -4,7 +4,7 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { Profession, PublicProfileField as PublicProfileFieldSchema } from "@contracts";
 import type { z } from "zod";
-import { Button, Card, ChoiceCard, Field, PageHeader, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
+import { Button, ChoiceCard, Field, PageHeader, Section, StatusBanner, toast, useFormErrors } from "../../components/ui/index.tsx";
 import type { BusinessBasics, NetworkApi, OwnerProfile, ReferralLinkData, ReferralSummary } from "./api.ts";
 import { ProfileDetailsEditor } from "./ProfileDetails.tsx";
 import { ProfileMediaEditor } from "./ProfileMedia.tsx";
@@ -79,45 +79,47 @@ export function NetworkHome() {
   const bookingOn = published && !!profile?.public_fields.includes("booking_link");
 
   return (
-    <div className="tn-stack">
-      <div className="tn-page-intro">
-        <PageHeader id="perfil-titulo" title="Seu perfil público" eyebrow="Perfil e convites" />
-        <p>
-          Você decide o que aparece. Clientes, telefones, valores combinados e sua agenda nunca entram no perfil.
-        </p>
-        {api.demo ? (
-          <StatusBanner tone="info">Demonstração: nada é salvo e nenhum link funciona fora desta aba.</StatusBanner>
-        ) : null}
-        {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
-      </div>
+    <div className="tn-stack tn-net-owner">
+      {/* P54: abertura sem cartão e sem aviso de ambiente (D11 b). O "só nesta aba" da demonstração fica no link. */}
+      <PageHeader
+        id="perfil-titulo"
+        title="Seu perfil público"
+        eyebrow="Perfil e convites"
+        subtitle="Você decide o que aparece. Clientes, telefones, valores combinados e sua agenda nunca entram no perfil."
+      />
+      {loadError ? <StatusBanner tone="danger">{loadError}</StatusBanner> : null}
+      {/* No ar, a tarefa principal é mandar o link; editar fica nas seções recolhidas logo abaixo. */}
+      {published && profile ? <ProfileLive profile={profile} bookingOn={bookingOn} demo={api.demo} /> : null}
       {/* Os primeiros passos do negócio ficam numa lista só, em Conta (E9); aqui, só o perfil. */}
       {profile !== undefined && business !== undefined ? (
-        <ProfileEditor api={api} profile={profile} business={business} onSaved={reload} />
+        <ProfileEditor api={api} profile={profile} business={business} onSaved={reload} collapsed={published || undefined} />
       ) : (
         <p role="status">Carregando…</p>
       )}
       {/* Depois de salvar, a versão muda e o formulário recomeça do que está gravado. */}
-      {profile ? <ProfileMediaEditor key={profile.version} api={api} profile={profile} onSaved={reload} /> : null}
-      {profile ? <ProfileDetailsEditor key={`d${profile.version}`} api={api} profile={profile} onSaved={reload} /> : null}
-      {published && profile ? <ProfileLive slug={profile.slug} bookingOn={bookingOn} demo={api.demo} /> : null}
+      {profile ? <ProfileMediaEditor key={profile.version} api={api} profile={profile} onSaved={reload} collapsed={published || undefined} /> : null}
+      {profile ? <ProfileDetailsEditor key={`d${profile.version}`} api={api} profile={profile} onSaved={reload} collapsed={published || undefined} /> : null}
       {published ? <InvitePeer api={api} referrals={referrals} onCreated={reload} /> : null}
     </div>
   );
 }
 
 /** Depois de publicar: o endereço completo e os jeitos de mandar. A pessoa envia; a Tinindo não manda nada sozinha. */
-function ProfileLive({ slug, bookingOn, demo }: { slug: string; bookingOn: boolean; demo: boolean }) {
-  const url = `${window.location.origin}/p/${slug}`;
+function ProfileLive({ profile, bookingOn, demo }: { profile: OwnerProfile; bookingOn: boolean; demo: boolean }) {
+  const url = `${window.location.origin}/p/${profile.slug}`;
   const text = bookingOn ? "Oi! Este é o meu perfil, com os horários livres para marcar:" : "Oi! Este é o meu perfil:";
   return (
-    <Card aria-labelledby="no-ar-titulo">
+    <Section id="no-ar-titulo" title="Seu perfil está no ar!">
       <div className="tn-stack">
-        <h2 id="no-ar-titulo">Seu perfil está no ar!</h2>
+        <p>
+          Publicado em <span className="tn-num">{formatDateTime(profile.published_at!)}</span> ·{" "}
+          <Link to="previa">Ver como o cliente vê</Link> · <Link to={`/p/${profile.slug}`}>Abrir perfil público</Link>
+        </p>
         <p>Mande o link para seus clientes ou coloque na bio do Instagram e no status do WhatsApp.</p>
         {demo ? <p className="tn-muted">Demonstração: o link só funciona nesta aba.</p> : null}
         <ShareActions url={url} label="Endereço do seu perfil" whatsappText={text} />
       </div>
-    </Card>
+    </Section>
   );
 }
 
@@ -138,11 +140,13 @@ function ProfileEditor({
   profile,
   business,
   onSaved,
+  collapsed,
 }: {
   api: NetworkApi;
   profile: OwnerProfile | null;
   business: BusinessBasics | null;
   onSaved: () => Promise<void>;
+  collapsed?: boolean;
 }) {
   // Endereço sugerido pelo nome do negócio; a pessoa pode trocar.
   const [slug, setSlug] = useState(profile?.slug ?? (business ? slugify(business.name) : ""));
@@ -214,14 +218,7 @@ function ProfileEditor({
   }
 
   return (
-    <Card aria-labelledby="editor-titulo">
-      <h2 id="editor-titulo">{profile?.published_at ? "Perfil no ar" : "Montar perfil"}</h2>
-      {profile?.published_at ? (
-        <p>
-          Publicado em <span className="tn-num">{formatDateTime(profile.published_at)}</span> ·{" "}
-          <Link to="previa">Ver como o cliente vê</Link> · <Link to={`/p/${profile.slug}`}>Abrir perfil público</Link>
-        </p>
-      ) : null}
+    <Section id="editor-titulo" title={profile?.published_at ? "Endereço e o que aparece" : "Montar perfil"} collapsed={collapsed}>
       <form className="tn-stack" onSubmit={publish} ref={formRef} noValidate>
         <Field
           label="Endereço do perfil"
@@ -307,7 +304,7 @@ function ProfileEditor({
           ) : null}
         </div>
       </form>
-    </Card>
+    </Section>
   );
 }
 
@@ -360,8 +357,7 @@ function InvitePeer({ api, referrals, onCreated }: { api: NetworkApi; referrals:
 
   const peers = referrals.filter((r) => r.kind === "professional_invites_peer");
   return (
-    <Card aria-labelledby="convite-titulo">
-      <h2 id="convite-titulo">Convidar um colega</h2>
+    <Section id="convite-titulo" title="Convidar um colega" collapsed={!link}>
       <p>
         Gere um link pessoal e envie você mesmo. A Tinindo não manda mensagem para ninguém. O convite não é avaliação e
         não muda a posição de nenhum perfil.
@@ -407,6 +403,6 @@ function InvitePeer({ api, referrals, onCreated }: { api: NetworkApi; referrals:
           </ul>
         </section>
       ) : null}
-    </Card>
+    </Section>
   );
 }

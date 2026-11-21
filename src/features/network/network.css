@@ -196,3 +196,17 @@
 .tn-net-stars p { margin: 0; }
 .tn-net-stars__show { letter-spacing: 2px; }
 .tn-net-policy { margin: 0; }
+
+/* Vitrine do perfil (P55 parte 2): avaliações em destaque, com o comentário inteiro e o serviço verificado. */
+.tn-net-highlights { display: grid; gap: var(--tn-gap-item); }
+.tn-net-highlights h2, .tn-net-highlights p { margin: 0; }
+.tn-net-highlights__list { list-style: none; padding: 0; margin: 0; display: grid; }
+.tn-net-highlights__list li { display: grid; gap: var(--tn-space-1); padding: var(--tn-space-3) 0; border-bottom: 1px solid var(--tn-border); }
+.tn-net-highlights__list blockquote { margin: 0; overflow-wrap: anywhere; }
+.tn-net-highlights__stars, .tn-net-highlights__avg span[aria-hidden] { letter-spacing: 2px; }
+.tn-net-highlights__all { display: inline-flex; align-items: center; min-height: var(--tn-size-touch); }
+
+/* Tela do dono (P55 parte 2, P54): campo de foto com 44 px de toque. */
+.tn-net-head input[type="file"] { min-height: var(--tn-size-touch); }
+.tn-net-head input[type="file"]::file-selector-button { min-height: var(--tn-size-touch); }
+.tn-net-owner > .tn-section { margin-top: calc(var(--tn-gap-section) - var(--tn-space-4)); }

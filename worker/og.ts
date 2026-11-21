@@ -21,11 +21,12 @@ export interface OgTags {
   description: string;
   url: string;
   image: string;
-  /** Lado da imagem quadrada em px: 512 na imagem padrão, 800 na foto do perfil. */
-  imageSide?: number;
-  /** Endereço canônico (só no perfil público). */
+  /** Tamanho da imagem em px: 1200×630 na imagem padrão (cartão grande), 800×800 na foto do perfil. */
+  imageWidth?: number;
+  imageHeight?: number;
+  /** Endereço canônico (páginas indexáveis: perfil e avaliações). */
   canonical?: string;
-  /** Dados estruturados schema.org (só no perfil público). */
+  /** Dados estruturados schema.org (todas as páginas do cliente). */
   jsonLd?: Record<string, unknown>;
   /** Páginas de link com token: fora dos buscadores. */
   noindex?: boolean;
@@ -90,12 +91,11 @@ export const OG_START = "<!-- og:start -->";
 export const OG_END = "<!-- og:end -->";
 /** Tempo máximo para buscar o perfil: a prévia não pode atrasar a página de quem abre o link. */
 const TIMEOUT_MS = 1500;
-// Imagem sem foto do negócio (D24). Limitação conhecida: WhatsApp e Facebook não desenham og:image em SVG, e o Worker
-// não tem como gerar um PNG com a inicial do negócio sem fonte nem dependência. O único raster que existe em public/
-// é o ícone do app; ele segue como imagem de reserva até entrar um PNG neutro (trocar só esta constante). O título e
-// a descrição já dizem o nome do negócio, então o ícone aparece como "enviado pela Tinindo", não como a marca dele.
-const FALLBACK_IMAGE = "/icons/app-icon-512.png";
-const FALLBACK_IMAGE_SIDE = 512;
+// Imagem sem foto do negócio (D24): public/og/previa.png, 1200×630, feita com o wordmark original
+// (worker/gerar-imagem-previa.cjs). O título e a descrição dizem o nome do negócio; a imagem é neutra.
+export const FALLBACK_IMAGE = "/og/previa.png";
+const FALLBACK_SIZE = { imageWidth: 1200, imageHeight: 630 } as const;
+const PHOTO_SIZE = { imageWidth: 800, imageHeight: 800 } as const;
 
 function slugOf(segment: string): string | null {
   try {
@@ -136,7 +136,8 @@ const scriptJson = (value: unknown) =>
 export function renderTags(tags: OgTags): string {
   const t = escape(clip(tags.title, 70));
   const d = escape(clip(tags.description, 200));
-  const side = tags.imageSide ?? FALLBACK_IMAGE_SIDE;
+  const width = tags.imageWidth ?? FALLBACK_SIZE.imageWidth;
+  const height = tags.imageHeight ?? FALLBACK_SIZE.imageHeight;
   return [
     OG_START,
     `<title>${t}</title>`,
@@ -150,9 +151,11 @@ export function renderTags(tags: OgTags): string {
     `<meta property="og:description" content="${d}" />`,
     `<meta property="og:url" content="${escape(tags.url)}" />`,
     `<meta property="og:image" content="${escape(tags.image)}" />`,
-    `<meta property="og:image:width" content="${side}" />`,
-    `<meta property="og:image:height" content="${side}" />`,
-    `<meta name="twitter:card" content="summary" />`,
+    `<meta property="og:image:width" content="${width}" />`,
+    `<meta property="og:image:height" content="${height}" />`,
+    `<meta property="og:image:alt" content="${t}" />`,
+    // Foto quadrada do negócio: cartão pequeno; imagem 1200×630: cartão grande.
+    `<meta name="twitter:card" content="${width > height ? "summary_large_image" : "summary"}" />`,
     ...(tags.jsonLd ? [`<script type="application/ld+json">${scriptJson(tags.jsonLd)}</script>`] : []),
     OG_END,
   ].join("\n    ");
@@ -174,6 +177,8 @@ const sentences = (parts: (string | null)[]) =>
   parts.filter((p): p is string => !!p).map((p) => p.replace(/[.\s]+$/, "")).join(". ") + ".";
 
 interface PublicProfile {
+  /** Campos D21 (P55): endereço ou domicílio, horário e política. */
+  details: { address: string | null; homeService: boolean; openingHours: string | null };
   category: string;
   /** Nome que o dono publicou; null quando o perfil não tem nome próprio. */
   name: string | null;
@@ -199,7 +204,9 @@ async function readProfile(slug: string, config: OgConfig, fetcher: Fetch): Prom
     const fields = (p.fields && typeof p.fields === "object" ? p.fields : {}) as Record<string, unknown>;
     // Foto do negócio quando o dono ligou "Mostrar foto" (o servidor já manda null desligado); só do bucket público.
     const photo = p.photo && typeof p.photo === "object" ? str((p.photo as Record<string, unknown>).url) : null;
+    const d = (p.details && typeof p.details === "object" ? p.details : {}) as Record<string, unknown>;
     return {
+      details: { address: str(d.address), homeService: d.home_service === true, openingHours: str(d.opening_hours) },
       category: String(p.category),
       name: str(fields.display_name),
       area: str(p.area),
@@ -219,8 +226,8 @@ export async function tagsFor(route: Exclude<Route, { kind: "redirect" }>, origi
   const profile = route.slug ? await readProfile(route.slug, config, fetcher) : null;
   // Sempre URL absoluta, com largura e altura: é o que os robôs de prévia pedem.
   const image = profile?.photo
-    ? { image: profile.photo, imageSide: 800 }
-    : { image: `${origin}${FALLBACK_IMAGE}`, imageSide: FALLBACK_IMAGE_SIDE };
+    ? { image: profile.photo, ...PHOTO_SIZE }
+    : { image: `${origin}${FALLBACK_IMAGE}`, ...FALLBACK_SIZE };
 
   if (route.kind === "profile") {
     if (!profile) return null;
@@ -231,30 +238,42 @@ export async function tagsFor(route: Exclude<Route, { kind: "redirect" }>, origi
     const about = bio ?? str(profile.fields.services_summary);
     const lead = [category, profile.area].filter(Boolean).join(" · ");
     const action = str(profile.fields.booking_link) ? "Veja os horários livres e agende pelo link." : "Veja o perfil na Tinindo.";
-    // Dados estruturados (D24): só o que o dono publicou. Sem nota média, sem horário e sem endereço inventados;
-    // o endereço entra como texto apenas se a leitura pública trouxer `fields.address`. `fields.opening_hours`
-    // (texto livre) não vira `openingHours`, que exige formato próprio do schema.org.
-    const address = str(profile.fields.address);
-    const jsonLd: Record<string, unknown> = {
-      "@context": "https://schema.org",
-      "@type": SCHEMA_TYPE[profile.category] ?? "LocalBusiness",
-      name,
-      url,
-      ...(profile.photo ? { image: profile.photo } : {}),
-      ...(bio ? { description: clip(bio, 500) } : {}),
-      ...(profile.area ? { areaServed: profile.area } : {}),
-      ...(address ? { address: clip(address, 200) } : {}),
-    };
-    return { title: name, description: sentences([lead, about, action]), url, ...image, canonical: url, jsonLd };
+    return { title: name, description: sentences([lead, about, action]), url, ...image, canonical: url, jsonLd: businessLd(profile, name, url) };
   }
 
   const named = profile?.name && route.kind !== "offer" ? NAMED[route.kind](clip(profile.name, 60)) : null;
   const [title, description] = named ?? NEUTRAL[route.kind];
+  const url = `${origin}/${PATH[route.kind]}${route.slug ? `/${route.slug}` : ""}`;
+  const business = profile && route.slug ? businessLd(profile, profile.name ?? CATEGORY[profile.category] ?? CATEGORY.other!, `${origin}/p/${route.slug}`) : null;
+  // Dados estruturados em todas as páginas do cliente: a página (WebPage) e, quando se sabe, o negócio de quem ela é.
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: clip(title, 70),
+    url,
+    inLanguage: "pt-BR",
+    ...(business ? { about: { ...business, "@context": undefined } } : {}),
+  };
+  const indexable = !TOKEN_PAGES.has(route.kind);
+  // Links com token: fora dos buscadores e sem canonical (noindex e canonical juntos mandam sinais opostos).
+  return { title, description, url, ...image, jsonLd, ...(indexable ? { canonical: url } : { noindex: true }) };
+}
+
+/**
+ * O negócio em schema.org (D24): só o que o dono publicou. Sem nota média, sem horário e sem endereço inventados.
+ * O endereço entra como texto quando o perfil traz `details.address`; atender em domicílio vira `areaServed`.
+ * `details.opening_hours` (texto livre) não vira `openingHours`, que exige formato próprio do schema.org.
+ */
+function businessLd(profile: PublicProfile, name: string, url: string): Record<string, unknown> {
+  const bio = str(profile.fields.bio);
   return {
-    title,
-    description,
-    url: `${origin}/${PATH[route.kind]}${route.slug ? `/${route.slug}` : ""}`,
-    ...image,
-    ...(TOKEN_PAGES.has(route.kind) ? { noindex: true } : {}),
+    "@context": "https://schema.org",
+    "@type": SCHEMA_TYPE[profile.category] ?? "LocalBusiness",
+    name,
+    url,
+    ...(profile.photo ? { image: profile.photo } : {}),
+    ...(bio ? { description: clip(bio, 500) } : {}),
+    ...(profile.area ? { areaServed: profile.area } : {}),
+    ...(profile.details.address ? { address: clip(profile.details.address, 200) } : {}),
   };
 }

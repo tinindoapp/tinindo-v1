@@ -39,6 +39,7 @@ test("convite: abrir não aceita, token sai da URL e aceitar é ação explícit
   await page.getByLabel("Endereço do perfil").fill("quem-convida");
   await page.getByLabel("Bairro ou região").fill("Centro");
   await page.getByRole("button", { name: "Publicar perfil" }).click();
+  await page.getByRole("heading", { name: "Convidar um colega", level: 2 }).click();
   await page.getByLabel("Nome do colega (só você vê)").fill("Colega Exemplo");
   await page.getByRole("button", { name: "Gerar link de convite" }).click();
   const link = new URL(await page.getByLabel("Link para compartilhar").inputValue());

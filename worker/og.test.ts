@@ -25,7 +25,7 @@ const profile = (fields: Record<string, string>) =>
   Response.json({ data: { slug: "ana-cortes", category: "barber", area: "Pinheiros", fields, published_at: "2026-10-20T12:00:00Z", reputation: { identity_verified: false, reviews_count: 0 } } });
 
 const ORIGIN = "https://tinindoapp.com.br";
-const DEFAULT_IMAGE = `${ORIGIN}/icons/app-icon-512.png`;
+const DEFAULT_IMAGE = `${ORIGIN}/og/previa.png`;
 const SLOGAN = "Agenda, clientes e dinheiro do seu negócio em ordem";
 const run = (path: string, fetcher: unknown, config: unknown = CONFIG, init?: RequestInit) =>
   handle(new Request(`${ORIGIN}${path}`, init), { ASSETS: assets(config) }, fetcher as typeof fetch);
@@ -102,9 +102,10 @@ describe("prévia do link", () => {
     const photo = "https://exemplo.supabase.co/storage/v1/object/public/profile-photos/a/b.webp";
     const data = (category: string, fields: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
       vi.fn(async () => Response.json({ data: { slug: "ana-cortes", category, area: null, fields, reputation: { reviews_count: 12, average: 4.9 }, ...extra } }));
-    let ld = jsonLdOf(await (await run("/p/ana-cortes", data("personal_trainer", { display_name: "Treino da Bia", address: "Rua A, 10", opening_hours: "Seg a sex, 9h às 18h" }, { photo: { url: photo } }))).text())!;
+    // Endereço vem dos detalhes do perfil (D21, P55); horário em texto livre não vira openingHours.
+    let ld = jsonLdOf(await (await run("/p/ana-cortes", data("personal_trainer", { display_name: "Treino da Bia" }, { photo: { url: photo }, details: { address: "Rua A, 10", home_service: false, opening_hours: "Seg a sex, 9h às 18h", cancellation_policy: null } }))).text())!;
     expect(ld).toEqual({ "@context": "https://schema.org", "@type": "LocalBusiness", name: "Treino da Bia", url: "https://tinindoapp.com.br/p/ana-cortes", image: photo, address: "Rua A, 10" });
-    ld = jsonLdOf(await (await run("/p/ana-cortes", data("hairdresser", { display_name: "Studio Bia", address: 42 }))).text())!;
+    ld = jsonLdOf(await (await run("/p/ana-cortes", data("hairdresser", { display_name: "Studio Bia" }, { details: { address: 42 } }))).text())!;
     expect(ld["@type"]).toBe("HairSalon");
     for (const key of ["address", "image", "description", "areaServed", "aggregateRating", "openingHours"]) expect(ld).not.toHaveProperty(key);
     ld = jsonLdOf(await (await run("/p/ana-cortes", data("inventada", {}))).text())!;
@@ -121,8 +122,9 @@ describe("prévia do link", () => {
       expect(block).not.toContain("<img");
       expect(block).not.toContain('"><');
       expect(block).not.toContain("\u2028");
-      expect(block.match(/<script/g) ?? []).toHaveLength(path.startsWith("/p/") ? 1 : 0);
-      expect(block.match(/<\/script>/g) ?? []).toHaveLength(path.startsWith("/p/") ? 1 : 0);
+      // Toda página do cliente tem um bloco de dados estruturados, e só um.
+      expect(block.match(/<script/g) ?? []).toHaveLength(1);
+      expect(block.match(/<\/script>/g) ?? []).toHaveLength(1);
       expect(block).toContain("Léo&lt;/script&gt;");
     }
     const ld = jsonLdOf(await (await run("/p/ana-cortes", hostile)).text())!;
@@ -144,9 +146,24 @@ describe("prévia do link", () => {
       expect(html).toContain('<meta property="og:image:height" content="800" />');
       html = await (await run(path, withPhoto("https://evil.example/x.webp"))).text();
       expect(html).toContain(`<meta property="og:image" content="${DEFAULT_IMAGE}" />`);
-      expect(html).toContain('<meta property="og:image:width" content="512" />');
+      expect(html).toContain('<meta property="og:image:width" content="1200" />');
       expect(html).not.toContain("evil.example");
     }
+  });
+
+  it("D24: páginas do cliente com o negócio no JSON-LD (about); foto quadrada em cartão pequeno", async () => {
+    const fetcher = vi.fn(async () => Response.json({ data: {
+      slug: "ana-cortes", category: "barber", area: "Pinheiros", fields: { display_name: "Barbearia do Léo" },
+      details: { address: "Rua B, 20", home_service: false, opening_hours: null, cancellation_policy: null },
+    } }));
+    for (const path of ["/reserva/ana-cortes", "/avaliacoes/ana-cortes"]) {
+      const ld = jsonLdOf(await (await run(path, fetcher)).text())!;
+      expect(ld.about).toMatchObject({ "@type": "HairSalon", name: "Barbearia do Léo", url: `${ORIGIN}/p/ana-cortes`, address: "Rua B, 20" });
+      expect(ld.about).not.toHaveProperty("@context");
+    }
+    const html = await (await run("/p/ana-cortes", fetcher)).text();
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
+    expect(html).toContain('<meta property="og:image:alt" content="Barbearia do Léo" />');
   });
 
   it("/s/:slug: 301 para /p/:slug com a mesma query, sem tocar nos arquivos nem na rede", async () => {
@@ -187,11 +204,14 @@ describe("prévia do link", () => {
     expect(html).toContain(`<meta property="og:description" content="${description}" />`);
     expect(html).toContain(`<meta property="og:url" content="${ORIGIN}${path}" />`);
     expect(html).toContain(`<meta property="og:image" content="${DEFAULT_IMAGE}" />`);
-    expect(html).toContain('<meta property="og:image:width" content="512" />');
-    expect(html).toContain('<meta property="og:image:height" content="512" />');
+    // Imagem própria (D24), 1200×630, em cartão grande.
+    expect(html).toContain('<meta property="og:image:width" content="1200" />');
+    expect(html).toContain('<meta property="og:image:height" content="630" />');
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
     expect(html.includes('<meta name="robots" content="noindex" />')).toBe(noindex);
-    expect(html).not.toContain('rel="canonical"');
-    expect(html).not.toContain("application/ld+json");
+    // Indexável (avaliações): canonical. Link com token: noindex e sem canonical.
+    expect(html.includes(`<link rel="canonical" href="${ORIGIN}${path}" />`)).toBe(!noindex);
+    expect(jsonLdOf(html)).toMatchObject({ "@type": "WebPage", url: `${ORIGIN}${path}`, inLanguage: "pt-BR" });
     expect(html).not.toContain(SLOGAN);
     expect(html.match(/og:title/g)).toHaveLength(1);
   }

@@ -38,3 +38,10 @@
 .tn-site__list small { opacity: .75; }
 .tn-site-page { max-width: 640px; margin: 0 auto; padding: var(--tn-space-6) var(--tn-space-4) var(--tn-space-8); display: grid; gap: var(--tn-space-4); }
 .tn-site-page__foot { color: var(--tn-text-muted); font-size: var(--tn-text-support); }
+
+/* P54 (P55 parte 2): seções do kit com 32 px entre elas (a grade já põe 16), e a frase "Sem promessa de posição" como texto, não aviso. */
+.tn-prs > .tn-section { margin-top: calc(var(--tn-gap-section) - var(--tn-space-4)); }
+.tn-prs-promise { margin: 0; color: var(--tn-text-muted); }
+/* Seções recolhidas em sequência viram linhas de uma lista (44 px cada), sem o espaço de seção entre elas. */
+.tn-prs > .tn-section--fold + .tn-section--fold { margin-top: calc(-1 * var(--tn-space-4)); border-top: 1px solid var(--tn-border); }
+.tn-prs > .tn-section--fold > summary { padding-block: var(--tn-space-2); }

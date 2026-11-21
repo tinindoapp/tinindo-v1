@@ -10,6 +10,8 @@ async function publish(page: Page, slug: string, where: "address" | "home") {
   await page.getByLabel("Endereço do perfil").fill(slug);
   await page.getByLabel("Bairro ou região").fill("Centro");
   await page.getByRole("button", { name: "Publicar perfil" }).click();
+  // No ar, a seção nasce recolhida (P54).
+  await page.getByRole("heading", { name: "Onde, quando e cancelamento", level: 2 }).click();
   const form = page.getByRole("form", { name: "Endereço, horário e política" });
   if (where === "address") {
     await form.getByText("No meu endereço").click();
